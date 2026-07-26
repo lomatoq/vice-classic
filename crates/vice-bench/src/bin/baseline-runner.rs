@@ -69,6 +69,20 @@ enum Cmd {
     Env {
         #[arg(long)]
         out: Option<PathBuf>,
+        /// Print only the normative projection — the fields a reproduction
+        /// must match, i.e. exactly what `environment_sha256` covers.
+        #[arg(long)]
+        normative: bool,
+    },
+    /// Compare the NORMATIVE section of two hashes.json documents. Exits 0
+    /// when they match, 1 when they differ, 2 on a read/parse error. This
+    /// is the executable form of "compare the recorded artifact with your
+    /// run" (REVIEW_M0 N3).
+    CompareHashes {
+        #[arg(long)]
+        recorded: PathBuf,
+        #[arg(long)]
+        actual: PathBuf,
     },
     /// Run the internal copy-adapter pipeline twice and verify the runner's
     /// own machinery is deterministic. Needs no mirrors or network.
@@ -195,8 +209,38 @@ fn real_main() -> i32 {
                 1
             }
         }
-        Cmd::Env { out } => {
-            let json = envinfo::canonical_json(&envinfo::collect());
+        Cmd::CompareHashes { recorded, actual } => {
+            let load = |p: &PathBuf| -> Result<serde_json::Value, String> {
+                let text =
+                    std::fs::read_to_string(p).map_err(|e| format!("read {}: {e}", p.display()))?;
+                serde_json::from_str(&text).map_err(|e| format!("parse {}: {e}", p.display()))
+            };
+            let (a, b) = match (load(&recorded), load(&actual)) {
+                (Ok(a), Ok(b)) => (a, b),
+                (Err(e), _) | (_, Err(e)) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let diffs = vice_bench::report::compare_normative(&a, &b);
+            if diffs.is_empty() {
+                println!("normative sections match");
+                0
+            } else {
+                for d in &diffs {
+                    println!("{d}");
+                }
+                eprintln!("{} normative difference(s)", diffs.len());
+                1
+            }
+        }
+        Cmd::Env { out, normative } => {
+            let m = envinfo::collect();
+            let json = if normative {
+                envinfo::normative_json(&m)
+            } else {
+                envinfo::canonical_json(&m)
+            };
             match out {
                 Some(p) => {
                     if let Err(e) = std::fs::write(&p, format!("{json}\n")) {

@@ -22,6 +22,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod certified;
 pub mod coverage;
 pub mod domain;
 pub mod embedding;
@@ -31,6 +32,7 @@ pub mod render_error;
 pub mod roi;
 pub mod seal;
 
+pub use certified::CertifiedMesh;
 pub use coverage::{polygon_coverage, CoverageError};
 pub use domain::NumericDomain;
 pub use embedding::verify_embedding;

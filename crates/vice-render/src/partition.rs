@@ -24,11 +24,11 @@
 
 use sha2::{Digest, Sha256};
 use vice_ir::color::PremulRgba;
-use vice_ir::{FaceId, Paint, PixelFilter, ValidatedScene};
+use vice_ir::{FaceId, Paint, ValidatedScene};
 
+use crate::certified::CertifiedMesh;
 use crate::coverage::polygon_coverage;
 use crate::domain::NumericDomain;
-use crate::embedding::verify_embedding;
 use crate::mesh::{RenderMesh, TessellationBudget};
 use crate::render_error::RenderError;
 
@@ -192,12 +192,7 @@ pub fn render_partition(
     scene: &ValidatedScene,
     options: &RenderOptions,
 ) -> Result<PartitionRender, RenderError> {
-    let filter = scene.scene().formation.pixel_filter;
-    if filter != PixelFilter::Box {
-        return Err(RenderError::UnsupportedPixelFilter { got: filter });
-    }
-    let mesh = RenderMesh::build(scene, options.budget)?;
-    render_mesh_partition(&mesh, options)
+    render_mesh_partition(&CertifiedMesh::from_scene(scene, *options)?)
 }
 
 /// Every mesh point and the canvas must lie inside the numeric domain the
@@ -246,36 +241,21 @@ pub(crate) fn check_numeric_domain(
     Ok(())
 }
 
-/// Render from an already-built mesh (the seal path re-renders the same
-/// fixed tessellation).
+/// Render from a CERTIFIED mesh (the seal path re-renders the same fixed
+/// tessellation).
 ///
-/// Takes the whole [`RenderOptions`] rather than a loose
-/// `(tolerances, domain)` pair (F-M2-R9 residue): the pair is only
-/// meaningful when the tolerance was derived from that domain, and a
-/// function accepting the two independently is a public route back to the
-/// very defect the private fields closed. Now there is no such route.
-pub fn render_mesh_partition(
-    mesh: &RenderMesh,
-    options: &RenderOptions,
-) -> Result<PartitionRender, RenderError> {
-    let tolerances = options.tolerances();
-    let domain = options.domain();
+/// Takes a [`CertifiedMesh`] rather than `(mesh, options)`: the resource
+/// bound, the numeric domain and the M1-N5 loop-orientation gate are now
+/// proven by the argument's type instead of re-run here, and the options
+/// come from the witness so a render can never use tolerances that were
+/// never certified. This continues the line of C042 (tolerance and domain
+/// cannot be set apart) and C049 (the mesh entry points take the whole
+/// `RenderOptions`); D-4 is the same argument applied to the embedding.
+pub fn render_mesh_partition(certified: &CertifiedMesh) -> Result<PartitionRender, RenderError> {
+    let mesh = certified.mesh();
+    let tolerances = certified.options().tolerances();
     let (w, h) = (mesh.width_px, mesh.height_px);
     let faces = mesh.face_loops.len();
-    let elements = u64::from(w) * u64::from(h) * faces as u64;
-    if elements > MAX_COVERAGE_ELEMENTS {
-        return Err(RenderError::CanvasTooLarge {
-            width_px: w,
-            height_px: h,
-            faces,
-            limit_elements: MAX_COVERAGE_ELEMENTS,
-        });
-    }
-    check_numeric_domain(mesh, domain)?;
-
-    // M1-N5 hard gate: loop orientation certification on EVERY render.
-    verify_embedding(mesh)?;
-
     let n_px = (w as usize) * (h as usize);
     let mut face_coverage = Vec::with_capacity(faces);
     for f in 0..faces {

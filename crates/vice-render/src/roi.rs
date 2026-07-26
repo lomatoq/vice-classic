@@ -20,10 +20,9 @@
 //! reason).
 
 use vice_ir::color::PremulRgba;
-use vice_ir::{FaceId, PixelFilter, ValidatedScene};
+use vice_ir::{FaceId, ValidatedScene};
 
-use crate::embedding::verify_embedding;
-use crate::mesh::RenderMesh;
+use crate::certified::CertifiedMesh;
 use crate::partition::{face_coverage_band, premul_of_paint, RenderOptions};
 use crate::render_error::RenderError;
 
@@ -63,24 +62,22 @@ pub fn render_partition_roi(
     options: &RenderOptions,
     roi: PixelRect,
 ) -> Result<RoiRender, RenderError> {
-    let filter = scene.scene().formation.pixel_filter;
-    if filter != PixelFilter::Box {
-        return Err(RenderError::UnsupportedPixelFilter { got: filter });
-    }
-    let mesh = RenderMesh::build(scene, options.budget)?;
-    render_mesh_partition_roi(&mesh, options, roi)
+    render_mesh_partition_roi(&CertifiedMesh::from_scene(scene, *options)?, roi)
 }
 
-/// ROI render from an already-built mesh. Takes the whole
-/// [`RenderOptions`] for the reason given on
-/// [`crate::partition::render_mesh_partition`] (F-M2-R9 residue).
+/// ROI render from a CERTIFIED mesh, for the reason given on
+/// [`crate::partition::render_mesh_partition`] (D-4).
+///
+/// The certificate covers the whole mesh, not the window: loop orientation
+/// and the numeric domain are GLOBAL facts and stay global here, exactly as
+/// in M2. Only the range/sum invariants are window-local, and that scope
+/// statement is unchanged (ADR-0011).
 pub fn render_mesh_partition_roi(
-    mesh: &RenderMesh,
-    options: &RenderOptions,
+    certified: &CertifiedMesh,
     roi: PixelRect,
 ) -> Result<RoiRender, RenderError> {
-    let tolerances = options.tolerances();
-    let domain = options.domain();
+    let mesh = certified.mesh();
+    let tolerances = certified.options().tolerances();
     let (w, h) = (mesh.width_px, mesh.height_px);
     if roi.x0 >= roi.x1 || roi.y0 >= roi.y1 || roi.x1 > w || roi.y1 > h {
         return Err(RenderError::RoiInvalid {
@@ -93,20 +90,6 @@ pub fn render_mesh_partition_roi(
         });
     }
     let faces = mesh.face_loops.len();
-    let elements = u64::from(w) * u64::from(roi.height()) * faces as u64;
-    if elements > crate::partition::MAX_COVERAGE_ELEMENTS {
-        return Err(RenderError::CanvasTooLarge {
-            width_px: w,
-            height_px: roi.height(),
-            faces,
-            limit_elements: crate::partition::MAX_COVERAGE_ELEMENTS,
-        });
-    }
-
-    // The numeric domain and the global geometric certification stay on:
-    // neither M1-N5 nor F-0008 is optional on the ROI path.
-    crate::partition::check_numeric_domain(mesh, domain)?;
-    verify_embedding(mesh)?;
 
     let (rw, rh) = (roi.width() as usize, roi.height() as usize);
     let full_w = w as usize;

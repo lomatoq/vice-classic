@@ -112,8 +112,11 @@ pub fn run_with_config(
     })?;
 
     let env = envinfo::collect();
+    // env.json keeps the WHOLE manifest; the hash covers the normative
+    // projection only, so a difference in ambient presence or CPU count is
+    // not reported as an environment mismatch (debt D-1 / M1-N4).
     let env_json = envinfo::canonical_json(&env);
-    let environment_sha256 = sha256_hex(env_json.as_bytes());
+    let environment_sha256 = sha256_hex(envinfo::normative_json(&env).as_bytes());
     let exe_sha256 = std::env::current_exe()
         .ok()
         .and_then(|p| sha256_file(&p).ok());

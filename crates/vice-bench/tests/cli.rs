@@ -75,17 +75,88 @@ fn selftest_pipeline_is_deterministic() {
     let hashes: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(out.join("hashes.json")).unwrap()).unwrap();
     assert_eq!(
-        hashes["baselines"]["selftest-copy"]["primary_deterministic"],
+        hashes["normative"]["baselines"]["selftest-copy"]["primary_deterministic"],
         serde_json::Value::Bool(true)
     );
     assert_eq!(
-        hashes["baselines"]["selftest-copy"]["status"],
+        hashes["normative"]["baselines"]["selftest-copy"]["status"],
         serde_json::Value::String("completed".into())
     );
     // report.json exists and carries the environment hash.
     let report: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(out.join("report.json")).unwrap()).unwrap();
     assert!(report["environment_sha256"].as_str().unwrap().len() == 64);
+}
+
+/// The reproducibility instruction is a command, not a request (debt D-1 /
+/// REVIEW_M0 N3): two independent runs must compare equal on the normative
+/// section, and a real difference must be reported with its location.
+#[test]
+fn compare_hashes_matches_two_runs_and_still_sees_a_real_difference() {
+    let t = tempfile::tempdir().unwrap();
+    let corpus = t.path().join("corpus");
+    gen_corpus(&corpus);
+
+    let selftest = |out: &Path| {
+        let status = Command::new(runner_bin())
+            .arg("selftest")
+            .arg("--out")
+            .arg(out)
+            .arg("--corpus")
+            .arg(&corpus)
+            .arg("--manifest")
+            .arg(corpus.join("SMOKE_MANIFEST.toml"))
+            .status()
+            .unwrap();
+        assert!(status.success());
+        out.join("hashes.json")
+    };
+    let compare = |a: &Path, b: &Path| -> (Option<i32>, String) {
+        let out = Command::new(runner_bin())
+            .arg("compare-hashes")
+            .arg("--recorded")
+            .arg(a)
+            .arg("--actual")
+            .arg(b)
+            .output()
+            .unwrap();
+        (
+            out.status.code(),
+            String::from_utf8_lossy(&out.stdout).to_string(),
+        )
+    };
+
+    let a = selftest(&t.path().join("run-a"));
+    let b = selftest(&t.path().join("run-b"));
+    let (code, stdout) = compare(&a, &b);
+    assert_eq!(code, Some(0), "two runs must reproduce: {stdout}");
+
+    // Specificity: perturbing one recorded artifact hash inside the
+    // normative section must be reported, at its pointer.
+    let mut doc: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&b).unwrap()).unwrap();
+    let arts = doc["normative"]["baselines"]["selftest-copy"]["artifacts"]["rect_32.png"]
+        .as_object_mut()
+        .unwrap();
+    let key = arts.keys().next().unwrap().clone();
+    arts[&key] = serde_json::json!("0".repeat(64));
+    let perturbed = t.path().join("perturbed.json");
+    std::fs::write(&perturbed, serde_json::to_string(&doc).unwrap()).unwrap();
+    let (code, stdout) = compare(&a, &perturbed);
+    assert_eq!(code, Some(1));
+    assert!(
+        stdout.contains("/normative/baselines/selftest-copy/artifacts/rect_32.png/"),
+        "stdout: {stdout}"
+    );
+
+    // Sensitivity in the other direction: a difference confined to the
+    // informational section must NOT be reported, which is the whole point.
+    let mut doc: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&b).unwrap()).unwrap();
+    doc["informational"]["binary_sha256"]["selftest-copy"] = serde_json::json!("f".repeat(64));
+    let informational = t.path().join("informational.json");
+    std::fs::write(&informational, serde_json::to_string(&doc).unwrap()).unwrap();
+    assert_eq!(compare(&a, &informational).0, Some(0));
 }
 
 const TEST_CONFIG: &str = r#"
@@ -347,7 +418,7 @@ bytes = {len}
         serde_json::from_str(&std::fs::read_to_string(out_ok.join("hashes.json")).unwrap())
             .unwrap();
     assert_eq!(
-        hashes["baselines"]["donor"]["assets"]["models/m.bin"],
+        hashes["normative"]["baselines"]["donor"]["assets"]["models/m.bin"],
         digest
     );
 

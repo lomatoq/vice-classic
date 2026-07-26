@@ -7,6 +7,22 @@
 //! The recorded M0 artifacts under docs/baselines/M0 keep the older shape;
 //! byte-comparing env.json against them is only meaningful at M0 commits
 //! (see docs/REPRODUCIBILITY_M0.md).
+//!
+//! Normative vs informational (REVIEW_M0 N7, REVIEW_M1 M1-N4, debt D-1).
+//! The manifest mixes two kinds of fact:
+//!
+//! - NORMATIVE — what a reproduction must match: OS/arch/family, the four
+//!   tool versions, and the child-environment POLICY (its identifier, the
+//!   removed list, the pinned values). These control what children see.
+//! - INFORMATIONAL — true of this machine, irrelevant to the result:
+//!   `logical_cpus`, and `ambient_overrides_present`, which merely says
+//!   which sanitized names happened to EXIST in the ambient environment.
+//!
+//! Until now `environment_sha256` covered both, so two identical machines
+//! differing only in whether `CARGO_INCREMENTAL` was set produced different
+//! environment hashes — the hash reported an irrelevant difference as an
+//! environment mismatch. It now covers the normative part only, and the
+//! informational part stays visible in the artifact, unhashed.
 
 use std::collections::BTreeMap;
 
@@ -110,7 +126,63 @@ pub fn collect() -> EnvManifest {
     }
 }
 
-/// Canonical JSON (fixed struct field order) used for the environment hash.
+/// Canonical JSON (fixed struct field order) of the WHOLE manifest — what
+/// `env.json` contains and what a human reads.
 pub fn canonical_json(m: &EnvManifest) -> String {
     serde_json::to_string(m).expect("env manifest serializes")
+}
+
+/// The normative projection of the manifest: exactly the fields a
+/// reproduction is required to match (see the module note).
+///
+/// Written as an explicit projection rather than as a `skip_serializing`
+/// attribute on the ignored fields, because the informational fields must
+/// stay VISIBLE in `env.json` while staying OUT of the hash. Two different
+/// documents, one source of truth.
+pub fn normative_json(m: &EnvManifest) -> String {
+    let normative = serde_json::json!({
+        "os": m.os,
+        "arch": m.arch,
+        "family": m.family,
+        "rustc": m.rustc,
+        "cargo": m.cargo,
+        "git": m.git,
+        "python": m.python,
+        "command_env": {
+            "policy": m.command_env.policy,
+            "removed": m.command_env.removed,
+            "set": m.command_env.set,
+        },
+    });
+    serde_json::to_string(&normative).expect("normative env serializes")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ambient_presence_and_cpu_count_do_not_move_the_environment_hash() {
+        let mut a = collect();
+        let before = normative_json(&a);
+
+        // The two informational fields, changed to values this machine
+        // could genuinely report. Neither may move the normative document.
+        a.logical_cpus += 7;
+        a.command_env
+            .ambient_overrides_present
+            .push("RUSTFLAGS".to_string());
+        assert_eq!(normative_json(&a), before);
+
+        // Control: a normative field DOES move it, so the projection is not
+        // vacuously stable.
+        a.rustc = Some("rustc 0.0.0".to_string());
+        assert_ne!(normative_json(&a), before);
+
+        // And the informational fields remain visible in env.json itself —
+        // dropped from the hash, not from the record.
+        let full = canonical_json(&a);
+        assert!(full.contains("logical_cpus"));
+        assert!(full.contains("ambient_overrides_present"));
+    }
 }

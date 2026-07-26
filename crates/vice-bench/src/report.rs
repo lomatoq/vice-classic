@@ -3,12 +3,24 @@
 //! Two files are written per run:
 //! - `report.json` — full record incl. runtimes, logs, absolute mirror paths.
 //!   Machine-specific and time-varying by design (documented).
-//! - `hashes.json` — the deterministic subset used for reproducibility
-//!   comparison: only content hashes, pin SHAs and stable statuses, in
-//!   BTreeMap (sorted) order. Two runs of the same binary on the same
-//!   machine over the same corpus must produce byte-identical `hashes.json`
-//!   unless a baseline itself is nondeterministic — which is then visible
-//!   in the `*_deterministic` fields and the report mismatches.
+//! - `hashes.json` — the reproducibility artifact, split into a `normative`
+//!   and an `informational` section (debt D-1; REVIEW_M0 N3, REVIEW_M1
+//!   M1-N4).
+//!
+//! Why the split. `hashes.json` was documented as "the deterministic subset
+//! for byte comparison", yet it carried `binary_sha256`, which legitimately
+//! differs between two correct runs: the reviewer's rebuild of the same
+//! source with the same toolchain produced a different binary hash. So the
+//! documented instruction — compare the files — could never succeed, and
+//! the artifact's own contract was false.
+//!
+//! Now the contract is executable. `normative` holds exactly what a
+//! reproduction must match: config hash, corpus hashes, resolved pin SHAs,
+//! staged asset hashes, statuses/error kinds, output artifact hashes and the
+//! determinism verdicts. `informational` holds facts that are true of the
+//! run but not required to match — today `binary_sha256`. `compare-hashes`
+//! diffs the normative section and exits nonzero on any difference, so
+//! "compare the files" is a command, not a request.
 
 use std::collections::BTreeMap;
 
@@ -18,13 +30,15 @@ use crate::assets::AssetRecord;
 use crate::envinfo::EnvManifest;
 use crate::error::ErrorRecord;
 
-/// Artifact contract v2 = v1 + declared asset provenance (M0 blocker B2).
+/// Artifact contract v3 = v1 + declared asset provenance (M0 blocker B2,
+/// C059) + the normative/informational split (debt D-1, C061).
+///
 /// The recorded M0 artifacts under `docs/baselines/M0/` stay at v1 and are
 /// historical: they are reproducible only at the M0-era commits that wrote
 /// them, which was already the documented situation for `env.json` after
 /// C009. Changing the tag is what keeps that statement checkable.
-pub const REPORT_SCHEMA: &str = "vice-classic/baseline-report/v2";
-pub const HASHES_SCHEMA: &str = "vice-classic/baseline-hashes/v2";
+pub const REPORT_SCHEMA: &str = "vice-classic/baseline-report/v3";
+pub const HASHES_SCHEMA: &str = "vice-classic/baseline-hashes/v3";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolInfo {
@@ -138,9 +152,29 @@ pub struct DeterminismMismatch {
 #[derive(Debug, Serialize)]
 pub struct HashesFile {
     pub schema: String,
+    /// Everything a reproduction is REQUIRED to match, byte for byte.
+    pub normative: NormativeHashes,
+    /// True of this run, not required to match. Kept in the artifact so it
+    /// stays auditable; excluded from the comparison so the comparison can
+    /// actually be performed.
+    pub informational: InformationalHashes,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NormativeHashes {
     pub config_sha256: String,
+    pub environment_sha256: String,
     pub corpus: BTreeMap<String, String>,
     pub baselines: BTreeMap<String, BaselineHashes>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct InformationalHashes {
+    /// Baseline name -> built binary sha256. Toolchain- and
+    /// checkout-path-dependent: REVIEW_M0 probe P1 rebuilt the same source
+    /// with the same toolchain at the same path and got a different hash
+    /// while the produced SVGs matched byte for byte.
+    pub binary_sha256: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -152,9 +186,6 @@ pub struct BaselineHashes {
     /// the asset is pinned exactly as strongly as the commit, so two runs
     /// that agree here used the same donor state.
     pub assets: BTreeMap<String, String>,
-    /// Toolchain- and checkout-path-dependent; see STATUS_M0 "known
-    /// nondeterminism" before comparing across machines.
-    pub binary_sha256: Option<String>,
     /// input file -> artifact rel path -> sha256, from repeat 0.
     pub artifacts: BTreeMap<String, BTreeMap<String, String>>,
     pub primary_deterministic: Option<bool>,
@@ -169,6 +200,7 @@ pub fn hashes_from_report(report: &RunReport) -> HashesFile {
         .collect::<BTreeMap<_, _>>();
 
     let mut baselines = BTreeMap::new();
+    let mut binary_sha256 = BTreeMap::new();
     for b in &report.baselines {
         let mut artifacts: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
         for r in &b.runs {
@@ -179,6 +211,9 @@ pub fn hashes_from_report(report: &RunReport) -> HashesFile {
             for a in &r.artifacts {
                 entry.insert(a.path.clone(), a.sha256.clone());
             }
+        }
+        if let Some(h) = b.build.as_ref().and_then(|x| x.binary_sha256.clone()) {
+            binary_sha256.insert(b.name.clone(), h);
         }
         baselines.insert(
             b.name.clone(),
@@ -191,7 +226,6 @@ pub fn hashes_from_report(report: &RunReport) -> HashesFile {
                     .iter()
                     .map(|a| (a.path.clone(), a.sha256.clone()))
                     .collect(),
-                binary_sha256: b.build.as_ref().and_then(|x| x.binary_sha256.clone()),
                 artifacts,
                 primary_deterministic: b.determinism.as_ref().and_then(|d| d.primary_deterministic),
                 all_artifacts_deterministic: b
@@ -204,8 +238,103 @@ pub fn hashes_from_report(report: &RunReport) -> HashesFile {
 
     HashesFile {
         schema: HASHES_SCHEMA.to_string(),
-        config_sha256: report.config_sha256.clone(),
-        corpus,
-        baselines,
+        normative: NormativeHashes {
+            config_sha256: report.config_sha256.clone(),
+            environment_sha256: report.environment_sha256.clone(),
+            corpus,
+            baselines,
+        },
+        informational: InformationalHashes { binary_sha256 },
+    }
+}
+
+/// Compare the NORMATIVE sections of two `hashes.json` documents.
+///
+/// Returns the list of differing JSON pointers (empty = reproduced). Works
+/// on parsed JSON rather than on the structs so it can be pointed at a
+/// recorded artifact written by an older binary — which is exactly the
+/// situation a clean-checkout reproduction is in.
+pub fn compare_normative(a: &serde_json::Value, b: &serde_json::Value) -> Vec<String> {
+    let mut diffs = Vec::new();
+    diff_json("/schema", a.get("schema"), b.get("schema"), &mut diffs);
+    diff_json(
+        "/normative",
+        a.get("normative"),
+        b.get("normative"),
+        &mut diffs,
+    );
+    diffs.sort();
+    diffs
+}
+
+fn diff_json(
+    path: &str,
+    a: Option<&serde_json::Value>,
+    b: Option<&serde_json::Value>,
+    out: &mut Vec<String>,
+) {
+    match (a, b) {
+        (None, None) => {}
+        (Some(x), Some(y)) if x == y => {}
+        (Some(serde_json::Value::Object(x)), Some(serde_json::Value::Object(y))) => {
+            let mut keys: Vec<&String> = x.keys().chain(y.keys()).collect();
+            keys.sort();
+            keys.dedup();
+            for k in keys {
+                diff_json(&format!("{path}/{k}"), x.get(k), y.get(k), out);
+            }
+        }
+        (x, y) => out.push(format!(
+            "{path}: {} != {}",
+            x.map(|v| v.to_string())
+                .unwrap_or_else(|| "<absent>".into()),
+            y.map(|v| v.to_string())
+                .unwrap_or_else(|| "<absent>".into())
+        )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn doc(binary: &str, artifact: &str) -> serde_json::Value {
+        serde_json::json!({
+            "schema": HASHES_SCHEMA,
+            "normative": {
+                "config_sha256": "c0",
+                "environment_sha256": "e0",
+                "corpus": { "a.png": "aa" },
+                "baselines": { "d": { "status": "completed", "artifacts": { "a.png": { "a.svg": artifact } } } }
+            },
+            "informational": { "binary_sha256": { "d": binary } }
+        })
+    }
+
+    #[test]
+    fn comparison_ignores_the_informational_section_and_only_that() {
+        // The exact situation REVIEW_M0 hit: same results, different binary.
+        assert!(compare_normative(&doc("b1", "s1"), &doc("b2", "s1")).is_empty());
+
+        // Specificity: a real difference is reported, with its location.
+        let diffs = compare_normative(&doc("b1", "s1"), &doc("b1", "s2"));
+        assert_eq!(diffs.len(), 1, "{diffs:?}");
+        assert!(diffs[0].starts_with("/normative/baselines/d/artifacts/a.png/a.svg"));
+
+        // A missing key is a difference, not a silent pass.
+        let mut short = doc("b1", "s1");
+        short["normative"]["baselines"]["d"]
+            .as_object_mut()
+            .unwrap()
+            .remove("status");
+        let diffs = compare_normative(&doc("b1", "s1"), &short);
+        assert_eq!(diffs.len(), 1);
+        assert!(diffs[0].contains("<absent>"));
+
+        // And a schema change is a difference: comparing across artifact
+        // contracts must not look like a successful reproduction.
+        let mut other = doc("b1", "s1");
+        other["schema"] = serde_json::json!("vice-classic/baseline-hashes/v1");
+        assert!(!compare_normative(&doc("b1", "s1"), &other).is_empty());
     }
 }
