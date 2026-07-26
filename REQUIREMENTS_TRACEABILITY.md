@@ -39,6 +39,8 @@ milestone gate. Покрыты M0, M1 и M2.
 | M3-18 | Долги D-1, D-2 | `assets`, `fsutil`, `report` v3, `configs/baselines.toml`, ADR-0014 | `declared_assets_are_staged_into_the_pinned_checkout_or_typed_refused`, `compare_hashes_matches_two_runs_and_still_sees_a_real_difference`, `ambient_presence_and_cpu_count_do_not_move_the_environment_hash` | STATUS_M3 G13 |
 
 
+| M3-19 | Блокеры REVIEW_M3 (M3-N1..N4) и замечания N5..N16 | `bin/gt-corpus.rs` (одна хеш-функция), `gates::ChangedPath` + CI покоммитно, `gates` класс-обход, ADR-0014/SOURCE_PINS исправлены, `gt::mod` (истина без inverse crime), `reliability` (guard внутри), CI verify закоммиченного манифеста | `crates/vice-bench/tests/gt_corpus_cli.rs` (7), `every_frozen_value_agrees_with_the_code_that_uses_it`, `the_real_c072_change_set_is_accepted_and_its_modified_twin_is_not`, `the_contract_cannot_be_met_without_a_calibrated_likelihood_protocol`, `the_hash_distinguishes_every_representable_threshold` | STATUS_M3 addendum |
+
 ## M2 — Certified partition renderer + serialized roundtrip (spec §28 M2)
 
 | # | Требование (spec §16/§20.2/§28 M2 + REVIEW_M1 M1-N2..N10) | Реализация | Тесты / проверка | Gate |
