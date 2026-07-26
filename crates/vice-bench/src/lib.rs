@@ -18,6 +18,7 @@ pub mod envinfo;
 pub mod error;
 pub mod exec;
 pub mod fsutil;
+pub mod gt;
 pub mod hashing;
 pub mod limits;
 pub mod report;
