@@ -663,7 +663,7 @@ mod tests {
         // Rasterize the mirrored geometry with the same integrator by
         // building a scene-free coverage call through the public path: the
         // exact integrator is a pure function of the loops.
-        let mirrored = crate::gt::raster::exact_clip_face_for_test(&mirrored_loops[1], 64, 64);
+        let mirrored = crate::gt::raster::exact_clip_loops(&mirrored_loops[1], 64, 64);
         let mut worst = 0.0f64;
         for y in 0..w {
             for x in 0..w {

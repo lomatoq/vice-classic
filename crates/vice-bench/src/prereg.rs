@@ -33,8 +33,16 @@ pub struct Bucket {
     /// bucket fails regardless of its risk bound — the clause that stops a
     /// system passing by abstaining from almost everything (§1.5).
     pub min_coverage_per_source: f64,
-    /// Provisional SLO targets of §29 for this bucket.
-    pub boundary_p95_px: f64,
+    /// Provisional SLO target of §29 for this bucket, or `None` where the
+    /// bucket has no boundary target at all.
+    ///
+    /// An `Option` rather than `f64::INFINITY` (REVIEW_M3 M3-N14):
+    /// serde_json prints every non-finite f64 as `null`, so `+inf`, `-inf`
+    /// and `NaN` all hashed identically and `check()` accepted all three -
+    /// a hole in the very claim the frozen hash makes. "No target" is now a
+    /// distinct value the serializer can see, and `check()` refuses a
+    /// non-finite threshold outright.
+    pub boundary_p95_px: Option<f64>,
 }
 
 /// One catastrophic-failure kind. The list is §27.4's minimum, verbatim in
@@ -85,7 +93,7 @@ impl Preregistration {
                     max_size_px: 512,
                     identifiability: &["identifiable"],
                     min_coverage_per_source: 0.80,
-                    boundary_p95_px: 0.35,
+                    boundary_p95_px: Some(0.35),
                 },
                 Bucket {
                     id: "flat2-clean-aa-identifiable-64",
@@ -93,7 +101,7 @@ impl Preregistration {
                     max_size_px: 64,
                     identifiability: &["identifiable"],
                     min_coverage_per_source: 0.60,
-                    boundary_p95_px: 0.50,
+                    boundary_p95_px: Some(0.50),
                 },
                 Bucket {
                     id: "flat2-small-16-32",
@@ -105,7 +113,7 @@ impl Preregistration {
                     // here would be preregistering a number nobody has
                     // justified.
                     min_coverage_per_source: 0.0,
-                    boundary_p95_px: 1.0,
+                    boundary_p95_px: Some(1.0),
                 },
                 Bucket {
                     id: "equivalent-family",
@@ -113,7 +121,7 @@ impl Preregistration {
                     max_size_px: 512,
                     identifiability: &["equivalent_family"],
                     min_coverage_per_source: 0.0,
-                    boundary_p95_px: 0.50,
+                    boundary_p95_px: Some(0.50),
                 },
                 Bucket {
                     id: "information-lost",
@@ -123,7 +131,10 @@ impl Preregistration {
                     // Scored on correct ABSTENTION (§29), so a coverage
                     // floor here would reward exactly the wrong behaviour.
                     min_coverage_per_source: 0.0,
-                    boundary_p95_px: f64::INFINITY,
+                    // Scored on correct ABSTENTION, so there is no boundary
+                    // target - stated as absence, not as an infinity the
+                    // serializer would flatten to null.
+                    boundary_p95_px: None,
                 },
             ],
             catastrophic_taxonomy: vec![
@@ -245,6 +256,16 @@ impl Preregistration {
             if !(0.0..=1.0).contains(&b.min_coverage_per_source) {
                 bad.push(format!("{}: coverage floor outside [0,1]", b.id));
             }
+            // A non-finite threshold is invisible to the hash (it prints as
+            // `null`), so it may not be a threshold at all.
+            if let Some(v) = b.boundary_p95_px {
+                if !v.is_finite() || v <= 0.0 {
+                    bad.push(format!(
+                        "{}: boundary target must be finite and positive, or absent",
+                        b.id
+                    ));
+                }
+            }
         }
         // An identifiable bucket at or above 64 px without a coverage floor
         // would let total abstention pass, which §1.5 forbids explicitly.
@@ -308,6 +329,56 @@ mod tests {
         let dup = p.buckets[0].clone();
         p.buckets.push(dup);
         assert!(p.check().is_err(), "duplicate bucket ids");
+
+        // A non-finite threshold is refused rather than silently hashed as
+        // `null` (REVIEW_M3 M3-N14).
+        for bad_value in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN, 0.0, -1.0] {
+            let mut p = base.clone();
+            p.buckets[0].boundary_p95_px = Some(bad_value);
+            assert!(
+                p.check().is_err(),
+                "boundary target {bad_value} must be refused"
+            );
+        }
+    }
+
+    /// The hash must SEE every threshold. It did not: `+inf`, `-inf` and
+    /// `NaN` all serialize as `null` and produced one hash, while `check()`
+    /// accepted all three (REVIEW_M3 M3-N14).
+    #[test]
+    fn the_hash_distinguishes_every_representable_threshold() {
+        let base = Preregistration::v1();
+        let h = base.hash();
+        let mut seen = std::collections::BTreeSet::from([h.clone()]);
+        // 0.35 is bucket 0 own value; a sweep must not include it.
+        for v in [0.1f64, 0.36, 1e308, 1e-308] {
+            let mut p = Preregistration::v1();
+            p.buckets[0].boundary_p95_px = Some(v);
+            assert!(seen.insert(p.hash()), "value {v} does not move the hash");
+        }
+        // Absence is its own value, distinct from any number.
+        let mut p = Preregistration::v1();
+        p.buckets[0].boundary_p95_px = None;
+        assert!(seen.insert(p.hash()), "absence must be distinguishable");
+        // `null` still appears - but now it means exactly one thing, and
+        // the count proves it: one per bucket that declares no target. The
+        // hole was non-finite NUMBERS collapsing onto that same token; a
+        // deliberate absence sharing it is not a hole, because `check()`
+        // refuses every non-finite value, so nothing else can print `null`.
+        let nulls = base.canonical_json().matches(":null").count();
+        let absent = base
+            .buckets
+            .iter()
+            .filter(|b| b.boundary_p95_px.is_none())
+            .count();
+        assert_eq!(
+            nulls, absent,
+            "every `null` in the canonical document must be a declared absence"
+        );
+        assert!(
+            absent >= 1,
+            "the corpus has a bucket with no boundary target"
+        );
     }
 
     /// The taxonomy must cover §27.4's minimum list, kind by kind, so a

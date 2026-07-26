@@ -124,6 +124,14 @@ jobs:
           cargo run --release --bin gt-corpus -- build \
             --out runs/ci-corpus/manifest-b.json --scope test
           diff runs/ci-corpus/manifest-a.json runs/ci-corpus/manifest-b.json
+      # The COMMITTED artifact, verified (REVIEW_M3 M3-N7). Until now CI
+      # built its own manifest and reported on that, so
+      # docs/gt/CORPUS_MANIFEST.json was checked by nobody but a reviewer
+      # running the command by hand. `verify` rebuilds at the manifest's own
+      # recorded scope and compares every render digest.
+      - name: The committed corpus manifest reproduces
+        run: |
+          cargo run --release --bin gt-corpus -- verify             --manifest docs/gt/CORPUS_MANIFEST.json
       - name: M3 scorecard and gate table
         run: |
           cargo run --release --bin gt-corpus -- report \

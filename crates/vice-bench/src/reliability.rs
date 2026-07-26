@@ -30,6 +30,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
+use crate::gt::raster::RasterProfile;
+
 /// The independent unit of a reliability trial (spec §27.4). Frozen in
 /// `configs/GATES_V1.toml` `reliability.unit_of_trial`; named here so the
 /// gate file is checked against the implementation.
@@ -189,10 +191,19 @@ pub fn required_groups_for_zero_failures(confidence: f64, risk_target: f64) -> u
 /// One scored render. M3 produces none of these — the vectorizer does not
 /// exist — but the aggregation is defined and tested now, because §32
 /// rule 2 puts the measurement before the algorithm.
+///
+/// The type carries the PROFILE rather than an `inverse_crime` flag
+/// (REVIEW_M3 M3-N5): the flag used to be a `bool` the caller supplied, so
+/// a `RenderOutcome` naming a `vice-render` cell with `inverse_crime:
+/// false` was counted into the sample. Exclusion is a property of the
+/// profile, so the profile is what the type carries and the flag is
+/// derived.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RenderOutcome {
     pub group_id: String,
     pub cell_id: String,
+    /// The rasterizer profile that produced the render.
+    pub profile: RasterProfile,
     /// Did the system ACCEPT this input (as opposed to abstaining)?
     pub accepted: bool,
     /// Was an accepted output catastrophic (§27.4 taxonomy)?
@@ -200,9 +211,15 @@ pub struct RenderOutcome {
     /// Mandatory variants are the ones the group's verdict is computed
     /// from; optional extras may be reported but never dilute the count.
     pub mandatory: bool,
+}
+
+impl RenderOutcome {
     /// Renders from the inverse-crime profile are diagnostics and are
-    /// excluded from the reliability sample entirely (§27.1).
-    pub inverse_crime: bool,
+    /// excluded from the reliability sample entirely (§27.1). Derived, so
+    /// no caller can assert otherwise.
+    pub fn inverse_crime(&self) -> bool {
+        self.profile.is_inverse_crime()
+    }
 }
 
 /// The verdict for one independent trial unit.
@@ -224,7 +241,7 @@ pub fn group_verdicts(outcomes: &[RenderOutcome]) -> BTreeMap<String, GroupVerdi
     let mut catastrophic: BTreeSet<&str> = BTreeSet::new();
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     for o in outcomes {
-        if o.inverse_crime || !o.mandatory {
+        if o.inverse_crime() || !o.mandatory {
             continue;
         }
         seen.insert(&o.group_id);
@@ -272,17 +289,31 @@ pub struct RiskCoverage {
     pub required_groups: u64,
     /// Positive while the sample is too small for the claim.
     pub group_deficit: u64,
-    /// True only when the sample size AND the bound both satisfy the
-    /// contract. Nothing else may be read as "the target is met".
+    /// True only when the sample size, the bound AND the likelihood
+    /// protocol all satisfy the contract. Nothing else may be read as "the
+    /// target is met".
     pub contract_met: bool,
+    /// Populated whenever the likelihood protocol refused (§17.1). While
+    /// this is `Some`, `contract_met` is `false` by construction.
+    pub likelihood_refusal: Option<String>,
 }
 
 /// Compute the risk–coverage row for one bucket.
+///
+/// `residual_model` is the declared likelihood model and whether it has
+/// been calibrated. It is not optional decoration: §17.1 forbids a
+/// production reliability claim under a diagnostic-only residual model, and
+/// REVIEW_M3 M3-N6 measured that this function would previously return
+/// `contract_met: true` on 459 fabricated groups without the guard ever
+/// being consulted. The guard is now inside the computation, so a caller
+/// cannot forget to ask - passing `None` means "no model declared", which
+/// the guard refuses.
 pub fn risk_coverage(
     bucket: &str,
     outcomes: &[RenderOutcome],
     confidence: f64,
     risk_target: f64,
+    residual_model: Option<(crate::correlation::ResidualModel, bool)>,
 ) -> RiskCoverage {
     let verdicts = group_verdicts(outcomes);
     let groups_total = verdicts.len() as u64;
@@ -295,13 +326,20 @@ pub fn risk_coverage(
         .filter(|v| **v == GroupVerdict::AcceptedCatastrophic)
         .count() as u64;
 
-    let scored: Vec<&RenderOutcome> = outcomes.iter().filter(|o| !o.inverse_crime).collect();
+    let scored: Vec<&RenderOutcome> = outcomes.iter().filter(|o| !o.inverse_crime()).collect();
     let renders_total = scored.len() as u64;
     let renders_accepted = scored.iter().filter(|o| o.accepted).count() as u64;
 
     let upper = clopper_pearson_upper(groups_catastrophic, groups_accepted, confidence);
     let required = required_groups_for_zero_failures(confidence, risk_target);
     let deficit = required.saturating_sub(groups_accepted);
+    let likelihood_refusal = crate::correlation::guard_confidence_claim(
+        residual_model.map(|(m, _)| m),
+        residual_model.is_some_and(|(_, calibrated)| calibrated),
+        IID_OVERCOUNT_MEASURED_ON_THIS_CORPUS,
+    )
+    .err()
+    .map(|e| e.to_string());
 
     RiskCoverage {
         bucket: bucket.to_string(),
@@ -316,9 +354,14 @@ pub fn risk_coverage(
         confidence,
         required_groups: required,
         group_deficit: deficit,
-        contract_met: deficit == 0 && upper < risk_target,
+        contract_met: deficit == 0 && upper < risk_target && likelihood_refusal.is_none(),
+        likelihood_refusal,
     }
 }
+
+/// The measured iid over-count factor on this corpus, reported by the guard
+/// when it refuses (`correlation::tests`, formation-mismatch residual).
+pub const IID_OVERCOUNT_MEASURED_ON_THIS_CORPUS: f64 = 9.0;
 
 fn ratio(num: u64, den: u64) -> f64 {
     if den == 0 {
@@ -336,10 +379,10 @@ mod tests {
         RenderOutcome {
             group_id: group.to_string(),
             cell_id: cell.to_string(),
+            profile: RasterProfile::ExactClip,
             accepted,
             catastrophic,
             mandatory: true,
-            inverse_crime: false,
         }
     }
 
@@ -411,7 +454,7 @@ mod tests {
         assert_eq!(v["g2"], GroupVerdict::AcceptedClean);
         assert_eq!(v["g3"], GroupVerdict::Abstained);
 
-        let rc = risk_coverage("test", &outcomes, 0.99, 0.01);
+        let rc = risk_coverage("test", &outcomes, 0.99, 0.01, None);
         assert_eq!(rc.groups_total, 3, "seven renders are three trials");
         assert_eq!(rc.groups_accepted, 2);
         assert_eq!(rc.groups_catastrophic, 1);
@@ -434,8 +477,8 @@ mod tests {
                 inflated.push(r(&format!("g{i}"), &format!("phase{k}"), true, false));
             }
         }
-        let a = risk_coverage("b", &base, 0.99, 0.01);
-        let b = risk_coverage("b", &inflated, 0.99, 0.01);
+        let a = risk_coverage("b", &base, 0.99, 0.01, None);
+        let b = risk_coverage("b", &inflated, 0.99, 0.01, None);
         assert_eq!(a.groups_accepted, b.groups_accepted, "3 groups either way");
         assert_eq!(
             a.catastrophic_risk_upper, b.catastrophic_risk_upper,
@@ -451,14 +494,89 @@ mod tests {
         outcomes.push(RenderOutcome {
             group_id: "g2".into(),
             cell_id: "s64_vice".into(),
+            profile: RasterProfile::ViceRender,
             accepted: true,
             catastrophic: false,
             mandatory: true,
-            inverse_crime: true,
         });
-        let rc = risk_coverage("b", &outcomes, 0.99, 0.01);
+        let rc = risk_coverage("b", &outcomes, 0.99, 0.01, None);
         assert_eq!(rc.groups_total, 1, "the inverse-crime group is not a trial");
         assert_eq!(rc.renders_total, 1);
+        // The old hole: a caller claiming otherwise about a vice-render
+        // cell. It is now unsayable - the flag is a function of the profile.
+        assert!(outcomes[1].inverse_crime());
+        assert!(!outcomes[0].inverse_crime());
+    }
+
+    /// The guard is INSIDE the computation, so a caller cannot forget it.
+    ///
+    /// REVIEW_M3 M3-N6 measured the previous hole: 459 fabricated accepted
+    /// groups returned `contract_met: true` while `guard_confidence_claim`
+    /// was never consulted. The statistical bound of §27.4 is still
+    /// computed and reported - that is what §27.4 asks for - but "the
+    /// contract is met" now requires the §17.1 protocol as well.
+    #[test]
+    fn the_contract_cannot_be_met_without_a_calibrated_likelihood_protocol() {
+        use crate::correlation::ResidualModel;
+        let outcomes: Vec<RenderOutcome> = (0..459)
+            .map(|i| r(&format!("g{i}"), "s128", true, false))
+            .collect();
+
+        // Enough groups, zero failures - and still not met, because no
+        // residual model is declared.
+        let none = risk_coverage("b", &outcomes, 0.99, 0.01, None);
+        assert_eq!(none.groups_accepted, 459);
+        assert!(
+            none.catastrophic_risk_upper < 0.01,
+            "the BOUND is still computed"
+        );
+        assert_eq!(none.group_deficit, 0);
+        assert!(
+            !none.contract_met,
+            "no declared model: the contract is not met"
+        );
+        assert!(none.likelihood_refusal.is_some());
+
+        // A diagnostic-only model does not rescue it, even called calibrated.
+        let iid = risk_coverage(
+            "b",
+            &outcomes,
+            0.99,
+            0.01,
+            Some((ResidualModel::IidPixel, true)),
+        );
+        assert!(!iid.contract_met);
+        assert!(iid.likelihood_refusal.unwrap().contains("iid_pixel"));
+
+        // An admissible but uncalibrated model does not either.
+        let uncal = risk_coverage(
+            "b",
+            &outcomes,
+            0.99,
+            0.01,
+            Some((ResidualModel::Block, false)),
+        );
+        assert!(!uncal.contract_met);
+
+        // Only the full set of conditions does - so the test is not
+        // vacuously false for every input.
+        let ok = risk_coverage(
+            "b",
+            &outcomes,
+            0.99,
+            0.01,
+            Some((ResidualModel::Block, true)),
+        );
+        assert!(ok.contract_met);
+        assert!(ok.likelihood_refusal.is_none());
+
+        // And the sample-size clause still binds under a good model.
+        let few: Vec<RenderOutcome> = (0..10)
+            .map(|i| r(&format!("g{i}"), "s128", true, false))
+            .collect();
+        assert!(
+            !risk_coverage("b", &few, 0.99, 0.01, Some((ResidualModel::Block, true))).contract_met
+        );
     }
 
     /// The honest M3 output: zero accepted groups, a maximal bound, and a
@@ -468,7 +586,7 @@ mod tests {
         let outcomes: Vec<RenderOutcome> = (0..80)
             .map(|i| r(&format!("g{i}"), "s128", false, false))
             .collect();
-        let rc = risk_coverage("flat2-clean-aa-128-512", &outcomes, 0.99, 0.01);
+        let rc = risk_coverage("flat2-clean-aa-128-512", &outcomes, 0.99, 0.01, None);
         assert_eq!(rc.groups_accepted, 0);
         assert_eq!(rc.catastrophic_risk_upper, 1.0);
         assert_eq!(rc.coverage_per_source, 0.0);
@@ -488,7 +606,7 @@ mod tests {
             .map(|i| r(&format!("g{i}"), "s128", true, false))
             .collect();
         outcomes.extend((10..500).map(|i| r(&format!("g{i}"), "s128", false, false)));
-        let rc = risk_coverage("b", &outcomes, 0.99, 0.01);
+        let rc = risk_coverage("b", &outcomes, 0.99, 0.01, None);
         assert_eq!(rc.groups_accepted, 10);
         assert!(!rc.contract_met);
         assert_eq!(rc.group_deficit, 449);

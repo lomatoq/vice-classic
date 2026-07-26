@@ -176,11 +176,14 @@ pub struct PartitionTruth {
     /// The formation's declared exterior model.
     pub exterior_model: &'static str,
     /// How much of the canvas the TRUE exterior face actually covers,
-    /// MEASURED by rendering. An opaque-exterior scene is a full-bleed
-    /// background FACE (the exterior face's paint is `TransparentExterior`
-    /// by IR contract), so this must be ~0 there; a fixture that declares
-    /// `opaque` while leaving the exterior visible is inconsistent, and the
-    /// only way to notice is to measure rather than to read the label.
+    /// MEASURED by the INDEPENDENT exact-clip integrator - never by the
+    /// production renderer, which would put a truth field in the hands of
+    /// the inverse-crime arm (REVIEW_M3 M3-N5). An opaque-exterior scene is
+    /// a full-bleed background FACE (the exterior face's paint is
+    /// `TransparentExterior` by IR contract), so this must be ~0 there; a
+    /// fixture that declares `opaque` while leaving the exterior visible is
+    /// inconsistent, and the only way to notice is to measure rather than
+    /// to read the label.
     pub exterior_visible_px2: f64,
     /// Signed area of each face in scene px², indexed by `FaceId`.
     pub face_area_px2: Vec<f64>,
@@ -248,9 +251,26 @@ impl PartitionTruth {
             .sum();
 
         // The per-pixel partition check lives HERE, in the render, and it
-        // is what catches overlap and wrong nesting.
-        let render = vice_render::render_mesh_partition(certified)?;
-        let exterior_visible_px2 = render.face_coverage[exterior].iter().sum();
+        // is what catches overlap and wrong nesting. Its VALUE is discarded:
+        // only the fact that it succeeded is used.
+        //
+        // NO field of this truth comes from the production renderer
+        // (REVIEW_M3 M3-N5). `exterior_visible_px2` was originally read off
+        // that render, which put one scalar of GT truth into the hands of
+        // the inverse-crime arm and hashed it into `corpus_hash`: the
+        // discipline had been applied to RENDERS but not to TRUTH FIELDS.
+        // The exterior's coverage is `1 + its winding integral`, and the
+        // integral is taken by the INDEPENDENT exact-clip integrator.
+        let _tiles_the_window = vice_render::render_mesh_partition(certified)?;
+        let exterior_loops: Vec<Vec<Pt>> = mesh.face_loops[exterior]
+            .iter()
+            .map(|lp| lp.points.clone())
+            .collect();
+        let exterior_visible_px2: f64 =
+            crate::gt::raster::exact_clip_loops(&exterior_loops, mesh.width_px, mesh.height_px)
+                .iter()
+                .map(|v| v + 1.0)
+                .sum();
 
         Ok(PartitionTruth {
             visible_faces,
@@ -399,8 +419,8 @@ impl GtScene {
     }
 }
 
-/// Why several scenes are equally correct answers (§27.1 "Ð´Ð¾Ð¿ÑƒÑÑ‚Ð¸Ð¼Ð°Ñ scene
-/// equivalence class").
+/// Why several scenes are equally correct answers (spec section 27.1: the
+/// admissible scene equivalence class).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EquivalenceClass {
     pub id: String,

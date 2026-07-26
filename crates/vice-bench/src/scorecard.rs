@@ -26,6 +26,14 @@ use crate::universe::{model_universe_hash, SupportedModelUniverseV1};
 
 pub const SCORECARD_SCHEMA: &str = "vice-classic/m3-scorecard/v1";
 
+/// The residual model this core declares, and whether it is calibrated.
+///
+/// `None` in M3: no vectorizer, no calibration, therefore no confidence.
+/// A single named constant rather than a literal at each call site, so the
+/// gate row below reports the state of the SYSTEM rather than being true by
+/// construction (REVIEW_M3 M3-N6).
+pub const DECLARED_RESIDUAL_MODEL: Option<(ResidualModel, bool)> = None;
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Hashes {
     pub model_universe: String,
@@ -94,15 +102,32 @@ pub fn build(manifest: &CorpusManifest, gates: &GatesFile, seal: &AuditSeal) -> 
     // Reliability, per preregistered bucket. There are no outcomes: nothing
     // produces them, so every row reports zero accepted groups and the
     // deficit against the contract.
+    // The declared likelihood state of the system, in one place: no model
+    // is calibrated in M3, so this is `None` and every row inherits the
+    // refusal. It is read from `DECLARED_RESIDUAL_MODEL` rather than
+    // written as a literal at each call site, so the day one IS calibrated
+    // the scorecard changes in exactly one place (REVIEW_M3 M3-N6).
     let reliability: Vec<RiskCoverage> = prereg
         .buckets
         .iter()
-        .map(|b| risk_coverage(b.id, &[], prereg.confidence, prereg.risk_target))
+        .map(|b| {
+            risk_coverage(
+                b.id,
+                &[],
+                prereg.confidence,
+                prereg.risk_target,
+                DECLARED_RESIDUAL_MODEL,
+            )
+        })
         .collect();
 
-    let refusal = guard_confidence_claim(Some(ResidualModel::Block), false, 9.0)
-        .err()
-        .map(|e| e.to_string());
+    let refusal = guard_confidence_claim(
+        DECLARED_RESIDUAL_MODEL.map(|(m, _)| m),
+        DECLARED_RESIDUAL_MODEL.is_some_and(|(_, c)| c),
+        crate::reliability::IID_OVERCOUNT_MEASURED_ON_THIS_CORPUS,
+    )
+    .err()
+    .map(|e| e.to_string());
 
     Scorecard {
         schema: SCORECARD_SCHEMA,
@@ -145,8 +170,8 @@ pub fn build(manifest: &CorpusManifest, gates: &GatesFile, seal: &AuditSeal) -> 
         },
         reliability,
         confidence: ConfidenceStatus {
-            residual_model: None,
-            calibrated: false,
+            residual_model: DECLARED_RESIDUAL_MODEL.map(|(m, _)| m.id().to_string()),
+            calibrated: DECLARED_RESIDUAL_MODEL.is_some_and(|(_, c)| c),
             refusal,
         },
         not_yet_produced: vec![

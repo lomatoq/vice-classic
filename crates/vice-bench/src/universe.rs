@@ -379,6 +379,15 @@ impl SupportedModelUniverseV1 {
     }
 
     /// Canonical JSON: struct declaration order, compact, no map iteration.
+    ///
+    /// "Canonical" here means DETERMINISTIC FOR A FIXED DECLARATION, not
+    /// invariant under semantically neutral edits (REVIEW_M3 M3-N8):
+    /// swapping two entries of `segment_families` changes the hash although
+    /// the universe it denotes is the same. The error is in the safe
+    /// direction - a semantically neutral edit raises an alarm rather than
+    /// hiding - but it means hashes are comparable only within one
+    /// declaration, exactly as render digests are comparable only within one
+    /// renderer version (REDTEAM_M2 addendum 4, debt 3).
     pub fn canonical_json(&self) -> String {
         serde_json::to_string(self).expect("universe serializes")
     }

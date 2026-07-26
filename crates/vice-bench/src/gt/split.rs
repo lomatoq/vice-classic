@@ -23,6 +23,16 @@
 //! later run re-checks them. A change after opening is a typed
 //! [`BurnViolation`] naming what moved — not an honour system, and not
 //! something a later reader has to reconstruct from commit dates.
+//!
+//! The honest limit of that, stated because the mechanism reads stronger
+//! than it is (REVIEW_M3 M3-N15): the record is a committed JSON file with
+//! no cryptographic tie to history. Editing `status` back to `sealed` and
+//! clearing the hashes erases the fact of opening, and `audit-status` will
+//! then report "sealed and never opened". The COMPARISON is honest; the
+//! reference it compares against is self-supplied and revertible, and what
+//! actually protects it is git history and review. A stronger tie would
+//! need a signature, which is out of scope here — but a weakness belongs in
+//! the module that claims the strength.
 
 use serde::{Deserialize, Serialize};
 
@@ -394,8 +404,12 @@ mod tests {
         assert_eq!(total, groups.len());
         for s in &summary {
             println!(
-                "{}: {} families, {} groups, {} scenes",
-                s.split, s.families, s.groups, s.scenes
+                "{}: {} families, {} groups, {} scenes ({:.1} % of groups)",
+                s.split,
+                s.families,
+                s.groups,
+                s.scenes,
+                100.0 * s.groups as f64 / total as f64
             );
             assert!(
                 s.families >= 3,
@@ -404,6 +418,62 @@ mod tests {
                 s.families
             );
             assert!(s.groups >= 3, "{} has only {} groups", s.split, s.groups);
+        }
+
+        // The REALIZED shares, asserted (REVIEW_M3 M3-N9). The frozen
+        // percentages are the policy's intent over FAMILIES; the corpus has
+        // 24 families of unequal weight - a procedural family carries four
+        // groups, an authored or adversarial one carries a single group - so
+        // the realized GROUP shares differ, and "at least three of each"
+        // left that difference unrecorded.
+        let share = |name: &str| {
+            let s = summary.iter().find(|s| s.split == name).unwrap();
+            100.0 * s.groups as f64 / total as f64
+        };
+        for (name, recorded) in [
+            ("development", 36.7),
+            ("calibration", 26.7),
+            ("sealed_audit", 36.7),
+        ] {
+            let got = share(name);
+            assert!(
+                (got - recorded).abs() < 2.0,
+                "{name}: realized share {got:.1} % moved from the recorded {recorded:.1} %; \
+                 the corpus composition changed and the record must move with it"
+            );
+        }
+    }
+
+    /// The MECHANISM distributes as the frozen policy says; the corpus's
+    /// realized shares differ only because 24 unevenly weighted families is
+    /// a small sample. Measuring the two separately is what keeps them from
+    /// being confused (REVIEW_M3 M3-N9).
+    #[test]
+    fn the_assignment_mechanism_matches_the_frozen_percentages_asymptotically() {
+        let mut counts = [0usize; 3];
+        for i in 0..4000 {
+            match SPLIT_POLICY_V1.split_of_family(&format!("synthetic/family/{i:05}")) {
+                Split::Development => counts[0] += 1,
+                Split::Calibration => counts[1] += 1,
+                Split::SealedAudit => counts[2] += 1,
+            }
+        }
+        let pct = |n: usize| 100.0 * n as f64 / 4000.0;
+        println!(
+            "mechanism over 4000 families: {:.1} / {:.1} / {:.1} %",
+            pct(counts[0]),
+            pct(counts[1]),
+            pct(counts[2])
+        );
+        for (got, want) in [
+            (pct(counts[0]), f64::from(SPLIT_POLICY_V1.development_pct)),
+            (pct(counts[1]), f64::from(SPLIT_POLICY_V1.calibration_pct)),
+            (pct(counts[2]), f64::from(SPLIT_POLICY_V1.sealed_audit_pct)),
+        ] {
+            assert!(
+                (got - want).abs() < 3.0,
+                "mechanism gives {got:.1} % against the frozen {want:.0} %"
+            );
         }
     }
 

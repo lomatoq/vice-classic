@@ -456,9 +456,16 @@ proptest! {
             // defect of up to ~0.1 pixel area inside the allowance. Since
             // arbitration runs on a handful of pixels rather than on the
             // whole image, the rate is cheap to raise here and nowhere
-            // else: k = 96 resolves ~0.010, and the tolerance drops to
-            // 0.05 - still dominating the arbiter own resolution by ~5x,
-            // which is the property that makes it an arbiter at all (M-4).
+            // else: k = 96, and the tolerance drops from 0.1 to 0.05.
+            //
+            // The margin is stated against the model that is ASSERTED, not
+            // against a flattering one (REVIEW_M3 M3-N10). The earlier
+            // comment claimed ~5x, which is 0.05 / (1/k), while the
+            // assertion below uses the conservative 4/k and therefore
+            // claims 1.20x. Both models are defensible - the supersampler
+            // measured max error 0.0186 at k = 24 against 1/24 = 0.042, so
+            // even 1/k over-estimates - but only one is checked, so only
+            // that one is claimed (M-4).
             let (px, py) = ((i % w as usize) as u32, (i / w as usize) as u32);
             const ARBITER_RATE: u32 = 96;
             const ARBITER_TOLERANCE: f64 = 0.05;

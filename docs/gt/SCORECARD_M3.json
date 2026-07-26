@@ -5,7 +5,7 @@
     "model_universe": "fed2af8642ee3bdd6be85fead97f5ae834622ad0f68525cad9889d17845b8f5d",
     "preregistration": "ea04a7b409c3cd42049be40108dce1ef918ea84ecc904824d6cca9afc316f0ba",
     "gates_sha256": "bbe7f4dd4c21129fe2b79ada79310ccbe35a0012b8a2e97183a279931863752b",
-    "corpus": "5067b3789836fcfbac6f0c35259b7c6b20d5e7cf6ea5ed935df890f506e224da",
+    "corpus": "86f19425d9d44b41afa6a4066cd2abe3b333951e504d88228c8e27fd600ba473",
     "split_policy": "vice-classic/gt-split/v1"
   },
   "audit_seal_generation": 1,
@@ -96,7 +96,8 @@
       "confidence": 0.99,
       "required_groups": 459,
       "group_deficit": 459,
-      "contract_met": false
+      "contract_met": false,
+      "likelihood_refusal": "no residual model was declared: a confidence claim requires one (spec §31)"
     },
     {
       "bucket": "flat2-clean-aa-identifiable-64",
@@ -111,7 +112,8 @@
       "confidence": 0.99,
       "required_groups": 459,
       "group_deficit": 459,
-      "contract_met": false
+      "contract_met": false,
+      "likelihood_refusal": "no residual model was declared: a confidence claim requires one (spec §31)"
     },
     {
       "bucket": "flat2-small-16-32",
@@ -126,7 +128,8 @@
       "confidence": 0.99,
       "required_groups": 459,
       "group_deficit": 459,
-      "contract_met": false
+      "contract_met": false,
+      "likelihood_refusal": "no residual model was declared: a confidence claim requires one (spec §31)"
     },
     {
       "bucket": "equivalent-family",
@@ -141,7 +144,8 @@
       "confidence": 0.99,
       "required_groups": 459,
       "group_deficit": 459,
-      "contract_met": false
+      "contract_met": false,
+      "likelihood_refusal": "no residual model was declared: a confidence claim requires one (spec §31)"
     },
     {
       "bucket": "information-lost",
@@ -156,13 +160,14 @@
       "confidence": 0.99,
       "required_groups": 459,
       "group_deficit": 459,
-      "contract_met": false
+      "contract_met": false,
+      "likelihood_refusal": "no residual model was declared: a confidence claim requires one (spec §31)"
     }
   ],
   "confidence": {
     "residual_model": null,
     "calibrated": false,
-    "refusal": "residual model block is admissible but uncalibrated: a block size at least the measured correlation support, and a per-block noise scale frozen on the calibration split. An uncalibrated model is not a licence to be confident"
+    "refusal": "no residual model was declared: a confidence claim requires one (spec §31)"
   },
   "not_yet_produced": [
     "posterior bits, delivery-equivalence confidence and DecisionIntervals (M7)",
