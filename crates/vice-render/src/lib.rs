@@ -36,13 +36,9 @@ pub use domain::NumericDomain;
 pub use embedding::verify_embedding;
 pub use mesh::{BoundaryPolyline, LoopPolygon, MeshError, RenderMesh, TessellationBudget};
 pub use partition::{
-    render_digest_sha256, render_mesh_partition, render_mesh_partition_in_domain, render_partition,
-    PartitionRender, PartitionTolerances, RenderOptions, MAX_COVERAGE_ELEMENTS,
-    RENDER_DIGEST_SCHEMA,
+    render_digest_sha256, render_mesh_partition, render_partition, PartitionRender,
+    PartitionTolerances, RenderOptions, MAX_COVERAGE_ELEMENTS, RENDER_DIGEST_SCHEMA,
 };
 pub use render_error::RenderError;
-pub use roi::{
-    render_mesh_partition_roi, render_mesh_partition_roi_in_domain, render_partition_roi,
-    PixelRect, RoiRender,
-};
+pub use roi::{render_mesh_partition_roi, render_partition_roi, PixelRect, RoiRender};
 pub use seal::{seal_render_cycle, SealError, SealReport};

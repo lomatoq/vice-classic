@@ -197,15 +197,7 @@ pub fn render_partition(
         return Err(RenderError::UnsupportedPixelFilter { got: filter });
     }
     let mesh = RenderMesh::build(scene, options.budget)?;
-    render_mesh_partition_in_domain(&mesh, options.tolerances, &options.domain)
-}
-
-/// Render from an already-built mesh in the default M2 numeric domain.
-pub fn render_mesh_partition(
-    mesh: &RenderMesh,
-    tolerances: PartitionTolerances,
-) -> Result<PartitionRender, RenderError> {
-    render_mesh_partition_in_domain(mesh, tolerances, &NumericDomain::m2_default())
+    render_mesh_partition(&mesh, options)
 }
 
 /// Every mesh point and the canvas must lie inside the numeric domain the
@@ -255,12 +247,19 @@ pub(crate) fn check_numeric_domain(
 }
 
 /// Render from an already-built mesh (the seal path re-renders the same
-/// fixed tessellation) with an explicit numeric domain.
-pub fn render_mesh_partition_in_domain(
+/// fixed tessellation).
+///
+/// Takes the whole [`RenderOptions`] rather than a loose
+/// `(tolerances, domain)` pair (F-M2-R9 residue): the pair is only
+/// meaningful when the tolerance was derived from that domain, and a
+/// function accepting the two independently is a public route back to the
+/// very defect the private fields closed. Now there is no such route.
+pub fn render_mesh_partition(
     mesh: &RenderMesh,
-    tolerances: PartitionTolerances,
-    domain: &NumericDomain,
+    options: &RenderOptions,
 ) -> Result<PartitionRender, RenderError> {
+    let tolerances = options.tolerances();
+    let domain = options.domain();
     let (w, h) = (mesh.width_px, mesh.height_px);
     let faces = mesh.face_loops.len();
     let elements = u64::from(w) * u64::from(h) * faces as u64;

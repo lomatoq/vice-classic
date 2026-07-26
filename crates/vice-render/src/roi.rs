@@ -22,10 +22,9 @@
 use vice_ir::color::PremulRgba;
 use vice_ir::{FaceId, PixelFilter, ValidatedScene};
 
-use crate::domain::NumericDomain;
 use crate::embedding::verify_embedding;
 use crate::mesh::RenderMesh;
-use crate::partition::{face_coverage_band, premul_of_paint, PartitionTolerances, RenderOptions};
+use crate::partition::{face_coverage_band, premul_of_paint, RenderOptions};
 use crate::render_error::RenderError;
 
 /// Half-open pixel window `[x0, x1) × [y0, y1)`.
@@ -69,25 +68,19 @@ pub fn render_partition_roi(
         return Err(RenderError::UnsupportedPixelFilter { got: filter });
     }
     let mesh = RenderMesh::build(scene, options.budget)?;
-    render_mesh_partition_roi_in_domain(&mesh, options.tolerances(), options.domain(), roi)
+    render_mesh_partition_roi(&mesh, options, roi)
 }
 
-/// ROI render from an already-built mesh, in the default M2 domain.
+/// ROI render from an already-built mesh. Takes the whole
+/// [`RenderOptions`] for the reason given on
+/// [`crate::partition::render_mesh_partition`] (F-M2-R9 residue).
 pub fn render_mesh_partition_roi(
     mesh: &RenderMesh,
-    tolerances: PartitionTolerances,
+    options: &RenderOptions,
     roi: PixelRect,
 ) -> Result<RoiRender, RenderError> {
-    render_mesh_partition_roi_in_domain(mesh, tolerances, &NumericDomain::m2_default(), roi)
-}
-
-/// ROI render from an already-built mesh with an explicit numeric domain.
-pub fn render_mesh_partition_roi_in_domain(
-    mesh: &RenderMesh,
-    tolerances: PartitionTolerances,
-    domain: &NumericDomain,
-    roi: PixelRect,
-) -> Result<RoiRender, RenderError> {
+    let tolerances = options.tolerances();
+    let domain = options.domain();
     let (w, h) = (mesh.width_px, mesh.height_px);
     if roi.x0 >= roi.x1 || roi.y0 >= roi.y1 || roi.x1 > w || roi.y1 > h {
         return Err(RenderError::RoiInvalid {
