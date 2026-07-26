@@ -8,8 +8,9 @@ mod common;
 use common::*;
 use vice_geom::Pt;
 use vice_ir::{
-    validate_scene, BoundaryId, ChainNode, CurveChain, Face, FaceId, GraphError, GraphVertex,
-    HalfEdgeId, JoinKind, LinearRgb, Paint, PixelFilter, SceneError, Segment, VertexId,
+    validate_scene, BoundaryId, ChainNode, ChainPointRef, CurveChain, Face, FaceId, GraphError,
+    GraphVertex, HalfEdgeId, JoinKind, LinearRgb, Paint, PixelFilter, SceneError, Segment,
+    VertexId,
 };
 
 fn expect_graph_err(scene: &vice_ir::VectorScene) -> GraphError {
@@ -563,6 +564,146 @@ fn torus_rotation_system_rejected_by_euler() {
             c: 1
         }
     ));
+}
+
+// ---------------------------------------------------------------------------
+// Unrepresented junctions (REVIEW_M1 blocker M1-N1): every point where
+// chains meet must be a single shared graph vertex. Reproductions of the
+// reviewer's scenes C1 and C4 plus the chain self-touch case.
+// ---------------------------------------------------------------------------
+
+/// Reviewer scene C1: island B's chain has an interior node EXACTLY on a
+/// graph vertex of island A. The boundaries share no VertexId, so this is
+/// an unrepresented junction — it must be a typed reject, not a silent
+/// pass (before C012 this validated Ok with 0 uncertified pairs).
+#[test]
+fn interior_node_on_foreign_vertex_rejected() {
+    let a = square_island(Pt::new(10.0, 10.0), 20.0, red());
+    // Lens island B: two graph vertices, upper chain bends through A's
+    // corner (30,10) as an INTERIOR node, lower chain closes the loop.
+    let b = Island {
+        vertices: vec![Pt::new(40.0, 5.0), Pt::new(40.0, 20.0)],
+        chains: vec![
+            CurveChain {
+                interior_nodes: vec![ChainNode {
+                    pos: Pt::new(30.0, 10.0), // == island A's vertex 1
+                    join: JoinKind::Corner,
+                }],
+                segments: vec![Segment::Line, Segment::Line],
+            },
+            CurveChain::single(Segment::Line),
+        ],
+        color: blue(),
+        hole: None,
+    };
+    let s = build_scene(96, 96, &[a, b]);
+    match expect_graph_err(&s) {
+        GraphError::UnrepresentedJunction { a, b } => {
+            assert_eq!(a, ChainPointRef::Vertex(VertexId(1)));
+            assert_eq!(
+                b,
+                ChainPointRef::InteriorNode {
+                    boundary: BoundaryId(4),
+                    node: 0
+                }
+            );
+        }
+        other => panic!("expected UnrepresentedJunction, got {other:?}"),
+    }
+}
+
+/// Reviewer scene C4: two boundaries of DIFFERENT islands have interior
+/// nodes at the same point, which is a graph vertex of neither. Before
+/// C012 this validated Ok.
+#[test]
+fn coincident_interior_nodes_rejected() {
+    let lens = |x: f64, color| Island {
+        vertices: vec![Pt::new(x, 10.0), Pt::new(x, 20.0)],
+        chains: vec![
+            CurveChain {
+                interior_nodes: vec![ChainNode {
+                    pos: Pt::new(20.0, 15.0), // same point in BOTH islands
+                    join: JoinKind::Corner,
+                }],
+                segments: vec![Segment::Line, Segment::Line],
+            },
+            CurveChain::single(Segment::Line),
+        ],
+        color,
+        hole: None,
+    };
+    let s = build_scene(96, 96, &[lens(10.0, red()), lens(30.0, blue())]);
+    match expect_graph_err(&s) {
+        GraphError::UnrepresentedJunction { a, b } => {
+            assert_eq!(
+                a,
+                ChainPointRef::InteriorNode {
+                    boundary: BoundaryId(0),
+                    node: 0
+                }
+            );
+            assert_eq!(
+                b,
+                ChainPointRef::InteriorNode {
+                    boundary: BoundaryId(2),
+                    node: 0
+                }
+            );
+        }
+        other => panic!("expected UnrepresentedJunction, got {other:?}"),
+    }
+}
+
+/// Chain self-touch: a chain's own interior node coincides with its own
+/// boundary's start vertex two segments away (not a consecutive duplicate,
+/// so it is not a DegenerateSegment).
+#[test]
+fn chain_self_touch_rejected() {
+    let mut s = one_square_scene();
+    let start = s.graph.vertices[0].pos; // (8,8)
+    s.graph.boundaries[0].curve = CurveChain {
+        interior_nodes: vec![
+            ChainNode {
+                pos: Pt::new(16.0, 2.0),
+                join: JoinKind::Corner,
+            },
+            ChainNode {
+                pos: start, // revisits the boundary's own start vertex
+                join: JoinKind::Corner,
+            },
+        ],
+        segments: vec![Segment::Line, Segment::Line, Segment::Line],
+    };
+    match expect_graph_err(&s) {
+        GraphError::UnrepresentedJunction { a, b } => {
+            assert_eq!(a, ChainPointRef::Vertex(VertexId(0)));
+            assert_eq!(
+                b,
+                ChainPointRef::InteriorNode {
+                    boundary: BoundaryId(0),
+                    node: 1
+                }
+            );
+        }
+        other => panic!("expected UnrepresentedJunction, got {other:?}"),
+    }
+}
+
+/// Positive control for the new invariant: legal scenes with interior
+/// nodes, shared loop vertices (start == end) and curved chains keep
+/// validating, and a genuinely-shared graph vertex between consecutive
+/// boundaries stays adjacent (no false intersection rejects).
+#[test]
+fn distinct_chain_points_still_pass() {
+    validate_scene(&build_scene(
+        128,
+        96,
+        &[
+            mixed_island(Pt::new(20.0, 20.0), red()), // interior smooth node
+            loop_island(Pt::new(100.0, 70.0), 5.0, blue()), // start == end vertex
+        ],
+    ))
+    .unwrap();
 }
 
 // ---------------------------------------------------------------------------

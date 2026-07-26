@@ -10,6 +10,12 @@
 //!   duplicate-vertex/duplicate-boundary exclusion, Euler count;
 //! - segment feasibility (positive radii, representable arcs, canonical
 //!   angle ranges, no zero-length spans);
+//! - CHAIN-POINT DISTINCTNESS: every point where chains meet must be a
+//!   single shared graph vertex — an interior node may not coincide with
+//!   any graph vertex or any other interior node (unrepresented junction;
+//!   REVIEW_M1 blocker M1-N1). After this invariant, position equality
+//!   between chain points IS point identity, which makes the position-based
+//!   segment-adjacency test below sound;
 //! - non-adjacent boundary intersection: EXACT for line-line pairs (robust
 //!   predicates), certified-disjoint via conservative boxes otherwise.
 //!
@@ -61,6 +67,8 @@ pub enum GraphError {
     DuplicateVertexPosition(VertexId, VertexId),
     #[error("vertex {0:?} is not an endpoint of any boundary")]
     IsolatedVertex(VertexId),
+    #[error("unrepresented junction: {a} and {b} occupy the same position; every point where chains meet must be a single shared graph vertex")]
+    UnrepresentedJunction { a: ChainPointRef, b: ChainPointRef },
     #[error("boundary {0:?} has face {1:?} on both sides (dangling crack)")]
     DanglingCrack(BoundaryId, FaceId),
     #[error("boundaries {0:?} and {1:?} are identical (same endpoints and curve)")]
@@ -164,10 +172,78 @@ pub fn validate_graph(g: &PlanarGraph) -> Result<(), GraphError> {
     check_faces(g)?;
     check_vertices(g)?;
     check_boundaries(g)?;
+    // Runs after the per-segment checks so a zero-length span is reported
+    // as DegenerateSegment, and BEFORE the interference stage, whose
+    // position-based adjacency is only sound once this invariant holds.
+    check_chain_point_distinctness(g)?;
     check_half_edges(g)?;
     check_cycles_and_loops(g)?;
     check_euler(g)?;
     check_segment_interference(g)?;
+    Ok(())
+}
+
+/// A reference to one chain point: either a graph vertex or an interior
+/// node of a boundary's curve chain. Used by
+/// [`GraphError::UnrepresentedJunction`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ChainPointRef {
+    Vertex(VertexId),
+    InteriorNode { boundary: BoundaryId, node: usize },
+}
+
+impl std::fmt::Display for ChainPointRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChainPointRef::Vertex(v) => write!(f, "graph vertex {}", v.0),
+            ChainPointRef::InteriorNode { boundary, node } => {
+                write!(f, "interior node {} of boundary {}", node, boundary.0)
+            }
+        }
+    }
+}
+
+/// §12 "robust junctions": in a planar arrangement, ANY point where chains
+/// meet must be a shared graph vertex. Therefore all chain points — graph
+/// vertices AND interior nodes of every curve chain — must be pairwise
+/// distinct by position. A coincidence involving an interior node is an
+/// UNREPRESENTED JUNCTION (or a chain self-touch) and is rejected
+/// (REVIEW_M1 blocker M1-N1: scenes C1/C4 and the self-touch case).
+///
+/// Consequence used downstream: after this check, position equality between
+/// segment endpoints is IDENTITY of chain points, so the position-based
+/// adjacency in the interference stage is exact, not heuristic.
+fn check_chain_point_distinctness(g: &PlanarGraph) -> Result<(), GraphError> {
+    let mut pts: Vec<(Pt, ChainPointRef)> =
+        Vec::with_capacity(g.vertices.len() + g.boundaries.len());
+    for (vi, v) in g.vertices.iter().enumerate() {
+        pts.push((v.pos, ChainPointRef::Vertex(VertexId(vi as u32))));
+    }
+    for (bi, b) in g.boundaries.iter().enumerate() {
+        for (ni, n) in b.curve.interior_nodes.iter().enumerate() {
+            pts.push((
+                n.pos,
+                ChainPointRef::InteriorNode {
+                    boundary: BoundaryId(bi as u32),
+                    node: ni,
+                },
+            ));
+        }
+    }
+    // Total order: position, then reference — the reported pair is
+    // deterministic even with several collisions.
+    pts.sort_by(|x, y| x.0.lex_cmp(y.0).then_with(|| x.1.cmp(&y.1)));
+    for w in pts.windows(2) {
+        if w[0].0 == w[1].0 {
+            let (a, b) = (w[0].1, w[1].1);
+            // Vertex-vertex duplicates are already rejected by
+            // check_vertices; keep the same typed error for direct callers.
+            if let (ChainPointRef::Vertex(va), ChainPointRef::Vertex(vb)) = (a, b) {
+                return Err(GraphError::DuplicateVertexPosition(va, vb));
+            }
+            return Err(GraphError::UnrepresentedJunction { a, b });
+        }
+    }
     Ok(())
 }
 
@@ -662,6 +738,16 @@ fn collect_prims(g: &PlanarGraph) -> Vec<PrimSeg<'_>> {
     prims
 }
 
+/// Shared chain points of two primitive segments.
+///
+/// SOUNDNESS (REVIEW_M1 M1-N1): position equality here is point IDENTITY,
+/// not a heuristic, because `check_chain_point_distinctness` has already
+/// rejected any two distinct chain points with equal positions. A shared
+/// position therefore always means a genuinely shared node: a common graph
+/// vertex, or the shared interior node / loop vertex of consecutive
+/// segments within one chain. Two non-adjacent boundaries touching at a
+/// coincident-but-distinct node never reach this code — they are rejected
+/// earlier as `UnrepresentedJunction`.
 fn shared_points(a: &PrimSeg<'_>, b: &PrimSeg<'_>) -> Vec<Pt> {
     [a.p0, a.p1]
         .into_iter()
@@ -732,14 +818,17 @@ pub struct UncertifiedPair {
 /// The honest M1 certificate split for the §12 invariant "non-adjacent
 /// boundaries do not intersect".
 ///
-/// Returns every NON-adjacent (no shared endpoint) segment pair involving
-/// at least one non-line segment whose conservative enclosures overlap.
-/// For such pairs M1 has no exact intersection test: they are recorded as
-/// UNDETERMINED, not silently assumed disjoint. Line-line pairs are decided
-/// exactly during validation and never appear here. The list is the M2+
-/// worklist for certified curve-curve intersection.
+/// Returns every NON-adjacent (no shared chain point — identity, see
+/// [`shared_points`]) segment pair involving at least one non-line segment
+/// whose conservative enclosures overlap. For such pairs M1 has no exact
+/// intersection test: they are recorded as UNDETERMINED, not silently
+/// assumed disjoint. Line-line pairs are decided exactly during validation
+/// and never appear here. The list is the M2+ worklist for certified
+/// curve-curve intersection.
 ///
-/// Precondition: `g` passed [`validate_graph`] (ids and arities are trusted).
+/// Precondition: `g` passed [`validate_graph`] — in particular the
+/// chain-point distinctness invariant, which makes the adjacency test
+/// exact (ids and arities are trusted too).
 pub fn uncertified_interference_pairs(g: &PlanarGraph) -> Vec<UncertifiedPair> {
     let prims = collect_prims(g);
     let mut out = Vec::new();
