@@ -23,6 +23,7 @@ pub mod gates;
 pub mod gt;
 pub mod hashing;
 pub mod limits;
+pub mod oracle;
 pub mod prereg;
 pub mod reliability;
 pub mod report;
