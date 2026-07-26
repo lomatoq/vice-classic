@@ -570,3 +570,64 @@ pub fn sh_clip_coverage_window(loops: &[&[Pt]], ox: u32, oy: u32, w: u32, h: u32
     }
     out
 }
+
+/// Third opinion: supersampled winding, with a CONDITIONED crossing test.
+///
+/// Exists because the two-party comparison cannot say WHICH party is
+/// wrong, and both parties have been the wrong one at least once: the
+/// accumulator on span-crossing edges (F-0013, F-0014) and the clipping
+/// reference on near-degenerate spurs at extreme magnitude, where it
+/// reports a full pixel while the accumulator is exactly right.
+///
+/// The crossing test interpolates from the NEARER endpoint for the same
+/// reason the accumulator does (F-0014); the red team's own supersampler
+/// produced a spurious answer here precisely because it multiplied
+/// differences of magnitude 1e150.
+///
+/// Resolution is `k x k` samples per pixel, so its own error on a
+/// boundary pixel is about `1/k`; it arbitrates gross disagreement, not
+/// fine accuracy.
+pub fn supersampled_winding(loops: &[&[Pt]], w: u32, h: u32, k: u32) -> Vec<f64> {
+    let mut out = vec![0.0f64; (w as usize) * (h as usize)];
+    for py in 0..h {
+        for px in 0..w {
+            out[(py as usize) * (w as usize) + px as usize] =
+                supersampled_winding_pixel(loops, px, py, k);
+        }
+    }
+    out
+}
+
+/// One pixel of [`supersampled_winding`] — used for arbitration, where
+/// only the disputed pixel needs a third opinion.
+pub fn supersampled_winding_pixel(loops: &[&[Pt]], px: u32, py: u32, k: u32) -> f64 {
+    {
+        {
+            let mut acc = 0i64;
+            for sy in 0..k {
+                let y = f64::from(py) + (f64::from(sy) + 0.5) / f64::from(k);
+                for sx in 0..k {
+                    let x = f64::from(px) + (f64::from(sx) + 0.5) / f64::from(k);
+                    for lp in loops {
+                        for e in lp.windows(2) {
+                            let (a, b) = (e[0], e[1]);
+                            if a.y == b.y {
+                                continue;
+                            }
+                            let (lo, hi) = if a.y < b.y { (a, b) } else { (b, a) };
+                            if !(lo.y <= y && y < hi.y) {
+                                continue;
+                            }
+                            let t = clip_parameter(y, lo.y, hi.y);
+                            let cx = mix(lo.x, hi.x, t);
+                            if cx > x {
+                                acc += if b.y > a.y { 1 } else { -1 };
+                            }
+                        }
+                    }
+                }
+            }
+            f64::from(acc as i32) / f64::from(k * k)
+        }
+    }
+}

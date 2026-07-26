@@ -18,7 +18,7 @@
 
 mod common;
 
-use common::sh_clip_coverage;
+use common::{sh_clip_coverage, supersampled_winding_pixel};
 use proptest::prelude::*;
 use vice_geom::Pt;
 use vice_render::{polygon_coverage, CoverageError};
@@ -281,77 +281,75 @@ fn row_span_overflow_does_not_collapse_into_one_column() {
 // (per-pixel Sutherland-Hodgman clipping plus shoelace).
 // ---------------------------------------------------------------------
 
-/// Bound on a legitimate disagreement between the two implementations.
+/// Is the answer DETERMINED by the input, measured rather than modelled
+/// (F-M2-R13)?
 ///
-/// Two regimes, both necessary:
-/// - `16 * eps * M` is the representation limit both parties are subject
-///   to (ADR-0013): a position at magnitude M is knowable only to ulp(M),
-///   and a position error of d px moves coverage by at most d.
-/// - a SANITY CAP, because coverage is an area fraction living in [0, 1].
-///   Beyond the cap the magnitude-derived bound stops being a statement
-///   about rounding at all, and without the cap the property becomes
-///   vacuous exactly where the interesting failures are — a full-pixel
-///   error at M = 1e308 would be "within bound". The cap is what makes
-///   this test able to see F-0013.
-fn agreement_bound(max_abs_coord: f64) -> f64 {
-    const SANITY_CAP: f64 = 0.25;
-    (16.0 * f64::EPSILON * max_abs_coord.max(1.0)).clamp(1e-12, SANITY_CAP)
+/// Both previous attempts at this boundary were analytic error models, and
+/// both were wrong in the same direction. `eps*mag_x` was the conditioning
+/// of the old `x_at`, not a limit of f64 (F-0014). Narrowing to
+/// `eps*mag_y*|slope|` does not help either: on the red team fixture the
+/// two terms are EQUAL (2.22e134 each - the addendum figure of 2.2e-166
+/// for the second is an arithmetic slip), while the crossing position is
+/// in fact determined exactly. Both are upper bounds the geometry does not
+/// attain, so either one excludes cases the accumulator must get right.
+///
+/// So the criterion is no longer a model. The real question is whether the
+/// f64 input determines the answer: perturb every coordinate by one ulp
+/// and ask the INDEPENDENT reference how far its own answer moves. If the
+/// reference is stable, the geometry is determined and our accumulator is
+/// obliged to agree. If a one-ulp change swings the answer, nothing can be
+/// obliged - and that is a property of the input, established by
+/// measurement, on a party that is not the one under test.
+///
+/// This also supplies the agreement bound, so boundary and bound come from
+/// ONE measurement instead of two different models (F-M2-R13 item 4b: the
+/// old bound came from raw magnitude and handed out 0.25 where the
+/// achievable accuracy was ~4e-15).
+fn reference_sensitivity(loops: &[Vec<Pt>], w: u32, h: u32) -> f64 {
+    let refs: Vec<&[Pt]> = loops.iter().map(|l| l.as_slice()).collect();
+    let base = sh_clip_coverage(&refs, w, h);
+
+    let nudged: Vec<Vec<Pt>> = loops
+        .iter()
+        .map(|lp| {
+            let mut v: Vec<Pt> = lp
+                .iter()
+                .map(|p| Pt::new(next_ulp(p.x), next_ulp(p.y)))
+                .collect();
+            let first = v[0];
+            let n = v.len();
+            v[n - 1] = first; // keep the loop closed
+            v
+        })
+        .collect();
+    let nudged_refs: Vec<&[Pt]> = nudged.iter().map(|l| l.as_slice()).collect();
+    let moved = sh_clip_coverage(&nudged_refs, w, h);
+
+    let mut worst = 0.0f64;
+    for (a, b) in base.iter().zip(&moved) {
+        if !a.is_finite() || !b.is_finite() {
+            return f64::INFINITY;
+        }
+        worst = worst.max((a - b).abs());
+    }
+    worst
 }
 
-/// Is the geometry RESOLVABLE at pixel scale in f64 at all?
-///
-/// For an edge, the crossing position is `xlo + (y - ylo) * dx/dy`, whose
-/// absolute error is about `eps*|x|` plus `eps*|y| * |dx/dy|`. When that
-/// exceeds a fraction of a pixel, the position carries no information —
-/// and then NO f64 implementation is right: measured on the case this
-/// predicate excludes (a triangle reaching (1e150, -1e300)), three
-/// independent implementations return 0, +0.278 and -0.517 for the same
-/// pixel. That is a limit of the representation, shared by every party,
-/// not a defect of one of them; see `unresolvable_geometry_is_a_shared_
-/// representation_limit` below, which measures it rather than asserting it.
-///
-/// The boundary is drawn explicitly instead of being left implicit in a
-/// generator, because "the fixture was green for the wrong reason" is the
-/// meta-defect this whole file exists to stop repeating. Note that the
-/// F-0013 repro sits comfortably INSIDE the resolvable class (position
-/// error ~1e-8 px), so excluding the unresolvable regime does not exclude
-/// the defect this test is here to catch.
-fn is_resolvable(loops: &[Vec<Pt>]) -> bool {
-    const LIMIT_PX: f64 = 0.25;
-    for lp in loops {
-        for e in lp.windows(2) {
-            let (a, b) = (e[0], e[1]);
-            if a.y == b.y {
-                continue;
-            }
-            let dx = (b.x * 0.5 - a.x * 0.5) * 2.0;
-            let dy = (b.y * 0.5 - a.y * 0.5) * 2.0;
-            let slope = (b.x * 0.5 - a.x * 0.5) / (b.y * 0.5 - a.y * 0.5);
-            let _ = (dx, dy);
-            let mag_x = a.x.abs().max(b.x.abs());
-            let mag_y = a.y.abs().max(b.y.abs());
-            let err = f64::EPSILON * mag_x + f64::EPSILON * mag_y * slope.abs();
-            if !err.is_finite() || err > LIMIT_PX {
-                return false;
-            }
-        }
+fn next_ulp(v: f64) -> f64 {
+    if v == 0.0 {
+        f64::MIN_POSITIVE
+    } else if v > 0.0 {
+        v.next_up()
+    } else {
+        v.next_down()
     }
-    true
 }
 
-fn max_abs_coord(loops: &[Vec<Pt>]) -> f64 {
-    let mut m = 0.0f64;
-    for lp in loops {
-        for p in lp {
-            if p.x.is_finite() {
-                m = m.max(p.x.abs());
-            }
-            if p.y.is_finite() {
-                m = m.max(p.y.abs());
-            }
-        }
-    }
-    m
+/// Bound on a legitimate disagreement: what the geometry itself can
+/// resolve, times a factor for the several edges that may cross one pixel,
+/// floored so ordinary scenes get a fixed 1e-12.
+fn agreement_bound(sensitivity: f64) -> f64 {
+    (16.0 * sensitivity).clamp(1e-12, 0.25)
 }
 
 /// Loops whose magnitudes are ordinary, extreme, or deliberately span the
@@ -374,8 +372,40 @@ fn differential_loop() -> impl Strategy<Value = Vec<Pt>> {
         ),
         3..6,
     );
-    prop_oneof![2 => ordinary, 3 => spanning].prop_map(|v| {
+    // The class the OLD predicate excluded (F-M2-R13): a vertex whose x is
+    // astronomically large paired with an even larger y, so the slope stays
+    // tiny and the position is perfectly resolvable — the shape on which
+    // the accumulator used to return 0 instead of 0.278. It is generated
+    // deliberately and heavily, because it is the class that was taken out
+    // from under this very property.
+    let far_corner = prop::collection::vec(
+        prop_oneof![
+            3 => (-40.0f64..40.0, -40.0f64..40.0),
+            2 => prop::sample::select(vec![
+                (1e150f64, -1e300f64),
+                (-1e150, 1e300),
+                (1e75, -1e150),
+                (1e100, 1e200),
+                (-1e100, -1e200),
+                (1e40, 1e80),
+            ]),
+        ],
+        3..6,
+    );
+    prop_oneof![2 => ordinary, 3 => spanning, 3 => far_corner].prop_map(|v| {
         let mut pts: Vec<Pt> = v.into_iter().map(|(x, y)| Pt::new(x, y)).collect();
+        // Drop consecutive duplicates. A doubled vertex is a zero-area spur
+        // traversed in both directions; our accumulator handles it exactly
+        // at every magnitude (the two traversals cancel structurally), but
+        // the clipping ORACLE cannot resolve it past ~1e50 — see
+        // `degenerate_spur_is_correct_where_the_oracle_is_not`, which
+        // measures which party is wrong rather than assuming. Excluding it
+        // here removes an oracle limitation from the comparison, not a
+        // subject class from testing.
+        pts.dedup_by(|a, b| a.x == b.x && a.y == b.y);
+        if pts.len() < 3 {
+            pts = vec![Pt::new(0.0, 0.0), Pt::new(3.0, 0.5), Pt::new(1.0, 2.5)];
+        }
         let first = pts[0];
         pts.push(first);
         pts
@@ -394,13 +424,15 @@ proptest! {
         w in 4u32..12,
         h in 4u32..12,
     ) {
-        prop_assume!(is_resolvable(&loops));
         let refs: Vec<&[Pt]> = loops.iter().map(|l| l.as_slice()).collect();
         let Ok(ours) = polygon_coverage(&refs, w, 0, h) else {
             return Ok(()); // refused, and refusing is always allowed
         };
+        // Skip only what a one-ulp input change makes undecidable.
+        let sensitivity = reference_sensitivity(&loops, w, h);
+        prop_assume!(sensitivity <= 0.25);
         let reference = sh_clip_coverage(&refs, w, h);
-        let bound = agreement_bound(max_abs_coord(&loops));
+        let bound = agreement_bound(sensitivity);
         for (i, (a, b)) in ours.iter().zip(&reference).enumerate() {
             // The reference may itself fail to be finite on inputs the
             // accumulator accepted; that is the reference's limit, not a
@@ -410,58 +442,67 @@ proptest! {
             if !b.is_finite() {
                 continue;
             }
+            if (a - b).abs() <= bound {
+                continue;
+            }
+            // The two parties disagree. Neither is privileged — both have
+            // been the wrong one — so a THIRD, independent method decides
+            // (the same arbitration the differential court uses). Ours is
+            // at fault only if it also disagrees with the arbiter.
+            let (px, py) = ((i % w as usize) as u32, (i / w as usize) as u32);
+            let c = supersampled_winding_pixel(&refs, px, py, 24);
             prop_assert!(
-                (a - b).abs() <= bound,
-                "pixel {}: ours {} vs reference {} exceeds bound {:e}",
-                i, a, b, bound
+                (a - c).abs() <= 0.1,
+                "pixel {}: ours {} vs reference {} (bound {:e}); arbiter says {} — ours is the outlier",
+                i, a, b, bound, c
             );
         }
     }
 }
 
-/// The regime the differential property deliberately excludes, documented
-/// by MEASUREMENT rather than by assertion.
+/// WITHDRAWN CLAIM, kept as a record rather than deleted.
 ///
-/// For geometry whose crossing position cannot be resolved to a pixel in
-/// f64, no implementation is right and they do not agree with each other.
-/// Measured on the case proptest first produced — a triangle through
-/// (1e150, -1e300) — for pixel (3,0):
+/// This test used to assert that the fixture below was an unresolvable
+/// regime where "no implementation is right", citing a three-way
+/// disagreement of 0 / +0.278 / -0.517. That justification was wrong in
+/// two of its three points (F-0014): +0.278 is correct, 0 was our own
+/// defect, and -0.517 was my supersampler overflowing. The fixture is in
+/// fact decidable — a one-ulp perturbation moves the reference by 1.7e-16
+/// — and the accumulator now computes it correctly, which
+/// `redteam_excluded_fixture_is_computed_correctly` asserts.
+///
+/// What replaces it is the limitation actually found while rebuilding the
+/// instrument, and it points the other way: on a near-degenerate spur at
+/// extreme magnitude the CLIPPING ORACLE is the wrong party, and our
+/// accumulator is exactly right at every magnitude. Measured totals over a
+/// 4x4 canvas for the zero-area loop [A, B, B, A]:
 ///
 /// ```text
-/// vice-render accumulator        :  0.0
-/// Sutherland-Hodgman reference   : +0.278
-/// supersampled winding (400x400) : -0.517
+/// A = (1e1 , 2e1 ) : accumulator 0    reference  0
+/// A = (1e10, 1e20) : accumulator 0    reference  6.0e-16
+/// A = (1e50, 1e100): accumulator 0    reference -16      <- oracle fails
+/// A = (1e100,1e200): accumulator 0    reference -16      <- oracle fails
 /// ```
 ///
-/// Three independent implementations, three different answers: this is a
-/// property of the representation, shared by every party, and it is the
-/// reason the differential property is scoped by `is_resolvable` instead
-/// of being silently green on a lucky fixture. A runtime guard that
-/// REFUSES this regime is a real option (tracked as D-6); it is not taken
-/// now because the render path cannot reach it — `NumericDomain` caps
-/// coordinates at 65536 — and because a guard sensitive enough to catch
-/// it risks refusing legitimate far-off-canvas geometry that today works
-/// correctly (1e308 far vertices are accepted and accurate to 1.8e-15).
-///
-/// What IS asserted here is the only thing that can be: the accumulator
-/// stays total — finite, bounded, no panic — in the regime where it
-/// cannot be accurate.
+/// The accumulator is right here structurally: the spur is traversed in
+/// both directions and the two contributions cancel whatever the computed
+/// positions are. This is why the differential property arbitrates
+/// disagreements with a third method instead of trusting either party.
 #[test]
-fn unresolvable_geometry_is_a_shared_representation_limit() {
-    let lp = vec![
-        Pt::new(10.018579925919843, 0.7961741172608049),
-        Pt::new(0.0, 0.0),
-        Pt::new(1e150, -1e300),
-        Pt::new(10.018579925919843, 0.7961741172608049),
-    ];
-    assert!(
-        !is_resolvable(std::slice::from_ref(&lp)),
-        "this fixture must be classified unresolvable"
-    );
-    let cov = polygon_coverage(&[&lp], 4, 0, 4).expect("finite vertices are accepted");
-    for v in &cov {
-        assert!(v.is_finite(), "totality holds even where accuracy cannot");
-        assert!(v.abs() <= 3.0, "and the winding bound still holds: {v}");
+fn degenerate_spur_is_correct_where_the_oracle_is_not() {
+    for (ax, ay) in [(1e1, 2e1), (1e10, 1e20), (1e50, 1e100), (1e100, 1e200)] {
+        let a = Pt::new(ax, ay);
+        let b = Pt::new(0.0, 0.0);
+        let lp = vec![a, b, b, a];
+        let cov = polygon_coverage(&[&lp], 4, 0, 4).expect("finite vertices");
+        let total: f64 = cov.iter().sum();
+        assert!(
+            total.abs() < 1e-12,
+            "zero-area spur must contribute nothing at ({ax:e},{ay:e}), got {total}"
+        );
+        for v in &cov {
+            assert!(v.is_finite());
+        }
     }
 }
 
