@@ -1,7 +1,7 @@
-//! Ground-truth corpus with identifiability metadata (spec v1.3 §27.1,
-//! §28 M3).
+﻿//! Ground-truth corpus with identifiability metadata (spec v1.3 Â§27.1,
+//! Â§28 M3).
 //!
-//! Structure, and why it is this one. §27.4 makes the INDEPENDENT UNIT of a
+//! Structure, and why it is this one. Â§27.4 makes the INDEPENDENT UNIT of a
 //! reliability trial the source-scene family, not the render, so the corpus
 //! is a three-level tree and never a flat list:
 //!
@@ -9,7 +9,7 @@
 //! GtSourceGroup   one independent trial unit; splits move whole groups
 //!   GtScene       one visible planar partition (a group has >1 only when
 //!                 the group IS an ambiguity pair or an equivalence family)
-//!     GtRender    one scene under one degradation cell — where an
+//!     GtRender    one scene under one degradation cell â€” where an
 //!                 identifiability label actually lives
 //! ```
 //!
@@ -20,11 +20,12 @@
 //!
 //! Every truth field here is either MEASURED from the certified scene or
 //! declared as diagnostic-only. `authored_truth` is explicitly the latter
-//! (§27.1: authored truth is additional diagnostics, never the target): the
+//! (Â§27.1: authored truth is additional diagnostics, never the target): the
 //! recipe that produced a scene is not what a vectorizer is judged against.
 
 pub mod build;
 pub mod colour;
+pub mod degradation;
 pub mod grammar;
 pub mod raster;
 pub mod raster_external;
@@ -37,7 +38,7 @@ use vice_geom::Pt;
 use vice_ir::{FaceId, Paint, ValidatedScene};
 use vice_render::{CertifiedMesh, RenderOptions};
 
-/// Which of the three independent sources a group came from (§27.1).
+/// Which of the three independent sources a group came from (Â§27.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FixtureOrigin {
@@ -59,7 +60,7 @@ impl FixtureOrigin {
     }
 }
 
-/// Identifiability of ONE render (spec §1.5).
+/// Identifiability of ONE render (spec Â§1.5).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IdentifiabilityClass {
@@ -89,14 +90,14 @@ impl IdentifiabilityClass {
 /// whether it survived a degradation.
 ///
 /// Each variant carries the number a rasterized image can be measured
-/// against — not a name. "Preserve the hole" is not checkable; "the hole is
+/// against â€” not a name. "Preserve the hole" is not checkable; "the hole is
 /// 8 px across in scene units, so at scale 1/8 it is one pixel wide" is.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum SalientFeature {
-    /// A hole in a face, with its area in scene px².
+    /// A hole in a face, with its area in scene pxÂ².
     Hole { face: u32, area_px2: f64 },
-    /// A connected visible component, with its area in scene px².
+    /// A connected visible component, with its area in scene pxÂ².
     Component { area_px2: f64 },
     /// A corner of the visible partition, with its interior angle.
     Corner {
@@ -140,7 +141,7 @@ impl SalientFeature {
     }
 }
 
-/// The recipe that produced a scene. DIAGNOSTIC ONLY (§27.1): never a
+/// The recipe that produced a scene. DIAGNOSTIC ONLY (Â§27.1): never a
 /// scoring target, because a different recipe producing the same visible
 /// partition is an equally correct answer.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -159,7 +160,7 @@ impl AuthoredTruth {
 }
 
 /// Measured facts about the visible partition. Every field is computed from
-/// the certified scene, not declared by the generator — a generator that
+/// the certified scene, not declared by the generator â€” a generator that
 /// declares its own truth cannot detect its own bugs.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PartitionTruth {
@@ -177,7 +178,7 @@ pub struct PartitionTruth {
     /// `opaque` while leaving the exterior visible is inconsistent, and the
     /// only way to notice is to measure rather than to read the label.
     pub exterior_visible_px2: f64,
-    /// Signed area of each face in scene px², indexed by `FaceId`.
+    /// Signed area of each face in scene pxÂ², indexed by `FaceId`.
     pub face_area_px2: Vec<f64>,
     pub total_ink_px2: f64,
 }
@@ -382,7 +383,7 @@ impl GtScene {
     }
 }
 
-/// Why several scenes are equally correct answers (§27.1 "допустимая scene
+/// Why several scenes are equally correct answers (Â§27.1 "Ð´Ð¾Ð¿ÑƒÑÑ‚Ð¸Ð¼Ð°Ñ scene
 /// equivalence class").
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EquivalenceClass {
@@ -392,7 +393,7 @@ pub struct EquivalenceClass {
     pub rationale: String,
 }
 
-/// One independent trial unit (§27.4).
+/// One independent trial unit (Â§27.4).
 #[derive(Debug, Clone)]
 pub struct GtSourceGroup {
     pub id: String,
@@ -408,7 +409,7 @@ pub struct GtSourceGroup {
     pub equivalence_class: Option<EquivalenceClass>,
     /// True when the group exists to test correct abstention: its scenes
     /// are DIFFERENT and become indistinguishable after degradation, so the
-    /// only correct answer is `ambiguous` (§27.1).
+    /// only correct answer is `ambiguous` (Â§27.1).
     pub intentionally_ambiguous: bool,
 }
 
