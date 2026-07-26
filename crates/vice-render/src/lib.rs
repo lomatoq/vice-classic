@@ -27,6 +27,7 @@ pub mod embedding;
 pub mod mesh;
 pub mod partition;
 pub mod render_error;
+pub mod roi;
 
 pub use coverage::polygon_coverage;
 pub use embedding::verify_embedding;
@@ -36,3 +37,4 @@ pub use partition::{
     PartitionTolerances, RenderOptions, MAX_COVERAGE_ELEMENTS, RENDER_DIGEST_SCHEMA,
 };
 pub use render_error::RenderError;
+pub use roi::{render_mesh_partition_roi, render_partition_roi, PixelRect, RoiRender};

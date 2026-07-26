@@ -66,4 +66,13 @@ pub enum RenderError {
         sum: f64,
         tolerance: f64,
     },
+    #[error("ROI [{x0},{x1})x[{y0},{y1}) is empty or exceeds the {width_px}x{height_px} canvas")]
+    RoiInvalid {
+        x0: u32,
+        y0: u32,
+        x1: u32,
+        y1: u32,
+        width_px: u32,
+        height_px: u32,
+    },
 }
