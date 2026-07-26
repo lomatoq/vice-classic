@@ -31,10 +31,15 @@ M3 вводит scorecard, и §27.3 требует pinned internal baselines к
 `for-each-ref`):
 
 ```text
-        49f308d9  "Implement CLI vectorization and line-art improvements"
-        /      9211b321        59ab86d1
-(spec-пин §2)   ("Drop avif-native image feature
-                  (dav1d/pkg-config build on Windows)")
+                       49f308d9
+        "Implement CLI vectorization and line-art improvements"
+                      /         \
+                     /           \
+             9211b321             59ab86d1
+       spec-пин §2, и он же       "Drop avif-native image feature
+       вершина origin/main         (dav1d/pkg-config build on Windows)"
+                                  на линии, на которую не указывает
+                                  ни одна remote-ссылка зеркала
 ```
 
 - `9211b321` **не** предок `59ab86d1` и наоборот; merge-base `49f308d9`;
@@ -70,7 +75,9 @@ anchor было бы не «догнать upstream», а уйти ОТ него
 обязано включать вопрос, ЧТО ИМЕННО измеряется. `main` в локальном клоне и
 `origin/main` — разные вещи, и утверждение об upstream обязано называть
 ссылку, против которой оно проверяется. Имя пина, кодировавшее ложное
-утверждение (`v-ice-avif-fix`), заменено на фактическое `v-ice-avif-fix`.
+утверждение (`v-ice-mainline` — «это и есть mainline»), заменено на
+`v-ice-avif-fix`, который называет то, что пин ДЕЛАЕТ, а не то, чем он, как
+предполагалось, является. Действующее имя см. `SOURCE_PINS.toml`.
 
 **B2.** Содержимое `models/` на пине `200897ab`: **26 из 27** файлов
 **tracked** (`git ls-files models/`), несмотря на `models/` в `.gitignore`.
