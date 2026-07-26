@@ -167,6 +167,33 @@ jobs:
           cargo run --release --bin gt-corpus -- oracle-check \
             --report docs/gt/ORACLE_M3_5.json --structural
 
+  # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
+  # verified by nobody: the ubuntu job above physically cannot, because
+  # render digests and oracle metrics are TIER A (§5.5) and this corpus is
+  # built out of libm trigonometry, so it runs the structural projection and
+  # says so. The numbers therefore rested on a manual run on the recording
+  # platform - the reviewer's and the author's.
+  #
+  # A windows runner records the same `(os, arch)` the artifacts do, so it
+  # can run the FULL comparison: 1086 render digests and every oracle metric.
+  # If this job ever fails while the ubuntu structural check passes, that is
+  # not a flake - it is the same signature that found F-0020, and it would
+  # mean `(os, arch)` is too coarse a name for the Tier A condition.
+  #
+  # Windows runners use pwsh, where a trailing backslash is not a line
+  # continuation, so these commands are single lines on purpose.
+  tier-a-digests:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned toolchain
+        run: rustup show
+      - name: The committed corpus manifest reproduces (Tier A, all 1086 digests)
+        run: cargo run --release --bin gt-corpus -- verify --manifest docs/gt/CORPUS_MANIFEST.json
+      - name: The committed oracle report reproduces (Tier A, every metric)
+        run: cargo run --release --bin gt-corpus -- oracle-check --report docs/gt/ORACLE_M3_5.json
+
 # Reproducing the pinned donor baselines needs local mirrors and a 104 MiB
 # hash-pinned asset, which CI has neither of; that step is executed by the
 # reviewer on a machine that has them (spec §34, docs/REPRODUCIBILITY_M3.md).
