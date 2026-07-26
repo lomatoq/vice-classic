@@ -23,6 +23,7 @@
 //! (§27.1: authored truth is additional diagnostics, never the target): the
 //! recipe that produced a scene is not what a vectorizer is judged against.
 
+pub mod adversarial;
 pub mod authored;
 pub mod build;
 pub mod colour;

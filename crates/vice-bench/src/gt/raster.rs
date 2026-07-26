@@ -253,6 +253,12 @@ fn shoelace(poly: &[Pt]) -> f64 {
     0.5 * s
 }
 
+/// The exact integrator as a pure function of loops, for metamorphic
+/// properties that construct geometry directly rather than through a scene.
+pub fn exact_clip_face_for_test(loops: &[Vec<Pt>], w: u32, h: u32) -> Vec<f64> {
+    exact_clip_face(loops, w, h)
+}
+
 fn exact_clip_face(loops: &[Vec<Pt>], w: u32, h: u32) -> Vec<f64> {
     let mut out = vec![0.0f64; (w as usize) * (h as usize)];
     for lp in loops {
