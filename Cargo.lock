@@ -863,6 +863,7 @@ name = "vice-render"
 version = "0.0.1"
 dependencies = [
  "hex",
+ "proptest",
  "raqote",
  "sha2",
  "thiserror",

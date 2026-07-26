@@ -71,6 +71,16 @@ pub enum CoverageError {
     DegenerateLoop { loop_index: usize, points: usize },
     #[error("inverted row band: row_start {row_start} > row_end {row_end}")]
     InvertedRowBand { row_start: u32, row_end: u32 },
+    #[error("loop {loop_index} point {point_index} is not finite: {point:?}")]
+    NonFinitePoint {
+        loop_index: usize,
+        point_index: usize,
+        point: Pt,
+    },
+    #[error(
+        "edge {from:?} -> {to:?} cannot be integrated in f64: an intermediate position overflowed to {overflowed}"
+    )]
+    NonFiniteIntermediate { from: Pt, to: Pt, overflowed: f64 },
 }
 
 /// Exact per-pixel winding integral of closed `loops` over the pixel rows
@@ -96,6 +106,29 @@ pub fn polygon_coverage(
                 points: lp.len(),
             });
         }
+        // Finiteness is the THIRD precondition of this entry point, and it
+        // belongs in exactly the same place as the other two (F-0012).
+        // Before this it was enforced by nothing in release — a NaN vertex
+        // produced a NaN buffer and `Ok` — and, after the column-local
+        // trapezoid landed, by a `debug_assert` in `emit`, which turned the
+        // same input into a panic under `overflow-checks`. One input, two
+        // outcomes, on the public accumulator.
+        //
+        // It is checked BEFORE closure deliberately: `NaN != NaN`, so a
+        // loop whose shared first/last vertex carries a NaN is bitwise
+        // closed yet compares unequal, and checking closure first would
+        // report `UnclosedLoop` — a true refusal naming the wrong cause.
+        // Ordering the checks this way also makes the closure comparison
+        // itself sound, since it then only ever sees finite operands.
+        for (j, p) in lp.iter().enumerate() {
+            if !p.is_finite() {
+                return Err(CoverageError::NonFinitePoint {
+                    loop_index: i,
+                    point_index: j,
+                    point: *p,
+                });
+            }
+        }
         if lp[0] != lp[lp.len() - 1] {
             return Err(CoverageError::UnclosedLoop {
                 loop_index: i,
@@ -114,7 +147,7 @@ pub fn polygon_coverage(
         for e in lp.windows(2) {
             accumulate_edge(
                 e[0], e[1], width_px, row_start, row_end, stride, &mut area, &mut diff,
-            );
+            )?;
         }
     }
 
@@ -132,6 +165,14 @@ pub fn polygon_coverage(
     Ok(out)
 }
 
+/// FINITENESS OF INPUTS DOES NOT IMPLY FINITENESS OF INTERMEDIATES
+/// (F-0012). `xhi - xlo` overflows to ±inf for coordinates near `f64::MAX`,
+/// and `0 * inf` then yields a NaN POSITION from two perfectly finite
+/// vertices. This is the same class as the NaN arc centre found in F-0007
+/// — and the lesson from there was not carried here, which is precisely
+/// the generalisation failure the red team flagged. An intermediate that
+/// leaves the finite range is REFUSED, never propagated: silently skipping
+/// the edge would lose real area instead.
 #[allow(clippy::too_many_arguments)]
 fn accumulate_edge(
     a: Pt,
@@ -142,9 +183,9 @@ fn accumulate_edge(
     stride: usize,
     area: &mut [f64],
     diff: &mut [f64],
-) {
+) -> Result<(), CoverageError> {
     if a.y == b.y {
-        return; // horizontal edges: dy = 0
+        return Ok(()); // horizontal edges: dy = 0
     }
     let sign = if b.y > a.y { 1.0 } else { -1.0 };
     let (ylo, xlo, yhi, xhi) = if b.y > a.y {
@@ -160,7 +201,7 @@ fn accumulate_edge(
     let y_from = ylo.max(band_lo);
     let y_to = yhi.min(band_hi);
     if y_to <= y_from {
-        return;
+        return Ok(());
     }
     let inv_dy = (xhi - xlo) / (yhi - ylo);
     let x_at = |y: f64| xlo + (y - ylo) * inv_dy;
@@ -180,6 +221,16 @@ fn accumulate_edge(
         // Exact endpoints where unclipped; interpolated where clipped.
         let sx = if sy == ylo { xlo } else { x_at(sy) };
         let ex = if ey == yhi { xhi } else { x_at(ey) };
+        // Everything downstream is finite by construction once these two
+        // are: column boundaries are exact integers, and the y-clamps
+        // absorb a non-finite slope.
+        if !sx.is_finite() || !ex.is_finite() {
+            return Err(CoverageError::NonFiniteIntermediate {
+                from: a,
+                to: b,
+                overflowed: if sx.is_finite() { ex } else { sx },
+            });
+        }
         emit_row_pieces(
             sign,
             sy,
@@ -191,6 +242,7 @@ fn accumulate_edge(
             &mut diff[row_off..row_off + stride],
         );
     }
+    Ok(())
 }
 
 /// Split one row sub-segment (x from `sx` to `ex` over y in `[sy, ey]`)

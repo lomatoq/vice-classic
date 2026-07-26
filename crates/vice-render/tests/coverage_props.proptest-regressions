@@ -1,0 +1,10 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc c12a0cc10c0d6d8228b3cb1a0b518322b4e6ff52b45066d0bed1372aa7912665 # shrinks to mut lp = [Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: NaN }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }], idx = 3, bad = NaN, on_x = false
+cc ef71855eebbc3f0140edba9cdaa3c35ff134eb4bef1bee62f4fa938eeb224e5e # shrinks to mut lp = [Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }], idx = 0, bad = NaN, on_x = false
+cc ee2dcd072167be4666b2a446f96ad6a6522b62eb3d18790fff3ce3035877f648 # shrinks to mut lp = [Vec2 { x: NaN, y: 0.0 }, Vec2 { x: 0.0, y: 0.0 }, Vec2 { x: NaN, y: 0.0 }], idx = 0, bad = NaN, on_x = false
+cc ff4f97b19d20f0b3b7f83c4b6fae92f64067c41258799d5c066f99b09089d7c5 # shrinks to lp = [Vec2 { x: 1e300, y: -1e300 }, Vec2 { x: -1.7976931348623157e308, y: 1.7976931348623157e308 }, Vec2 { x: 1e300, y: -1e300 }], width = 1
