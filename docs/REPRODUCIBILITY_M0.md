@@ -63,7 +63,16 @@ cargo run --release --bin baseline-runner -- run --config configs/baselines.toml
 Затем сравните `runs/m0/hashes.json` с записанным
 `docs/baselines/M0/hashes.json`, исключив из сравнения поля
 `binary_sha256` (non-normative provenance; REVIEW_M0 N3 — разделение
-hashes.json на нормативную/информационную секции запланировано на M1).
+hashes.json на нормативную/информационную секции выполняется вместе с
+pre-M3 перезаписью baseline-ов по B1/B2: менять схему artefact-файла без
+одновременной перезаписи записанных артефактов нельзя, а
+`docs/baselines/M0/**` неприкосновенны; см. STATUS_M1 §blockers).
+
+**Схема env.json (примечание M1/C009):** начиная с C009 env.json содержит
+дополнительный блок `command_env` (политика санации окружения дочерних
+процессов, ADR-0007), поэтому побайтовое сравнение env.json с записанным
+`docs/baselines/M0/env.json` корректно только на M0-коммитах (C002–C005).
+Сами записанные M0-артефакты не изменялись.
 
 ## Что обязано совпасть, что нет
 

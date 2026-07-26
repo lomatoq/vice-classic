@@ -153,6 +153,71 @@ fn missing_mirror_is_isolated_typed_failure() {
 }
 
 #[test]
+fn verify_corpus_takes_limits_from_config() {
+    let t = tempfile::tempdir().unwrap();
+    let corpus = t.path().join("corpus");
+    gen_corpus(&corpus);
+
+    // Without --config: built-in default limits, corpus verifies.
+    let ok = Command::new(runner_bin())
+        .arg("verify-corpus")
+        .arg("--corpus")
+        .arg(&corpus)
+        .arg("--manifest")
+        .arg(corpus.join("SMOKE_MANIFEST.toml"))
+        .status()
+        .unwrap();
+    assert!(ok.success());
+
+    // With --config whose limits are absurdly tight, the same corpus must
+    // FAIL verification: the limits demonstrably come from the config.
+    let config = t.path().join("tight.toml");
+    std::fs::write(
+        &config,
+        r#"
+schema = "vice-classic/baselines/v1"
+
+[limits]
+max_input_bytes = 10
+max_png_dimension = 4096
+run_timeout_secs = 300
+build_timeout_secs = 3600
+max_output_bytes = 33554432
+"#,
+    )
+    .unwrap();
+    let output = Command::new(runner_bin())
+        .arg("verify-corpus")
+        .arg("--corpus")
+        .arg(&corpus)
+        .arg("--manifest")
+        .arg(corpus.join("SMOKE_MANIFEST.toml"))
+        .arg("--config")
+        .arg(&config)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("too large"), "stdout: {stdout}");
+
+    // An unparsable/unknown-schema config is a hard error (exit 2), not a
+    // silent fallback to defaults.
+    let bad = t.path().join("bad.toml");
+    std::fs::write(&bad, "schema = \"wrong/schema\"\n").unwrap();
+    let output = Command::new(runner_bin())
+        .arg("verify-corpus")
+        .arg("--corpus")
+        .arg(&corpus)
+        .arg("--manifest")
+        .arg(corpus.join("SMOKE_MANIFEST.toml"))
+        .arg("--config")
+        .arg(&bad)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+}
+
+#[test]
 fn corrupted_corpus_aborts_run() {
     let t = tempfile::tempdir().unwrap();
     let corpus = t.path().join("corpus");

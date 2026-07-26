@@ -53,6 +53,11 @@ enum Cmd {
         corpus: PathBuf,
         #[arg(long)]
         manifest: PathBuf,
+        /// Baselines config; when given, resource limits are taken from its
+        /// [limits] section (same limits as a full `run`). Without it the
+        /// built-in defaults apply (REVIEW_M0 N4).
+        #[arg(long)]
+        config: Option<PathBuf>,
     },
     /// Print the environment manifest (canonical JSON).
     Env {
@@ -77,6 +82,10 @@ enum Cmd {
         #[arg(long, default_value_t = 0)]
         delay_ms: u64,
     },
+    /// Internal test adapter: write `NAME=value` (or `NAME=<unset>`) of one
+    /// environment variable to a file. Used by the child-env-policy tests
+    /// to observe what a child process actually sees.
+    EnvProbe { name: String, out: PathBuf },
 }
 
 fn main() {
@@ -139,7 +148,21 @@ fn real_main() -> i32 {
                 }
             }
         }
-        Cmd::VerifyCorpus { corpus, manifest } => {
+        Cmd::VerifyCorpus {
+            corpus,
+            manifest,
+            config,
+        } => {
+            let limits = match &config {
+                None => ResourceLimits::default(),
+                Some(path) => match vice_bench::config::load_config(path) {
+                    Ok(cfg) => cfg.limits,
+                    Err(e) => {
+                        eprintln!("error: {e}");
+                        return 2;
+                    }
+                },
+            };
             let m = match corpus::load_manifest(&manifest) {
                 Ok(m) => m,
                 Err(e) => {
@@ -147,7 +170,7 @@ fn real_main() -> i32 {
                     return 2;
                 }
             };
-            let statuses = corpus::verify(&corpus, &m, &ResourceLimits::default());
+            let statuses = corpus::verify(&corpus, &m, &limits);
             let mut ok = true;
             for (name, st) in &statuses {
                 println!("{name}: {st:?}");
@@ -217,6 +240,16 @@ fn real_main() -> i32 {
                         input.display(),
                         output.display()
                     );
+                    1
+                }
+            }
+        }
+        Cmd::EnvProbe { name, out } => {
+            let value = std::env::var(&name).unwrap_or_else(|_| "<unset>".to_string());
+            match std::fs::write(&out, format!("{name}={value}")) {
+                Ok(()) => 0,
+                Err(e) => {
+                    eprintln!("error: write {}: {e}", out.display());
                     1
                 }
             }
