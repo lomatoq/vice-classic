@@ -752,6 +752,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vice-render"
+version = "0.0.1"
+dependencies = [
+ "hex",
+ "sha2",
+ "thiserror",
+ "vice-geom",
+ "vice-ir",
+]
+
+[[package]]
 name = "wait-timeout"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
