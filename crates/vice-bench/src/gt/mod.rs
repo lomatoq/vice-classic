@@ -32,6 +32,7 @@ pub mod grammar;
 pub mod raster;
 pub mod raster_external;
 mod recipes;
+pub mod split;
 
 use std::collections::{BTreeMap, BTreeSet};
 
