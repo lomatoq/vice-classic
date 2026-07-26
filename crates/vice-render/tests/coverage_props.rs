@@ -464,3 +464,53 @@ fn unresolvable_geometry_is_a_shared_representation_limit() {
         assert!(v.abs() <= 3.0, "and the winding bound still holds: {v}");
     }
 }
+
+/// REDTEAM_M2 addendum 3, F-M2-R13: the fixture my own resolvability
+/// predicate excluded — and on which the accumulator was silently wrong.
+///
+/// Pixel-scale geometry is unambiguous here: edge B->C has slope
+/// dx/dy = -1e-150, so within canvas rows it stands at x ~ 0; edge C->A
+/// likewise stands at x ~ A.x. The only boundary crossing pixel (3,0) is
+/// therefore the segment A->B through the origin, and the coverage is
+/// (A.y / A.x) * (4^2 - 3^2) / 2 = 0.278144151...
+///
+/// Four independent methods agree on that value (closed form, the
+/// conditioned clipping reference, 64x64 supersampling, and this
+/// accumulator itself at every benign magnitude of the identical
+/// pixel-scale geometry). Before F-0014 the accumulator returned exactly
+/// 0.0 here.
+#[test]
+fn redteam_excluded_fixture_is_computed_correctly() {
+    let a = Pt::new(10.018579925919843, 0.7961741172608049);
+    let b = Pt::new(0.0, 0.0);
+    let c = Pt::new(1e150, -1e300);
+    let lp = vec![a, b, c, a];
+
+    let cov = polygon_coverage(&[&lp], 4, 0, 4).expect("finite vertices");
+    let got = cov[3].abs(); // pixel (3, 0)
+    let expected = (a.y / a.x) * 3.5;
+    assert!(
+        (got - expected).abs() < 1e-12,
+        "pixel (3,0): got {got}, closed form {expected}"
+    );
+
+    // Magnitude convergence: the same pixel-scale geometry with the far
+    // vertex pulled in must give the same answer all the way out. This is
+    // what proves the value is a property of the geometry and not of the
+    // magnitude — the argument that showed the exclusion was unjustified.
+    for (fx, fy) in [
+        (1e0, -1e1),
+        (1e6, -1e12),
+        (1e10, -1e20),
+        (1e75, -1e150),
+        (1e150, -1e300),
+    ] {
+        let lp = vec![a, b, Pt::new(fx, fy), a];
+        let cov = polygon_coverage(&[&lp], 4, 0, 4).expect("finite vertices");
+        assert!(
+            (cov[3].abs() - expected).abs() < 1e-9,
+            "far ({fx:e},{fy:e}): got {}, expected {expected}",
+            cov[3].abs()
+        );
+    }
+}
