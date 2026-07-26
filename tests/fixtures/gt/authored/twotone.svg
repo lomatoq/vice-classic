@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- vice-classic GT corpus, hand-authored in this repository.
+     Two disjoint islands with different fills: the blend-space axis is
+     only observable where two OPAQUE paints meet, so the authored corpus
+     has to contain a multi-paint case. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <path fill="#c94f27" d="M 31 44 L 118 31 L 126 121 L 39 133 Z M 62 66 L 96 61 L 100 100 L 66 105 Z"/>
+  <path fill="#1f6f78" d="M 141 138 L 224 129 L 231 219 L 134 226 Z"/>
+</svg>

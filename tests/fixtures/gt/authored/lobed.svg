@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- vice-classic GT corpus, hand-authored in this repository.
+     Eight quadratic segments with alternating anchor radii: a curved,
+     strongly non-convex outline that is still a simple closed curve. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <path fill="#7a4b17" d="M 220 128 Q 185 152 168 168 Q 152 185 128 220 Q 104 185 88 168 Q 71 152 36 128 Q 71 104 88 88 Q 104 71 128 36 Q 152 71 168 88 Q 185 104 220 128 Z"/>
+</svg>

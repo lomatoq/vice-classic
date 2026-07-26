@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- vice-classic GT corpus, hand-authored in this repository.
+     Three cubic segments: the ring stores each anchor once, so a closed
+     curved outline needs at least three distinct anchors. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <path fill="#2f6b3a" d="M 44 197 C 61 79 143 34 213 47 C 221 96 196 141 152 171 C 122 192 84 202 44 197 Z"/>
+</svg>

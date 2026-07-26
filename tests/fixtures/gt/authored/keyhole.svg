@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- vice-classic GT corpus, hand-authored in this repository. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <path fill="#8a2f2f" d="M 58 33 L 199 47 L 213 205 L 47 219 Z M 108 87 L 151 91 L 147 168 L 104 164 Z"/>
+</svg>

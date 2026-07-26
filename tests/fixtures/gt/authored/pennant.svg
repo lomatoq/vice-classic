@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- vice-classic GT corpus, hand-authored in this repository.
+     Accepted subset: absolute M/L/Q/C/Z, solid #rrggbb fill, first subpath
+     is the outline and later subpaths are holes. Coordinates are scene
+     pixels on the 256 authoring canvas. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <path fill="#1d4e89" d="M 37 41 L 214 63 L 121 129 L 208 196 L 41 214 Z"/>
+</svg>
