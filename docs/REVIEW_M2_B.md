@@ -644,3 +644,44 @@ M2 подтверждён reviewer-ом B на HEAD
 —
 *Independent reviewer B (cold agent context, Fable)*
 *2026-07-26 · re-checked delta-2 C040–C044 · HEAD `bd859cd6eadf9bbbf69e476c1596f78c20c916e8` · харнесс 39/39 в обоих профилях*
+
+---
+
+## Addendum 3 — подтверждение по дельте-3 (C046–C050)
+
+**HEAD:** `472a02cd71ff609ed8f26938b9113dfcc9469fa1` (клон обновлён, SHA
+совпал с remote `main`, дерево чистое; CI run 30205906190 — success).
+Объём дельты-3 проверен diff-ом `6edef4d..472a02c`: только vice-render
+(coverage, lib, partition, roi + тесты, court, common) и
+governance-документы; vice-geom, vice-ir, vice-bench, `seal_gate.rs`,
+baselines и Cargo-файлы не тронуты — объём не вышел за перечень находок
+re-gate 2, golden digests структурно двигаться не могли.
+
+Мои прогоны: fmt/clippy — 0; `cargo test --workspace` — **206/0 в обоих
+профилях**. Харнесс `%TEMP%\m2advB` — **39/39 в release И в debug**, без
+адаптации: ломающее C049 (`render_mesh_partition`/`_roi` →
+`&RenderOptions`) моих call sites не касается. Прежние подтверждения
+целы: точные half/eighth-pixel равенства, quad junction ровно 0.25×4,
+ROI побитово, typed B2/B4- и domain-reject-ы, 1-ulp чувствительность;
+мои seal-digests **бит-в-бит те же, что на db1a18a/9f7d523/bd859cd, и
+debug==release** (`e8e80d8b…`/`9bf198ca…`) — это независимо
+подтверждает заявление C046 «быстрый путь бит-в-бит совпадает с прежней
+арифметикой». Суть C046 просмотрена: `stable_ratio_of_differences`
+закрывает обе стороны класса `(a−b)/(c−d)` (переполнение числителя И
+знаменателя — второй экземпляр `dy_dx` включён), fallback —
+точное деление пополам. Пологий sliver ~1.5° после C047 по-прежнему в
+порогах суда: ts max 0.2037 ≤ 0.27, edge_mean 0.0585 ≤ 0.16
+(rq 0.2373/0.0697 ≤ 0.31/0.17). Ложных отказов нет (39/39 законных
+сцен, десятки прямых вызовов аккумулятора); ADV-тайминги плоские
+(рост walk-а 1.00×, out-of-domain отказ 12 µs, far-edge 14 µs).
+
+## VERDICT (addendum 3): ACCEPT
+
+M2 подтверждён reviewer-ом B на HEAD
+`472a02cd71ff609ed8f26938b9113dfcc9469fa1`. Оговорка о G11 прежняя:
+моя подпись — одна из требуемых §34; контекст A и red-team
+подписываются отдельно.
+
+—
+*Independent reviewer B (cold agent context, Fable)*
+*2026-07-26 · re-checked delta-3 C046–C050 · HEAD `472a02cd71ff609ed8f26938b9113dfcc9469fa1` · харнесс 39/39 в обоих профилях*
