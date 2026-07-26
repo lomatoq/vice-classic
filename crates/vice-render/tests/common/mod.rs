@@ -480,6 +480,30 @@ fn shoelace(poly: &[Pt]) -> f64 {
 /// Exact per-pixel winding integral of `loops` over a `w x h` canvas,
 /// computed by per-pixel polygon clipping. Row-major, like the renderer.
 pub fn sh_clip_coverage(loops: &[&[Pt]], w: u32, h: u32) -> Vec<f64> {
+    sh_clip_coverage_window(loops, 0, 0, w, h)
+}
+
+/// The same reference over an arbitrary pixel WINDOW `[ox, ox+w) x
+/// [oy, oy+h)`, so the arbiter can be exercised at large pixel
+/// coordinates without paying for the whole canvas.
+///
+/// CONDITIONING (F-M2-R8 / M2-A-N10). The arbiter must be more accurate
+/// than the thing it judges, and the naive form is not: taking the
+/// shoelace in ABSOLUTE coordinates squares the magnitude (terms ~M^2),
+/// so its own error grows as eps*M^2 and overtakes the renderer's — the
+/// red team measured their own reference at 1e-7 for |x| = 1e9 before
+/// fixing it the same way, and both cold contexts independently measured
+/// this one going 7.3x WORSE than the renderer at the declared domain
+/// edge. Two properties restore it:
+///   1. a clipped coordinate is SET to the clip value, never interpolated
+///      (already true of `lerp_x`/`lerp_y` below);
+///   2. the clipped polygon is translated to the pixel origin before the
+///      shoelace. Every clipped point lies in the pixel box, so for pixel
+///      index >= 1 the subtraction is exact by Sterbenz and for index 0 it
+///      is trivially exact; the shoelace then runs entirely on operands in
+///      [0, 1] and its error is a few ulp(1) regardless of where the pixel
+///      sits.
+pub fn sh_clip_coverage_window(loops: &[&[Pt]], ox: u32, oy: u32, w: u32, h: u32) -> Vec<f64> {
     let mut out = vec![0.0f64; (w as usize) * (h as usize)];
     for lp in loops {
         // Drop the duplicated closing vertex if present.
@@ -489,14 +513,16 @@ pub fn sh_clip_coverage(loops: &[&[Pt]], w: u32, h: u32) -> Vec<f64> {
             lp.to_vec()
         };
         for py in 0..h {
-            let (y0, y1) = (f64::from(py), f64::from(py) + 1.0);
+            let (y0, y1) = (f64::from(oy + py), f64::from(oy + py) + 1.0);
             for px in 0..w {
-                let (x0, x1) = (f64::from(px), f64::from(px) + 1.0);
+                let (x0, x1) = (f64::from(ox + px), f64::from(ox + px) + 1.0);
                 let c = clip_half_plane(&poly, |p| p.x >= x0, |a, b| lerp_x(a, b, x0));
                 let c = clip_half_plane(&c, |p| p.x <= x1, |a, b| lerp_x(a, b, x1));
                 let c = clip_half_plane(&c, |p| p.y >= y0, |a, b| lerp_y(a, b, y0));
                 let c = clip_half_plane(&c, |p| p.y <= y1, |a, b| lerp_y(a, b, y1));
-                out[(py as usize) * (w as usize) + px as usize] += shoelace(&c);
+                // Translate to the pixel origin (exact) before the shoelace.
+                let local: Vec<Pt> = c.iter().map(|p| Pt::new(p.x - x0, p.y - y0)).collect();
+                out[(py as usize) * (w as usize) + px as usize] += shoelace(&local);
             }
         }
     }

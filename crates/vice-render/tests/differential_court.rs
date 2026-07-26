@@ -189,10 +189,33 @@ const TINY_SKIA_EDGE_MEAN: f64 = 0.16;
 const RAQOTE_MAX_ABS: f64 = 0.31;
 const RAQOTE_EDGE_MEAN: f64 = 0.17;
 
-/// The SH reference is exact up to f64: agreement with it is what
-/// actually certifies the renderer, orders of magnitude tighter than any
-/// 8-bit judge can resolve.
-const SH_MAX_ABS: f64 = 1e-12;
+/// The accuracy gate against the exact reference, DERIVED from coordinate
+/// magnitude rather than frozen flat (F-M2-R8 / M2-A-N10).
+///
+/// A flat `1e-12` was wrong in both directions. Both cold contexts
+/// measured, independently, that the arbiter's own error grew as eps*M^2
+/// and overtook the renderer at the declared domain edge, so the constant
+/// would have fired against a CORRECT render from M ~ 2^12 upward — while
+/// on the committed set (<= 49 px) it was simultaneously looser than it
+/// needed to be. The arbiter is now conditioned so its own error is
+/// magnitude-independent (see `sh_clip_coverage_window`), and this bound
+/// follows the same law as `PartitionTolerances::for_domain` (ADR-0013),
+/// applied to the scene's ACTUAL extent: what it bounds is the
+/// RENDERER's error, which is the only thing left once the arbiter is
+/// exact.
+fn sh_threshold_for(max_abs_coord_px: f64) -> f64 {
+    (16.0 * f64::EPSILON * max_abs_coord_px.max(1.0)).max(1e-12)
+}
+
+fn mesh_max_abs_coord(mesh: &RenderMesh) -> f64 {
+    let mut m: f64 = f64::from(mesh.width_px).max(f64::from(mesh.height_px));
+    for poly in &mesh.boundary_polylines {
+        for p in &poly.points {
+            m = m.max(p.x.abs()).max(p.y.abs());
+        }
+    }
+    m
+}
 
 fn court_scene(name: &str, scene: &ValidatedScene) -> PartitionRender {
     let opts = RenderOptions::default();
@@ -211,10 +234,11 @@ fn court_scene(name: &str, scene: &ValidatedScene) -> PartitionRender {
         let refs: Vec<&[Pt]> = loops.iter().map(|l| l.as_slice()).collect();
         let sh = sh_clip_coverage(&refs, w, h);
         let m_sh = metrics(ours, &sh);
-        println!("court[{name}] face {face} vs SH-clip:   {m_sh:?}");
+        let sh_gate = sh_threshold_for(mesh_max_abs_coord(&mesh));
+        println!("court[{name}] face {face} vs SH-clip:   {m_sh:?} (gate {sh_gate:e})");
         assert!(
-            m_sh.max_abs_delta <= SH_MAX_ABS,
-            "{name}/f{face} SH max {}",
+            m_sh.max_abs_delta <= sh_gate,
+            "{name}/f{face} SH max {} exceeds derived gate {sh_gate:e}",
             m_sh.max_abs_delta
         );
 
@@ -552,7 +576,7 @@ fn judges_cannot_resolve_a_systematic_bias_but_the_exact_reference_can() {
     );
     // Trivially visible to the exact reference — by ten orders.
     assert!(
-        m.max_abs_delta > SH_MAX_ABS * 1e9,
+        m.max_abs_delta > sh_threshold_for(32.0) * 1e9,
         "the exact reference must catch the systematic class: {}",
         m.max_abs_delta
     );
@@ -622,4 +646,60 @@ fn shallow_sliver_exceedance_is_arbitrated_against_the_judge() {
         judge.max_abs_delta,
         ours.max_abs_delta
     );
+}
+
+/// The arbiter must be MORE accurate than the party it judges — measured,
+/// across the declared numeric domain, against analytic truth
+/// (F-M2-R8 / M2-A-N10).
+///
+/// Both cold contexts measured the naive arbiter going the other way: at
+/// M = 2^14 its own error was 1.01e-11 against the renderer's 1.38e-12,
+/// i.e. 7.3x WORSE, so the court would have convicted a correct renderer.
+/// The gate was green only because the committed scenes are <= 49 px.
+/// This test walks the domain and fails if the arbiter is ever the looser
+/// party.
+#[test]
+fn sh_arbiter_stays_more_accurate_than_the_renderer_across_the_domain() {
+    // Axis-aligned non-dyadic rectangle: per-pixel coverage is the product
+    // of two exact 1-D overlaps, so truth is available in closed form.
+    fn analytic(px: u32, py: u32, x0: f64, y0: f64, x1: f64, y1: f64) -> f64 {
+        let ox = (x1.min(f64::from(px) + 1.0) - x0.max(f64::from(px))).max(0.0);
+        let oy = (y1.min(f64::from(py) + 1.0) - y0.max(f64::from(py))).max(0.0);
+        ox * oy
+    }
+
+    for k in [4u32, 8, 10, 12, 14] {
+        let base = f64::from(1u32 << k);
+        let (x0, y0) = (base + 0.3, base + 0.7);
+        let (x1, y1) = (base + 5.55, base + 4.2);
+        let lp = vec![
+            Pt::new(x0, y0),
+            Pt::new(x1, y0),
+            Pt::new(x1, y1),
+            Pt::new(x0, y1),
+            Pt::new(x0, y0),
+        ];
+        let (ox, oy) = ((base as u32) - 1, (base as u32) - 1);
+        let (w, h) = (9u32, 8u32);
+
+        let sh = sh_clip_coverage_window(&[&lp], ox, oy, w, h);
+        let mut sh_err = 0.0f64;
+        for r in 0..h {
+            for c in 0..w {
+                let truth = analytic(ox + c, oy + r, x0, y0, x1, y1);
+                sh_err = sh_err.max((sh[(r * w + c) as usize] - truth).abs());
+            }
+        }
+        let gate = sh_threshold_for(base + 8.0);
+        println!("arbiter at 2^{k}: own error {sh_err:e}, derived gate {gate:e}");
+        assert!(
+            sh_err <= gate,
+            "the arbiter must stay inside the gate it enforces: {sh_err:e} > {gate:e} at 2^{k}"
+        );
+        // And in absolute terms it must stay at f64 noise, not grow with M.
+        assert!(
+            sh_err < 1e-14,
+            "arbiter error must be magnitude-independent: {sh_err:e} at 2^{k}"
+        );
+    }
 }
