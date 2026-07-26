@@ -38,3 +38,12 @@ schema = "vice-classic/porting-manifest/v1"
 #   - lomatoq/v-ize  crates/vize-core/src/geom.rs (typed curve vocabulary)
 # Until v-ice/Vice- carry an explicit license grant, these remain
 # reference-only candidates and nothing from them may be copied.
+
+# M2 status: STILL ZERO ported units. Spec §28 M2 names a "signed-area
+# polygon coverage port", but REVIEW_M0 condition 6 stands: v-ice has no
+# license grant, so vice-render (tessellation, coverage accumulator,
+# partition renderer, ROI, seal skeleton) is written CLEAN-ROOM — donor
+# sources were not opened while writing it. The raster.rs candidate above
+# remains reference-only. The differential-court rasterizers (tiny-skia,
+# raqote) are external OSS cargo DEV-dependencies with verified licenses
+# (THIRD_PARTY_NOTICES §2b), not vendored, not ported.

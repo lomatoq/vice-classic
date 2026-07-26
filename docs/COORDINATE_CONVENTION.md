@@ -1,6 +1,7 @@
 # COORDINATE_CONVENTION — неподвижные конвенции vice-classic
 
-Дата фиксации: 2026-07-26 (M1). Источник: spec v1.3 §5 (§5.1–§5.5).
+Дата фиксации: 2026-07-26 (M1; §1a добавлен в M2). Источник: spec v1.3 §5
+(§5.1–§5.5).
 Эти решения принимаются ДО algorithm tuning; изменение любого пункта —
 отдельный reviewed commit, потому что оно инвалидирует канонические байты,
 digests и записанные gate-артефакты.
@@ -29,6 +30,23 @@ Internal geometry = f64 (до seal).
   экране ПО часовой стрелке. Topology-код обязан рассуждать в алгебраической
   конвенции (`vice-geom::predicates`), «визуальный» язык в topology-коде
   запрещён.
+
+## 1a. Ориентация face loops (M2, следствие face-on-left из §6.1)
+
+Boundary направлена start→end; `left_face` лежит на АЛГЕБРАИЧЕСКОЙ левой
+стороне направления движения (`rot90_ccw(d) = (−d.y, d.x)`). Следствия,
+на которых стоит renderer (enforced embedding-сертификацией M2,
+ADR-0010):
+
+- обход loop-а с face слева даёт **положительную алгебраическую
+  shoelace-площадь для outer loop bounded face**;
+- hole loops bounded face и все loops exterior face — **отрицательные**;
+- winding number внутри positively-ориентированного loop равен `+1`, и
+  coverage face = ∫∫ winding по пикселю (модуль `vice-render::coverage`).
+
+Напоминание про y-вниз: алгебраически положительный loop выглядит на
+экране ПО часовой стрелке; в topology/render-коде используется только
+алгебраический язык.
 
 ## 2. Цвет и observation space (§5.2)
 
