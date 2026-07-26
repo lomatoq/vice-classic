@@ -1,0 +1,27 @@
+Traceback (most recent call last):
+  File "C:\Users\nirrt\Toolset\vice-classic\runs\m0\checkouts\Vice-/run_vectorizer.py", line 128, in run_one
+    report = process(source, mode_root, extractor=extractor, smoothing=mode)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nirrt\Toolset\vice-classic\runs\m0\checkouts\Vice-\geometry_vectorizer.py", line 12657, in process
+    corners = paper_corner_positions(coarse, detector=det)   # corners on the RAW staircase
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nirrt\Toolset\vice-classic\runs\m0\checkouts\Vice-\geometry_vectorizer.py", line 1274, in paper_corner_positions
+    model, s = _corner_model()
+               ^^^^^^^^^^^^^^^
+  File "C:\Users\nirrt\Toolset\vice-classic\runs\m0\checkouts\Vice-\geometry_vectorizer.py", line 509, in _corner_model
+    _CORNER_MODEL = load()
+                    ^^^^^^
+  File "C:\Users\nirrt\Toolset\vice-classic\runs\m0\checkouts\Vice-\corner_classifier.py", line 950, in load
+    bundle = joblib.load(path)
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\joblib\numpy_pickle.py", line 735, in load
+    with open(filename, "rb") as f:
+         ^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-\\models\\corner_rf.joblib'
+Vectorizer launcher: 1 file(s), modes=['paper-regions'], extractor=mininet
+Output: C:\Users\nirrt\Toolset\vice-classic\runs\m0\work\Vice-\rep0\triangle_128\out\m0
+
+> triangle_128.png
+    [paper-regions] FAILED: [Errno 2] No such file or directory: 'C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-\\models\\corner_rf.joblib'
+
+Done. Results in C:\Users\nirrt\Toolset\vice-classic\runs\m0\work\Vice-\rep0\triangle_128\out\m0

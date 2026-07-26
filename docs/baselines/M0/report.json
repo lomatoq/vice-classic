@@ -1,0 +1,934 @@
+{
+  "schema": "vice-classic/m0-baseline-report/v1",
+  "tool": {
+    "name": "vice-bench baseline-runner",
+    "version": "0.0.1",
+    "exe_sha256": "de58f10d77412496733715c766dd3236e35abe814af3d216012d96250b077e14"
+  },
+  "config": "configs\\baselines.toml",
+  "config_sha256": "2376b348e77f9d2077750696360d48652bc94ed90e437b31ea0a896f07450a9c",
+  "environment": {
+    "os": "windows",
+    "arch": "x86_64",
+    "family": "windows",
+    "logical_cpus": 16,
+    "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+    "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+    "git": "git version 2.55.0.windows.2",
+    "python": "Python 3.12.1"
+  },
+  "environment_sha256": "d1ccab0ce0ae698605c0ba55ba1dc63579f014973b8007655aae22f9da627d5e",
+  "repeats": 2,
+  "corpus": [
+    {
+      "name": "rect_32.png",
+      "sha256": "a1a64778c3c4880caa381e965b10bdb3ad7a2a156dd4330f1d6b61424212c0e7",
+      "width": 32,
+      "height": 32
+    },
+    {
+      "name": "circle_64.png",
+      "sha256": "b6bf11999504275cd22b79b4b3c2e7d84b024f3fdaaf48eab361812dbcbc444a",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "ring_64.png",
+      "sha256": "207b334ddd620e8510756c0b35fad2d1c543b100518b7d6ce882c2deb1e87f61",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "name": "triangle_128.png",
+      "sha256": "f718ab2ad8b9c398e74af7938f80d9d4afdbc13e9ffd224908f482bcd82937b2",
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "glyph_16.png",
+      "sha256": "3d13e8b3f68739af6c1f2bfe073d61de65b3bf87b1261b256d845cf569cd9972",
+      "width": 16,
+      "height": 16
+    }
+  ],
+  "baselines": [
+    {
+      "name": "v-ice",
+      "repo": "lomatoq/v-ice",
+      "pin_sha": "9211b3213d9b47defdf19ae4d0842af1c3ade45f",
+      "mirror": "C:\\Users\\nirrt\\Toolset\\v-ice",
+      "status": "failed",
+      "error": {
+        "kind": "build_failed",
+        "message": "build failed with exit code Some(101); log: logs/v-ice/build.log"
+      },
+      "resolved_sha": "9211b3213d9b47defdf19ae4d0842af1c3ade45f",
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--release",
+          "--bin",
+          "vice-cli"
+        ],
+        "exit_code": 101,
+        "timed_out": false,
+        "duration_ms": 17106,
+        "binary_path": null,
+        "binary_sha256": null,
+        "log": "logs/v-ice/build.log"
+      },
+      "notes": "Known caveats at pin 9211b321:\n(1) summary.json is always written into --out-dir and embeds wall-clock ms and absolute paths -> recorded as a secondary artifact, expected nondeterministic. (2) The pin's `image` dependency enables avif-native (dav1d via pkg-config); building the pin on Windows without dav1d installed is expected to fail -> typed build_failed outcome, documented blocker, NOT silently patched. (3) --ml is on by default; the embedded restore_v1.onnx is part of the pinned source tree and hashes with the checkout.",
+      "runs": [],
+      "determinism": null
+    },
+    {
+      "name": "v-ize",
+      "repo": "lomatoq/v-ize",
+      "pin_sha": "95a65194cf34e2d96b41eb299b4769eac624be80",
+      "mirror": "C:\\Users\\nirrt\\Toolset\\v-ize",
+      "status": "completed",
+      "error": null,
+      "resolved_sha": "95a65194cf34e2d96b41eb299b4769eac624be80",
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--release",
+          "-p",
+          "vize-cli"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "duration_ms": 61817,
+        "binary_path": "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+        "binary_sha256": "658f3cd110e6447359a7c9271f584259328c1a438cc87bbc882046722dfd8ed4",
+        "log": "logs/v-ize/build.log"
+      },
+      "notes": "Known caveats at pin 95a65194:\n(1) pin is NOT an ancestor of the mirror's HEAD (lives on a side branch); the fresh clone+detached checkout handles this correctly. (2) known nondeterminism source: centerline.rs components_reconnected() iterates HashMap::into_values() unsorted -> stroke layer order in the SVG can differ between runs when centerline strokes trigger; CLI enables centerline unconditionally. Detected by the repeat comparison, documented, not hidden. (3) vize-cli at pin links the full wgpu stack (215 locked packages); --gpu stays off, CPU path is used.",
+      "runs": [
+        {
+          "input": "rect_32.png",
+          "repeat": 0,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep0\\rect_32\\out/rect_32.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 369,
+          "artifacts": [
+            {
+              "path": "rect_32.svg",
+              "declared": true,
+              "bytes": 159,
+              "sha256": "851a35826d7fc9abd9d016f7d1efe23ba3090f7f9f244c694a79dfcdc3a590d6"
+            }
+          ],
+          "log": "logs/v-ize/rep0/rect_32.log"
+        },
+        {
+          "input": "rect_32.png",
+          "repeat": 1,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep1\\rect_32\\out/rect_32.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 106,
+          "artifacts": [
+            {
+              "path": "rect_32.svg",
+              "declared": true,
+              "bytes": 159,
+              "sha256": "851a35826d7fc9abd9d016f7d1efe23ba3090f7f9f244c694a79dfcdc3a590d6"
+            }
+          ],
+          "log": "logs/v-ize/rep1/rect_32.log"
+        },
+        {
+          "input": "circle_64.png",
+          "repeat": 0,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep0\\circle_64\\out/circle_64.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 105,
+          "artifacts": [
+            {
+              "path": "circle_64.svg",
+              "declared": true,
+              "bytes": 219,
+              "sha256": "5c34ae2e56e96c2749b102f92c31d376ffc6b14ffca8a49c80c1eabe9ee4d026"
+            }
+          ],
+          "log": "logs/v-ize/rep0/circle_64.log"
+        },
+        {
+          "input": "circle_64.png",
+          "repeat": 1,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep1\\circle_64\\out/circle_64.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 105,
+          "artifacts": [
+            {
+              "path": "circle_64.svg",
+              "declared": true,
+              "bytes": 219,
+              "sha256": "5c34ae2e56e96c2749b102f92c31d376ffc6b14ffca8a49c80c1eabe9ee4d026"
+            }
+          ],
+          "log": "logs/v-ize/rep1/circle_64.log"
+        },
+        {
+          "input": "ring_64.png",
+          "repeat": 0,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep0\\ring_64\\out/ring_64.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 105,
+          "artifacts": [
+            {
+              "path": "ring_64.svg",
+              "declared": true,
+              "bytes": 343,
+              "sha256": "2da63c90e38230d4f69b7f102f3533d1b65b9b9446c18514b8e618b6deb81857"
+            }
+          ],
+          "log": "logs/v-ize/rep0/ring_64.log"
+        },
+        {
+          "input": "ring_64.png",
+          "repeat": 1,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep1\\ring_64\\out/ring_64.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 105,
+          "artifacts": [
+            {
+              "path": "ring_64.svg",
+              "declared": true,
+              "bytes": 343,
+              "sha256": "2da63c90e38230d4f69b7f102f3533d1b65b9b9446c18514b8e618b6deb81857"
+            }
+          ],
+          "log": "logs/v-ize/rep1/ring_64.log"
+        },
+        {
+          "input": "triangle_128.png",
+          "repeat": 0,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep0\\triangle_128\\out/triangle_128.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 459,
+          "artifacts": [
+            {
+              "path": "triangle_128.svg",
+              "declared": true,
+              "bytes": 156,
+              "sha256": "78b538981298d136fba2eeac75fc4e8067e31fa711fb584906f50073b17152cc"
+            }
+          ],
+          "log": "logs/v-ize/rep0/triangle_128.log"
+        },
+        {
+          "input": "triangle_128.png",
+          "repeat": 1,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep1\\triangle_128\\out/triangle_128.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 459,
+          "artifacts": [
+            {
+              "path": "triangle_128.svg",
+              "declared": true,
+              "bytes": 156,
+              "sha256": "78b538981298d136fba2eeac75fc4e8067e31fa711fb584906f50073b17152cc"
+            }
+          ],
+          "log": "logs/v-ize/rep1/triangle_128.log"
+        },
+        {
+          "input": "glyph_16.png",
+          "repeat": 0,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep0\\glyph_16\\out/glyph_16.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 80,
+          "artifacts": [
+            {
+              "path": "glyph_16.svg",
+              "declared": true,
+              "bytes": 176,
+              "sha256": "19b708096b107c19d28d7bde5096b6cddb4ec2c31db544c48d793227139655d9"
+            }
+          ],
+          "log": "logs/v-ize/rep0/glyph_16.log"
+        },
+        {
+          "input": "glyph_16.png",
+          "repeat": 1,
+          "command": [
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
+            "-o",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\v-ize\\rep1\\glyph_16\\out/glyph_16.svg",
+            "-q"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 80,
+          "artifacts": [
+            {
+              "path": "glyph_16.svg",
+              "declared": true,
+              "bytes": 176,
+              "sha256": "19b708096b107c19d28d7bde5096b6cddb4ec2c31db544c48d793227139655d9"
+            }
+          ],
+          "log": "logs/v-ize/rep1/glyph_16.log"
+        }
+      ],
+      "determinism": {
+        "repeats": 2,
+        "primary_deterministic": true,
+        "all_artifacts_deterministic": true,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "Vice-",
+      "repo": "lomatoq/Vice-",
+      "pin_sha": "200897ab3e888970e330deeb3bb9e157923cc0aa",
+      "mirror": "C:\\Users\\nirrt\\Toolset\\v-ice part",
+      "status": "completed",
+      "error": null,
+      "resolved_sha": "200897ab3e888970e330deeb3bb9e157923cc0aa",
+      "build": null,
+      "notes": "Known caveats at pin 200897ab:\n(1) no dependency manifest exists at the pin (no requirements.txt / pyproject); interpreter deps (numpy, cv2, torch, ...) come from the ambient python and are recorded in env.json only. (2) model checkpoints (models/) and fonts are gitignored upstream and are ABSENT from a clean pin checkout; the flagship mininet extractor is expected to fail -> typed outcome recorded honestly. Pinning those assets (with hashes) is a review decision, not something M0 does silently.",
+      "runs": [
+        {
+          "input": "rect_32.png",
+          "repeat": 0,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep0\\rect_32\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 4358,
+          "artifacts": [
+            {
+              "path": "m0/paper-regions/rect_32/01_contour.png",
+              "declared": false,
+              "bytes": 347,
+              "sha256": "d3f5460813a627b8ffd8a3e189b967415dc071f01c7f50d4eaa543d6ace6d925"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/02_primitive_map.png",
+              "declared": false,
+              "bytes": 347,
+              "sha256": "d3f5460813a627b8ffd8a3e189b967415dc071f01c7f50d4eaa543d6ace6d925"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/02_primitive_map.svg",
+              "declared": false,
+              "bytes": 590,
+              "sha256": "c171c71e73974d4eaf663f3e68d8dce9d644ad95a509afbabd703afd54d986ac"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/03_rebuilt_filled.png",
+              "declared": false,
+              "bytes": 244,
+              "sha256": "614393888b1f99ea1f4bcd48c765974a32f55e0dd4f711cbc4ddffb531e7d3da"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/03_rebuilt_filled.svg",
+              "declared": true,
+              "bytes": 266,
+              "sha256": "f797569e898c25af45f19128553084a2a2dd1e4455195008b8ce632df4d74449"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/04_corners.png",
+              "declared": false,
+              "bytes": 6799,
+              "sha256": "d54e28c8e00f2144a81e15298e4ecaea27341f94c4f47717dd7d75914b848929"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/report.json",
+              "declared": false,
+              "bytes": 1600,
+              "sha256": "6dbaf2fa86b6ac481bc7b8545d33b09d89f2579433843eea58a183b8d52836ea"
+            },
+            {
+              "path": "m0/rect_32__contact.png",
+              "declared": false,
+              "bytes": 3262,
+              "sha256": "c8cec9ce0bb6be0af98319354b8609aba6b616c7ea49785706044208ad015253"
+            }
+          ],
+          "log": "logs/Vice-/rep0/rect_32.log"
+        },
+        {
+          "input": "rect_32.png",
+          "repeat": 1,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep1\\rect_32\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 3822,
+          "artifacts": [
+            {
+              "path": "m0/paper-regions/rect_32/01_contour.png",
+              "declared": false,
+              "bytes": 347,
+              "sha256": "d3f5460813a627b8ffd8a3e189b967415dc071f01c7f50d4eaa543d6ace6d925"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/02_primitive_map.png",
+              "declared": false,
+              "bytes": 347,
+              "sha256": "d3f5460813a627b8ffd8a3e189b967415dc071f01c7f50d4eaa543d6ace6d925"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/02_primitive_map.svg",
+              "declared": false,
+              "bytes": 590,
+              "sha256": "c171c71e73974d4eaf663f3e68d8dce9d644ad95a509afbabd703afd54d986ac"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/03_rebuilt_filled.png",
+              "declared": false,
+              "bytes": 244,
+              "sha256": "614393888b1f99ea1f4bcd48c765974a32f55e0dd4f711cbc4ddffb531e7d3da"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/03_rebuilt_filled.svg",
+              "declared": true,
+              "bytes": 266,
+              "sha256": "f797569e898c25af45f19128553084a2a2dd1e4455195008b8ce632df4d74449"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/04_corners.png",
+              "declared": false,
+              "bytes": 6799,
+              "sha256": "d54e28c8e00f2144a81e15298e4ecaea27341f94c4f47717dd7d75914b848929"
+            },
+            {
+              "path": "m0/paper-regions/rect_32/report.json",
+              "declared": false,
+              "bytes": 1600,
+              "sha256": "6dbaf2fa86b6ac481bc7b8545d33b09d89f2579433843eea58a183b8d52836ea"
+            },
+            {
+              "path": "m0/rect_32__contact.png",
+              "declared": false,
+              "bytes": 3262,
+              "sha256": "c8cec9ce0bb6be0af98319354b8609aba6b616c7ea49785706044208ad015253"
+            }
+          ],
+          "log": "logs/Vice-/rep1/rect_32.log"
+        },
+        {
+          "input": "circle_64.png",
+          "repeat": 0,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep0\\circle_64\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 3877,
+          "artifacts": [
+            {
+              "path": "m0/circle_64__contact.png",
+              "declared": false,
+              "bytes": 6274,
+              "sha256": "73c91a7e1209a66bf7fca467851a733f5f09de1a6adc09e14623085c3b84d1f2"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/01_contour.png",
+              "declared": false,
+              "bytes": 1294,
+              "sha256": "1918db4fc1761724ffa8005caa0dd1d7ec2914a95fff44a001101185c09b164c"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/02_primitive_map.png",
+              "declared": false,
+              "bytes": 1294,
+              "sha256": "1918db4fc1761724ffa8005caa0dd1d7ec2914a95fff44a001101185c09b164c"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/02_primitive_map.svg",
+              "declared": false,
+              "bytes": 690,
+              "sha256": "2655f944379aaff5c83a3ec9766ffc718ff5237ac4e6f148c799e2b756ad682a"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/03_rebuilt_filled.png",
+              "declared": false,
+              "bytes": 977,
+              "sha256": "a9c218571544e88608b626e5aa3248614d332762dd3a60d8d8e4e01f4a1f85d9"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/03_rebuilt_filled.svg",
+              "declared": true,
+              "bytes": 357,
+              "sha256": "f1af66b90b1233ade49a08e5724423e859dd1e74a40b5a9b9d7df41e7742a9ab"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/04_corners.png",
+              "declared": false,
+              "bytes": 13406,
+              "sha256": "3dcb74698c3e15924c98037d25c21ee43f9d6a9cc3a0e83317e93bcdfe492406"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/report.json",
+              "declared": false,
+              "bytes": 1559,
+              "sha256": "f37b481058284425d0785ef1e1c87f804740b8d8d192e44df30e19a7da942262"
+            }
+          ],
+          "log": "logs/Vice-/rep0/circle_64.log"
+        },
+        {
+          "input": "circle_64.png",
+          "repeat": 1,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep1\\circle_64\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 3845,
+          "artifacts": [
+            {
+              "path": "m0/circle_64__contact.png",
+              "declared": false,
+              "bytes": 6274,
+              "sha256": "73c91a7e1209a66bf7fca467851a733f5f09de1a6adc09e14623085c3b84d1f2"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/01_contour.png",
+              "declared": false,
+              "bytes": 1294,
+              "sha256": "1918db4fc1761724ffa8005caa0dd1d7ec2914a95fff44a001101185c09b164c"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/02_primitive_map.png",
+              "declared": false,
+              "bytes": 1294,
+              "sha256": "1918db4fc1761724ffa8005caa0dd1d7ec2914a95fff44a001101185c09b164c"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/02_primitive_map.svg",
+              "declared": false,
+              "bytes": 690,
+              "sha256": "2655f944379aaff5c83a3ec9766ffc718ff5237ac4e6f148c799e2b756ad682a"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/03_rebuilt_filled.png",
+              "declared": false,
+              "bytes": 977,
+              "sha256": "a9c218571544e88608b626e5aa3248614d332762dd3a60d8d8e4e01f4a1f85d9"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/03_rebuilt_filled.svg",
+              "declared": true,
+              "bytes": 357,
+              "sha256": "f1af66b90b1233ade49a08e5724423e859dd1e74a40b5a9b9d7df41e7742a9ab"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/04_corners.png",
+              "declared": false,
+              "bytes": 13406,
+              "sha256": "3dcb74698c3e15924c98037d25c21ee43f9d6a9cc3a0e83317e93bcdfe492406"
+            },
+            {
+              "path": "m0/paper-regions/circle_64/report.json",
+              "declared": false,
+              "bytes": 1559,
+              "sha256": "f37b481058284425d0785ef1e1c87f804740b8d8d192e44df30e19a7da942262"
+            }
+          ],
+          "log": "logs/Vice-/rep1/circle_64.log"
+        },
+        {
+          "input": "ring_64.png",
+          "repeat": 0,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep0\\ring_64\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 7047,
+          "artifacts": [
+            {
+              "path": "m0/paper-regions/ring_64/01_contour.png",
+              "declared": false,
+              "bytes": 1539,
+              "sha256": "e71a50099de60267a3efeb38dc5d0a84775e5c0400c6a991f12e8a9f8a44f9ef"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/02_primitive_map.png",
+              "declared": false,
+              "bytes": 1539,
+              "sha256": "e71a50099de60267a3efeb38dc5d0a84775e5c0400c6a991f12e8a9f8a44f9ef"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/02_primitive_map.svg",
+              "declared": false,
+              "bytes": 1089,
+              "sha256": "87aa4633cf297e36ba4ea90e4aa3e5a831e400c91d0f828338580e78dd152189"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/03_rebuilt_filled.png",
+              "declared": false,
+              "bytes": 3952,
+              "sha256": "903c3b61908356f35b862d54df2fb40535d92408306a1b9e0a37bf0b14a10834"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/03_rebuilt_filled.svg",
+              "declared": true,
+              "bytes": 510,
+              "sha256": "1b464f4795596515c5b270abd1057b88f4f491a5877a4a70194daa5f0ea6db81"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/04_corners.png",
+              "declared": false,
+              "bytes": 8882,
+              "sha256": "b17e0fe6984377f47e08819ecc11d73feac7e4012b4164fc717dc4ed5a94a90a"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/report.json",
+              "declared": false,
+              "bytes": 2229,
+              "sha256": "53ef83f72fb565dd9a7400a1f82fbabac2f0bc81559c16df5ace6f77bb90fa5e"
+            },
+            {
+              "path": "m0/ring_64__contact.png",
+              "declared": false,
+              "bytes": 10413,
+              "sha256": "da74b82d355fba21e83d82653a17b0f3d91b289c5d21892ebea262dfd5586187"
+            }
+          ],
+          "log": "logs/Vice-/rep0/ring_64.log"
+        },
+        {
+          "input": "ring_64.png",
+          "repeat": 1,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep1\\ring_64\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "ok",
+          "error": null,
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 7610,
+          "artifacts": [
+            {
+              "path": "m0/paper-regions/ring_64/01_contour.png",
+              "declared": false,
+              "bytes": 1539,
+              "sha256": "e71a50099de60267a3efeb38dc5d0a84775e5c0400c6a991f12e8a9f8a44f9ef"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/02_primitive_map.png",
+              "declared": false,
+              "bytes": 1539,
+              "sha256": "e71a50099de60267a3efeb38dc5d0a84775e5c0400c6a991f12e8a9f8a44f9ef"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/02_primitive_map.svg",
+              "declared": false,
+              "bytes": 1089,
+              "sha256": "87aa4633cf297e36ba4ea90e4aa3e5a831e400c91d0f828338580e78dd152189"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/03_rebuilt_filled.png",
+              "declared": false,
+              "bytes": 3952,
+              "sha256": "903c3b61908356f35b862d54df2fb40535d92408306a1b9e0a37bf0b14a10834"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/03_rebuilt_filled.svg",
+              "declared": true,
+              "bytes": 510,
+              "sha256": "1b464f4795596515c5b270abd1057b88f4f491a5877a4a70194daa5f0ea6db81"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/04_corners.png",
+              "declared": false,
+              "bytes": 8882,
+              "sha256": "b17e0fe6984377f47e08819ecc11d73feac7e4012b4164fc717dc4ed5a94a90a"
+            },
+            {
+              "path": "m0/paper-regions/ring_64/report.json",
+              "declared": false,
+              "bytes": 2229,
+              "sha256": "53ef83f72fb565dd9a7400a1f82fbabac2f0bc81559c16df5ace6f77bb90fa5e"
+            },
+            {
+              "path": "m0/ring_64__contact.png",
+              "declared": false,
+              "bytes": 10413,
+              "sha256": "da74b82d355fba21e83d82653a17b0f3d91b289c5d21892ebea262dfd5586187"
+            }
+          ],
+          "log": "logs/Vice-/rep1/ring_64.log"
+        },
+        {
+          "input": "triangle_128.png",
+          "repeat": 0,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep0\\triangle_128\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "failed",
+          "error": {
+            "kind": "output_missing",
+            "message": "declared output missing: m0/paper-regions/triangle_128/03_rebuilt_filled.svg"
+          },
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 4579,
+          "artifacts": [],
+          "log": "logs/Vice-/rep0/triangle_128.log"
+        },
+        {
+          "input": "triangle_128.png",
+          "repeat": 1,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep1\\triangle_128\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "failed",
+          "error": {
+            "kind": "output_missing",
+            "message": "declared output missing: m0/paper-regions/triangle_128/03_rebuilt_filled.svg"
+          },
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 4403,
+          "artifacts": [],
+          "log": "logs/Vice-/rep1/triangle_128.log"
+        },
+        {
+          "input": "glyph_16.png",
+          "repeat": 0,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep0\\glyph_16\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "failed",
+          "error": {
+            "kind": "output_missing",
+            "message": "declared output missing: m0/paper-regions/glyph_16/03_rebuilt_filled.svg"
+          },
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 3743,
+          "artifacts": [],
+          "log": "logs/Vice-/rep0/glyph_16.log"
+        },
+        {
+          "input": "glyph_16.png",
+          "repeat": 1,
+          "command": [
+            "python",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
+            "--smoothing",
+            "paper-regions",
+            "--extractor",
+            "mininet",
+            "--out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m0\\work\\Vice-\\rep1\\glyph_16\\out",
+            "--tag",
+            "m0"
+          ],
+          "status": "failed",
+          "error": {
+            "kind": "output_missing",
+            "message": "declared output missing: m0/paper-regions/glyph_16/03_rebuilt_filled.svg"
+          },
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 3718,
+          "artifacts": [],
+          "log": "logs/Vice-/rep1/glyph_16.log"
+        }
+      ],
+      "determinism": {
+        "repeats": 2,
+        "primary_deterministic": true,
+        "all_artifacts_deterministic": true,
+        "mismatches": []
+      }
+    }
+  ]
+}

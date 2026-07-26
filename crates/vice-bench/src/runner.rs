@@ -73,6 +73,19 @@ pub fn run_with_config(
     config_sha256: String,
     opts: &RunOptions,
 ) -> Result<RunReport, TopError> {
+    // Normalize every directory to an absolute path once. Git subprocesses
+    // run with varying cwds; relative inputs would otherwise resolve against
+    // the wrong base (observed as os error 267 on Windows).
+    let opts = &RunOptions {
+        config_path: opts.config_path.clone(),
+        corpus_dir: absolute(&opts.corpus_dir),
+        manifest_path: absolute(&opts.manifest_path),
+        mirror_root: absolute(&opts.mirror_root),
+        out_dir: absolute(&opts.out_dir),
+        baseline_filter: opts.baseline_filter.clone(),
+        repeats: opts.repeats,
+        skip_build: opts.skip_build,
+    };
     let manifest = corpus::load_manifest(&opts.manifest_path).map_err(TopError::CorpusIntegrity)?;
     let statuses = corpus::verify(&opts.corpus_dir, &manifest, &cfg.limits);
     if !corpus::all_ok(&statuses) {
@@ -274,8 +287,13 @@ impl BaselineCtx<'_> {
                 detail: e.to_string(),
             })?;
         }
+        // core.longpaths=true: donor pins contain paths deep enough that a
+        // long checkout base breaks the Windows MAX_PATH limit (FAILURE_LEDGER
+        // F-0004). Harmless no-op on non-Windows git.
         git_ok(
             &[
+                "-c",
+                "core.longpaths=true",
                 "clone",
                 "--local",
                 "--no-checkout",
@@ -284,7 +302,10 @@ impl BaselineCtx<'_> {
             ],
             self.opts.out_dir.as_path(),
         )?;
-        git_ok(&["checkout", "--detach", pin], dst)?;
+        git_ok(
+            &["-c", "core.longpaths=true", "checkout", "--detach", pin],
+            dst,
+        )?;
         let resolved = git_stdout(&["rev-parse", "HEAD"], dst)?;
         rep.resolved_sha = Some(resolved.clone());
         if resolved != *pin {

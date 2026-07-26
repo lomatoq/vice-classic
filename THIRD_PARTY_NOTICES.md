@@ -15,6 +15,19 @@ which has zero units).
 | `lomatoq/v-ize` | `95a65194cf34e2d96b41eb299b4769eac624be80` | MIT OR Apache-2.0 (declared in its workspace; re-verify at pin) |
 | `lomatoq/Vice-` | `200897ab3e888970e330deeb3bb9e157923cc0aa` | OWNER_CONTROLLED — verify before public release |
 
+Findings verified against the local mirrors on 2026-07-26 (recorded here,
+resolution deferred to the pre-release license review):
+
+- `v-ice` @ pin: **no LICENSE/COPYING file and no `license` key** in
+  Cargo.toml — legally unlicensed by default; owner-controlled.
+- `v-ize` @ pin: `license = "MIT OR Apache-2.0"` is declared in
+  `[workspace.package]` and inherited by vize-core/cli/wasm/bench, but
+  **no LICENSE-MIT / LICENSE-APACHE text files exist in the repo**, and the
+  `vize-gpu` / `bsplat-spike` crates do not inherit the license field at
+  the pin (vize-cli depends on vize-gpu).
+- `Vice-` @ pin: no license file; only third-party font licenses
+  (SIL OFL) are tracked via its `font_license_manifest.py`.
+
 Before any public or commercial release of vice-classic, owner-controlled
 repositories require an explicit SPDX/license grant, and a separate license /
 patent / freedom-to-operate review is mandatory (spec v1.3 §2.1, §37).
