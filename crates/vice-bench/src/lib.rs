@@ -14,6 +14,7 @@
 pub mod assets;
 pub mod config;
 pub mod corpus;
+pub mod correlation;
 pub mod envinfo;
 pub mod error;
 pub mod exec;
