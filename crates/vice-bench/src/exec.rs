@@ -12,6 +12,12 @@
 //! donors. The policy is a fixed constant — not configurable, so it cannot
 //! become a hidden behaviour knob (spec §32 rule 4) — and it is recorded in
 //! `env.json` (`envinfo::child_env_policy`).
+//!
+//! Coverage (REVIEW_M1 M1-N2): the policy applies to EVERY child this crate
+//! spawns — baseline build/run children (`run_with_timeout`), git
+//! provenance children (`runner::git_output` and the pin probe) and
+//! tool-version probes (`envinfo::tool_version`). All of them construct
+//! their `Command` via [`sanitized_command`].
 
 use std::fs::File;
 use std::path::Path;
@@ -52,6 +58,18 @@ pub fn apply_child_env_policy(cmd: &mut Command) {
     }
 }
 
+/// The ONLY constructor for child commands in this crate: a `Command` with
+/// the fixed environment policy already applied. Every child — baseline
+/// build/run children, git provenance children and tool-version probes —
+/// must be created through this function so the ADR-0007 claim "the policy
+/// is applied to every child" is enforced by construction, not by
+/// convention (REVIEW_M1 M1-N2).
+pub fn sanitized_command(program: &str) -> Command {
+    let mut cmd = Command::new(program);
+    apply_child_env_policy(&mut cmd);
+    cmd
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExecOutcome {
     pub exit_code: Option<i32>,
@@ -78,13 +96,12 @@ pub fn run_with_timeout(
         .map_err(|e| format!("clone log handle: {e}"))?;
 
     let start = Instant::now();
-    let mut cmd = Command::new(&argv[0]);
+    let mut cmd = sanitized_command(&argv[0]);
     cmd.args(&argv[1..])
         .current_dir(cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::from(log_out))
         .stderr(Stdio::from(log_err));
-    apply_child_env_policy(&mut cmd);
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("spawn {:?}: {e}", argv[0]))?;
@@ -111,5 +128,36 @@ pub fn run_with_timeout(
             });
         }
         std::thread::sleep(Duration::from_millis(25));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    /// Every removed variable appears as an explicit None override and every
+    /// pinned variable as its fixed value on a sanitized command, so the
+    /// policy holds for ANY spawn site using [`sanitized_command`] — the
+    /// spawn-level behaviour is additionally covered by tests/child_env.rs.
+    #[test]
+    fn sanitized_command_carries_the_full_policy() {
+        let cmd = sanitized_command("git");
+        let envs: Vec<(&OsStr, Option<&OsStr>)> = cmd.get_envs().collect();
+        for name in CHILD_ENV_REMOVE {
+            assert!(
+                envs.iter()
+                    .any(|(k, v)| *k == OsStr::new(name) && v.is_none()),
+                "{name} must be removed"
+            );
+        }
+        for (name, value) in CHILD_ENV_SET {
+            assert!(
+                envs.iter()
+                    .any(|(k, v)| *k == OsStr::new(name) && *v == Some(OsStr::new(value))),
+                "{name} must be pinned to {value}"
+            );
+        }
+        assert_eq!(cmd.get_program(), OsStr::new("git"));
     }
 }

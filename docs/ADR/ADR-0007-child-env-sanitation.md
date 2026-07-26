@@ -1,6 +1,7 @@
 # ADR-0007 — Санация окружения дочерних процессов и config-limits для verify-corpus
 
-Дата: 2026-07-26. Статус: accepted (M1). Addendum к ADR-0002 (runner design);
+Дата: 2026-07-26. Статус: accepted (M1); addendum M2 (REVIEW_M1 M1-N2).
+Addendum к ADR-0002 (runner design);
 закрывает REVIEW_M0 условие 5 (замечания N6 и N4).
 
 ## Контекст
@@ -13,9 +14,20 @@ PYTHONHASHSEED, …) могла изменить донорскую сборку
 
 ## Решение N6: фиксированная политика child-env (консервативный дизайн)
 
-1. **Точка применения — одна:** `exec::run_with_timeout` (все build/run
-   команды baseline-ов и selftest-adapter). Политика применяется каждому
-   ребёнку без исключений.
+1. **Точка применения — одна:** конструктор `exec::sanitized_command`,
+   через который обязан создаваться КАЖДЫЙ дочерний `Command` crate-а:
+   build/run команды baseline-ов и selftest-adapter
+   (`exec::run_with_timeout`), git-дети provenance-пути
+   (`runner::git_output`, pin-probe `git cat-file`) и tool-version-пробы
+   (`envinfo::tool_version`). *История:* исходная редакция M1 заявляла
+   «без исключений», но применяла политику только в `run_with_timeout`;
+   git- и tool-version-дети её не получали (REVIEW_M1 M1-N2). Закрыто в
+   M2 (C015): единый конструктор + unit-тест полноты политики
+   (`exec::tests::sanitized_command_carries_the_full_policy`); прямые
+   `Command::new` для детей в crate-е больше не используются. На
+   записанные артефакты это не влияет: удаляемые переменные не меняют
+   вывод `git`/`rustc -V` и т.п., а env.json фиксирует только политику и
+   ambient-presence, чей формат не изменился.
 2. **Удаляются** (фиксированный список `CHILD_ENV_REMOVE`):
    `RUSTFLAGS`, `RUSTDOCFLAGS`, `RUSTC_WRAPPER`, `RUSTC_WORKSPACE_WRAPPER`,
    `RUSTC_BOOTSTRAP`, `CARGO_ENCODED_RUSTFLAGS`, `CARGO_BUILD_RUSTFLAGS`,

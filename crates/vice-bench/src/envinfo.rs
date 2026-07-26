@@ -75,7 +75,11 @@ pub fn child_env_policy() -> ChildEnvRecord {
 }
 
 fn tool_version(cmd: &str, arg: &str) -> Option<String> {
-    let out = std::process::Command::new(cmd).arg(arg).output().ok()?;
+    // Version probes are children too: sanitized like every other child
+    // (ADR-0007, REVIEW_M1 M1-N2). The removed variables cannot change a
+    // `-V` output today; the point is that the coverage claim stays true
+    // when the removal list grows (e.g. GIT_*).
+    let out = crate::exec::sanitized_command(cmd).arg(arg).output().ok()?;
     if !out.status.success() {
         return None;
     }

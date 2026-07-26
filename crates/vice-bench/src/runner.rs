@@ -254,7 +254,7 @@ impl BaselineCtx<'_> {
     ) -> Result<(), BaselineError> {
         let pin = &self.spec.pin_sha;
         // Precise error when the pin is absent from the mirror.
-        let probe = std::process::Command::new("git")
+        let probe = crate::exec::sanitized_command("git")
             .args(["cat-file", "-t", pin])
             .current_dir(mirror)
             .output()
@@ -677,7 +677,8 @@ pub fn selftest(out_dir: &Path, corpus_dir: &Path, manifest_path: &Path) -> Resu
 // ---------------------------------------------------------------------------
 
 fn git_output(args: &[&str], cwd: &Path) -> Result<std::process::Output, BaselineError> {
-    std::process::Command::new("git")
+    // Sanitized like every other child (ADR-0007, REVIEW_M1 M1-N2).
+    crate::exec::sanitized_command("git")
         .args(args)
         .current_dir(cwd)
         .output()
