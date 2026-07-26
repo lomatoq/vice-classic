@@ -537,6 +537,52 @@ mod tests {
         }
     }
 
+    /// The OTHER half of the dyadic class, and the reason the claim above
+    /// is stated for axis-aligned edges only (F-0006 amendment, REDTEAM_M2
+    /// F-M2-R4).
+    ///
+    /// A SLOPED dyadic edge is not bitwise translation-invariant: the row
+    /// walk evaluates `y_of_x(x) = sy + (x - sx) * dy_dx`, and that final
+    /// addition re-rounds when `sy` moves by an integer, even though every
+    /// operand is dyadic — a sum can need more mantissa bits than either
+    /// addend. The red team's counterexample (18 pixels differing at
+    /// 5.0e-16) is reproduced here, and the honest claim for this class is
+    /// a typed bound, not bit equality.
+    #[test]
+    fn dyadic_sloped_edges_are_translation_invariant_only_within_a_typed_bound() {
+        let tri = vec![
+            Pt::new(1.25, 1.125),
+            Pt::new(9.75, 4.375),
+            Pt::new(3.5, 8.625),
+            Pt::new(1.25, 1.125),
+        ];
+        let shifted: Vec<Pt> = tri.iter().map(|p| Pt::new(p.x + 3.0, p.y + 2.0)).collect();
+        let a = cov(&[&tri], 16, 16);
+        let b = cov(&[&shifted], 16, 16);
+        let mut differing = 0usize;
+        let mut worst = 0.0f64;
+        for y in 0..12 {
+            for x in 0..12 {
+                let (u, v) = (a[y * 16 + x], b[(y + 2) * 16 + (x + 3)]);
+                if u.to_bits() != v.to_bits() {
+                    differing += 1;
+                }
+                worst = worst.max((u - v).abs());
+            }
+        }
+        // The class genuinely is NOT bitwise invariant: if this ever
+        // becomes 0 the claim above may be widened, but only then.
+        assert!(
+            differing > 0,
+            "the counterexample must stay a counterexample"
+        );
+        // ...and the honest guarantee for it is the typed bound.
+        assert!(
+            worst <= 1e-12,
+            "sloped dyadic shift worst |delta| {worst:e}"
+        );
+    }
+
     /// Non-dyadic coordinates: integer shifts change the ROUNDING of the
     /// per-cell trapezoid terms, so equality is up to a tiny typed bound
     /// (few ulps), not bitwise — documented, not hidden.
