@@ -24,7 +24,10 @@
 //! recipe that produced a scene is not what a vectorizer is judged against.
 
 pub mod build;
+pub mod colour;
 pub mod grammar;
+pub mod raster;
+pub mod raster_external;
 mod recipes;
 
 use std::collections::{BTreeMap, BTreeSet};
