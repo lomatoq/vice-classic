@@ -578,3 +578,174 @@ fn redteam_excluded_fixture_is_computed_correctly() {
         );
     }
 }
+
+// ---------------------------------------------------------------------
+// The FOURTH method (REDTEAM_M2 addendum 4, debt 1)
+//
+// The differential property above arbitrates a disagreement between the
+// accumulator and the SH reference with a supersampled third method. Red
+// team's residual risk was named precisely: "a CONCERTED error of all three
+// instruments, in which case arbitration simply never runs". Stability of
+// the reference is a property of the reference, not of the geometry, and
+// three tools that share an assumption fail together silently.
+//
+// The proposal was to run the differential property periodically against a
+// FOURTH method - a closed form on a family where one exists. Run here on
+// every `cargo test` instead of periodically, because a check nobody
+// schedules is a check nobody runs.
+//
+// The family: axis-aligned rectangles. A rectangle's coverage of a pixel is
+// the PRODUCT of two independent one-dimensional interval overlaps. No
+// clipping, no scanline, no winding rule, no sampling - it shares nothing
+// with any of the three instruments, which is the entire point.
+// ---------------------------------------------------------------------
+
+/// Exact coverage of pixel `(px, py)` by the axis-aligned rectangle
+/// `[x0,x1] x [y0,y1]`, in closed form.
+fn analytic_rect_coverage(px: u32, py: u32, x0: f64, y0: f64, x1: f64, y1: f64) -> f64 {
+    let overlap = |lo: f64, hi: f64, a: f64, b: f64| (hi.min(b) - lo.max(a)).max(0.0);
+    let ox = overlap(x0, x1, f64::from(px), f64::from(px) + 1.0);
+    let oy = overlap(y0, y1, f64::from(py), f64::from(py) + 1.0);
+    ox * oy
+}
+
+fn rect_loop(x0: f64, y0: f64, x1: f64, y1: f64) -> Vec<Pt> {
+    vec![
+        Pt::new(x0, y0),
+        Pt::new(x1, y0),
+        Pt::new(x1, y1),
+        Pt::new(x0, y1),
+        Pt::new(x0, y0),
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    /// All THREE instruments are judged against the closed form on the
+    /// family where one exists.
+    ///
+    /// This is the arbitration the differential property cannot perform on
+    /// itself: if the accumulator, the SH reference and the supersampler
+    /// were wrong TOGETHER, they would agree, no disagreement would be
+    /// raised, and the arbiter would never be consulted. Here the judge
+    /// shares no machinery with any of them.
+    ///
+    /// Each bound is the instrument's own: the two exact methods are held
+    /// to f64 noise scaled by the canvas, the sampler to its resolution
+    /// `1/k`, which is what it can promise and no more (meta-rule M-4).
+    #[test]
+    fn all_three_instruments_agree_with_the_closed_form_on_axis_aligned_rectangles(
+        // The near corner is placed STRICTLY inside a pixel and the far one
+        // stays inside the smallest canvas, so every case has at least one
+        // partially covered pixel and at least one fully covered pixel by
+        // CONSTRUCTION. A generator that can emit a rectangle missing the
+        // canvas would make some cases agree for a reason unrelated to
+        // antialiasing, which is the vacuity meta-rule M-2 is about - and
+        // it is asserted below rather than assumed here.
+        ix in 0u32..2,
+        iy in 0u32..2,
+        fx in 0.1f64..0.4,
+        fy in 0.1f64..0.4,
+        // fx + wq >= 2.1 > 2 guarantees a fully covered interior column,
+        // and x1 <= ix + 2.9 < 4 keeps it inside the smallest canvas.
+        wq in 2.0f64..2.5,
+        hq in 2.0f64..2.5,
+        w in 4u32..8,
+        h in 4u32..8,
+    ) {
+        let (x0, y0) = (f64::from(ix) + fx, f64::from(iy) + fy);
+        let (x1, y1) = (x0 + wq, y0 + hq);
+        let lp = rect_loop(x0, y0, x1, y1);
+        let refs: Vec<&[Pt]> = vec![&lp];
+
+        let ours = polygon_coverage(&refs, w, 0, h).expect("finite, in-domain rectangle");
+        let sh = sh_clip_coverage(&refs, w, h);
+
+        const K: u32 = 32;
+        // 1/K is the sampler's resolution; the factor of two is the
+        // two-sided quantisation of a boundary that can cut a sample cell.
+        let sampler_bound = 2.0 / f64::from(K);
+
+        let mut checked_partial = 0usize;
+        let mut checked_full = 0usize;
+        for py in 0..h {
+            for px in 0..w {
+                let i = (py as usize) * (w as usize) + px as usize;
+                let truth = analytic_rect_coverage(px, py, x0, y0, x1, y1);
+
+                prop_assert!(
+                    (ours[i] - truth).abs() < 1e-12,
+                    "accumulator vs closed form at ({px},{py}): {} vs {truth}",
+                    ours[i]
+                );
+                prop_assert!(
+                    (sh[i] - truth).abs() < 1e-12,
+                    "SH reference vs closed form at ({px},{py}): {} vs {truth}",
+                    sh[i]
+                );
+                let sampled = supersampled_winding_pixel(&refs, px, py, K);
+                prop_assert!(
+                    (sampled - truth).abs() <= sampler_bound,
+                    "arbiter (k={K}) vs closed form at ({px},{py}): {sampled} vs {truth}",
+                    K = K
+                );
+
+                if truth > 1e-9 && truth < 1.0 - 1e-9 {
+                    checked_partial += 1;
+                }
+                if truth > 1.0 - 1e-9 {
+                    checked_full += 1;
+                }
+            }
+        }
+        // Non-vacuity: a case in which every pixel is fully covered or
+        // fully empty would agree for reasons that have nothing to do with
+        // antialiasing. The generator guarantees a fractional edge, and
+        // this asserts the guarantee held.
+        prop_assert!(
+            checked_partial > 0 && checked_full > 0,
+            "this case has {checked_partial} partial and {checked_full} full pixels; a              comparison over only one kind would be vacuous"
+        );
+    }
+}
+
+/// The fourth method is a JUDGE, so it must be shown to convict.
+///
+/// Without this, "all three agree with the closed form" could be true
+/// because the closed form is wrong in the same way. A deliberately wrong
+/// rectangle must be rejected by it (meta-rule M-3: a test that compares
+/// with nothing cannot close the class of plausibly wrong answers).
+#[test]
+fn the_closed_form_convicts_a_deliberately_wrong_rectangle() {
+    let (x0, y0, x1, y1) = (1.25, 0.5, 3.75, 2.5);
+    let lp = rect_loop(x0, y0, x1, y1);
+    let refs: Vec<&[Pt]> = vec![&lp];
+    let ours = polygon_coverage(&refs, 6, 0, 4).expect("in domain");
+
+    // Truth for the SHIFTED rectangle: the same instruments, a different
+    // question, and the two must not match.
+    let mut disagreements = 0;
+    for py in 0..4u32 {
+        for px in 0..6u32 {
+            let i = (py as usize) * 6 + px as usize;
+            let wrong = analytic_rect_coverage(px, py, x0 + 0.5, y0, x1 + 0.5, y1);
+            if (ours[i] - wrong).abs() > 1e-12 {
+                disagreements += 1;
+            }
+        }
+    }
+    assert!(
+        disagreements >= 4,
+        "the closed form accepted a rectangle shifted by half a pixel; as a judge it is inert"
+    );
+
+    // And it agrees with the RIGHT one, on the same pixels.
+    for py in 0..4u32 {
+        for px in 0..6u32 {
+            let i = (py as usize) * 6 + px as usize;
+            let truth = analytic_rect_coverage(px, py, x0, y0, x1, y1);
+            assert!((ours[i] - truth).abs() < 1e-12, "({px},{py})");
+        }
+    }
+}
