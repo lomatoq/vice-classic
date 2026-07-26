@@ -611,7 +611,7 @@ fn real_main() -> i32 {
                 lines.extend(buf.lines().map(|l| l.to_string()));
             }
             let parsed: Vec<ChangedPath> =
-                lines.iter().filter_map(|l| ChangedPath::parse(l)).collect();
+                lines.iter().flat_map(|l| ChangedPath::parse(l)).collect();
             match same_commit_violation(&parsed) {
                 None => {
                     println!("no gate/feature co-change in {} path(s)", parsed.len());
