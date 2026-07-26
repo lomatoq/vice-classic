@@ -56,7 +56,7 @@ metadata.
 | Crate | Version (Cargo.lock) | License | Used by | Role |
 |---|---|---|---|---|
 | robust | 1.2.0 | MIT OR Apache-2.0 (LICENSE-MIT + LICENSE-APACHE shipped) | vice-geom | Adaptive-precision Shewchuk predicates (orient2d/incircle). Rust port of public-domain C predicates by J. R. Shewchuk; consumed as an external dependency, NOT vendored (PORTING_MANIFEST stays at zero units). |
-| proptest | 1.x | MIT OR Apache-2.0 | vice-geom, vice-ir (dev-dependency only) | Property testing. Not linked into shipped binaries. |
+| proptest | 1.11.0 | MIT OR Apache-2.0 (LICENSE-MIT + LICENSE-APACHE shipped) | vice-geom, vice-ir (dev-dependency only) | Property testing. Not linked into shipped binaries. |
 
 Transitive dependencies are pinned by the committed `Cargo.lock`.
 
