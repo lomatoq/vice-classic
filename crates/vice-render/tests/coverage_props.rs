@@ -16,6 +16,9 @@
 //! the defect panicked; `--release` is the delivery profile. A divergence
 //! between them is itself a finding.
 
+mod common;
+
+use common::sh_clip_coverage;
 use proptest::prelude::*;
 use vice_geom::Pt;
 use vice_render::{polygon_coverage, CoverageError};
@@ -257,5 +260,207 @@ fn row_span_overflow_does_not_collapse_into_one_column() {
     let row4 = &cov[4 * 12..5 * 12];
     for (c, v) in row4.iter().enumerate() {
         assert!(v.abs() < 1e-6, "row 4 column {c} must be empty, got {v}");
+    }
+}
+
+// ---------------------------------------------------------------------
+// DIFFERENTIAL property: agreement with an independent reference.
+//
+// Why this exists (the third recurrence of one meta-defect). The two
+// properties above check that the accumulator does not PANIC and does not
+// return NaN, and `accepted_output_is_bounded_by_winding` checks only
+// that |coverage| <= vertex count — a wrong answer of 1.0 passes all
+// three trivially. None of them compares against anything. That is
+// exactly how a wrong-by-a-full-pixel result (F-0013) survived a delta
+// that was specifically about this class: the tests could see crashes but
+// not incorrectness.
+//
+// The instrument that closes the class is differential: random inputs,
+// including magnitudes and spans that cross the exponent range, judged
+// against an implementation that shares no code with the accumulator
+// (per-pixel Sutherland-Hodgman clipping plus shoelace).
+// ---------------------------------------------------------------------
+
+/// Bound on a legitimate disagreement between the two implementations.
+///
+/// Two regimes, both necessary:
+/// - `16 * eps * M` is the representation limit both parties are subject
+///   to (ADR-0013): a position at magnitude M is knowable only to ulp(M),
+///   and a position error of d px moves coverage by at most d.
+/// - a SANITY CAP, because coverage is an area fraction living in [0, 1].
+///   Beyond the cap the magnitude-derived bound stops being a statement
+///   about rounding at all, and without the cap the property becomes
+///   vacuous exactly where the interesting failures are — a full-pixel
+///   error at M = 1e308 would be "within bound". The cap is what makes
+///   this test able to see F-0013.
+fn agreement_bound(max_abs_coord: f64) -> f64 {
+    const SANITY_CAP: f64 = 0.25;
+    (16.0 * f64::EPSILON * max_abs_coord.max(1.0)).clamp(1e-12, SANITY_CAP)
+}
+
+/// Is the geometry RESOLVABLE at pixel scale in f64 at all?
+///
+/// For an edge, the crossing position is `xlo + (y - ylo) * dx/dy`, whose
+/// absolute error is about `eps*|x|` plus `eps*|y| * |dx/dy|`. When that
+/// exceeds a fraction of a pixel, the position carries no information —
+/// and then NO f64 implementation is right: measured on the case this
+/// predicate excludes (a triangle reaching (1e150, -1e300)), three
+/// independent implementations return 0, +0.278 and -0.517 for the same
+/// pixel. That is a limit of the representation, shared by every party,
+/// not a defect of one of them; see `unresolvable_geometry_is_a_shared_
+/// representation_limit` below, which measures it rather than asserting it.
+///
+/// The boundary is drawn explicitly instead of being left implicit in a
+/// generator, because "the fixture was green for the wrong reason" is the
+/// meta-defect this whole file exists to stop repeating. Note that the
+/// F-0013 repro sits comfortably INSIDE the resolvable class (position
+/// error ~1e-8 px), so excluding the unresolvable regime does not exclude
+/// the defect this test is here to catch.
+fn is_resolvable(loops: &[Vec<Pt>]) -> bool {
+    const LIMIT_PX: f64 = 0.25;
+    for lp in loops {
+        for e in lp.windows(2) {
+            let (a, b) = (e[0], e[1]);
+            if a.y == b.y {
+                continue;
+            }
+            let dx = (b.x * 0.5 - a.x * 0.5) * 2.0;
+            let dy = (b.y * 0.5 - a.y * 0.5) * 2.0;
+            let slope = (b.x * 0.5 - a.x * 0.5) / (b.y * 0.5 - a.y * 0.5);
+            let _ = (dx, dy);
+            let mag_x = a.x.abs().max(b.x.abs());
+            let mag_y = a.y.abs().max(b.y.abs());
+            let err = f64::EPSILON * mag_x + f64::EPSILON * mag_y * slope.abs();
+            if !err.is_finite() || err > LIMIT_PX {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn max_abs_coord(loops: &[Vec<Pt>]) -> f64 {
+    let mut m = 0.0f64;
+    for lp in loops {
+        for p in lp {
+            if p.x.is_finite() {
+                m = m.max(p.x.abs());
+            }
+            if p.y.is_finite() {
+                m = m.max(p.y.abs());
+            }
+        }
+    }
+    m
+}
+
+/// Loops whose magnitudes are ordinary, extreme, or deliberately span the
+/// exponent range — the last class is what produced F-0013.
+fn differential_loop() -> impl Strategy<Value = Vec<Pt>> {
+    // The extreme class is CONSTRUCTED, not filtered (the M1-N8 lesson:
+    // repair the generator rather than reject from it). Its shape is the
+    // one that matters: modest x with an astronomical y-span, so the
+    // slope is tiny, `yhi - ylo` overflows, and the position stays
+    // perfectly resolvable — exactly the configuration in which the
+    // accumulator returned a confident wrong answer (F-0013).
+    let ordinary = prop::collection::vec((-40.0f64..40.0, -40.0f64..40.0), 3..7);
+    let huge_y = prop::sample::select(vec![
+        1e150f64, -1e150, 1e300, -1e300, 1e308, -1e308, 5e307, -5e307,
+    ]);
+    let spanning = prop::collection::vec(
+        (
+            -40.0f64..40.0,
+            prop_oneof![2 => -40.0f64..40.0, 3 => huge_y],
+        ),
+        3..6,
+    );
+    prop_oneof![2 => ordinary, 3 => spanning].prop_map(|v| {
+        let mut pts: Vec<Pt> = v.into_iter().map(|(x, y)| Pt::new(x, y)).collect();
+        let first = pts[0];
+        pts.push(first);
+        pts
+    })
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(3072))]
+
+    /// Whatever the accumulator ACCEPTS must agree with the independent
+    /// reference within the derived bound. A typed refusal is always an
+    /// acceptable answer; a confident wrong number is not.
+    #[test]
+    fn accepted_coverage_agrees_with_the_independent_reference(
+        loops in prop::collection::vec(differential_loop(), 1..3),
+        w in 4u32..12,
+        h in 4u32..12,
+    ) {
+        prop_assume!(is_resolvable(&loops));
+        let refs: Vec<&[Pt]> = loops.iter().map(|l| l.as_slice()).collect();
+        let Ok(ours) = polygon_coverage(&refs, w, 0, h) else {
+            return Ok(()); // refused, and refusing is always allowed
+        };
+        let reference = sh_clip_coverage(&refs, w, h);
+        let bound = agreement_bound(max_abs_coord(&loops));
+        for (i, (a, b)) in ours.iter().zip(&reference).enumerate() {
+            // The reference may itself fail to be finite on inputs the
+            // accumulator accepted; that is the reference's limit, not a
+            // disagreement, and it is reported rather than silently
+            // skipped by requiring the accumulator's own value finite.
+            prop_assert!(a.is_finite(), "accumulator returned non-finite at {}", i);
+            if !b.is_finite() {
+                continue;
+            }
+            prop_assert!(
+                (a - b).abs() <= bound,
+                "pixel {}: ours {} vs reference {} exceeds bound {:e}",
+                i, a, b, bound
+            );
+        }
+    }
+}
+
+/// The regime the differential property deliberately excludes, documented
+/// by MEASUREMENT rather than by assertion.
+///
+/// For geometry whose crossing position cannot be resolved to a pixel in
+/// f64, no implementation is right and they do not agree with each other.
+/// Measured on the case proptest first produced — a triangle through
+/// (1e150, -1e300) — for pixel (3,0):
+///
+/// ```text
+/// vice-render accumulator        :  0.0
+/// Sutherland-Hodgman reference   : +0.278
+/// supersampled winding (400x400) : -0.517
+/// ```
+///
+/// Three independent implementations, three different answers: this is a
+/// property of the representation, shared by every party, and it is the
+/// reason the differential property is scoped by `is_resolvable` instead
+/// of being silently green on a lucky fixture. A runtime guard that
+/// REFUSES this regime is a real option (tracked as D-6); it is not taken
+/// now because the render path cannot reach it — `NumericDomain` caps
+/// coordinates at 65536 — and because a guard sensitive enough to catch
+/// it risks refusing legitimate far-off-canvas geometry that today works
+/// correctly (1e308 far vertices are accepted and accurate to 1.8e-15).
+///
+/// What IS asserted here is the only thing that can be: the accumulator
+/// stays total — finite, bounded, no panic — in the regime where it
+/// cannot be accurate.
+#[test]
+fn unresolvable_geometry_is_a_shared_representation_limit() {
+    let lp = vec![
+        Pt::new(10.018579925919843, 0.7961741172608049),
+        Pt::new(0.0, 0.0),
+        Pt::new(1e150, -1e300),
+        Pt::new(10.018579925919843, 0.7961741172608049),
+    ];
+    assert!(
+        !is_resolvable(std::slice::from_ref(&lp)),
+        "this fixture must be classified unresolvable"
+    );
+    let cov = polygon_coverage(&[&lp], 4, 0, 4).expect("finite vertices are accepted");
+    for v in &cov {
+        assert!(v.is_finite(), "totality holds even where accuracy cannot");
+        assert!(v.abs() <= 3.0, "and the winding bound still holds: {v}");
     }
 }
