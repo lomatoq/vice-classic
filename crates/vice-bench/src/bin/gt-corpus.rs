@@ -18,6 +18,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use vice_bench::gates::{same_commit_violation, ChangedPath, GatesFile};
 use vice_bench::gt::corpus::{build_manifest, fast_cell_filter, test_cell_filter, CorpusManifest};
 use vice_bench::gt::split::{AuditSeal, SPLIT_POLICY_V1};
+use vice_bench::oracle::{self, OracleScope};
 use vice_bench::prereg::Preregistration;
 use vice_bench::scorecard;
 
@@ -30,6 +31,23 @@ use vice_bench::scorecard;
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
+}
+
+/// How much of the corpus the oracle harness covers. Part of its config
+/// hash, hence of every compatibility key it issues (§27.6).
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+enum OracleScopeArg {
+    Full,
+    Test,
+}
+
+impl From<OracleScopeArg> for OracleScope {
+    fn from(v: OracleScopeArg) -> OracleScope {
+        match v {
+            OracleScopeArg::Full => OracleScope::Full,
+            OracleScopeArg::Test => OracleScope::Test,
+        }
+    }
 }
 
 /// Which degradation cells to include. Recorded in the manifest, so a
@@ -89,6 +107,24 @@ enum Cmd {
         manifest: PathBuf,
         #[arg(long)]
         gates: PathBuf,
+    },
+    /// Run the M3.5 factorial oracle harness and write its report.
+    Oracle {
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, value_enum, default_value_t = OracleScopeArg::Full)]
+        scope: OracleScopeArg,
+    },
+    /// Re-run the harness at the report's own scope and compare.
+    ///
+    /// Oracle metrics are libm-derived floats, so like the corpus manifest
+    /// they are a TIER A artifact (§5.5): a report recorded on another
+    /// platform is refused unless `--structural` is given.
+    OracleCheck {
+        #[arg(long)]
+        report: PathBuf,
+        #[arg(long)]
+        structural: bool,
     },
     /// Enforce §27.7: an EXISTING gate file and production code may not
     /// change together. Pass `git diff --name-status` lines (status letter
@@ -447,6 +483,121 @@ fn real_main() -> i32 {
                         1
                     }
                 }
+            }
+        }
+        Cmd::Oracle { out, scope } => {
+            let run = match oracle::run(scope.into()) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let report = oracle::report::build(&run);
+            if let Some(parent) = out.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Err(e) = std::fs::write(&out, format!("{}\n", report.canonical_json())) {
+                eprintln!("error: write {}: {e}", out.display());
+                return 2;
+            }
+            println!(
+                "oracle: {} scenes, {} arms measured, {} refused, config_hash {}",
+                report.scenes, report.arms_measured, report.arms_refused, report.config_hash
+            );
+            for agg in &report.ceiling {
+                println!(
+                    "  G30 {} vs cell {}: max {:.1} code, edge-mean {:.3} code over {} arms{}",
+                    agg.backend_id,
+                    agg.cell_id,
+                    agg.max_abs_code,
+                    agg.edge_mean_abs_code_mean,
+                    agg.arms,
+                    if agg.inverse_crime.is_contaminated() {
+                        "   [INVERSE CRIME]"
+                    } else {
+                        ""
+                    }
+                );
+            }
+            // Warnings go to stderr as well as into the artifact: a warning
+            // only a file carries is a warning an operator never reads.
+            for w in &report.warnings {
+                eprintln!("warning: {w}");
+            }
+            let mut all_ok = true;
+            println!("M3.5 gate table:");
+            for (name, ok, why) in report.gate_table() {
+                println!("  [{}] {name}: {why}", if ok { "MET" } else { "NOT MET" });
+                all_ok &= ok;
+            }
+            println!("oracle report: {}", out.display());
+            if all_ok {
+                0
+            } else {
+                1
+            }
+        }
+        Cmd::OracleCheck { report, structural } => {
+            let recorded = match read_manifest(&report) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            // The platform refusal is CHEAP and therefore comes first: the
+            // corpus `verify` used to rebuild for minutes before refusing
+            // (REVIEW_M3 M3-D2), which turns a typed refusal into a wait.
+            let here = serde_json::json!({
+                "os": std::env::consts::OS,
+                "arch": std::env::consts::ARCH,
+            });
+            let recorded_platform = recorded.get("platform").cloned().unwrap_or_default();
+            let same_platform = recorded_platform == here;
+            if !same_platform && !structural {
+                eprintln!(
+                    "error: this oracle report records metrics for platform \
+                     {recorded_platform}, and this is {here}. The metrics are libm-derived \
+                     floats and therefore TIER A (spec 5.5, ADR-0008). Re-run on the recording \
+                     platform, or pass --structural to compare the platform-independent \
+                     projection."
+                );
+                return 2;
+            }
+            let scope = match recorded["config"]["scope"].as_str() {
+                Some("full") => OracleScope::Full,
+                Some("test") => OracleScope::Test,
+                other => {
+                    eprintln!("error: report declares unknown scope {other:?}");
+                    return 2;
+                }
+            };
+            let run = match oracle::run(scope) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let rebuilt: serde_json::Value =
+                serde_json::from_str(&oracle::report::build(&run).canonical_json())
+                    .expect("round trip");
+            let (a, b, mode) = if structural && !same_platform {
+                (
+                    oracle::report::structural_projection(&recorded),
+                    oracle::report::structural_projection(&rebuilt),
+                    "STRUCTURALLY across platforms (metrics NOT compared - they are Tier A)",
+                )
+            } else {
+                (recorded, rebuilt, "with every metric compared")
+            };
+            if a == b {
+                println!("oracle report reproduced {mode}");
+                0
+            } else {
+                eprintln!("oracle report did NOT reproduce {mode}");
+                1
             }
         }
         Cmd::GatesCheck { changed, stdin } => {
