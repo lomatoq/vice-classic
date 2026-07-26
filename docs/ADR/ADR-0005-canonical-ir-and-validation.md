@@ -37,10 +37,25 @@ sites. REVIEW_M0 разрешил M1 в этом объёме.
    `TransparentExterior`: прозрачные дыры/counters (внутренность бублика)
    — отдельные bounded faces партиции. Обратная импликация
    («transparent ⇒ exterior») неверна и не навязывается.
-5. **Не создано (нет call sites в M1, §32 п.7):** `SceneHypothesis` c
+5. **Не создано (§32 п.7):** `SceneHypothesis` c
    posterior/delivery-полями (первый producer — M5+), `EvidenceRef`,
    `SupportRef`, `SceneProvenance`, `DecisionInterval`, `ExportPlan`.
    Появятся вместе со своими producers.
+
+   **Критерий применения §32 п.7 (уточнение по REVIEW_M1 M1-N9).**
+   Решающий вопрос — не «есть ли call site прямо сейчас», а
+   «принадлежит ли СЕМАНТИКА типа текущему милестоуну». Конвенции §5
+   (connectivity, color/premultiply, sRGB transfer) — прямые deliverables
+   M1 по §28 («coordinates/color/topology conventions»), поэтому они
+   созданы и покрыты тестами, хотя их первый продакшн-потребитель
+   появляется позже. Типы из списка выше, напротив, семантически
+   определены через сущности M4–M7 (posterior, evidence, delivery
+   equivalence, export) — созданные в M1, они были бы пустыми оболочками,
+   то есть placeholder API. Одним «нет call site» можно было бы срезать и
+   конвенции — этот тест НЕ является критерием; милестоун-принадлежность
+   семантики — является. Первый милестоун, порождающий
+   posterior/score/evidence, обязан ввести соответствующий тип вместе с
+   его producer-ом.
 6. **Formation-типы** — ровно минимальная M4-family (§10.1/§16.2):
    `BlendSpace{LinearLight,EncodedSrgb}`, глобальный
    `PixelFilter{Box,Triangle,Gaussian{sigma_px}}`,
