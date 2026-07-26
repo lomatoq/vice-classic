@@ -1,0 +1,5 @@
+# Pinned toolchain for reproducible M0 baseline runs (spec v1.3 §28 M0).
+# Changing this is a reviewed change: it invalidates recorded binary hashes.
+[toolchain]
+channel = "1.96.0"
+components = ["rustfmt", "clippy"]

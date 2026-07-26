@@ -1,0 +1,32 @@
+# Pinned audit starting points (spec v1.3 §2). If upstream HEAD moves later,
+# these pins do NOT silently follow. Any pin change is a reviewed commit.
+#
+# verified_locally: result of resolving the pin inside the local mirror at the
+# recorded date. It documents availability for the M0 baseline run; it is not
+# a license statement.
+
+schema = "vice-classic/source-pins/v1"
+
+[[source]]
+name = "v-ice"
+repo = "lomatoq/v-ice"
+sha = "9211b3213d9b47defdf19ae4d0842af1c3ade45f"
+role = "algorithm donor + Rust baseline + GT/diagnostics donor"
+license_status = "OWNER_CONTROLLED_VERIFY_BEFORE_PUBLIC_RELEASE"
+local_mirror_hint = "v-ice"
+
+[[source]]
+name = "v-ize"
+repo = "lomatoq/v-ize"
+sha = "95a65194cf34e2d96b41eb299b4769eac624be80"
+role = "typed curve fitting + WASM architecture + inverse-render experiments"
+license_status = "MIT OR Apache-2.0 declared in workspace"
+local_mirror_hint = "v-ize"
+
+[[source]]
+name = "Vice-"
+repo = "lomatoq/Vice-"
+sha = "200897ab3e888970e330deeb3bb9e157923cc0aa"
+role = "contracts + verifier ideas + failed-system baseline"
+license_status = "OWNER_CONTROLLED_VERIFY_BEFORE_PUBLIC_RELEASE"
+local_mirror_hint = "Vice-"

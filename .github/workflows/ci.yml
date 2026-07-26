@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # rustup installs the toolchain pinned in rust-toolchain.toml.
+      - name: Install pinned toolchain
+        run: rustup show
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+
+  clean-checkout-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned toolchain
+        run: rustup show
+      - name: Smoke corpus is byte-reproducible from source
+        run: cargo run --release --bin gen-smoke -- --out tests/fixtures/smoke --check
+      - name: Smoke corpus verifies against manifest
+        run: >-
+          cargo run --release --bin baseline-runner -- verify-corpus
+          --corpus tests/fixtures/smoke
+          --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml
+      - name: Runner determinism selftest (no mirrors needed)
+        run: >-
+          cargo run --release --bin baseline-runner -- selftest
+          --out runs/ci-selftest
+          --corpus tests/fixtures/smoke
+          --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml
+      - name: Environment manifest
+        run: cargo run --release --bin baseline-runner -- env
+      # Full pinned-baseline reproduction additionally needs local mirrors of
+      # the three pinned repositories; see docs/REPRODUCIBILITY_M0.md. CI has
+      # no access to them, so that step is executed by the (human or agent)
+      # reviewer on a machine with mirrors, per spec §34.

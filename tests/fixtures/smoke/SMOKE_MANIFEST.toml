@@ -1,0 +1,36 @@
+schema = "vice-classic/smoke-corpus/v1"
+
+[[file]]
+name = "rect_32.png"
+sha256 = "a1a64778c3c4880caa381e965b10bdb3ad7a2a156dd4330f1d6b61424212c0e7"
+width = 32
+height = 32
+description = "axis-aligned red rectangle on white, hard edges (no AA)"
+
+[[file]]
+name = "circle_64.png"
+sha256 = "b6bf11999504275cd22b79b4b3c2e7d84b024f3fdaaf48eab361812dbcbc444a"
+width = 64
+height = 64
+description = "black disc r=24 on white, antialiased"
+
+[[file]]
+name = "ring_64.png"
+sha256 = "207b334ddd620e8510756c0b35fad2d1c543b100518b7d6ce882c2deb1e87f61"
+width = 64
+height = 64
+description = "navy annulus (hole topology) outer r=26 inner r=14 on white, antialiased"
+
+[[file]]
+name = "triangle_128.png"
+sha256 = "f718ab2ad8b9c398e74af7938f80d9d4afdbc13e9ffd224908f482bcd82937b2"
+width = 128
+height = 128
+description = "green triangle on white, antialiased slanted edges"
+
+[[file]]
+name = "glyph_16.png"
+sha256 = "3d13e8b3f68739af6c1f2bfe073d61de65b3bf87b1261b256d845cf569cd9972"
+width = 16
+height = 16
+description = "opaque dark cross on fully transparent exterior (RGBA)"

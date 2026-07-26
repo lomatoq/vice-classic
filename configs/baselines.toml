@@ -1,0 +1,85 @@
+# M0 pinned baseline configuration (spec v1.3 §2, §28 M0).
+# Executed by: crates/vice-bench, bin `baseline-runner run`.
+# All commands are explicit; no hidden environment flags.
+#
+# The mirrors are local clones passed via --mirror-root (documented in
+# docs/REPRODUCIBILITY_M0.md). The runner always makes a fresh
+# `git clone --local --no-checkout` + `git checkout --detach <pin_sha>`;
+# mirror worktree state (branch, dirt) never leaks into a baseline run.
+
+schema = "vice-classic/baselines/v1"
+
+[limits]
+max_input_bytes = 8388608    # 8 MiB
+max_png_dimension = 4096
+run_timeout_secs = 300
+build_timeout_secs = 3600
+max_output_bytes = 33554432  # 32 MiB
+
+[[baseline]]
+name = "v-ice"
+repo = "lomatoq/v-ice"
+pin_sha = "9211b3213d9b47defdf19ae4d0842af1c3ade45f"
+mirror_hint = "v-ice"
+kind = "rust"
+build = ["cargo", "build", "--release", "--bin", "vice-cli"]
+binary = "target/release/vice-cli"
+run = ["{binary}", "vectorize", "{input}", "--out-dir", "{out_dir}", "--formats", "svg"]
+outputs = ["{stem}/{stem}.svg"]
+notes = """
+Known caveats at pin 9211b321:
+(1) summary.json is always written into --out-dir and embeds wall-clock ms and \
+absolute paths -> recorded as a secondary artifact, expected nondeterministic. \
+(2) The pin's `image` dependency enables avif-native (dav1d via pkg-config); \
+building the pin on Windows without dav1d installed is expected to fail -> \
+typed build_failed outcome, documented blocker, NOT silently patched. \
+(3) --ml is on by default; the embedded restore_v1.onnx is part of the pinned \
+source tree and hashes with the checkout."""
+
+[[baseline]]
+name = "v-ize"
+repo = "lomatoq/v-ize"
+pin_sha = "95a65194cf34e2d96b41eb299b4769eac624be80"
+mirror_hint = "v-ize"
+kind = "rust"
+build = ["cargo", "build", "--release", "-p", "vize-cli"]
+binary = "target/release/vize"
+run = ["{binary}", "{input}", "-o", "{out_dir}/{stem}.svg", "-q"]
+outputs = ["{stem}.svg"]
+notes = """
+Known caveats at pin 95a65194:
+(1) pin is NOT an ancestor of the mirror's HEAD (lives on a side branch); the \
+fresh clone+detached checkout handles this correctly. \
+(2) known nondeterminism source: centerline.rs components_reconnected() \
+iterates HashMap::into_values() unsorted -> stroke layer order in the SVG can \
+differ between runs when centerline strokes trigger; CLI enables centerline \
+unconditionally. Detected by the repeat comparison, documented, not hidden. \
+(3) vize-cli at pin links the full wgpu stack (215 locked packages); --gpu \
+stays off, CPU path is used."""
+
+[[baseline]]
+name = "Vice-"
+repo = "lomatoq/Vice-"
+pin_sha = "200897ab3e888970e330deeb3bb9e157923cc0aa"
+mirror_hint = "v-ice part"
+kind = "python"
+run = [
+  "python",
+  "{checkout}/run_vectorizer.py",
+  "{input}",
+  "--smoothing", "paper-regions",
+  "--extractor", "mininet",
+  "--out", "{out_dir}",
+  "--tag", "m0",
+]
+run_cwd = "checkout"
+outputs = ["m0/paper-regions/{stem}/03_rebuilt_filled.svg"]
+notes = """
+Known caveats at pin 200897ab:
+(1) no dependency manifest exists at the pin (no requirements.txt / \
+pyproject); interpreter deps (numpy, cv2, torch, ...) come from the ambient \
+python and are recorded in env.json only. \
+(2) model checkpoints (models/) and fonts are gitignored upstream and are \
+ABSENT from a clean pin checkout; the flagship mininet extractor is expected \
+to fail -> typed outcome recorded honestly. Pinning those assets (with \
+hashes) is a review decision, not something M0 does silently."""

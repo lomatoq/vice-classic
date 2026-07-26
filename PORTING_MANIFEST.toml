@@ -1,0 +1,26 @@
+# Provenance manifest for every block of code carried over from a pinned
+# donor repository (spec v1.3 §2.1). Rules:
+#   - no copy-paste without a [[unit]] entry here;
+#   - no code from closed-source Vector Magic;
+#   - papers give algorithms/formulas; implementations are clean-room;
+#   - external OSS only after a license check;
+#   - owner-controlled donors need explicit SPDX/license before public release.
+#
+# Unit schema:
+#   [[unit]]
+#   id = "coverage-rasterizer-v1"
+#   source_repo = "lomatoq/v-ice"
+#   source_sha = "<pinned sha>"
+#   source_path = "src/core/raster.rs"
+#   destination = "crates/vice-render/src/coverage.rs"
+#   mode = "exact_port | ported_and_refactored | clean_room | reference_only"
+#   authorization = "owner-controlled"
+#   tests_ported = ["..."]
+#   notes = "..."
+
+schema = "vice-classic/porting-manifest/v1"
+
+# M0 status: ZERO ported units. The M0 baseline runner (crates/vice-bench) is
+# new code written for this repository. Pinned donor repositories are executed
+# as external black-box baselines only; none of their code is linked, vendored
+# or copied into this workspace in M0.
