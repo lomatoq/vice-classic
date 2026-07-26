@@ -149,6 +149,24 @@ jobs:
             --seal docs/gt/AUDIT_SEAL.json \
             --out runs/ci-corpus/scorecard.json
 
+      # §28 M3.5. The command exits non-zero when either gate clause fails,
+      # so the two sentences are enforced by CI rather than read in a report.
+      - name: M3.5 factorial oracle harness and gate table
+        run: |
+          cargo run --release --bin gt-corpus -- oracle \
+            --out runs/ci-oracle/report.json --scope full
+      # `--structural` for the same reason the corpus step uses it: the
+      # oracle metrics are libm-derived floats and therefore Tier A (§5.5),
+      # this runner is Linux and the artifact is recorded on Windows. Without
+      # the flag a cross-platform compare is a typed refusal, never a silent
+      # pass; with it, composition, arm identities, refusal reasons,
+      # contamination status and the compatibility fingerprints are all
+      # compared and the output says the metrics were not.
+      - name: The committed oracle report reproduces (structural, cross-platform)
+        run: |
+          cargo run --release --bin gt-corpus -- oracle-check \
+            --report docs/gt/ORACLE_M3_5.json --structural
+
 # Reproducing the pinned donor baselines needs local mirrors and a 104 MiB
 # hash-pinned asset, which CI has neither of; that step is executed by the
 # reviewer on a machine that has them (spec §34, docs/REPRODUCIBILITY_M3.md).
