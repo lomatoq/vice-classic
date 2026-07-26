@@ -9,6 +9,11 @@
   символов; при длинной базе checkout-а без этого ломается MAX_PATH —
   см. FAILURE_LEDGER F-0004). Если git старее 2.40 или окружение
   запрещает longpaths — используйте короткую базу для `--out`.
+- ВАЖНО (не покрывается longpaths): MSVC-линкер донорской сборки v-ize
+  падает `LNK1104`, если `<база checkout-а>/runs/<out>` длиннее
+  ~137 символов (build-пути wgpu-стека упираются в MAX_PATH). Держите
+  суммарную базу короткой; подтверждено репродукцией
+  (docs/baselines/M0/REPRO_NOTE.md).
 - rustc/cargo 1.96.0 (пин в `rust-toolchain.toml` действует на сам runner;
   донорские сборки используют default host toolchain — доноры свой не пиннят)
 - git ≥ 2.40
