@@ -127,11 +127,20 @@ jobs:
       # The COMMITTED artifact, verified (REVIEW_M3 M3-N7). Until now CI
       # built its own manifest and reported on that, so
       # docs/gt/CORPUS_MANIFEST.json was checked by nobody but a reviewer
-      # running the command by hand. `verify` rebuilds at the manifest's own
-      # recorded scope and compares every render digest.
-      - name: The committed corpus manifest reproduces
+      # running the command by hand.
+      #
+      # `--structural` because this runner is Linux and the manifest is
+      # recorded on Windows. Corpus geometry comes from libm sin/cos/powf/exp,
+      # so render digests are a TIER A artifact (§5.5, ADR-0008 §8) and are
+      # NOT comparable across platforms - the first run of this very step is
+      # what proved it, by failing while the same-platform determinism check
+      # above passed. Structural mode compares composition, splits, cells,
+      # identifiability and inverse-crime flags, and says in its output that
+      # digests were not compared. Without the flag a cross-platform compare
+      # is a typed refusal, never a silent pass.
+      - name: The committed corpus manifest reproduces (structural, cross-platform)
         run: |
-          cargo run --release --bin gt-corpus -- verify             --manifest docs/gt/CORPUS_MANIFEST.json
+          cargo run --release --bin gt-corpus -- verify             --manifest docs/gt/CORPUS_MANIFEST.json --structural
       - name: M3 scorecard and gate table
         run: |
           cargo run --release --bin gt-corpus -- report \

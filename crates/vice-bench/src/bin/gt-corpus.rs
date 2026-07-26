@@ -54,9 +54,21 @@ enum Cmd {
         scope: Scope,
     },
     /// Rebuild at the manifest's own scope and compare every render digest.
+    ///
+    /// Render digests are a TIER A artifact (§5.5): corpus geometry comes
+    /// from `sin`/`cos`, colour from `powf` and the gaussian PSF from
+    /// `exp`, and Rust does not guarantee libm bit-identity across
+    /// platforms (ADR-0008 §8). A manifest recorded on another platform is
+    /// refused unless `--structural` is given.
     Verify {
         #[arg(long)]
         manifest: PathBuf,
+        /// Compare only the platform-INDEPENDENT projection: composition,
+        /// splits, cell list, identifiability labels and inverse-crime
+        /// flags - everything except float-valued digests and truth. Says
+        /// so in its output; never silently weakens a same-platform check.
+        #[arg(long)]
+        structural: bool,
     },
     /// Write the M3 scorecard.
     Report {
@@ -98,6 +110,76 @@ enum Cmd {
 
 fn main() {
     std::process::exit(real_main());
+}
+
+/// The part of a manifest that does NOT depend on libm: identity,
+/// composition, splits, cell list, identifiability labels and inverse-crime
+/// flags. Everything float-valued - render digests, scene digests, measured
+/// truth - is dropped, because those are Tier A.
+fn structural_projection(m: &serde_json::Value) -> serde_json::Value {
+    let renders: Vec<serde_json::Value> = m["renders"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "group_id": r["group_id"],
+                "scene_id": r["scene_id"],
+                "cell_id": r["cell_id"],
+                "split": r["split"],
+                "identifiability": r["identifiability"],
+                "inverse_crime": r["inverse_crime"],
+                "width_px": r["width_px"],
+                "height_px": r["height_px"],
+            })
+        })
+        .collect();
+    let groups: Vec<serde_json::Value> = m["groups"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|g| {
+            let scenes: Vec<serde_json::Value> = g["scenes"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .map(|sc| {
+                    serde_json::json!({
+                        "id": sc["id"],
+                        "authored_truth_construction": sc["authored_truth_construction"],
+                        "visible_faces": sc["partition_truth"]["visible_faces"],
+                        "holes": sc["partition_truth"]["holes"],
+                        "components": sc["partition_truth"]["components"],
+                        "exterior_model": sc["partition_truth"]["exterior_model"],
+                    })
+                })
+                .collect();
+            serde_json::json!({
+                "id": g["id"],
+                "origin": g["origin"],
+                "shape_family": g["shape_family"],
+                "provenance": g["provenance"],
+                "split": g["split"],
+                "intentionally_ambiguous": g["intentionally_ambiguous"],
+                "equivalence_class": g["equivalence_class"],
+                "scenes": scenes,
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "schema": m["schema"],
+        "procedural_variants_per_family": m["procedural_variants_per_family"],
+        "split_policy_version": m["split_policy_version"],
+        "cells": m["cells"],
+        "groups": groups,
+        "renders": renders,
+        "split_summary": m["split_summary"],
+        "identifiability_counts": m["identifiability_counts"],
+        "renders_by_profile": m["renders_by_profile"],
+    })
 }
 
 fn read_manifest(p: &PathBuf) -> Result<serde_json::Value, String> {
@@ -159,7 +241,10 @@ fn real_main() -> i32 {
                 2
             }
         },
-        Cmd::Verify { manifest } => {
+        Cmd::Verify {
+            manifest,
+            structural,
+        } => {
             let recorded = match read_manifest(&manifest) {
                 Ok(v) => v,
                 Err(e) => {
@@ -174,8 +259,44 @@ fn real_main() -> i32 {
                     return 2;
                 }
             };
+            let here = serde_json::json!({
+                "os": std::env::consts::OS,
+                "arch": std::env::consts::ARCH,
+            });
+            let recorded_platform = recorded.get("platform").cloned().unwrap_or_default();
+            let same_platform = recorded_platform == here;
+            if !same_platform && !structural {
+                eprintln!(
+                    "error: this manifest records digests for platform {recorded_platform}, and \
+                     this is {here}. Render digests are a TIER A artifact (spec 5.5): corpus \
+                     geometry comes from libm sin/cos/powf/exp and is not guaranteed \
+                     bit-identical across platforms (ADR-0008). Re-run on the recording \
+                     platform, or pass --structural to compare the platform-independent \
+                     projection."
+                );
+                return 2;
+            }
             let rebuilt_json: serde_json::Value =
                 serde_json::from_str(&rebuilt.canonical_json()).expect("round trip");
+            if structural && !same_platform {
+                let a = structural_projection(&recorded);
+                let b = structural_projection(&rebuilt_json);
+                if a == b {
+                    println!(
+                        "corpus reproduced STRUCTURALLY across platforms ({} renders): \
+                         composition, splits, cells, identifiability and inverse-crime flags all \
+                         match. Render digests NOT compared - they are Tier A, recorded on \
+                         {recorded_platform} and rebuilt on {here}.",
+                        rebuilt.renders.len()
+                    );
+                    return 0;
+                }
+                eprintln!(
+                    "corpus did NOT reproduce structurally - the difference is composition, not \
+                     float noise"
+                );
+                return 1;
+            }
             if rebuilt_json == recorded {
                 println!("corpus reproduced: {} renders", rebuilt.renders.len());
                 println!("corpus_hash: {}", rebuilt.hash());

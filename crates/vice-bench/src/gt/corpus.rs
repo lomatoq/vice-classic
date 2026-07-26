@@ -62,9 +62,35 @@ pub struct RenderEntry {
     pub sha256: String,
 }
 
+/// The platform a manifest's render digests belong to.
+///
+/// Corpus geometry is generated with `sin`/`cos`, colours with `powf` and
+/// the gaussian PSF with `exp` — all libm, whose results Rust does NOT
+/// guarantee bit-identical across platforms. ADR-0008 §8 recorded exactly
+/// this ("Tier A only; frozen render digest artifacts must not contain
+/// arcs") and this corpus is built out of trigonometry, so its digests are
+/// a Tier A artifact (§5.5). Recording the platform is what makes the
+/// limitation checkable instead of a footnote.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Platform {
+    pub os: String,
+    pub arch: String,
+}
+
+impl Platform {
+    pub fn current() -> Platform {
+        Platform {
+            os: std::env::consts::OS.to_string(),
+            arch: std::env::consts::ARCH.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CorpusManifest {
     pub schema: &'static str,
+    /// The Tier A platform whose libm produced the digests below.
+    pub platform: Platform,
     pub procedural_variants_per_family: usize,
     pub split_policy_version: String,
     pub cells: Vec<String>,
@@ -187,6 +213,7 @@ pub fn build_manifest(
 
     Ok(CorpusManifest {
         schema: CORPUS_SCHEMA,
+        platform: Platform::current(),
         procedural_variants_per_family: PROCEDURAL_VARIANTS,
         split_policy_version: policy.version.to_string(),
         cells: cells.iter().map(|c| c.id()).collect(),
@@ -288,6 +315,26 @@ mod tests {
                 .any(|r| r.split != "development" && r.cell_id.contains("tiny-skia")),
             "the held-out profile must still be measured outside development"
         );
+    }
+
+    /// The manifest records the Tier A platform its digests belong to, and
+    /// the platform is part of the hash.
+    ///
+    /// Corpus geometry comes from `sin`/`cos` and colour from `powf`, so
+    /// digests are reproducible on one platform and not guaranteed across
+    /// platforms (ADR-0008 §8, §5.5 Tier A). This was found the hard way:
+    /// CI on Linux failed to reproduce a manifest recorded on Windows while
+    /// the SAME-platform determinism check passed, which is exactly the
+    /// signature of a libm difference rather than of nondeterminism.
+    #[test]
+    fn the_manifest_records_the_platform_its_digests_belong_to() {
+        let m = test_manifest();
+        assert_eq!(m.platform, Platform::current());
+        assert!(!m.platform.os.is_empty() && !m.platform.arch.is_empty());
+        // And a manifest claiming another platform is a different manifest.
+        let mut other = m.clone();
+        other.platform.os = format!("{}-elsewhere", m.platform.os);
+        assert_ne!(other.hash(), m.hash());
     }
 
     /// A partial manifest must be distinguishable from the full one, or a
