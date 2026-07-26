@@ -130,7 +130,9 @@ proptest! {
         );
     }
 
-    /// Segment intersection agrees with an exact integer implementation.
+    /// Segment intersection agrees with an INDEPENDENT exact reference: a
+    /// parametric linear solve in i128 rationals (see below), not a copy of
+    /// the library's orientation case analysis (REVIEW_M1 M1-N7).
     #[test]
     fn segment_intersection_matches_exact_reference(
         p1 in lattice_point(), p2 in lattice_point(),
@@ -164,41 +166,85 @@ proptest! {
     }
 }
 
-fn exact_on_segment(p: (i64, i64), a: (i64, i64), b: (i64, i64)) -> bool {
-    if exact_orient(a, b, p) != Orientation::Collinear {
-        return false;
-    }
-    p.0 >= a.0.min(b.0) && p.0 <= a.0.max(b.0) && p.1 >= a.1.min(b.1) && p.1 <= a.1.max(b.1)
+// ---------------------------------------------------------------------------
+// Independent segment-intersection reference (REVIEW_M1 M1-N7).
+//
+// The M1 reference reproduced the library's own orientation case analysis in
+// exact arithmetic, so a compositional bug (a missing branch) would have been
+// duplicated in both implementations. This reference is a PARAMETRIC solve
+// instead: segments P(t) = p1 + t·dp, Q(s) = q1 + s·dq intersect iff the
+// linear system P(t) = Q(s) has a solution with t, s ∈ [0, 1], decided in
+// exact i128 rational arithmetic (no division). Parallel and degenerate
+// (zero-length) segments reduce to exact collinearity plus 1D parameter
+// interval overlap. No orientation case analysis is shared with the library.
+// ---------------------------------------------------------------------------
+
+type P2 = (i64, i64);
+
+fn sub(a: P2, b: P2) -> (i128, i128) {
+    (
+        i128::from(a.0) - i128::from(b.0),
+        i128::from(a.1) - i128::from(b.1),
+    )
 }
 
-fn exact_segments_intersect(
-    p1: (i64, i64),
-    p2: (i64, i64),
-    q1: (i64, i64),
-    q2: (i64, i64),
-) -> bool {
-    let o1 = exact_orient(p1, p2, q1);
-    let o2 = exact_orient(p1, p2, q2);
-    let o3 = exact_orient(q1, q2, p1);
-    let o4 = exact_orient(q1, q2, p2);
-    if o1 == Orientation::Collinear && exact_on_segment(q1, p1, p2) {
-        return true;
+fn cross2(a: (i128, i128), b: (i128, i128)) -> i128 {
+    a.0 * b.1 - a.1 * b.0
+}
+
+fn dot2(a: (i128, i128), b: (i128, i128)) -> i128 {
+    a.0 * b.0 + a.1 * b.1
+}
+
+/// Is the rational t = num/den (den != 0) inside [0, 1]?
+fn ratio_in_unit_interval(num: i128, den: i128) -> bool {
+    if den > 0 {
+        0 <= num && num <= den
+    } else {
+        den <= num && num <= 0
     }
-    if o2 == Orientation::Collinear && exact_on_segment(q2, p1, p2) {
-        return true;
+}
+
+/// Point q on the closed segment [a, b], parametrically: q = a + t·d with
+/// t ∈ [0, 1]. Exists iff cross(q - a, d) = 0 and 0 <= dot(q - a, d) <= |d|².
+fn param_point_on_segment(q: P2, a: P2, b: P2) -> bool {
+    let d = sub(b, a);
+    let w = sub(q, a);
+    if d == (0, 0) {
+        return w == (0, 0);
     }
-    if o3 == Orientation::Collinear && exact_on_segment(p1, q1, q2) {
-        return true;
+    cross2(w, d) == 0 && ratio_in_unit_interval(dot2(w, d), dot2(d, d))
+}
+
+fn exact_segments_intersect(p1: P2, p2: P2, q1: P2, q2: P2) -> bool {
+    let dp = sub(p2, p1);
+    let dq = sub(q2, q1);
+    // Degenerate segments: pure parametric point-on-segment tests.
+    if dp == (0, 0) {
+        return param_point_on_segment(p1, q1, q2);
     }
-    if o4 == Orientation::Collinear && exact_on_segment(p2, q1, q2) {
-        return true;
+    if dq == (0, 0) {
+        return param_point_on_segment(q1, p1, p2);
     }
-    let opp = |x: Orientation, y: Orientation| {
-        matches!(
-            (x, y),
-            (Orientation::CounterClockwise, Orientation::Clockwise)
-                | (Orientation::Clockwise, Orientation::CounterClockwise)
-        )
-    };
-    opp(o1, o2) && opp(o3, o4)
+
+    let w = sub(q1, p1);
+    let den = cross2(dp, dq);
+    if den != 0 {
+        // Unique line intersection at t = cross(w, dq)/den on P and
+        // s = cross(w, dp)/den on Q; the segments meet iff both parameters
+        // lie in [0, 1] (exact rational comparison, no division).
+        return ratio_in_unit_interval(cross2(w, dq), den)
+            && ratio_in_unit_interval(cross2(w, dp), den);
+    }
+    // Parallel lines: no solution unless collinear.
+    if cross2(w, dp) != 0 {
+        return false;
+    }
+    // Collinear: overlap of the parameter intervals on P. Q's endpoints map
+    // to t = dot(qi - p1, dp)/|dp|²; [0,1] and [min,max] overlap iff
+    // max >= 0 and min <= |dp|² (all exact, |dp|² > 0).
+    let len2 = dot2(dp, dp);
+    let t_q1 = dot2(w, dp);
+    let t_q2 = dot2(sub(q2, p1), dp);
+    t_q1.max(t_q2) >= 0 && t_q1.min(t_q2) <= len2
 }
