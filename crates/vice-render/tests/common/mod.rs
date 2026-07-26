@@ -446,22 +446,64 @@ fn clip_half_plane(
     out
 }
 
-fn lerp_x(a: Pt, b: Pt, x: f64) -> Pt {
-    let t = if (b.x - a.x) == 0.0 {
-        0.0
+/// Interpolation parameter, conditioned the same way the renderer's slope
+/// is (F-0013): the plain differences are used whenever both are finite —
+/// so ordinary scenes are unchanged — and halved operands otherwise, which
+/// is exact and cannot overflow.
+fn clip_parameter(value: f64, from: f64, to: f64) -> f64 {
+    let num = value - from;
+    let den = to - from;
+    if num.is_finite() && den.is_finite() {
+        if den == 0.0 {
+            return 0.0;
+        }
+        return num / den;
+    }
+    let den_half = to * 0.5 - from * 0.5;
+    if den_half == 0.0 {
+        return 0.0;
+    }
+    (value * 0.5 - from * 0.5) / den_half
+}
+
+/// Interpolate between `a` and `b` (F-M2-R12).
+///
+/// The exact cases are taken exactly, which matters more than it looks:
+/// for an AXIS-ALIGNED edge clipped in the other axis `a == b`, and the
+/// difference form `a + t(b - a)` returns `a` exactly while a convex
+/// combination `a(1-t) + b t` rounds each product at magnitude `|a|` and
+/// loses ulps. Measuring only that class is what hid F-M2-R12 in the
+/// first place, so both classes are handled deliberately:
+///
+/// - `a == b`, or an endpoint parameter: exact by construction;
+/// - `b - a` finite: the difference form, best conditioned when the two
+///   are close, and identical to what this reference did before;
+/// - otherwise (operands spanning the exponent range, where `b - a`
+///   overflows): the convex form, whose every term is bounded by
+///   `max(|a|, |b|)`.
+fn mix(a: f64, b: f64, t: f64) -> f64 {
+    if a == b || t <= 0.0 {
+        return a;
+    }
+    if t >= 1.0 {
+        return b;
+    }
+    let diff = b - a;
+    if diff.is_finite() {
+        a + t * diff
     } else {
-        (x - a.x) / (b.x - a.x)
-    };
-    Pt::new(x, a.y + t * (b.y - a.y))
+        a * (1.0 - t) + b * t
+    }
+}
+
+fn lerp_x(a: Pt, b: Pt, x: f64) -> Pt {
+    let t = clip_parameter(x, a.x, b.x);
+    Pt::new(x, mix(a.y, b.y, t))
 }
 
 fn lerp_y(a: Pt, b: Pt, y: f64) -> Pt {
-    let t = if (b.y - a.y) == 0.0 {
-        0.0
-    } else {
-        (y - a.y) / (b.y - a.y)
-    };
-    Pt::new(a.x + t * (b.x - a.x), y)
+    let t = clip_parameter(y, a.y, b.y);
+    Pt::new(mix(a.x, b.x, t), y)
 }
 
 fn shoelace(poly: &[Pt]) -> f64 {

@@ -49,7 +49,7 @@ mod common;
 use common::*;
 use vice_geom::Pt;
 use vice_ir::{CurveChain, Segment, ValidatedScene};
-use vice_render::{render_partition, PartitionRender, RenderMesh, RenderOptions};
+use vice_render::{polygon_coverage, render_partition, PartitionRender, RenderMesh, RenderOptions};
 
 /// Typed disagreement metrics of one court comparison.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -700,6 +700,104 @@ fn sh_arbiter_stays_more_accurate_than_the_renderer_across_the_domain() {
         assert!(
             sh_err < 1e-14,
             "arbiter error must be magnitude-independent: {sh_err:e} at 2^{k}"
+        );
+    }
+}
+
+/// The SLOPED half of the same property (F-M2-R12).
+///
+/// The test above uses an axis-aligned rectangle, which the red team
+/// showed is the one class that cannot exercise the dominant term: an
+/// axis-aligned edge is either parallel to the clip plane or has its
+/// coordinate copied, so no interpolation in absolute coordinates ever
+/// happens. Measured on sloped geometry the arbiter was still
+/// Theta(ulp(M)) and 1.3-1.6x WEAKER than the party it judges at
+/// 2^12..2^14 — the property the ADR-0012 arbitration rule rests on was
+/// asserted on a sub-class where it holds for the wrong reason. This is
+/// the same meta-failure as F-M2-R4, one delta later and in the
+/// verification apparatus itself.
+///
+/// Instrument: the translation oracle, since closed-form truth for a
+/// sloped polygon is not available. The same shape is placed at offset
+/// 2^k and at the origin (translation exact by Sterbenz), and each
+/// implementation is asked how much its own answer moved.
+///
+/// WHAT THIS ESTABLISHES, honestly. Conditioning the arbiter's
+/// interpolation removes its overflow failure but NOT the ulp(M) floor:
+/// on sloped geometry both parties are Theta(ulp(M)), because a sloped
+/// edge's crossing position at magnitude M is knowable only to ulp(M).
+/// So the claim "the arbiter is more accurate than the party it judges"
+/// is FALSE as an asymptotic statement on this class, and is not made.
+/// What is true, measured, and sufficient for the ADR-0012 arbitration
+/// rule is weaker and checkable: the two are comparable, and the derived
+/// gate dominates both by more than an order of magnitude — so anything
+/// that trips the gate is a real defect rather than either side's noise.
+#[test]
+fn sh_arbiter_is_not_the_weaker_party_on_sloped_geometry() {
+    fn sloped(base: f64) -> Vec<Pt> {
+        let pts = [(0.35, 0.7), (7.55, 2.15), (5.3, 7.45), (1.2, 5.05)];
+        let mut v: Vec<Pt> = pts
+            .iter()
+            .map(|&(x, y)| Pt::new(base + x, base + y))
+            .collect();
+        v.push(v[0]);
+        v
+    }
+
+    for k in [4u32, 8, 10, 12, 14] {
+        let base = f64::from(1u32 << k);
+        let big = sloped(base);
+        // Exact translate to the origin, derived by subtraction.
+        let small: Vec<Pt> = big
+            .iter()
+            .map(|p| Pt::new(p.x - base, p.y - base))
+            .collect();
+        for (b, s) in big.iter().zip(&small) {
+            assert_eq!(s.x + base, b.x, "translation must be exact");
+            assert_eq!(s.y + base, b.y, "translation must be exact");
+        }
+
+        // The two windows must correspond pixel-for-pixel: the big one
+        // starts exactly `base` pixels right/down of the small one.
+        let (ox, oy) = (base as u32, base as u32);
+        let (w, h) = (10u32, 10u32);
+        let sh_big = sh_clip_coverage_window(&[&big], ox, oy, w, h);
+        let sh_small = sh_clip_coverage_window(&[&small], 0, 0, w, h);
+        let ours_big = polygon_coverage(&[&big], ox + w, oy, oy + h).expect("finite");
+        let ours_small = polygon_coverage(&[&small], w, 0, h).expect("finite");
+
+        let mut sh_err = 0.0f64;
+        let mut our_err = 0.0f64;
+        for r in 0..h as usize {
+            for c in 0..w as usize {
+                sh_err =
+                    sh_err.max((sh_big[r * w as usize + c] - sh_small[r * w as usize + c]).abs());
+                let big_v = ours_big[r * (ox + w) as usize + ox as usize + c];
+                our_err = our_err.max((big_v - ours_small[r * w as usize + c]).abs());
+            }
+        }
+        let gate = sh_threshold_for(base + 8.0);
+        println!("sloped 2^{k}: arbiter {sh_err:e}, renderer {our_err:e}, gate {gate:e}");
+        // MEASURED, and stated as it is rather than as one would wish
+        // (see the note above the test): on sloped geometry the arbiter
+        // is NOT asymptotically better than the renderer. Both are
+        // Theta(ulp(M)), because the crossing position of a sloped edge
+        // at magnitude M is knowable only to ulp(M) — the same
+        // representation limit as D-5. Ratios measured 2026-07-26:
+        // 1.13x (2^4), 1.54x (2^8), 0.995x (2^10), 1.22x (2^12),
+        // 1.67x (2^14). Frozen at 3x.
+        assert!(
+            sh_err <= our_err * 3.0 + 1e-15,
+            "arbiter ({sh_err:e}) must stay comparable to the renderer ({our_err:e}) at 2^{k}"
+        );
+        // THE PROPERTY THE ARBITRATION RULE ACTUALLY RESTS ON: the gate
+        // dominates BOTH parties' noise, so a disagreement large enough
+        // to trip it cannot be attributed to representation error on
+        // either side and must be a real defect. Measured margins 28x
+        // (2^14) to 500x (2^4); frozen at 10x.
+        assert!(
+            sh_err * 10.0 <= gate && our_err * 10.0 <= gate,
+            "gate {gate:e} must dominate arbiter {sh_err:e} and renderer {our_err:e} at 2^{k}"
         );
     }
 }
