@@ -38,6 +38,19 @@ fn seal_cycle_succeeds_and_is_deterministic_across_repeats() {
 ///
 /// - `shared_edge_scene(48, 32)`: lines only.
 /// - `quad_blob_scene`: quadratic + cubic Béziers (sqrt-based counts).
+///
+/// RE-FROZEN ONCE, in the reviewed commit that made the trapezoid
+/// column-local (F-0008 / C032). Both SCENE digests are unchanged — the IR
+/// and its canonical bytes were not touched. Of the two RENDER digests only
+/// the Bézier one moved, and that split is itself the evidence for what the
+/// change does: the lines-only scene is axis-aligned, so every edge takes
+/// the vertical fast path where the trapezoid was already exact, while the
+/// flattened Bézier scene has sloped edges, which is precisely and only
+/// where the arithmetic changed. A change that had moved the lines-only
+/// digest would have meant something else was going on.
+///
+/// - `shared_edge` render digest `1a9feb47…`: UNCHANGED across the fix.
+/// - `quad_blob` render digest: `cc6f9615…` → `f14a9102…`.
 #[test]
 fn golden_render_digests_are_frozen() {
     let shared = shared_edge_scene(48, 32).into_inner();
@@ -59,7 +72,7 @@ fn golden_render_digests_are_frozen() {
     );
     assert_eq!(
         b.render_digest_sha256,
-        "cc6f96150a680390345233a53c77ee847351b3508d5214c48d709196fa291cd0"
+        "f14a91023d5310d9b5477a4d563fb550e70fd77d57893c5122a1800c5c5bb949"
     );
 }
 

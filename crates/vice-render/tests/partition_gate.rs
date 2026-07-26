@@ -315,6 +315,73 @@ fn non_box_pixel_filter_is_a_typed_error() {
     }
 }
 
+/// F-0008: geometry outside the proven numeric domain is REFUSED, not
+/// silently approximated. Before this, an island at 1e12 rendered and
+/// returned numbers whose per-pixel error was bounded by nothing the
+/// partition guards could observe (the error is common-mode across faces,
+/// so the sum check cancels it bit-for-bit).
+#[test]
+fn geometry_outside_the_numeric_domain_is_a_typed_refusal() {
+    for far in [1.0e7, 1.0e12, 1.0e15] {
+        let scene = rect_scene(16, 16, far, 3.0, far + 8.0, 9.0, red());
+        match render_partition(&scene, &opts()) {
+            Err(RenderError::OutsideNumericDomain { value, limit, .. }) => {
+                assert!(value.abs() > limit, "{value} must exceed {limit}");
+            }
+            other => panic!("expected OutsideNumericDomain at {far}, got {other:?}"),
+        }
+    }
+    // The ROI path enforces the same domain: a certificate must not be
+    // obtainable by asking for a window instead of the whole canvas.
+    let scene = rect_scene(16, 16, 1.0e12, 3.0, 1.0e12 + 8.0, 9.0, red());
+    match vice_render::render_partition_roi(
+        &scene,
+        &opts(),
+        vice_render::PixelRect {
+            x0: 0,
+            y0: 0,
+            x1: 8,
+            y1: 8,
+        },
+    ) {
+        Err(RenderError::OutsideNumericDomain { .. }) => {}
+        other => panic!("expected OutsideNumericDomain on the ROI path, got {other:?}"),
+    }
+    // Inside the domain the same shape renders normally.
+    let near = rect_scene(16, 16, 40000.0, 3.0, 40008.0, 9.0, red());
+    render_partition(&near, &opts()).expect("in-domain geometry renders");
+}
+
+/// A caller may widen the domain deliberately — and then gets a WIDER
+/// tolerance, derived from the domain rather than silently reused. The
+/// trade is explicit in both directions.
+///
+/// Note the second, independent honesty mechanism this test had to be
+/// written around: at astronomical coordinates the shoelace rounding
+/// bound exceeds the loop's own area, so `verify_embedding` refuses to
+/// certify orientation no matter how wide the numeric domain is. Widening
+/// the domain buys a documented tolerance, never a suspended certificate.
+#[test]
+fn widening_the_domain_widens_the_tolerance_explicitly() {
+    let wide = vice_render::NumericDomain::with_max_abs_coord_px(1.0e7).unwrap();
+    let opts_wide = RenderOptions {
+        domain: wide,
+        tolerances: vice_render::PartitionTolerances::for_domain(&wide),
+        ..RenderOptions::default()
+    };
+    assert!(
+        opts_wide.tolerances.sum_abs_tol > vice_render::PartitionTolerances::FROZEN_FLOOR,
+        "a wider domain must carry a wider, derived tolerance"
+    );
+    // 1e6 is outside the default domain (65536) but inside the widened one.
+    let scene = rect_scene(16, 16, 1.0e6, 3.0, 1.0e6 + 8.0, 9.0, red());
+    assert!(matches!(
+        render_partition(&scene, &opts()),
+        Err(RenderError::OutsideNumericDomain { .. })
+    ));
+    render_partition(&scene, &opts_wide).expect("explicitly widened domain renders");
+}
+
 #[test]
 fn oversized_canvas_is_a_typed_resource_error() {
     let scene = rect_scene(1 << 14, 1 << 14, 4.0, 4.0, 12.0, 12.0, red());

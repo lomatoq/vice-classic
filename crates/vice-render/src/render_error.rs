@@ -66,6 +66,14 @@ pub enum RenderError {
         sum: f64,
         tolerance: f64,
     },
+    #[error(
+        "{what} = {value} is outside the renderer's numeric domain (limit {limit}); the partition tolerances are proven only inside it"
+    )]
+    OutsideNumericDomain {
+        what: &'static str,
+        value: f64,
+        limit: f64,
+    },
     #[error("ROI [{x0},{x1})x[{y0},{y1}) is empty or exceeds the {width_px}x{height_px} canvas")]
     RoiInvalid {
         x0: u32,

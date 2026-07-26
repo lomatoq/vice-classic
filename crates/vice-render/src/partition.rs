@@ -27,19 +27,25 @@ use vice_ir::color::PremulRgba;
 use vice_ir::{FaceId, Paint, PixelFilter, ValidatedScene};
 
 use crate::coverage::polygon_coverage;
+use crate::domain::NumericDomain;
 use crate::embedding::verify_embedding;
 use crate::mesh::{RenderMesh, TessellationBudget};
 use crate::render_error::RenderError;
 
 /// Typed per-pixel partition tolerances (pixel-area units).
 ///
-/// Rationale (ADR-0010): every per-pixel coverage value is a sum of exact
-/// trapezoid terms, each computed with a handful of correctly-rounded f64
-/// operations on canvas-magnitude values. For canvases up to 2^12 px and
-/// thousands of edge pieces per row the accumulated absolute error stays
-/// below ~1e-11; both tolerances are frozen at 1e-9 — two orders of margin
-/// while still catching any REAL geometric violation (which produces
-/// deviations of pixel-area order, ~10 orders larger).
+/// A tolerance is only meaningful together with the domain it was proven
+/// on (F-0008): these values are valid for [`NumericDomain::m2_default`],
+/// which the render path ENFORCES with a typed error. Derivation: with the
+/// column-local trapezoid the integration error per piece is a few ulp(1)
+/// (see `coverage`), and the magnitude-dependent remainder is bounded by
+/// `NumericDomain::coverage_error_bound_px` — 2.3e-10 for the default
+/// domain. The frozen floor of 1e-9 keeps a 4x margin over that bound and
+/// still sits ~9 orders below any REAL geometric violation, which
+/// deviates by pixel-area amounts.
+///
+/// Construct with [`PartitionTolerances::for_domain`] so a widened domain
+/// widens the tolerance explicitly instead of silently invalidating it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PartitionTolerances {
     /// Allowed per-pixel deviation of `Σ_f coverage_f` from 1.
@@ -48,12 +54,24 @@ pub struct PartitionTolerances {
     pub range_tol: f64,
 }
 
+impl PartitionTolerances {
+    /// The frozen floor: the tolerance for the default M2 domain.
+    pub const FROZEN_FLOOR: f64 = 1e-9;
+
+    /// Tolerances for a domain: the frozen floor, or the domain's derived
+    /// error bound when a caller deliberately widened the domain past it.
+    pub fn for_domain(domain: &NumericDomain) -> PartitionTolerances {
+        let t = domain.coverage_error_bound_px().max(Self::FROZEN_FLOOR);
+        PartitionTolerances {
+            sum_abs_tol: t,
+            range_tol: t,
+        }
+    }
+}
+
 impl Default for PartitionTolerances {
     fn default() -> Self {
-        PartitionTolerances {
-            sum_abs_tol: 1e-9,
-            range_tol: 1e-9,
-        }
+        PartitionTolerances::for_domain(&NumericDomain::m2_default())
     }
 }
 
@@ -62,13 +80,18 @@ impl Default for PartitionTolerances {
 pub struct RenderOptions {
     pub budget: TessellationBudget,
     pub tolerances: PartitionTolerances,
+    /// The numeric domain this render is allowed to work in. Geometry or a
+    /// canvas outside it is a typed refusal, not a silent approximation.
+    pub domain: NumericDomain,
 }
 
 impl Default for RenderOptions {
     fn default() -> Self {
+        let domain = NumericDomain::m2_default();
         RenderOptions {
             budget: TessellationBudget::default_m2(),
-            tolerances: PartitionTolerances::default(),
+            tolerances: PartitionTolerances::for_domain(&domain),
+            domain,
         }
     }
 }
@@ -139,14 +162,59 @@ pub fn render_partition(
         return Err(RenderError::UnsupportedPixelFilter { got: filter });
     }
     let mesh = RenderMesh::build(scene, options.budget)?;
-    render_mesh_partition(&mesh, options.tolerances)
+    render_mesh_partition_in_domain(&mesh, options.tolerances, &options.domain)
 }
 
-/// Render from an already-built mesh (the seal path re-renders the same
-/// fixed tessellation).
+/// Render from an already-built mesh in the default M2 numeric domain.
 pub fn render_mesh_partition(
     mesh: &RenderMesh,
     tolerances: PartitionTolerances,
+) -> Result<PartitionRender, RenderError> {
+    render_mesh_partition_in_domain(mesh, tolerances, &NumericDomain::m2_default())
+}
+
+/// Every mesh point and the canvas must lie inside the numeric domain the
+/// tolerances were proven on (F-0008). Outside it the accumulator still
+/// returns a number, but its error is not bounded by anything the
+/// partition guards can see — so the renderer refuses instead.
+pub(crate) fn check_numeric_domain(
+    mesh: &RenderMesh,
+    domain: &NumericDomain,
+) -> Result<(), RenderError> {
+    for (dim, value) in [
+        ("canvas width", mesh.width_px),
+        ("canvas height", mesh.height_px),
+    ] {
+        if value > domain.max_canvas_dim_px {
+            return Err(RenderError::OutsideNumericDomain {
+                what: dim,
+                value: f64::from(value),
+                limit: f64::from(domain.max_canvas_dim_px),
+            });
+        }
+    }
+    for poly in &mesh.boundary_polylines {
+        for p in &poly.points {
+            for (what, v) in [("mesh point x", p.x), ("mesh point y", p.y)] {
+                if !domain.contains_coord(v) {
+                    return Err(RenderError::OutsideNumericDomain {
+                        what,
+                        value: v,
+                        limit: domain.max_abs_coord_px,
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Render from an already-built mesh (the seal path re-renders the same
+/// fixed tessellation) with an explicit numeric domain.
+pub fn render_mesh_partition_in_domain(
+    mesh: &RenderMesh,
+    tolerances: PartitionTolerances,
+    domain: &NumericDomain,
 ) -> Result<PartitionRender, RenderError> {
     let (w, h) = (mesh.width_px, mesh.height_px);
     let faces = mesh.face_loops.len();
@@ -159,6 +227,7 @@ pub fn render_mesh_partition(
             limit_elements: MAX_COVERAGE_ELEMENTS,
         });
     }
+    check_numeric_domain(mesh, domain)?;
 
     // M1-N5 hard gate: loop orientation certification on EVERY render.
     verify_embedding(mesh)?;

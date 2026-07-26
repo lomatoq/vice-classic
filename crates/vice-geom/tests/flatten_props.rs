@@ -56,7 +56,7 @@ fn wild_pt() -> impl Strategy<Value = Pt> {
 /// Tolerances from ordinary to absurd (denormal), all strictly positive.
 fn wild_tol() -> impl Strategy<Value = ChordTolerancePx> {
     prop_oneof![
-        3 => (1e-6f64..10.0),
+        3 => 1e-6f64..10.0,
         1 => prop::sample::select(vec![
             1.0 / 64.0,
             1e-9,

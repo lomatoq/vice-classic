@@ -15,11 +15,27 @@
 //! `∫∫_pixel w dA = Σ_edges sign(dy) · ∫_rows clamp(x_edge(y) − c, 0, 1) dy`
 //! for pixel column `c`. Every edge is decomposed into row pieces and then
 //! into cell pieces where `x(y)` stays within one column; a cell piece
-//! contributes the exact trapezoid `dy · ((x0 + x1)/2 − c)` to its own
-//! column and the full `dy` to every column strictly left of it (folded
-//! with a per-row difference array). All quantities are f64 arithmetic on
-//! linear interpolation — exact area coverage for the fixed polyline
-//! tessellation up to f64 rounding.
+//! contributes the exact trapezoid `dy · (((x0 − c) + (x1 − c))/2)` to its
+//! own column and the full `dy` to every column strictly left of it
+//! (folded with a per-row difference array). All quantities are f64
+//! arithmetic on linear interpolation — exact area coverage for the fixed
+//! polyline tessellation up to f64 rounding.
+//!
+//! Why the trapezoid is written column-locally (F-0008, REDTEAM_M2
+//! F-M2-R2): the differences `x0 − c`, `x1 − c` are EXACT (Sterbenz), so
+//! the integration error per piece is a few ulp(1) ABSOLUTE, independent
+//! of where the geometry sits in coordinate space. Written the obvious way
+//! — `(x0 + x1)/2 − c` — the sum is rounded at magnitude ~2c first, which
+//! injects ~c·eps per piece: at c ≈ 2^24 that is ~2e-9 per pixel, above
+//! the tolerance the partition checker enforces, and INVISIBLE to it
+//! (the error is common-mode: adjacent faces traverse the same shared
+//! polyline with opposite `dy` and it cancels bit-for-bit in the sum).
+//!
+//! The residual magnitude dependence is NOT in the integration but in the
+//! geometry itself: an edge position interpolated at coordinate magnitude
+//! M is only representable to ulp(M). That is a property of f64, not of
+//! this algorithm, and it is what the typed [`crate::domain::NumericDomain`]
+//! bounds — see ADR-0013.
 //!
 //! Determinism (§5.5): loops, edges, rows and cells are processed in a
 //! fixed order; the per-row fold runs right-to-left. No hash maps, no
@@ -156,7 +172,21 @@ fn emit_row_pieces(
             diff[width_px as usize] += dy;
         } else if c >= 0 {
             let ci = c as usize;
-            area[ci] += dy * ((x0 + x1) / 2.0 - c as f64);
+            let cf = c as f64;
+            // COLUMN-LOCAL trapezoid (F-0008). Both endpoints of a cell
+            // piece lie in `[c, c+1]` by construction of the split below,
+            // so `x0 - cf` and `x1 - cf` are EXACT (c = 0 trivially;
+            // c >= 1 by Sterbenz, since cf <= x0 <= c+1 <= 2c = 2cf), and
+            // both lie in [0, 1]. Their sum is therefore rounded at
+            // magnitude <= 2 and the halving is exact, so the integration
+            // error per piece is a few ulp(1) ABSOLUTE and independent of
+            // the coordinate magnitude. The previous form `(x0 + x1)/2 - cf`
+            // rounded the sum at magnitude ~2c FIRST and lost ~c*eps.
+            debug_assert!(
+                (cf..=cf + 1.0).contains(&x0) && (cf..=cf + 1.0).contains(&x1),
+                "cell piece must lie inside its own column"
+            );
+            area[ci] += dy * (((x0 - cf) + (x1 - cf)) / 2.0);
             diff[ci] += dy;
         }
         // c < 0: contributes nothing to canvas cells (they are to the

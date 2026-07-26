@@ -22,6 +22,7 @@
 use vice_ir::color::PremulRgba;
 use vice_ir::{FaceId, PixelFilter, ValidatedScene};
 
+use crate::domain::NumericDomain;
 use crate::embedding::verify_embedding;
 use crate::mesh::RenderMesh;
 use crate::partition::{face_coverage_band, premul_of_paint, PartitionTolerances, RenderOptions};
@@ -68,13 +69,23 @@ pub fn render_partition_roi(
         return Err(RenderError::UnsupportedPixelFilter { got: filter });
     }
     let mesh = RenderMesh::build(scene, options.budget)?;
-    render_mesh_partition_roi(&mesh, options.tolerances, roi)
+    render_mesh_partition_roi_in_domain(&mesh, options.tolerances, &options.domain, roi)
 }
 
-/// ROI render from an already-built mesh.
+/// ROI render from an already-built mesh, in the default M2 domain.
 pub fn render_mesh_partition_roi(
     mesh: &RenderMesh,
     tolerances: PartitionTolerances,
+    roi: PixelRect,
+) -> Result<RoiRender, RenderError> {
+    render_mesh_partition_roi_in_domain(mesh, tolerances, &NumericDomain::m2_default(), roi)
+}
+
+/// ROI render from an already-built mesh with an explicit numeric domain.
+pub fn render_mesh_partition_roi_in_domain(
+    mesh: &RenderMesh,
+    tolerances: PartitionTolerances,
+    domain: &NumericDomain,
     roi: PixelRect,
 ) -> Result<RoiRender, RenderError> {
     let (w, h) = (mesh.width_px, mesh.height_px);
@@ -99,8 +110,9 @@ pub fn render_mesh_partition_roi(
         });
     }
 
-    // Global geometric certification stays on (M1-N5 is not optional on
-    // the ROI path).
+    // The numeric domain and the global geometric certification stay on:
+    // neither M1-N5 nor F-0008 is optional on the ROI path.
+    crate::partition::check_numeric_domain(mesh, domain)?;
     verify_embedding(mesh)?;
 
     let (rw, rh) = (roi.width() as usize, roi.height() as usize);
