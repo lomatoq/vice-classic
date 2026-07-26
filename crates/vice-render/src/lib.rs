@@ -22,6 +22,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod coverage;
 pub mod mesh;
 
+pub use coverage::polygon_coverage;
 pub use mesh::{BoundaryPolyline, LoopPolygon, MeshError, RenderMesh, TessellationBudget};
