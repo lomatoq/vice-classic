@@ -79,7 +79,27 @@ Known caveats at pin 200897ab:
 (1) no dependency manifest exists at the pin (no requirements.txt / \
 pyproject); interpreter deps (numpy, cv2, torch, ...) come from the ambient \
 python and are recorded in env.json only. \
-(2) model checkpoints (models/) and fonts are gitignored upstream and are \
-ABSENT from a clean pin checkout; the flagship mininet extractor is expected \
-to fail -> typed outcome recorded honestly. Pinning those assets (with \
-hashes) is a review decision, not something M0 does silently."""
+(2) model checkpoints under models/ are gitignored upstream; 26 of 27 are \
+nevertheless tracked at the pin and only models/corner_rf.joblib (104 MiB) is \
+absent. It is declared as a hash-pinned asset below (B2 resolution); without \
+--asset-root the baseline fails typed asset_root_missing rather than silently \
+reproducing the M0 output_missing outcome. \
+(3) fonts remain out of scope: the smoke corpus contains no text input."""
+
+# M0 blocker B2, resolved before M3 (REVIEW_M0 §6 condition 7).
+#
+# 26 of the 27 files under models/ ARE tracked at this pin; exactly one is
+# not, because at 104 MiB it exceeds what upstream keeps in git. That single
+# file is what made two of five smoke inputs fail with output_missing in M0.
+# It is now DECLARED with its sha256 and length and staged from --asset-root
+# with both verified before the copy. This is the opposite of the forbidden
+# behaviour: nothing is picked up from a mirror worktree implicitly, and a
+# different file is a typed asset_mismatch rather than a different result.
+#
+# Sub-tables must come last inside a [[baseline]]: any key written after this
+# header would belong to the asset, not to the baseline.
+[[baseline.asset]]
+path = "models/corner_rf.joblib"
+sha256 = "0b9e30375acc6b7c28eb02331a102242723a19b58cc7db5c96eebc780e0f3941"
+bytes = 109328564
+notes = "corner random forest; gitignored upstream at 104 MiB, required by --extractor mininet via corner_classifier.MODEL_PATH"

@@ -38,6 +38,19 @@ pub enum BaselineError {
     BuildTimeout { seconds: u64 },
     #[error("declared binary missing after build: {path}")]
     BinaryMissing { path: String },
+    #[error("{count} pinned asset(s) declared (first: {first}) but no --asset-root was given")]
+    AssetRootMissing { count: usize, first: String },
+    // Field deliberately not named `source`: thiserror reserves that name for
+    // an error cause, and this is a filesystem path.
+    #[error("pinned asset {path} not found at {from_path}")]
+    AssetMissing { path: String, from_path: String },
+    #[error("pinned asset {path}: {what} mismatch, expected {expected}, found {actual}")]
+    AssetMismatch {
+        path: String,
+        what: &'static str,
+        expected: String,
+        actual: String,
+    },
     #[error("io error ({context}): {detail}")]
     Io { context: String, detail: String },
 }
@@ -52,6 +65,9 @@ impl BaselineError {
             BaselineError::BuildFailed { .. } => "build_failed",
             BaselineError::BuildTimeout { .. } => "build_timeout",
             BaselineError::BinaryMissing { .. } => "binary_missing",
+            BaselineError::AssetRootMissing { .. } => "asset_root_missing",
+            BaselineError::AssetMissing { .. } => "asset_missing",
+            BaselineError::AssetMismatch { .. } => "asset_mismatch",
             BaselineError::Io { .. } => "io",
         }
     }

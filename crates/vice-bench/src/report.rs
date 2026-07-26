@@ -14,11 +14,17 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use crate::assets::AssetRecord;
 use crate::envinfo::EnvManifest;
 use crate::error::ErrorRecord;
 
-pub const REPORT_SCHEMA: &str = "vice-classic/m0-baseline-report/v1";
-pub const HASHES_SCHEMA: &str = "vice-classic/m0-baseline-hashes/v1";
+/// Artifact contract v2 = v1 + declared asset provenance (M0 blocker B2).
+/// The recorded M0 artifacts under `docs/baselines/M0/` stay at v1 and are
+/// historical: they are reproducible only at the M0-era commits that wrote
+/// them, which was already the documented situation for `env.json` after
+/// C009. Changing the tag is what keeps that statement checkable.
+pub const REPORT_SCHEMA: &str = "vice-classic/baseline-report/v2";
+pub const HASHES_SCHEMA: &str = "vice-classic/baseline-hashes/v2";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolInfo {
@@ -61,6 +67,9 @@ pub struct BaselineReport {
     pub status: String,
     pub error: Option<ErrorRecord>,
     pub resolved_sha: Option<String>,
+    /// Out-of-tree files staged into the checkout, each verified against its
+    /// declared sha256 and length before the copy (see `assets`).
+    pub assets: Vec<AssetRecord>,
     pub build: Option<BuildRecord>,
     pub notes: String,
     pub runs: Vec<RunRecord>,
@@ -139,6 +148,10 @@ pub struct BaselineHashes {
     pub status: String,
     pub error_kind: Option<String>,
     pub resolved_sha: Option<String>,
+    /// Declared out-of-tree asset path -> sha256 actually staged. Normative:
+    /// the asset is pinned exactly as strongly as the commit, so two runs
+    /// that agree here used the same donor state.
+    pub assets: BTreeMap<String, String>,
     /// Toolchain- and checkout-path-dependent; see STATUS_M0 "known
     /// nondeterminism" before comparing across machines.
     pub binary_sha256: Option<String>,
@@ -173,6 +186,11 @@ pub fn hashes_from_report(report: &RunReport) -> HashesFile {
                 status: b.status.clone(),
                 error_kind: b.error.as_ref().map(|e| e.kind.clone()),
                 resolved_sha: b.resolved_sha.clone(),
+                assets: b
+                    .assets
+                    .iter()
+                    .map(|a| (a.path.clone(), a.sha256.clone()))
+                    .collect(),
                 binary_sha256: b.build.as_ref().and_then(|x| x.binary_sha256.clone()),
                 artifacts,
                 primary_deterministic: b.determinism.as_ref().and_then(|d| d.primary_deterministic),

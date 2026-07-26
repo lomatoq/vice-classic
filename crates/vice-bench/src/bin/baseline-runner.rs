@@ -35,6 +35,12 @@ enum Cmd {
         /// Directory containing local mirrors of the pinned repositories.
         #[arg(long)]
         mirror_root: PathBuf,
+        /// Root of declared out-of-tree assets: a baseline's assets are read
+        /// from `<asset-root>/<mirror_hint>/<source>` and verified against
+        /// their pinned sha256/length before being staged into the checkout.
+        /// Omitting it makes any baseline that declares assets fail typed.
+        #[arg(long)]
+        asset_root: Option<PathBuf>,
         #[arg(long)]
         out: PathBuf,
         /// Restrict to specific baselines (repeatable). Default: all.
@@ -99,6 +105,7 @@ fn real_main() -> i32 {
             corpus,
             manifest,
             mirror_root,
+            asset_root,
             out,
             baselines,
             repeats,
@@ -113,6 +120,7 @@ fn real_main() -> i32 {
                 corpus_dir: corpus,
                 manifest_path: manifest,
                 mirror_root,
+                asset_root,
                 out_dir: out.clone(),
                 baseline_filter: baselines,
                 repeats,
@@ -127,6 +135,9 @@ fn real_main() -> i32 {
                             .map(|e| format!(" ({})", e.kind))
                             .unwrap_or_default();
                         println!("baseline {}: {}{}", b.name, b.status, err);
+                        for a in &b.assets {
+                            println!("  staged asset: {} ({} bytes)", a.path, a.bytes);
+                        }
                         let ok = b.runs.iter().filter(|r| r.status == "ok").count();
                         println!("  runs ok: {}/{}", ok, b.runs.len());
                         if let Some(d) = &b.determinism {

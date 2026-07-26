@@ -217,6 +217,160 @@ max_output_bytes = 33554432
     assert_eq!(output.status.code(), Some(2));
 }
 
+/// End-to-end proof that the declared asset pin (M0 blocker B2) does what
+/// the config says: a real mirror, a real pinned checkout, and an asset that
+/// is NOT in the commit.
+///
+/// Unit tests cover `assets::stage` in isolation; this covers the wiring —
+/// that staging happens after the pin is verified, into the checkout the
+/// baseline actually runs against, and that a wrong asset stops the baseline
+/// instead of changing its result.
+#[test]
+fn declared_assets_are_staged_into_the_pinned_checkout_or_typed_refused() {
+    let t = tempfile::tempdir().unwrap();
+    let corpus = t.path().join("corpus");
+    gen_corpus(&corpus);
+
+    // A minimal mirror: one commit that deliberately does NOT contain the
+    // asset, exactly like the Vice- pin and its gitignored model.
+    let mirror = t.path().join("mirrors").join("donor");
+    std::fs::create_dir_all(&mirror).unwrap();
+    let git = |args: &[&str]| {
+        let out = Command::new("git")
+            .args([
+                "-c",
+                "user.email=t@example.invalid",
+                "-c",
+                "user.name=t",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .current_dir(&mirror)
+            .output()
+            .expect("git available");
+        assert!(
+            out.status.success(),
+            "git {args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    };
+    git(&["init", "-q"]);
+    std::fs::write(mirror.join("tool.py"), "import sys, pathlib, shutil\n").unwrap();
+    git(&["add", "-A"]);
+    git(&["commit", "-qm", "pin"]);
+    let pin = git(&["rev-parse", "HEAD"]);
+
+    // The asset root, laid out as <asset-root>/<mirror_hint>/<source>.
+    let asset_root = t.path().join("assets");
+    std::fs::create_dir_all(asset_root.join("donor").join("models")).unwrap();
+    let body = b"pinned-model-bytes";
+    std::fs::write(asset_root.join("donor/models/m.bin"), body).unwrap();
+    let digest = {
+        use sha2::Digest;
+        hex::encode(sha2::Sha256::digest(body))
+    };
+
+    let write_config = |sha: &str| {
+        let cfg = format!(
+            r#"
+schema = "vice-classic/baselines/v1"
+
+[[baseline]]
+name = "donor"
+repo = "nobody/donor"
+pin_sha = "{pin}"
+mirror_hint = "donor"
+kind = "python"
+run = ["python", "-c", "import pathlib,sys; p=pathlib.Path(sys.argv[1]); p.parent.mkdir(parents=True, exist_ok=True); p.write_bytes((pathlib.Path(sys.argv[2])/'models/m.bin').read_bytes())", "{{out_dir}}/{{stem}}.out", "{{checkout}}"]
+outputs = ["{{stem}}.out"]
+
+[[baseline.asset]]
+path = "models/m.bin"
+sha256 = "{sha}"
+bytes = {len}
+"#,
+            len = body.len()
+        );
+        let p = t.path().join(format!("cfg-{}.toml", &sha[..8]));
+        std::fs::write(&p, cfg).unwrap();
+        p
+    };
+
+    let run = |config: &Path, out: &Path, with_root: bool| -> serde_json::Value {
+        let mut cmd = Command::new(runner_bin());
+        cmd.arg("run")
+            .arg("--config")
+            .arg(config)
+            .arg("--corpus")
+            .arg(&corpus)
+            .arg("--manifest")
+            .arg(corpus.join("SMOKE_MANIFEST.toml"))
+            .arg("--mirror-root")
+            .arg(t.path().join("mirrors"))
+            .arg("--out")
+            .arg(out)
+            .arg("--repeats")
+            .arg("1");
+        if with_root {
+            cmd.arg("--asset-root").arg(&asset_root);
+        }
+        let output = cmd.output().unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        serde_json::from_str(&std::fs::read_to_string(out.join("report.json")).unwrap()).unwrap()
+    };
+
+    // (1) Correct asset: staged, recorded, and visibly used by the run —
+    // the declared output is a copy of the asset the checkout did not have.
+    let good = write_config(&digest);
+    let out_ok = t.path().join("out-ok");
+    let report = run(&good, &out_ok, true);
+    let b = &report["baselines"][0];
+    assert_eq!(b["status"], "completed", "{b:#}");
+    assert_eq!(b["assets"][0]["path"], "models/m.bin");
+    assert_eq!(b["assets"][0]["sha256"], digest);
+    assert!(b["runs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|r| r["status"] == "ok"));
+    let produced = out_ok.join("work/donor/rep0/rect_32/out/rect_32.out");
+    assert_eq!(std::fs::read(&produced).unwrap(), body);
+    // Normative provenance: the staged hash is in hashes.json too.
+    let hashes: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(out_ok.join("hashes.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        hashes["baselines"]["donor"]["assets"]["models/m.bin"],
+        digest
+    );
+
+    // (2) Same asset root, WRONG declared hash: the baseline fails typed and
+    // never runs, instead of quietly producing results from another file.
+    let bad = write_config(&"0".repeat(64));
+    let out_bad = t.path().join("out-bad");
+    let report = run(&bad, &out_bad, true);
+    let b = &report["baselines"][0];
+    assert_eq!(b["status"], "failed");
+    assert_eq!(b["error"]["kind"], "asset_mismatch");
+    assert!(b["runs"].as_array().unwrap().is_empty());
+
+    // (3) Correct config, no --asset-root: typed refusal, NOT a silent run
+    // without the asset (which is what M0 recorded as output_missing).
+    let out_noroot = t.path().join("out-noroot");
+    let report = run(&good, &out_noroot, false);
+    assert_eq!(
+        report["baselines"][0]["error"]["kind"],
+        "asset_root_missing"
+    );
+}
+
 #[test]
 fn corrupted_corpus_aborts_run() {
     let t = tempfile::tempdir().unwrap();

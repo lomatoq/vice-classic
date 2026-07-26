@@ -39,6 +39,11 @@ pub struct RunOptions {
     pub corpus_dir: PathBuf,
     pub manifest_path: PathBuf,
     pub mirror_root: PathBuf,
+    /// Root of the declared out-of-tree assets (`<asset_root>/<mirror_hint>`
+    /// per baseline). `None` means no asset root was supplied; a baseline
+    /// that declares assets then fails typed instead of running without
+    /// them (assets module, M0 blocker B2).
+    pub asset_root: Option<PathBuf>,
     pub out_dir: PathBuf,
     /// Empty = all baselines from the config.
     pub baseline_filter: Vec<String>,
@@ -84,6 +89,7 @@ pub fn run_with_config(
         corpus_dir: absolute(&opts.corpus_dir),
         manifest_path: absolute(&opts.manifest_path),
         mirror_root: absolute(&opts.mirror_root),
+        asset_root: opts.asset_root.as_deref().map(absolute),
         out_dir: absolute(&opts.out_dir),
         baseline_filter: opts.baseline_filter.clone(),
         repeats: opts.repeats,
@@ -199,6 +205,7 @@ impl BaselineCtx<'_> {
             status: "failed".to_string(),
             error: None,
             resolved_sha: None,
+            assets: Vec::new(),
             build: None,
             notes: self.spec.notes.clone(),
             runs: Vec::new(),
@@ -236,6 +243,19 @@ impl BaselineCtx<'_> {
                 }
                 let checkout_dir = self.opts.out_dir.join("checkouts").join(&self.spec.name);
                 self.fresh_checkout(&mirror, &checkout_dir, rep)?;
+                // Declared out-of-tree assets are staged AFTER the checkout
+                // is verified against the pin and BEFORE the build, with
+                // their own hashes checked first (assets module). A pin plus
+                // its declared assets is the complete donor state.
+                rep.assets = crate::assets::stage(
+                    &self.spec.assets,
+                    self.opts
+                        .asset_root
+                        .as_ref()
+                        .map(|r| r.join(&self.spec.mirror_hint))
+                        .as_deref(),
+                    &checkout_dir,
+                )?;
                 let binary = if !self.spec.build.is_empty() && !self.opts.skip_build {
                     self.run_build(&checkout_dir, rep)?
                 } else {
@@ -642,6 +662,7 @@ pub fn selftest_spec() -> BaselineSpec {
         ],
         outputs: vec!["{stem}.copy.png".to_string()],
         run_cwd: RunCwd::Workdir,
+        assets: Vec::new(),
         notes: "internal determinism selftest; copies input bytes to output".to_string(),
     }
 }
@@ -657,6 +678,7 @@ pub fn selftest(out_dir: &Path, corpus_dir: &Path, manifest_path: &Path) -> Resu
         corpus_dir: corpus_dir.to_path_buf(),
         manifest_path: manifest_path.to_path_buf(),
         mirror_root: PathBuf::new(),
+        asset_root: None,
         out_dir: out_dir.to_path_buf(),
         baseline_filter: Vec::new(),
         repeats: 2,

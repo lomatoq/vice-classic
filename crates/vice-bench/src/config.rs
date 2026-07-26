@@ -8,6 +8,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::assets::AssetSpec;
 use crate::error::TopError;
 use crate::limits::ResourceLimits;
 
@@ -76,6 +77,11 @@ pub struct BaselineSpec {
     pub outputs: Vec<String>,
     #[serde(default = "default_run_cwd")]
     pub run_cwd: RunCwd,
+    /// Out-of-tree files the pinned checkout needs but does not carry, each
+    /// pinned by sha256 and length and staged from `--asset-root`
+    /// (see [`crate::assets`]; M0 blocker B2).
+    #[serde(rename = "asset", default)]
+    pub assets: Vec<AssetSpec>,
     /// Free-form documented caveats (e.g. known nondeterministic side files).
     #[serde(default)]
     pub notes: String,
@@ -111,6 +117,9 @@ pub fn load_config(path: &Path) -> Result<BaselinesConfig, TopError> {
                 "baseline {:?} pin_sha is not a 40-hex commit sha",
                 b.name
             )));
+        }
+        for a in &b.assets {
+            crate::assets::validate_spec(&b.name, a).map_err(TopError::Config)?;
         }
     }
     Ok(cfg)

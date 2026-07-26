@@ -11,6 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod assets;
 pub mod config;
 pub mod corpus;
 pub mod envinfo;
