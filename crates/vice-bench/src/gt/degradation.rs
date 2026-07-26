@@ -481,13 +481,14 @@ mod tests {
         )
     }
 
-    fn max_code_difference(a: &RenderedFixture, b: &RenderedFixture) -> u8 {
-        a.rgba8
-            .iter()
-            .zip(&b.rgba8)
-            .map(|(x, y)| x.abs_diff(*y))
-            .max()
-            .unwrap_or(0)
+    /// PREMULTIPLIED, per §1.6: straight RGB under alpha≈0 is not colour
+    /// evidence, so a magnitude metric over the stored bytes can report a
+    /// full-range disagreement where the physical one is a few per cent of
+    /// one pixel's coverage (F-0021). The measured curve below is unchanged
+    /// by the switch - this fixture's differences are all under ink - which
+    /// is the reason the calibration survives it.
+    fn max_code_difference(a: &RenderedFixture, b: &RenderedFixture) -> f64 {
+        crate::gt::colour::max_premultiplied_code_difference(&a.rgba8, &b.rgba8)
     }
 
     /// The observability floor is CALIBRATED against a RIVAL MEMBER of the
@@ -525,7 +526,7 @@ mod tests {
             let d_rival = max_code_difference(&a, &r);
             let len_px = 2.0 * hole_half * scale;
             println!(
-                "hole {len_px:.3} render px: vs 1.4x rival {d_rival:>3}, label {:?}",
+                "hole {len_px:.3} render px: vs 1.4x rival {d_rival:>7.3}, label {:?}",
                 a.identifiability
             );
             rows.push((len_px, d_rival, a.identifiability));
@@ -539,7 +540,7 @@ mod tests {
                     "a {len_px:.3} px hole is below the floor and must be labelled lost"
                 );
                 assert!(
-                    d_rival <= RIVAL_INDISTINGUISHABLE_CODES,
+                    d_rival <= f64::from(RIVAL_INDISTINGUISHABLE_CODES),
                     "labelled lost, but a 1.4x larger hole is {d_rival} code values away -                      the parameters ARE recoverable and the floor is too high"
                 );
             } else {
@@ -549,7 +550,7 @@ mod tests {
                     "a {len_px:.3} px hole is above the floor"
                 );
                 assert!(
-                    d_rival > RIVAL_INDISTINGUISHABLE_CODES,
+                    d_rival > f64::from(RIVAL_INDISTINGUISHABLE_CODES),
                     "labelled identifiable, but a 1.4x larger hole is only {d_rival} code                      values away - the floor is too low"
                 );
             }

@@ -489,12 +489,12 @@ mod tests {
     use crate::gt::raster::{rasterize, transformed_loops, Psf, ViewTransform};
     use crate::gt::IdentifiabilityClass;
 
-    fn max_code_diff(a: &[u8], b: &[u8]) -> u8 {
-        a.iter()
-            .zip(b)
-            .map(|(x, y)| x.abs_diff(*y))
-            .max()
-            .unwrap_or(0)
+    /// PREMULTIPLIED, per §1.6 (`gt::colour::premultiplied_deltas`): a
+    /// straight-byte metric reads a barely-covered pixel as a full-range
+    /// disagreement, which would make a pair that DOES collapse look like a
+    /// pair that does not (F-0021).
+    fn max_code_diff(a: &[u8], b: &[u8]) -> f64 {
+        crate::gt::colour::max_premultiplied_code_difference(a, b)
     }
 
     /// An ambiguity pair is only a pair if the collapse is MEASURED. Both
@@ -515,7 +515,7 @@ mod tests {
                 .collect();
             let d = max_code_diff(&collapsed[0], &collapsed[1]);
             assert!(
-                d <= 4,
+                d <= 4.0,
                 "{}: members differ by {d} code values at the declared collapse cell {} - \
                  the pair does not actually collapse",
                 g.id,
@@ -536,7 +536,7 @@ mod tests {
             let structurally_different = (t0.visible_faces, t0.holes, t0.components)
                 != (t1.visible_faces, t1.holes, t1.components);
             assert!(
-                sd > 4 || structurally_different,
+                sd > 4.0 || structurally_different,
                 "{}: the two members are neither separable at {} nor structurally different - \
                  this is a duplicate, not an ambiguity pair",
                 g.id,
