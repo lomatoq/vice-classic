@@ -18,22 +18,31 @@ local_mirror_hint = "v-ice"
 # M0 blocker B1, resolved before M3 (REVIEW_M0 §6 condition 7; ADR-0014).
 #
 # The spec pin above cannot be built on a machine without dav1d/pkg-config:
-# its `image` dependency enables `avif-native`. Upstream fixed exactly this
-# in 59ab86d1 ("Drop avif-native image feature (dav1d/pkg-config build on
-# Windows)"), which touches only Cargo.toml and Cargo.lock.
+# its `image` dependency enables `avif-native`. Upstream dropped exactly that
+# feature in 59ab86d1 ("Drop avif-native image feature (dav1d/pkg-config
+# build on Windows)"), a commit that touches only Cargo.toml and Cargo.lock.
 #
-# Measured ancestry, not assumed: 9211b321 and 59ab86d1 are SIBLINGS, both
-# children of 49f308d9. The spec pin is an unmerged side branch; 59ab86d1 is
-# an ancestor of upstream main. So this is not "the same code with the build
-# fixed", and it does NOT replace the spec pin: the audit anchor of §2 stays
-# where the spec put it and keeps its honest build_failed record. This is an
-# ADDITIONAL declared pin so that M3's scorecard has a v-ice opponent that
-# actually runs (§27.3), with the divergence stated instead of hidden.
+# Ancestry, measured against the mirror's REMOTE refs (REVIEW_M3 M3-N4
+# corrected an earlier claim here that had been measured against a local
+# unpushed branch):
+#
+#   refs/remotes/origin/main  ->  9211b321   <- the spec pin IS the upstream tip
+#   refs/remotes/origin/HEAD  ->  9211b321
+#   merge-base --is-ancestor 9211b321 origin/main  -> 0 (ancestor)
+#   merge-base --is-ancestor 59ab86d1 origin/main  -> 1 (NOT an ancestor)
+#   merge-base 9211b321 59ab86d1 -> 49f308d9 ; divergence 1 <-> 1
+#
+# So the two pins are SIBLINGS of 49f308d9, and 59ab86d1 lives on a line that
+# no remote ref of this mirror points at, while the §2 audit anchor is the
+# upstream tip. That makes replacing the anchor worse than first thought, and
+# it is why this is an ADDITIONAL declared pin and not a replacement: the
+# anchor stays where the spec put it and keeps its honest build_failed record,
+# while M3's scorecard (§27.3) gets a v-ice opponent that actually runs.
 [[source]]
-name = "v-ice-mainline"
+name = "v-ice-avif-fix"
 repo = "lomatoq/v-ice"
 sha = "59ab86d16458a43877a72270dfd71a68ff9eecb7"
-role = "buildable v-ice baseline for the M3 scorecard (sibling of the §2 pin, ancestor of upstream main)"
+role = "buildable v-ice baseline for the M3 scorecard; SIBLING of the §2 pin (merge base 49f308d9), reachable from no remote ref of the mirror"
 license_status = "OWNER_CONTROLLED_VERIFY_BEFORE_PUBLIC_RELEASE"
 local_mirror_hint = "v-ice"
 

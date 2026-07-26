@@ -37,7 +37,7 @@ typed build_failed outcome, documented blocker, NOT silently patched. \
 source tree and hashes with the checkout."""
 
 [[baseline]]
-name = "v-ice-mainline"
+name = "v-ice-avif-fix"
 repo = "lomatoq/v-ice"
 pin_sha = "59ab86d16458a43877a72270dfd71a68ff9eecb7"
 mirror_hint = "v-ice"
@@ -47,18 +47,7 @@ binary = "target/release/vice-cli"
 run = ["{binary}", "vectorize", "{input}", "--out-dir", "{out_dir}", "--formats", "svg"]
 outputs = ["{stem}/{stem}.svg"]
 notes = """
-M0 blocker B1 resolution (REVIEW_M0 §6 condition 7; ADR-0014). This is an \
-ADDITIONAL pin, not a replacement: the §2 audit anchor 9211b321 stays above \
-with its honest build_failed record, and 59ab86d1 is its SIBLING (both \
-children of 49f308d9), not its descendant - so the two are different code, \
-which is why both are declared. 59ab86d1 is upstream's own fix for this \
-exact defect and is an ancestor of upstream main; its diff against the merge \
-base is Cargo.toml + Cargo.lock only. \
-Measured before declaring: builds in 4m11s on the recording machine, exposes \
-the same `vice-cli` target and the same `{stem}/{stem}.svg` output contract. \
-Caveats (1) and (3) of the pin above apply unchanged: summary.json carries \
-wall-clock and is a secondary artifact; --ml is on and restore_v1.onnx is \
-part of the pinned tree."""
+M0 blocker B1 resolution (REVIEW_M0 §6 condition 7; ADR-0014). This is an ADDITIONAL pin, not a replacement: the §2 audit anchor 9211b321 stays above with its honest build_failed record. Ancestry, measured against the mirror REMOTE refs (REVIEW_M3 M3-N4 corrected an earlier claim measured against a local unpushed branch): origin/main and origin/HEAD both point AT 9211b321, so the spec pin is the upstream tip; 59ab86d1 is NOT an ancestor of origin/main. The two are SIBLINGS of merge base 49f308d9 with divergence 1 <-> 1, so 59ab86d1 is different code and lives on a line no remote ref of this mirror points at - which is why the anchor is kept and this pin is added beside it. Its diff against the merge base is Cargo.toml + Cargo.lock only. Measured before declaring: builds in 4m11s on the recording machine, exposes the same `vice-cli` target and the same `{stem}/{stem}.svg` output contract. Caveats (1) and (3) of the pin above apply unchanged: summary.json carries wall-clock and is a secondary artifact; --ml is on and restore_v1.onnx is part of the pinned tree."""
 
 [[baseline]]
 name = "v-ize"

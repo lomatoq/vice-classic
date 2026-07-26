@@ -13,9 +13,9 @@
 
 | | M0 (`docs/baselines/M0/`) | M3 (`docs/baselines/M3/`) |
 |---|---|---|
-| baseline-ов | 3 | **4** (добавлен `v-ice-mainline`, ADR-0014 / блокер B1) |
+| baseline-ов | 3 | **4** (добавлен `v-ice-avif-fix`, ADR-0014 / блокер B1) |
 | v-ice @ spec pin | `build_failed` (dav1d/pkg-config) | `build_failed` — **без изменений, намеренно** |
-| v-ice-mainline | — | `completed`, 10/10 ok, primary deterministic |
+| v-ice-avif-fix | — | `completed`, 10/10 ok, primary deterministic |
 | v-ize | `completed`, 10/10 | `completed`, 10/10, primary+all deterministic |
 | Vice- | `completed`, **6/10** (`output_missing` ×4) | `completed`, **10/10**, primary+all deterministic |
 | ассеты | не пиннятся | `models/corner_rf.joblib` пиннится sha256+длиной (B2) |
@@ -46,7 +46,7 @@ Runner не ходит в сеть.
 | mirror_hint | репозиторий | pin |
 |---|---|---|
 | `v-ice` | lomatoq/v-ice | `9211b3213d9b47defdf19ae4d0842af1c3ade45f` (spec §2) |
-| `v-ice` | lomatoq/v-ice | `59ab86d16458a43877a72270dfd71a68ff9eecb7` (`v-ice-mainline`) |
+| `v-ice` | lomatoq/v-ice | `59ab86d16458a43877a72270dfd71a68ff9eecb7` (`v-ice-avif-fix`; сиблинг spec-пина, вне remote-ссылок зеркала — ADR-0014) |
 | `v-ize` | lomatoq/v-ize | `95a65194cf34e2d96b41eb299b4769eac624be80` |
 | `v-ice part` | lomatoq/Vice- | `200897ab3e888970e330deeb3bb9e157923cc0aa` |
 
@@ -128,7 +128,7 @@ cargo run --release --bin baseline-runner -- env --normative
 - `report.json` целиком (runtimes, абсолютные пути, `tool.exe_sha256`);
 - `informational.binary_sha256` донорских сборок;
 - побочные артефакты с wall-clock. Именно они дают
-  `all_artifacts_deterministic: false` у `v-ice-mainline`: пять
+  `all_artifacts_deterministic: false` у `v-ice-avif-fix`: пять
   расхождений, все — `summary.json`, который донор пишет с миллисекундами
   (задокументированный caveat конфига). `primary_deterministic` при этом
   `true`: объявленные `{stem}/{stem}.svg` совпадают побайтово.

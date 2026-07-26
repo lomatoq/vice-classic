@@ -3,10 +3,10 @@
   "tool": {
     "name": "vice-bench baseline-runner",
     "version": "0.0.1",
-    "exe_sha256": "b4c07c36f802e46da1a506d59992348ecab3fb10a83c4447e2e2d6be8be8bae8"
+    "exe_sha256": "4ef66e20e79d18996e444045bade5d6e243a81fcc0abd39b2215793e73027f6a"
   },
   "config": "configs/baselines.toml",
-  "config_sha256": "54ece9b5b8483d8d67499dc4f67dfafe2c91c98a3de21f2eac6bf587a6eb2d75",
+  "config_sha256": "147150b1aba2b1274a7f104ee3e572ec450c876a6427ec6591e9964383114804",
   "environment": {
     "os": "windows",
     "arch": "x86_64",
@@ -94,7 +94,7 @@
         ],
         "exit_code": 101,
         "timed_out": false,
-        "duration_ms": 24785,
+        "duration_ms": 18237,
         "binary_path": null,
         "binary_sha256": null,
         "log": "logs/v-ice/build.log"
@@ -104,7 +104,7 @@
       "determinism": null
     },
     {
-      "name": "v-ice-mainline",
+      "name": "v-ice-avif-fix",
       "repo": "lomatoq/v-ice",
       "pin_sha": "59ab86d16458a43877a72270dfd71a68ff9eecb7",
       "mirror": "C:\\Users\\nirrt\\Toolset\\v-ice",
@@ -122,22 +122,22 @@
         ],
         "exit_code": 0,
         "timed_out": false,
-        "duration_ms": 220496,
-        "binary_path": "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
-        "binary_sha256": "47dc1f53746d73caf93e55ce7159dc5a8c8f6c6b56085177dd783ebda685b6f8",
-        "log": "logs/v-ice-mainline/build.log"
+        "duration_ms": 165625,
+        "binary_path": "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
+        "binary_sha256": "cd147e00e763018e593b98bdf6cd9f152cc9a81e3c265764ad61fe7882273a3b",
+        "log": "logs/v-ice-avif-fix/build.log"
       },
-      "notes": "M0 blocker B1 resolution (REVIEW_M0 §6 condition 7; ADR-0014). This is an ADDITIONAL pin, not a replacement: the §2 audit anchor 9211b321 stays above with its honest build_failed record, and 59ab86d1 is its SIBLING (both children of 49f308d9), not its descendant - so the two are different code, which is why both are declared. 59ab86d1 is upstream's own fix for this exact defect and is an ancestor of upstream main; its diff against the merge base is Cargo.toml + Cargo.lock only. Measured before declaring: builds in 4m11s on the recording machine, exposes the same `vice-cli` target and the same `{stem}/{stem}.svg` output contract. Caveats (1) and (3) of the pin above apply unchanged: summary.json carries wall-clock and is a secondary artifact; --ml is on and restore_v1.onnx is part of the pinned tree.",
+      "notes": "M0 blocker B1 resolution (REVIEW_M0 §6 condition 7; ADR-0014). This is an ADDITIONAL pin, not a replacement: the §2 audit anchor 9211b321 stays above with its honest build_failed record. Ancestry, measured against the mirror REMOTE refs (REVIEW_M3 M3-N4 corrected an earlier claim measured against a local unpushed branch): origin/main and origin/HEAD both point AT 9211b321, so the spec pin is the upstream tip; 59ab86d1 is NOT an ancestor of origin/main. The two are SIBLINGS of merge base 49f308d9 with divergence 1 <-> 1, so 59ab86d1 is different code and lives on a line no remote ref of this mirror points at - which is why the anchor is kept and this pin is added beside it. Its diff against the merge base is Cargo.toml + Cargo.lock only. Measured before declaring: builds in 4m11s on the recording machine, exposes the same `vice-cli` target and the same `{stem}/{stem}.svg` output contract. Caveats (1) and (3) of the pin above apply unchanged: summary.json carries wall-clock and is a secondary artifact; --ml is on and restore_v1.onnx is part of the pinned tree.",
       "runs": [
         {
           "input": "rect_32.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep0\\rect_32\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep0\\rect_32\\out",
             "--formats",
             "svg"
           ],
@@ -145,7 +145,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 1149,
+          "duration_ms": 978,
           "artifacts": [
             {
               "path": "rect_32/rect_32.svg",
@@ -156,21 +156,21 @@
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 611,
-              "sha256": "1c75fd405fea118026d93ba3954c0fcebbe6014564a4420b27f9cf44d4aba0b3"
+              "bytes": 613,
+              "sha256": "92a7b33127134cbb4296d19e2f308985cd7e8e4798c4dc45a70bd5db784cb87a"
             }
           ],
-          "log": "logs/v-ice-mainline/rep0/rect_32.log"
+          "log": "logs/v-ice-avif-fix/rep0/rect_32.log"
         },
         {
           "input": "rect_32.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep1\\rect_32\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep1\\rect_32\\out",
             "--formats",
             "svg"
           ],
@@ -178,7 +178,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 714,
+          "duration_ms": 638,
           "artifacts": [
             {
               "path": "rect_32/rect_32.svg",
@@ -189,21 +189,21 @@
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 611,
-              "sha256": "abeb6e383ed6d6ced8ef3f8046fee25b2680efd16efe4c40f4ed1f45412ffeb9"
+              "bytes": 613,
+              "sha256": "e9ae8473d7cac8d3b8b2abe9f47b8aac77d157d06545cda760f4011159a1d64b"
             }
           ],
-          "log": "logs/v-ice-mainline/rep1/rect_32.log"
+          "log": "logs/v-ice-avif-fix/rep1/rect_32.log"
         },
         {
           "input": "circle_64.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep0\\circle_64\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep0\\circle_64\\out",
             "--formats",
             "svg"
           ],
@@ -211,7 +211,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 2585,
+          "duration_ms": 2357,
           "artifacts": [
             {
               "path": "circle_64/circle_64.svg",
@@ -222,21 +222,21 @@
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 624,
-              "sha256": "d057d003b37354212bf0a8610751327f5b8b4ddfa55037dc8eb8d70e32cf9190"
+              "bytes": 626,
+              "sha256": "b8ba3180b967024523c80c937100ed62ead1c735fb046ea6b97cf48dc6522c70"
             }
           ],
-          "log": "logs/v-ice-mainline/rep0/circle_64.log"
+          "log": "logs/v-ice-avif-fix/rep0/circle_64.log"
         },
         {
           "input": "circle_64.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep1\\circle_64\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep1\\circle_64\\out",
             "--formats",
             "svg"
           ],
@@ -244,7 +244,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 2637,
+          "duration_ms": 2355,
           "artifacts": [
             {
               "path": "circle_64/circle_64.svg",
@@ -255,21 +255,21 @@
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 624,
-              "sha256": "e88ef61a264cad1e3e51120fce9416bc9f1eca97710d28158aa7cb7f2bbc2446"
+              "bytes": 626,
+              "sha256": "1b6a5c6fda47eaa4696df842afc09e5d3460b035f0410038f6d285fa6b44fc93"
             }
           ],
-          "log": "logs/v-ice-mainline/rep1/circle_64.log"
+          "log": "logs/v-ice-avif-fix/rep1/circle_64.log"
         },
         {
           "input": "ring_64.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep0\\ring_64\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep0\\ring_64\\out",
             "--formats",
             "svg"
           ],
@@ -277,7 +277,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 2665,
+          "duration_ms": 2407,
           "artifacts": [
             {
               "path": "ring_64/ring_64.svg",
@@ -288,21 +288,21 @@
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 613,
-              "sha256": "3ec45d8b5ce70f993b54d9b0ece2b661e51fc21722d572391addb5a36f6ba894"
+              "bytes": 615,
+              "sha256": "fcb5c732d435ca38c9544da5de4548b0842aa2a48551aa754f1505b358f47256"
             }
           ],
-          "log": "logs/v-ice-mainline/rep0/ring_64.log"
+          "log": "logs/v-ice-avif-fix/rep0/ring_64.log"
         },
         {
           "input": "ring_64.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep1\\ring_64\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep1\\ring_64\\out",
             "--formats",
             "svg"
           ],
@@ -310,7 +310,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 2765,
+          "duration_ms": 2405,
           "artifacts": [
             {
               "path": "ring_64/ring_64.svg",
@@ -321,21 +321,21 @@
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 613,
-              "sha256": "2da4150129df2d12146aed1fb7e8a9ceb2163da83fffd87382ee97fa6307c66c"
+              "bytes": 615,
+              "sha256": "2f5482dadd296edec13601c256cdd5753c75864b2e3a98062327b04175776943"
             }
           ],
-          "log": "logs/v-ice-mainline/rep1/ring_64.log"
+          "log": "logs/v-ice-avif-fix/rep1/ring_64.log"
         },
         {
           "input": "triangle_128.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep0\\triangle_128\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep0\\triangle_128\\out",
             "--formats",
             "svg"
           ],
@@ -343,13 +343,13 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 5500,
+          "duration_ms": 4906,
           "artifacts": [
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 642,
-              "sha256": "89bec72b13ff32bce594536f6b733e7a1fb47d621f6857a6c9b65cd7406b1539"
+              "bytes": 644,
+              "sha256": "2bc91c4b9705357a89706a4a86acd0b9869128691fc0db520a67a551167f1b7c"
             },
             {
               "path": "triangle_128/triangle_128.svg",
@@ -358,17 +358,17 @@
               "sha256": "6014ebc2f4b8e92fade7155cd86071a7b6384691668d27b6792d977dff472120"
             }
           ],
-          "log": "logs/v-ice-mainline/rep0/triangle_128.log"
+          "log": "logs/v-ice-avif-fix/rep0/triangle_128.log"
         },
         {
           "input": "triangle_128.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep1\\triangle_128\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep1\\triangle_128\\out",
             "--formats",
             "svg"
           ],
@@ -376,13 +376,13 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 5140,
+          "duration_ms": 4838,
           "artifacts": [
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 642,
-              "sha256": "689e7117bebe52f19028dd9bbfd3001a9a64b471a8bbb55ea8053c860dc35bfc"
+              "bytes": 644,
+              "sha256": "9266f4b9ca83eecfdf49beec920c84bb4b98a1271b01f2f713f53da43b58acca"
             },
             {
               "path": "triangle_128/triangle_128.svg",
@@ -391,17 +391,17 @@
               "sha256": "6014ebc2f4b8e92fade7155cd86071a7b6384691668d27b6792d977dff472120"
             }
           ],
-          "log": "logs/v-ice-mainline/rep1/triangle_128.log"
+          "log": "logs/v-ice-avif-fix/rep1/triangle_128.log"
         },
         {
           "input": "glyph_16.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep0\\glyph_16\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep0\\glyph_16\\out",
             "--formats",
             "svg"
           ],
@@ -409,7 +409,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 310,
+          "duration_ms": 308,
           "artifacts": [
             {
               "path": "glyph_16/glyph_16.svg",
@@ -420,21 +420,21 @@
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 618,
-              "sha256": "793282ef15032aa761e6c69623df1fc6bb81683406f9046959126cecc3d044d6"
+              "bytes": 620,
+              "sha256": "9379648962d0b74d8466899ad32513fa3d79838d87dc043b97e544c27963c8b4"
             }
           ],
-          "log": "logs/v-ice-mainline/rep0/glyph_16.log"
+          "log": "logs/v-ice-avif-fix/rep0/glyph_16.log"
         },
         {
           "input": "glyph_16.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ice-mainline\\target/release/vice-cli.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ice-avif-fix\\target/release/vice-cli.exe",
             "vectorize",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
             "--out-dir",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ice-mainline\\rep1\\glyph_16\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ice-avif-fix\\rep1\\glyph_16\\out",
             "--formats",
             "svg"
           ],
@@ -453,11 +453,11 @@
             {
               "path": "summary.json",
               "declared": false,
-              "bytes": 618,
-              "sha256": "fa47b66695db4d2e0e37c259646b9ed0bbe0b48f24eb45bfe7d1b7da5e4654d1"
+              "bytes": 620,
+              "sha256": "a1041f1639406c6fd86a7a79f4c7f90457cadecac896cf96dbcd85667760bee3"
             }
           ],
-          "log": "logs/v-ice-mainline/rep1/glyph_16.log"
+          "log": "logs/v-ice-avif-fix/rep1/glyph_16.log"
         }
       ],
       "determinism": {
@@ -470,8 +470,8 @@
             "artifact": "summary.json",
             "declared": false,
             "sha256_by_repeat": [
-              "d057d003b37354212bf0a8610751327f5b8b4ddfa55037dc8eb8d70e32cf9190",
-              "e88ef61a264cad1e3e51120fce9416bc9f1eca97710d28158aa7cb7f2bbc2446"
+              "b8ba3180b967024523c80c937100ed62ead1c735fb046ea6b97cf48dc6522c70",
+              "1b6a5c6fda47eaa4696df842afc09e5d3460b035f0410038f6d285fa6b44fc93"
             ]
           },
           {
@@ -479,8 +479,8 @@
             "artifact": "summary.json",
             "declared": false,
             "sha256_by_repeat": [
-              "793282ef15032aa761e6c69623df1fc6bb81683406f9046959126cecc3d044d6",
-              "fa47b66695db4d2e0e37c259646b9ed0bbe0b48f24eb45bfe7d1b7da5e4654d1"
+              "9379648962d0b74d8466899ad32513fa3d79838d87dc043b97e544c27963c8b4",
+              "a1041f1639406c6fd86a7a79f4c7f90457cadecac896cf96dbcd85667760bee3"
             ]
           },
           {
@@ -488,8 +488,8 @@
             "artifact": "summary.json",
             "declared": false,
             "sha256_by_repeat": [
-              "1c75fd405fea118026d93ba3954c0fcebbe6014564a4420b27f9cf44d4aba0b3",
-              "abeb6e383ed6d6ced8ef3f8046fee25b2680efd16efe4c40f4ed1f45412ffeb9"
+              "92a7b33127134cbb4296d19e2f308985cd7e8e4798c4dc45a70bd5db784cb87a",
+              "e9ae8473d7cac8d3b8b2abe9f47b8aac77d157d06545cda760f4011159a1d64b"
             ]
           },
           {
@@ -497,8 +497,8 @@
             "artifact": "summary.json",
             "declared": false,
             "sha256_by_repeat": [
-              "3ec45d8b5ce70f993b54d9b0ece2b661e51fc21722d572391addb5a36f6ba894",
-              "2da4150129df2d12146aed1fb7e8a9ceb2163da83fffd87382ee97fa6307c66c"
+              "fcb5c732d435ca38c9544da5de4548b0842aa2a48551aa754f1505b358f47256",
+              "2f5482dadd296edec13601c256cdd5753c75864b2e3a98062327b04175776943"
             ]
           },
           {
@@ -506,8 +506,8 @@
             "artifact": "summary.json",
             "declared": false,
             "sha256_by_repeat": [
-              "89bec72b13ff32bce594536f6b733e7a1fb47d621f6857a6c9b65cd7406b1539",
-              "689e7117bebe52f19028dd9bbfd3001a9a64b471a8bbb55ea8053c860dc35bfc"
+              "2bc91c4b9705357a89706a4a86acd0b9869128691fc0db520a67a551167f1b7c",
+              "9266f4b9ca83eecfdf49beec920c84bb4b98a1271b01f2f713f53da43b58acca"
             ]
           }
         ]
@@ -532,9 +532,9 @@
         ],
         "exit_code": 0,
         "timed_out": false,
-        "duration_ms": 90153,
-        "binary_path": "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
-        "binary_sha256": "befa2bf810d2095380671561b4783dcbf23534dd9826024f879d9b88aaedd9dd",
+        "duration_ms": 63329,
+        "binary_path": "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
+        "binary_sha256": "c7af494d89b261ae61aa35b993cbc06f6070c87618375ffce72574762bfc54cd",
         "log": "logs/v-ize/build.log"
       },
       "notes": "Known caveats at pin 95a65194:\n(1) pin is NOT an ancestor of the mirror's HEAD (lives on a side branch); the fresh clone+detached checkout handles this correctly. (2) known nondeterminism source: centerline.rs components_reconnected() iterates HashMap::into_values() unsorted -> stroke layer order in the SVG can differ between runs when centerline strokes trigger; CLI enables centerline unconditionally. Detected by the repeat comparison, documented, not hidden. (3) vize-cli at pin links the full wgpu stack (215 locked packages); --gpu stays off, CPU path is used.",
@@ -543,17 +543,17 @@
           "input": "rect_32.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep0\\rect_32\\out/rect_32.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep0\\rect_32\\out/rect_32.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 473,
+          "duration_ms": 370,
           "artifacts": [
             {
               "path": "rect_32.svg",
@@ -568,10 +568,10 @@
           "input": "rect_32.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep1\\rect_32\\out/rect_32.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep1\\rect_32\\out/rect_32.svg",
             "-q"
           ],
           "status": "ok",
@@ -593,17 +593,17 @@
           "input": "circle_64.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep0\\circle_64\\out/circle_64.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep0\\circle_64\\out/circle_64.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 106,
+          "duration_ms": 105,
           "artifacts": [
             {
               "path": "circle_64.svg",
@@ -618,17 +618,17 @@
           "input": "circle_64.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep1\\circle_64\\out/circle_64.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep1\\circle_64\\out/circle_64.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 107,
+          "duration_ms": 106,
           "artifacts": [
             {
               "path": "circle_64.svg",
@@ -643,17 +643,17 @@
           "input": "ring_64.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep0\\ring_64\\out/ring_64.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep0\\ring_64\\out/ring_64.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 106,
+          "duration_ms": 107,
           "artifacts": [
             {
               "path": "ring_64.svg",
@@ -668,17 +668,17 @@
           "input": "ring_64.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep1\\ring_64\\out/ring_64.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep1\\ring_64\\out/ring_64.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 107,
+          "duration_ms": 106,
           "artifacts": [
             {
               "path": "ring_64.svg",
@@ -693,17 +693,17 @@
           "input": "triangle_128.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep0\\triangle_128\\out/triangle_128.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep0\\triangle_128\\out/triangle_128.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 511,
+          "duration_ms": 460,
           "artifacts": [
             {
               "path": "triangle_128.svg",
@@ -718,17 +718,17 @@
           "input": "triangle_128.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep1\\triangle_128\\out/triangle_128.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep1\\triangle_128\\out/triangle_128.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 511,
+          "duration_ms": 458,
           "artifacts": [
             {
               "path": "triangle_128.svg",
@@ -743,17 +743,17 @@
           "input": "glyph_16.png",
           "repeat": 0,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep0\\glyph_16\\out/glyph_16.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep0\\glyph_16\\out/glyph_16.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 106,
+          "duration_ms": 81,
           "artifacts": [
             {
               "path": "glyph_16.svg",
@@ -768,17 +768,17 @@
           "input": "glyph_16.png",
           "repeat": 1,
           "command": [
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\v-ize\\target/release/vize.exe",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\v-ize\\target/release/vize.exe",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
             "-o",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\v-ize\\rep1\\glyph_16\\out/glyph_16.svg",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\v-ize\\rep1\\glyph_16\\out/glyph_16.svg",
             "-q"
           ],
           "status": "ok",
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 107,
+          "duration_ms": 81,
           "artifacts": [
             {
               "path": "glyph_16.svg",
@@ -820,14 +820,14 @@
           "repeat": 0,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep0\\rect_32\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep0\\rect_32\\out",
             "--tag",
             "m0"
           ],
@@ -835,7 +835,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 5371,
+          "duration_ms": 4634,
           "artifacts": [
             {
               "path": "m0/paper-regions/rect_32/01_contour.png",
@@ -893,14 +893,14 @@
           "repeat": 1,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\rect_32.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep1\\rect_32\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep1\\rect_32\\out",
             "--tag",
             "m0"
           ],
@@ -908,7 +908,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 4817,
+          "duration_ms": 4003,
           "artifacts": [
             {
               "path": "m0/paper-regions/rect_32/01_contour.png",
@@ -966,14 +966,14 @@
           "repeat": 0,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep0\\circle_64\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep0\\circle_64\\out",
             "--tag",
             "m0"
           ],
@@ -981,7 +981,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 4865,
+          "duration_ms": 4028,
           "artifacts": [
             {
               "path": "m0/circle_64__contact.png",
@@ -1039,14 +1039,14 @@
           "repeat": 1,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\circle_64.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep1\\circle_64\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep1\\circle_64\\out",
             "--tag",
             "m0"
           ],
@@ -1054,7 +1054,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 5396,
+          "duration_ms": 4000,
           "artifacts": [
             {
               "path": "m0/circle_64__contact.png",
@@ -1112,14 +1112,14 @@
           "repeat": 0,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep0\\ring_64\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep0\\ring_64\\out",
             "--tag",
             "m0"
           ],
@@ -1127,7 +1127,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 8465,
+          "duration_ms": 7386,
           "artifacts": [
             {
               "path": "m0/paper-regions/ring_64/01_contour.png",
@@ -1185,14 +1185,14 @@
           "repeat": 1,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\ring_64.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep1\\ring_64\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep1\\ring_64\\out",
             "--tag",
             "m0"
           ],
@@ -1200,7 +1200,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 8991,
+          "duration_ms": 7595,
           "artifacts": [
             {
               "path": "m0/paper-regions/ring_64/01_contour.png",
@@ -1258,14 +1258,14 @@
           "repeat": 0,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep0\\triangle_128\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep0\\triangle_128\\out",
             "--tag",
             "m0"
           ],
@@ -1273,7 +1273,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 11159,
+          "duration_ms": 9614,
           "artifacts": [
             {
               "path": "m0/paper-regions/triangle_128/01_contour.png",
@@ -1331,14 +1331,14 @@
           "repeat": 1,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\triangle_128.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep1\\triangle_128\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep1\\triangle_128\\out",
             "--tag",
             "m0"
           ],
@@ -1346,7 +1346,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 10870,
+          "duration_ms": 9419,
           "artifacts": [
             {
               "path": "m0/paper-regions/triangle_128/01_contour.png",
@@ -1404,14 +1404,14 @@
           "repeat": 0,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep0\\glyph_16\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep0\\glyph_16\\out",
             "--tag",
             "m0"
           ],
@@ -1419,7 +1419,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 6840,
+          "duration_ms": 5420,
           "artifacts": [
             {
               "path": "m0/glyph_16__contact.png",
@@ -1477,14 +1477,14 @@
           "repeat": 1,
           "command": [
             "python",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\checkouts\\Vice-/run_vectorizer.py",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\checkouts\\Vice-/run_vectorizer.py",
             "C:\\Users\\nirrt\\Toolset\\vice-classic\\tests\\fixtures\\smoke\\glyph_16.png",
             "--smoothing",
             "paper-regions",
             "--extractor",
             "mininet",
             "--out",
-            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3\\work\\Vice-\\rep1\\glyph_16\\out",
+            "C:\\Users\\nirrt\\Toolset\\vice-classic\\runs\\m3b\\work\\Vice-\\rep1\\glyph_16\\out",
             "--tag",
             "m0"
           ],
@@ -1492,7 +1492,7 @@
           "error": null,
           "exit_code": 0,
           "timed_out": false,
-          "duration_ms": 6635,
+          "duration_ms": 5617,
           "artifacts": [
             {
               "path": "m0/glyph_16__contact.png",

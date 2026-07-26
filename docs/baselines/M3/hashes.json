@@ -1,7 +1,7 @@
 {
   "schema": "vice-classic/baseline-hashes/v3",
   "normative": {
-    "config_sha256": "54ece9b5b8483d8d67499dc4f67dfafe2c91c98a3de21f2eac6bf587a6eb2d75",
+    "config_sha256": "147150b1aba2b1274a7f104ee3e572ec450c876a6427ec6591e9964383114804",
     "environment_sha256": "b5bba216789a6433678f5421d119cac0ec7de6599345ddac06d0d4432734ee6b",
     "corpus": {
       "circle_64.png": "b6bf11999504275cd22b79b4b3c2e7d84b024f3fdaaf48eab361812dbcbc444a",
@@ -82,7 +82,7 @@
         "primary_deterministic": null,
         "all_artifacts_deterministic": null
       },
-      "v-ice-mainline": {
+      "v-ice-avif-fix": {
         "status": "completed",
         "error_kind": null,
         "resolved_sha": "59ab86d16458a43877a72270dfd71a68ff9eecb7",
@@ -90,22 +90,22 @@
         "artifacts": {
           "circle_64.png": {
             "circle_64/circle_64.svg": "7d39fdf6b824f967fdc3a1f0532bdd5274ba14f6d0daea727210b75823909e2a",
-            "summary.json": "d057d003b37354212bf0a8610751327f5b8b4ddfa55037dc8eb8d70e32cf9190"
+            "summary.json": "b8ba3180b967024523c80c937100ed62ead1c735fb046ea6b97cf48dc6522c70"
           },
           "glyph_16.png": {
             "glyph_16/glyph_16.svg": "59f271fa997b05048a081849ba696f009ef973898ef61311942c744f11ce12cf",
-            "summary.json": "793282ef15032aa761e6c69623df1fc6bb81683406f9046959126cecc3d044d6"
+            "summary.json": "9379648962d0b74d8466899ad32513fa3d79838d87dc043b97e544c27963c8b4"
           },
           "rect_32.png": {
             "rect_32/rect_32.svg": "781a0e567ffd8a40d8aabcca24d7c3e7d5543cf4c4f9b61e78f74066e9295ecd",
-            "summary.json": "1c75fd405fea118026d93ba3954c0fcebbe6014564a4420b27f9cf44d4aba0b3"
+            "summary.json": "92a7b33127134cbb4296d19e2f308985cd7e8e4798c4dc45a70bd5db784cb87a"
           },
           "ring_64.png": {
             "ring_64/ring_64.svg": "1d9955e9ddc88a8aeb8dc1de084461c4c5dcce2a19b938cf34f03ac1e87f0911",
-            "summary.json": "3ec45d8b5ce70f993b54d9b0ece2b661e51fc21722d572391addb5a36f6ba894"
+            "summary.json": "fcb5c732d435ca38c9544da5de4548b0842aa2a48551aa754f1505b358f47256"
           },
           "triangle_128.png": {
-            "summary.json": "89bec72b13ff32bce594536f6b733e7a1fb47d621f6857a6c9b65cd7406b1539",
+            "summary.json": "2bc91c4b9705357a89706a4a86acd0b9869128691fc0db520a67a551167f1b7c",
             "triangle_128/triangle_128.svg": "6014ebc2f4b8e92fade7155cd86071a7b6384691668d27b6792d977dff472120"
           }
         },
@@ -141,8 +141,8 @@
   },
   "informational": {
     "binary_sha256": {
-      "v-ice-mainline": "47dc1f53746d73caf93e55ce7159dc5a8c8f6c6b56085177dd783ebda685b6f8",
-      "v-ize": "befa2bf810d2095380671561b4783dcbf23534dd9826024f879d9b88aaedd9dd"
+      "v-ice-avif-fix": "cd147e00e763018e593b98bdf6cd9f152cc9a81e3c265764ad61fe7882273a3b",
+      "v-ize": "c7af494d89b261ae61aa35b993cbc06f6070c87618375ffce72574762bfc54cd"
     }
   }
 }

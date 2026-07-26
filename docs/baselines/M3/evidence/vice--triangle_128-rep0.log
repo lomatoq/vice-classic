@@ -1,8 +1,8 @@
 Vectorizer launcher: 1 file(s), modes=['paper-regions'], extractor=mininet
-Output: C:\Users\nirrt\Toolset\vice-classic\runs\m3\work\Vice-\rep0\triangle_128\out\m0
+Output: C:\Users\nirrt\Toolset\vice-classic\runs\m3b\work\Vice-\rep0\triangle_128\out\m0
 
 > triangle_128.png
-    [paper-regions] regions=1 contours=1 prims=3 extractor=paper-hoshyari-regions-isolated  -> C:\Users\nirrt\Toolset\vice-classic\runs\m3\work\Vice-\rep0\triangle_128\out\m0\paper-regions\triangle_128
-    contact sheet -> C:\Users\nirrt\Toolset\vice-classic\runs\m3\work\Vice-\rep0\triangle_128\out\m0\triangle_128__contact.png
+    [paper-regions] regions=1 contours=1 prims=3 extractor=paper-hoshyari-regions-isolated  -> C:\Users\nirrt\Toolset\vice-classic\runs\m3b\work\Vice-\rep0\triangle_128\out\m0\paper-regions\triangle_128
+    contact sheet -> C:\Users\nirrt\Toolset\vice-classic\runs\m3b\work\Vice-\rep0\triangle_128\out\m0\triangle_128__contact.png
 
-Done. Results in C:\Users\nirrt\Toolset\vice-classic\runs\m3\work\Vice-\rep0\triangle_128\out\m0
+Done. Results in C:\Users\nirrt\Toolset\vice-classic\runs\m3b\work\Vice-\rep0\triangle_128\out\m0
