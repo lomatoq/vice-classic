@@ -1,14 +1,16 @@
 [workspace]
 resolver = "2"
-members = ["crates/vice-bench"]
+members = ["crates/vice-bench", "crates/vice-geom"]
 # Baseline checkouts are cloned under runs/<out>/checkouts/ at run time; a
 # donor crate without its own [workspace] must not be captured by this one.
 exclude = ["runs", "baselines-work"]
 
-# M0 policy (spec v1.3 §4.1, §28 M0): only crates with a real executable
-# responsibility in the current milestone exist. No placeholder crates.
-# vice-geom / vice-ir / vice-image / vice-evidence / vice-render / vice-cli
-# appear only in the milestone that gives them their first responsibility.
+# Milestone-scoped crate policy (spec v1.3 §4.1, §28): only crates with a real
+# executable responsibility in the current milestone exist. No placeholders.
+# M0: vice-bench (baseline runner). M1: vice-geom (conventions, robust
+# predicates), vice-ir (canonical IR, validation, seal skeleton).
+# vice-image / vice-evidence / vice-render / vice-cli appear only in the
+# milestone that gives them their first responsibility (M2+).
 
 [workspace.package]
 edition = "2021"

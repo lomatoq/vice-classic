@@ -1,0 +1,20 @@
+[package]
+name = "vice-geom"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "vice-classic M1: fixed geometric conventions, Vec2, robust predicates adapter"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Adaptive-precision Shewchuk predicates (orient2d/incircle). External OSS
+# crate, license recorded in THIRD_PARTY_NOTICES.md; no donor code is ported
+# (REVIEW_M0 condition 6: first PORTING_MANIFEST unit requires license review).
+robust = "1"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+proptest = "1"
+serde_json = "1"

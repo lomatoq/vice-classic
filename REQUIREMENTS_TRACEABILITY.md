@@ -1,7 +1,14 @@
 # REQUIREMENTS_TRACEABILITY — vice-classic
 
 Формат (spec v1.3 §32 правило 23): invariant → implementation → tests →
-milestone gate. Пока покрыт только M0.
+milestone gate. Покрыты M0 и M1.
+
+## M1 — Robust conventions + canonical IR + seal skeleton (spec §28 M1)
+
+| # | Требование (spec §5/§6/§12/§28 M1 + REVIEW_M0 §6) | Реализация | Тесты / проверка | Gate |
+|---|---|---|---|---|
+| M1-1 | Координатная рамка: x вправо, y вниз, pixel [x,x+1]×[y,y+1], центр +0.5, canvas [0,W]×[0,H], f64; все transforms в одном модуле | `crates/vice-geom/src/coords.rs` (единственный transform-модуль), `vec2.rs`; docs/COORDINATE_CONVENTION.md §1 | unit-тесты `coords.rs`, `vec2.rs` | STATUS_M1 G1 |
+| M1-2 | Robust predicates для topology decisions (никаких `abs(cross)<eps`) | `crates/vice-geom/src/predicates.rs` — typed adapter над OSS-crate `robust` 1.2.0 (лицензия проверена), ADR-0004 | unit near-degenerate (0.5+i·2⁻⁵³ решётка, cocircular ±ulp) + property против exact-i128 reference (`tests/predicate_props.rs`) | STATUS_M1 G2 |
 
 | # | Требование (M0, spec §28 + bootstrap prompt) | Реализация | Тесты / проверка | Gate |
 |---|---|---|---|---|

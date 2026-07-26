@@ -24,3 +24,17 @@ schema = "vice-classic/porting-manifest/v1"
 # new code written for this repository. Pinned donor repositories are executed
 # as external black-box baselines only; none of their code is linked, vendored
 # or copied into this workspace in M0.
+
+# M1 status: STILL ZERO ported units. vice-geom and vice-ir are written
+# clean-room (donor sources were not opened while writing them); robust
+# predicates come from the external OSS crate `robust` 1.2.0 (MIT OR
+# Apache-2.0, verified — see THIRD_PARTY_NOTICES.md), consumed as a cargo
+# dependency, not vendored. Per REVIEW_M0 condition 6, the first [[unit]]
+# here requires a prior license/IP review of the donor.
+#
+# Porting CANDIDATES noted for a future licensed review (NOT ported now):
+#   - lomatoq/v-ice  src/core/geom.rs   (Pt/Vec2 ops + geometry tests)
+#   - lomatoq/v-ice  src/core/raster.rs (signed-area coverage, M2 candidate)
+#   - lomatoq/v-ize  crates/vize-core/src/geom.rs (typed curve vocabulary)
+# Until v-ice/Vice- carry an explicit license grant, these remain
+# reference-only candidates and nothing from them may be copied.

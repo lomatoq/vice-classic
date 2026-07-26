@@ -1,6 +1,6 @@
 # Third-party notices — vice-classic
 
-Status date: 2026-07-26 (M0).
+Status date: 2026-07-26 (M1).
 
 ## 1. Pinned donor repositories (NOT vendored, NOT linked in M0)
 
@@ -46,6 +46,19 @@ Direct dependencies of `crates/vice-bench`; transitive set is pinned by
 | clap | MIT OR Apache-2.0 |
 | png | MIT OR Apache-2.0 |
 | hex | MIT OR Apache-2.0 |
+
+## 2a. Rust crate dependencies added in M1
+
+License verified against the actual package downloaded from the registry
+(Cargo.toml `license` key and shipped license texts), not just crates.io
+metadata.
+
+| Crate | Version (Cargo.lock) | License | Used by | Role |
+|---|---|---|---|---|
+| robust | 1.2.0 | MIT OR Apache-2.0 (LICENSE-MIT + LICENSE-APACHE shipped) | vice-geom | Adaptive-precision Shewchuk predicates (orient2d/incircle). Rust port of public-domain C predicates by J. R. Shewchuk; consumed as an external dependency, NOT vendored (PORTING_MANIFEST stays at zero units). |
+| proptest | 1.x | MIT OR Apache-2.0 | vice-geom, vice-ir (dev-dependency only) | Property testing. Not linked into shipped binaries. |
+
+Transitive dependencies are pinned by the committed `Cargo.lock`.
 
 ## 3. Prohibited sources
 
