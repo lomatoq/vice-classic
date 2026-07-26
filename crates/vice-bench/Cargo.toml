@@ -3,7 +3,7 @@ name = "vice-bench"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-description = "vice-classic M0: deterministic baseline runner for pinned donor systems"
+description = "vice-classic M0-M3: baseline runner, GT corpus, oracles, reports"
 
 [lints]
 workspace = true
@@ -17,6 +17,11 @@ serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
 toml = "0.8"
+# M3: the GT corpus, the supported-universe declaration and the scorecard
+# all speak in the canonical IR and are gated by the certified renderer.
+vice-geom = { path = "../vice-geom" }
+vice-ir = { path = "../vice-ir" }
+vice-render = { path = "../vice-render" }
 
 [dev-dependencies]
 tempfile = "3"

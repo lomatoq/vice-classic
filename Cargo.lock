@@ -832,6 +832,9 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+ "vice-geom",
+ "vice-ir",
+ "vice-render",
 ]
 
 [[package]]

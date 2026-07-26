@@ -22,3 +22,4 @@ pub mod hashing;
 pub mod limits;
 pub mod report;
 pub mod runner;
+pub mod universe;
