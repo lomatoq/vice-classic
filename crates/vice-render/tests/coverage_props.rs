@@ -449,12 +449,28 @@ proptest! {
             // been the wrong one — so a THIRD, independent method decides
             // (the same arbitration the differential court uses). Ours is
             // at fault only if it also disagrees with the arbiter.
+            //
+            // The arbitration RATE is raised on the disputed pixel only
+            // (REDTEAM_M2 addendum 4, debt 2). At k = 24 the supersampler
+            // resolves 1/24 ~ 0.042 of a pixel, so a 0.1 tolerance left a
+            // defect of up to ~0.1 pixel area inside the allowance. Since
+            // arbitration runs on a handful of pixels rather than on the
+            // whole image, the rate is cheap to raise here and nowhere
+            // else: k = 96 resolves ~0.010, and the tolerance drops to
+            // 0.05 - still dominating the arbiter own resolution by ~5x,
+            // which is the property that makes it an arbiter at all (M-4).
             let (px, py) = ((i % w as usize) as u32, (i / w as usize) as u32);
-            let c = supersampled_winding_pixel(&refs, px, py, 24);
+            const ARBITER_RATE: u32 = 96;
+            const ARBITER_TOLERANCE: f64 = 0.05;
+            let c = supersampled_winding_pixel(&refs, px, py, ARBITER_RATE);
             prop_assert!(
-                (a - c).abs() <= 0.1,
-                "pixel {}: ours {} vs reference {} (bound {:e}); arbiter says {} — ours is the outlier",
-                i, a, b, bound, c
+                ARBITER_TOLERANCE >= 4.0 / f64::from(ARBITER_RATE),
+                "the arbitration tolerance must dominate the arbiter own resolution"
+            );
+            prop_assert!(
+                (a - c).abs() <= ARBITER_TOLERANCE,
+                "pixel {}: ours {} vs reference {} (bound {:e}); arbiter (k={}) says {} — ours is the outlier",
+                i, a, b, bound, ARBITER_RATE, c
             );
         }
     }
