@@ -288,13 +288,11 @@ fn real_main() -> i32 {
                     return 2;
                 }
             };
-            let rebuilt = match rebuild_matching(&recorded) {
-                Ok(m) => m,
-                Err(e) => {
-                    eprintln!("error: {e}");
-                    return 2;
-                }
-            };
+            // The platform refusal is a string comparison and it comes
+            // FIRST. It used to sit after the rebuild, which meant 292
+            // seconds of work before a typed refusal that needed none of it
+            // (REVIEW_M3 M3-D2). A refusal an operator waits five minutes
+            // for teaches them to stop running the check.
             let here = serde_json::json!({
                 "os": std::env::consts::OS,
                 "arch": std::env::consts::ARCH,
@@ -312,6 +310,13 @@ fn real_main() -> i32 {
                 );
                 return 2;
             }
+            let rebuilt = match rebuild_matching(&recorded) {
+                Ok(m) => m,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
             let rebuilt_json: serde_json::Value =
                 serde_json::from_str(&rebuilt.canonical_json()).expect("round trip");
             if structural && !same_platform {
@@ -378,13 +383,9 @@ fn real_main() -> i32 {
                     return 2;
                 }
             };
-            let m = match rebuild_matching(&recorded) {
-                Ok(m) => m,
-                Err(e) => {
-                    eprintln!("error: {e}");
-                    return 2;
-                }
-            };
+            // Cheap inputs first, expensive rebuild after (REVIEW_M3
+            // M3-D2): an unreadable gate file or seal must be reported in
+            // milliseconds, not after the corpus has been regenerated.
             let g = match GatesFile::load(&gates) {
                 Ok(g) => g,
                 Err(e) => {
@@ -399,6 +400,13 @@ fn real_main() -> i32 {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("error: read seal {}: {e}", seal.display());
+                    return 2;
+                }
+            };
+            let m = match rebuild_matching(&recorded) {
+                Ok(m) => m,
+                Err(e) => {
+                    eprintln!("error: {e}");
                     return 2;
                 }
             };
@@ -452,15 +460,15 @@ fn real_main() -> i32 {
                     return 2;
                 }
             };
-            let corpus_hash = match rebuild_matching(&recorded) {
-                Ok(m) => m.hash(),
+            let gates_hash = match GatesFile::load(&gates) {
+                Ok(g) => g.sha256,
                 Err(e) => {
                     eprintln!("error: {e}");
                     return 2;
                 }
             };
-            let gates_hash = match GatesFile::load(&gates) {
-                Ok(g) => g.sha256,
+            let corpus_hash = match rebuild_matching(&recorded) {
+                Ok(m) => m.hash(),
                 Err(e) => {
                     eprintln!("error: {e}");
                     return 2;

@@ -294,3 +294,37 @@ fn verify_catches_a_tampered_render_digest_and_names_it() {
     assert_eq!(code, Some(1));
     assert!(stdout.contains("differs:"), "{stdout}");
 }
+
+/// A refusal that costs nothing must not be paid for with a rebuild
+/// (REVIEW_M3 M3-D2).
+///
+/// The platform check is a string comparison, and it used to run AFTER the
+/// corpus was regenerated: the reviewer measured 292 seconds before `exit 2`.
+/// Measured here rather than asserted in a comment, against the COMMITTED
+/// manifest, whose rebuild is minutes of work - so the bound below has a
+/// margin of two orders of magnitude and is not a flaky timing test.
+#[test]
+fn a_foreign_platform_is_refused_before_the_corpus_is_rebuilt() {
+    let dir = tempfile::tempdir().unwrap();
+    let committed = repo_root().join("docs/gt/CORPUS_MANIFEST.json");
+    let mut doc: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&committed).unwrap()).unwrap();
+    doc["platform"]["os"] = serde_json::json!("elsewhere");
+    let foreign = dir.path().join("foreign.json");
+    std::fs::write(&foreign, serde_json::to_string_pretty(&doc).unwrap()).unwrap();
+
+    let started = std::time::Instant::now();
+    let (code, _, stderr) = run(&[
+        osv("verify").as_os_str(),
+        osv("--manifest").as_os_str(),
+        foreign.as_os_str(),
+    ]);
+    let elapsed = started.elapsed();
+    assert_eq!(code, Some(2), "{stderr}");
+    assert!(stderr.contains("elsewhere"), "{stderr}");
+    assert!(
+        elapsed.as_secs() < 60,
+        "the platform refusal took {elapsed:?}; it is a string comparison and must not \
+         wait for a corpus rebuild"
+    );
+}
