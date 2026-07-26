@@ -284,14 +284,25 @@ fn diff_json(
                 diff_json(&format!("{path}/{k}"), x.get(k), y.get(k), out);
             }
         }
-        (x, y) => out.push(format!(
-            "{path}: {} != {}",
-            x.map(|v| v.to_string())
-                .unwrap_or_else(|| "<absent>".into()),
-            y.map(|v| v.to_string())
-                .unwrap_or_else(|| "<absent>".into())
-        )),
+        (x, y) => out.push(format!("{path}: {} != {}", brief(x), brief(y))),
     }
+}
+
+/// Render one side of a difference. Long values are elided: a whole-subtree
+/// difference (a baseline present on one side only) would otherwise print
+/// tens of kilobytes of JSON and bury the pointer, which is the part the
+/// reader needs.
+fn brief(v: Option<&serde_json::Value>) -> String {
+    const MAX: usize = 120;
+    let Some(v) = v else {
+        return "<absent>".to_string();
+    };
+    let s = v.to_string();
+    if s.chars().count() <= MAX {
+        return s;
+    }
+    let head: String = s.chars().take(MAX).collect();
+    format!("{head}... ({} chars)", s.chars().count())
 }
 
 #[cfg(test)]
