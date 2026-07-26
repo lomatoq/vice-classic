@@ -177,6 +177,40 @@ pub fn polygon_coverage(
     Ok(out)
 }
 
+/// `(num_hi - num_lo) / (den_hi - den_lo)`, computed so that a difference of
+/// two FINITE operands overflowing cannot silently corrupt the result
+/// (F-0013).
+///
+/// The class this closes. A difference of finite coordinates can overflow
+/// to `±inf`, and the ratio then goes wrong in one of two directions:
+///
+/// ```text
+/// numerator   overflows -> slope = ±inf -> position = ±inf -> typed refusal
+/// denominator overflows -> slope =  0   -> position = const -> Ok, WRONG
+/// ```
+///
+/// Only the first was guarded (C040), because only it produces a
+/// non-finite value to notice. The second yields a perfectly finite,
+/// in-range, entirely wrong answer: the edge is integrated as if it were
+/// a straight line at the start coordinate. Generalising the earlier rule
+/// one step: *finiteness of intermediates does not imply CORRECTNESS of
+/// intermediates* — a guard that only tests `is_finite` cannot see this.
+///
+/// Fix: when either difference is not finite, recompute on HALVED
+/// operands. Halving is exact for normal values, the mathematical ratio
+/// is unchanged, and neither difference can overflow because each operand
+/// is then at most `MAX/2`. The fast path is taken whenever the plain
+/// differences are finite, so every input that did not overflow keeps its
+/// previous bit pattern — frozen digests are untouched by construction.
+fn stable_ratio_of_differences(num_lo: f64, num_hi: f64, den_lo: f64, den_hi: f64) -> f64 {
+    let num = num_hi - num_lo;
+    let den = den_hi - den_lo;
+    if num.is_finite() && den.is_finite() {
+        return num / den;
+    }
+    (num_hi * 0.5 - num_lo * 0.5) / (den_hi * 0.5 - den_lo * 0.5)
+}
+
 /// FINITENESS OF INPUTS DOES NOT IMPLY FINITENESS OF INTERMEDIATES
 /// (F-0012). `xhi - xlo` overflows to ±inf for coordinates near `f64::MAX`,
 /// and `0 * inf` then yields a NaN POSITION from two perfectly finite
@@ -215,7 +249,8 @@ fn accumulate_edge(
     if y_to <= y_from {
         return Ok(());
     }
-    let inv_dy = (xhi - xlo) / (yhi - ylo);
+    // dx/dy: x is the numerator, y the denominator.
+    let inv_dy = stable_ratio_of_differences(xlo, xhi, ylo, yhi);
     let x_at = |y: f64| xlo + (y - ylo) * inv_dy;
 
     let r0 = y_from.floor().max(band_lo) as u32;
@@ -303,7 +338,15 @@ fn emit_row_pieces(
         return;
     }
 
-    let dy_dx = (ey - sy) / (ex - sx);
+    // The SAME shape as `inv_dy` above, and the same failure: `ex - sx`
+    // overflows for a run spanning the exponent range, `dy_dx` collapses
+    // to 0, every column crossing lands at `sy`, and the whole row's
+    // contribution piles into one column. Found by auditing the class
+    // rather than the reported line (F-0013).
+    // dy/dx: y is the numerator here, x the denominator — the mirror of
+    // `inv_dy` above, and the in-tree slope-conservation test catches the
+    // pair being swapped.
+    let dy_dx = stable_ratio_of_differences(sy, ey, sx, ex);
     let y_of_x = |x: f64| sy + (x - sx) * dy_dx;
     let w = f64::from(width_px);
     let width_i = i64::from(width_px);

@@ -190,3 +190,72 @@ fn redteam_non_finite_vertex_is_a_typed_error_in_both_profiles() {
     let total: f64 = cov.iter().sum();
     assert_eq!(total, 16.0);
 }
+
+/// The named reproduction from REDTEAM_M2 addendum 2 (F-M2-R11): two
+/// finite vertices whose y-span overflows. Before the fix the edge was
+/// integrated as a VERTICAL line at `xlo` — finite, in range, `Ok`, and
+/// wrong by a full pixel (total area -53.33 against a true -13.33).
+#[test]
+fn redteam_span_overflow_is_integrated_correctly() {
+    // x_at must interpolate to 7.5 at the canvas rows, not stay at xlo.
+    let lp = vec![
+        Pt::new(2.5, -1.0e308),
+        Pt::new(12.5, 1.0e308),
+        Pt::new(12.5, -1.0e308),
+        Pt::new(2.5, -1.0e308),
+    ];
+    let cov = polygon_coverage(&[&lp], 16, 0, 8).expect("finite vertices");
+    let total: f64 = cov.iter().sum();
+    assert!(total.is_finite());
+
+    // The edge crosses the canvas at x = 7.5, so on every row the columns
+    // strictly left of 7 are uncovered by that edge's crossing and column
+    // 7 is half covered by it. The pre-fix behaviour put the crossing at
+    // x = 2.5 instead - a 5 px position error.
+    for r in 0..8usize {
+        let row = &cov[r * 16..(r + 1) * 16];
+        assert!(
+            row[3].abs() < 1e-9,
+            "row {r}: column 3 must be outside the swept region, got {}",
+            row[3]
+        );
+        assert!(
+            (row[7].abs() - 0.5).abs() < 1e-6,
+            "row {r}: column 7 must be half swept, got {}",
+            row[7]
+        );
+    }
+}
+
+/// The same class in the row walk: a run whose x-span overflows must not
+/// collapse its whole contribution into one column.
+#[test]
+fn row_span_overflow_does_not_collapse_into_one_column() {
+    let lp = vec![
+        Pt::new(-1.0e308, 2.25),
+        Pt::new(1.0e308, 5.75),
+        Pt::new(1.0e308, 2.25),
+        Pt::new(-1.0e308, 2.25),
+    ];
+    let cov = polygon_coverage(&[&lp], 12, 0, 8).expect("finite vertices");
+    for v in &cov {
+        assert!(v.is_finite());
+    }
+    // Geometry: the hypotenuse runs from (-1e308, 2.25) to (1e308, 5.75),
+    // so ACROSS THE CANVAS (x in [0,12], negligible against 1e308) it sits
+    // at y = 4.0, and the triangle covers y in [2.25, 4.0] at every canvas
+    // column. Row 3 (y in [3,4]) is therefore fully covered everywhere,
+    // and row 4 is empty — the true answer, which is what makes this a
+    // usable oracle.
+    let row3 = &cov[3 * 12..4 * 12];
+    for (c, v) in row3.iter().enumerate() {
+        assert!(
+            (v.abs() - 1.0).abs() < 1e-6,
+            "row 3 column {c} must be fully swept, got {v}"
+        );
+    }
+    let row4 = &cov[4 * 12..5 * 12];
+    for (c, v) in row4.iter().enumerate() {
+        assert!(v.abs() < 1e-6, "row 4 column {c} must be empty, got {v}");
+    }
+}
