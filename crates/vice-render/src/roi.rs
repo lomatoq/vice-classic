@@ -121,7 +121,7 @@ pub fn render_mesh_partition_roi_in_domain(
     for f in 0..faces {
         // Dependency closure: the row band at FULL width, computed exactly
         // like the corresponding rows of the full render.
-        let band = face_coverage_band(mesh, f, roi.y0, roi.y1);
+        let band = face_coverage_band(mesh, f, roi.y0, roi.y1)?;
         // Column slice of the window.
         let mut cov = Vec::with_capacity(rw * rh);
         for r in 0..rh {

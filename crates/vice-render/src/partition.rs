@@ -119,18 +119,21 @@ pub(crate) fn face_coverage_band(
     face: usize,
     row_start: u32,
     row_end: u32,
-) -> Vec<f64> {
+) -> Result<Vec<f64>, RenderError> {
     let refs: Vec<&[vice_geom::Pt]> = mesh.face_loops[face]
         .iter()
         .map(|lp| lp.points.as_slice())
         .collect();
-    let mut cov = polygon_coverage(&refs, mesh.width_px, row_start, row_end);
+    // The mesh closes every loop bitwise, so this cannot fail in practice;
+    // it is propagated rather than unwrapped so no path to a pixel buffer
+    // can panic (F-0011).
+    let mut cov = polygon_coverage(&refs, mesh.width_px, row_start, row_end)?;
     if FaceId(face as u32) == mesh.exterior {
         for v in &mut cov {
             *v += 1.0;
         }
     }
-    cov
+    Ok(cov)
 }
 
 pub(crate) fn premul_of_paint(paint: Paint) -> PremulRgba {
@@ -235,7 +238,7 @@ pub fn render_mesh_partition_in_domain(
     let n_px = (w as usize) * (h as usize);
     let mut face_coverage = Vec::with_capacity(faces);
     for f in 0..faces {
-        let cov = face_coverage_band(mesh, f, 0, h);
+        let cov = face_coverage_band(mesh, f, 0, h)?;
         // Range check: an independently-computed face coverage outside
         // [0,1] means the faces do NOT tile the window (overlap / wrong
         // nesting / self-winding). First offending pixel, deterministic.

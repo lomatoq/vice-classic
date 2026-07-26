@@ -51,8 +51,8 @@ fn oracle_error(base: f64) -> f64 {
     let cols = 24u32;
     let base_col = base as u32;
     let w_big = base_col + cols;
-    let cov_big = polygon_coverage(&[&big], w_big, 0, 24);
-    let cov_small = polygon_coverage(&[&small], cols, 0, 24);
+    let cov_big = polygon_coverage(&[&big], w_big, 0, 24).expect("closed loops");
+    let cov_small = polygon_coverage(&[&small], cols, 0, 24).expect("closed loops");
 
     let mut worst = 0.0f64;
     for r in 0..24usize {

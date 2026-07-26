@@ -42,7 +42,7 @@ fn cost_is_bounded_by_the_canvas_not_by_coordinate_magnitude() {
     for far in [1.0e4, 1.0e6, 1.0e8, 1.0e10] {
         let lp = far_triangle(far);
         let t = Instant::now();
-        let cov = polygon_coverage(&[&lp], w, 0, h);
+        let cov = polygon_coverage(&[&lp], w, 0, h).expect("closed loops");
         let elapsed = t.elapsed();
         println!("far = {far:e}: {:?}", elapsed);
         assert!(
@@ -61,7 +61,7 @@ fn clamped_tails_agree_with_the_independent_clipping_reference() {
     let (w, h) = (16u32, 16u32);
     for far in [20.0, 100.0, 1.0e4, 1.0e8] {
         let lp = far_triangle(far);
-        let ours = polygon_coverage(&[&lp], w, 0, h);
+        let ours = polygon_coverage(&[&lp], w, 0, h).expect("closed loops");
         let reference = sh_clip_coverage(&[&lp], w, h);
         let worst = ours
             .iter()
@@ -94,7 +94,7 @@ fn left_and_right_tails_are_both_exact() {
         Pt::new(-1.0e9, 2.25),
     ];
     let t = Instant::now();
-    let ours = polygon_coverage(&[&spanning], w, 0, h);
+    let ours = polygon_coverage(&[&spanning], w, 0, h).expect("closed loops");
     assert!(t.elapsed().as_secs_f64() < 1.0, "spanning geometry is fast");
     let reference = sh_clip_coverage(&[&spanning], w, h);
     let worst = ours
@@ -117,7 +117,7 @@ fn left_and_right_tails_are_both_exact() {
 fn in_domain_extreme_geometry_renders_promptly() {
     let lp = far_triangle(65000.0);
     let t = Instant::now();
-    let cov = polygon_coverage(&[&lp], 16, 0, 16);
+    let cov = polygon_coverage(&[&lp], 16, 0, 16).expect("closed loops");
     assert!(t.elapsed().as_secs_f64() < 1.0);
     assert!(cov.iter().all(|v| (-1e-9..=1.0 + 1e-9).contains(v)));
 }

@@ -29,7 +29,7 @@ fn circle_area_matches_pi_r_squared_within_certified_budget() {
         lp.extend_from_slice(&half2.points[1..]); // closes bitwise at p0
         let area_budget = half1.area_error_bound_px2() + half2.area_error_bound_px2();
 
-        let cov = polygon_coverage(&[&lp], 32, 0, 32);
+        let cov = polygon_coverage(&[&lp], 32, 0, 32).expect("closed loops");
         let total: f64 = cov.iter().sum();
         let exact = std::f64::consts::PI * r * r;
         let error = (total - exact).abs();
@@ -54,7 +54,7 @@ fn half_pixel_rect_is_exact_through_the_mesh_path() {
     let scene = rect_scene(8, 8, 1.5, 1.5, 4.5, 4.5, red());
     let mesh = RenderMesh::build(&scene, budget(0.05)).unwrap();
     let lp = &mesh.face_loops[1][0];
-    let cov = polygon_coverage(&[&lp.points], 8, 0, 8);
+    let cov = polygon_coverage(&[&lp.points], 8, 0, 8).expect("closed loops");
     let px = |x: usize, y: usize| cov[y * 8 + x];
     assert_eq!(px(1, 1), 0.25);
     assert_eq!(px(2, 1), 0.5);
@@ -75,14 +75,15 @@ fn rect_area_exact_and_translation_continuous_through_the_mesh_path() {
     let (x0, y0, x1, y1) = (2.3, 1.7, 6.55, 5.2);
     let scene = rect_scene(10, 10, x0, y0, x1, y1, red());
     let mesh = RenderMesh::build(&scene, budget(0.05)).unwrap();
-    let cov = polygon_coverage(&[&mesh.face_loops[1][0].points], 10, 0, 10);
+    let cov = polygon_coverage(&[&mesh.face_loops[1][0].points], 10, 0, 10).expect("closed loops");
     let total: f64 = cov.iter().sum();
     assert!((total - (x1 - x0) * (y1 - y0)).abs() < 1e-12);
 
     let eps = 1e-7;
     let scene2 = rect_scene(10, 10, x0 + eps, y0, x1 + eps, y1, red());
     let mesh2 = RenderMesh::build(&scene2, budget(0.05)).unwrap();
-    let cov2 = polygon_coverage(&[&mesh2.face_loops[1][0].points], 10, 0, 10);
+    let cov2 =
+        polygon_coverage(&[&mesh2.face_loops[1][0].points], 10, 0, 10).expect("closed loops");
     let max_delta = cov
         .iter()
         .zip(&cov2)
@@ -101,11 +102,56 @@ fn subpixel_phase_sweep_conserves_area() {
         let (x1, y1) = (x0 + 3.25, y0 + 2.75);
         let scene = rect_scene(12, 12, x0, y0, x1, y1, red());
         let mesh = RenderMesh::build(&scene, budget(0.05)).unwrap();
-        let cov = polygon_coverage(&[&mesh.face_loops[1][0].points], 12, 0, 12);
+        let cov =
+            polygon_coverage(&[&mesh.face_loops[1][0].points], 12, 0, 12).expect("closed loops");
         let total: f64 = cov.iter().sum();
         assert!(
             (total - 3.25 * 2.75).abs() < 1e-12,
             "phase {phase}: {total}"
         );
+    }
+}
+
+/// F-0011: the public accumulator's preconditions are TYPED errors, not a
+/// debug-only assert that returns silent garbage in release (an unclosed
+/// square used to sum to 24 instead of 16) and not a panic on an inverted
+/// band.
+#[test]
+fn public_coverage_api_rejects_broken_requests_typed() {
+    use vice_render::CoverageError;
+
+    let unclosed = [
+        Pt::new(2.0, 2.0),
+        Pt::new(6.0, 2.0),
+        Pt::new(6.0, 6.0),
+        Pt::new(2.0, 6.0),
+    ];
+    match polygon_coverage(&[&unclosed], 8, 0, 8) {
+        Err(CoverageError::UnclosedLoop { loop_index, .. }) => assert_eq!(loop_index, 0),
+        other => panic!("expected UnclosedLoop, got {other:?}"),
+    }
+
+    let closed = [
+        Pt::new(2.0, 2.0),
+        Pt::new(6.0, 2.0),
+        Pt::new(6.0, 6.0),
+        Pt::new(2.0, 6.0),
+        Pt::new(2.0, 2.0),
+    ];
+    let cov = polygon_coverage(&[&closed], 8, 0, 8).expect("closed loop");
+    let total: f64 = cov.iter().sum();
+    assert_eq!(total, 16.0, "the correctly closed square is 16 px^2");
+
+    match polygon_coverage(&[&closed], 8, 5, 2) {
+        Err(CoverageError::InvertedRowBand { row_start, row_end }) => {
+            assert_eq!((row_start, row_end), (5, 2));
+        }
+        other => panic!("expected InvertedRowBand, got {other:?}"),
+    }
+
+    let single = [Pt::new(1.0, 1.0)];
+    match polygon_coverage(&[&single], 8, 0, 8) {
+        Err(CoverageError::DegenerateLoop { points, .. }) => assert_eq!(points, 1),
+        other => panic!("expected DegenerateLoop, got {other:?}"),
     }
 }

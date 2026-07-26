@@ -31,7 +31,7 @@ pub mod render_error;
 pub mod roi;
 pub mod seal;
 
-pub use coverage::polygon_coverage;
+pub use coverage::{polygon_coverage, CoverageError};
 pub use domain::NumericDomain;
 pub use embedding::verify_embedding;
 pub use mesh::{BoundaryPolyline, LoopPolygon, MeshError, RenderMesh, TessellationBudget};

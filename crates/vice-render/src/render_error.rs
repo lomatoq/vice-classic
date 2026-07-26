@@ -3,6 +3,7 @@
 
 use vice_ir::{FaceId, PixelFilter};
 
+use crate::coverage::CoverageError;
 use crate::mesh::MeshError;
 
 /// Typed failure of partition rendering.
@@ -10,6 +11,8 @@ use crate::mesh::MeshError;
 pub enum RenderError {
     #[error(transparent)]
     Mesh(#[from] MeshError),
+    #[error(transparent)]
+    Coverage(#[from] CoverageError),
     #[error(
         "pixel filter {got:?} is not renderable in M2: the M2 renderer computes exact box-filter area coverage; Triangle/Gaussian forward filters arrive with the M4 formation work"
     )]

@@ -51,14 +51,59 @@
 
 use vice_geom::Pt;
 
+/// Typed rejection of a coverage request (F-0011).
+///
+/// The preconditions of this public entry point used to be a
+/// `debug_assert` (silent garbage in release: an unclosed square returned
+/// 24 instead of 16) and an `assert!` (panic in both profiles on an
+/// inverted band). Spec §5.4 wants typed refusals, and a public API's
+/// preconditions belong in a type or a typed error — never in a
+/// debug-only check.
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum CoverageError {
+    #[error("loop {loop_index} is not closed: first {first:?} != last {last:?}")]
+    UnclosedLoop {
+        loop_index: usize,
+        first: Pt,
+        last: Pt,
+    },
+    #[error("loop {loop_index} has {points} points; a closed loop needs at least 2")]
+    DegenerateLoop { loop_index: usize, points: usize },
+    #[error("inverted row band: row_start {row_start} > row_end {row_end}")]
+    InvertedRowBand { row_start: u32, row_end: u32 },
+}
+
 /// Exact per-pixel winding integral of closed `loops` over the pixel rows
 /// `[row_start, row_end)` of a canvas `width_px` wide.
 ///
 /// Returns a row-major buffer of `(row_end - row_start) * width_px`
-/// values. Every loop must be closed (`first == last`); horizontal edges
-/// contribute nothing and zero-length edges are skipped.
-pub fn polygon_coverage(loops: &[&[Pt]], width_px: u32, row_start: u32, row_end: u32) -> Vec<f64> {
-    assert!(row_end >= row_start, "inverted row band");
+/// values. Every loop must be closed (`first == last`) — checked, with a
+/// typed error otherwise; horizontal edges contribute nothing and
+/// zero-length edges are skipped.
+pub fn polygon_coverage(
+    loops: &[&[Pt]],
+    width_px: u32,
+    row_start: u32,
+    row_end: u32,
+) -> Result<Vec<f64>, CoverageError> {
+    if row_end < row_start {
+        return Err(CoverageError::InvertedRowBand { row_start, row_end });
+    }
+    for (i, lp) in loops.iter().enumerate() {
+        if lp.len() < 2 {
+            return Err(CoverageError::DegenerateLoop {
+                loop_index: i,
+                points: lp.len(),
+            });
+        }
+        if lp[0] != lp[lp.len() - 1] {
+            return Err(CoverageError::UnclosedLoop {
+                loop_index: i,
+                first: lp[0],
+                last: lp[lp.len() - 1],
+            });
+        }
+    }
     let w = width_px as usize;
     let n_rows = (row_end - row_start) as usize;
     let stride = w + 1; // extra right-edge bucket per row
@@ -66,10 +111,6 @@ pub fn polygon_coverage(loops: &[&[Pt]], width_px: u32, row_start: u32, row_end:
     let mut diff = vec![0.0f64; n_rows * stride];
 
     for lp in loops {
-        debug_assert!(
-            lp.len() >= 2 && lp.first() == lp.last(),
-            "loops must be closed"
-        );
         for e in lp.windows(2) {
             accumulate_edge(
                 e[0], e[1], width_px, row_start, row_end, stride, &mut area, &mut diff,
@@ -88,7 +129,7 @@ pub fn polygon_coverage(loops: &[&[Pt]], width_px: u32, row_start: u32, row_end:
             suffix += diff[src + c];
         }
     }
-    out
+    Ok(out)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -304,7 +345,7 @@ mod tests {
     }
 
     fn cov(loops: &[&[Pt]], w: u32, h: u32) -> Vec<f64> {
-        polygon_coverage(loops, w, 0, h)
+        polygon_coverage(loops, w, 0, h).expect("closed loops")
     }
 
     #[test]
@@ -475,7 +516,7 @@ mod tests {
             Pt::new(2.1, 1.2),
         ];
         let full = cov(&[&lp1, &lp2], 8, 8);
-        let band = polygon_coverage(&[&lp1[..], &lp2[..]], 8, 2, 5);
+        let band = polygon_coverage(&[&lp1[..], &lp2[..]], 8, 2, 5).expect("closed loops");
         assert_eq!(band.len(), 3 * 8);
         assert_eq!(&full[2 * 8..5 * 8], &band[..]);
     }
