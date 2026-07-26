@@ -14,6 +14,7 @@ workspace = true
 # (REVIEW_M0 condition 6: first PORTING_MANIFEST unit requires license review).
 robust = "1"
 serde = { version = "1", features = ["derive"] }
+thiserror = "2"
 
 [dev-dependencies]
 proptest = "1"

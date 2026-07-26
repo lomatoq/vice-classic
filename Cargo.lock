@@ -735,6 +735,7 @@ dependencies = [
  "robust",
  "serde",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]

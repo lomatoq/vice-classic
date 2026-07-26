@@ -14,15 +14,22 @@
 //! Shewchuk's public-domain predicates); see THIRD_PARTY_NOTICES.md and
 //! docs/ADR/ADR-0004-robust-predicates.md.
 //!
-//! Explicitly NOT here (their milestones have not started): curve
-//! tessellation, certified curve-curve intersection, coverage rasterization,
-//! any renderer or evidence machinery.
+//! M2 adds [`flatten`]: certified curve→polyline flattening (spec §16.1 —
+//! curve tessellation with a certified chord-error budget; derivations in
+//! docs/ADR/ADR-0008). Curves belong to this crate per the target layout
+//! (spec §4: vice-geom = "Vec2, robust predicates, curves, intersections").
+//!
+//! Explicitly NOT here (their milestones have not started): certified
+//! curve-curve intersection, coverage rasterization (vice-render), any
+//! evidence machinery.
 
 #![forbid(unsafe_code)]
 
 pub mod coords;
+pub mod flatten;
 pub mod predicates;
 pub mod vec2;
 
 pub use coords::Aabb;
+pub use flatten::{ChordTolerancePx, FlattenedCurve};
 pub use vec2::{is_negative_zero, Pt, Vec2};
