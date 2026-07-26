@@ -200,13 +200,41 @@ fn emit_row_pieces(
 
     let dy_dx = (ey - sy) / (ex - sx);
     let y_of_x = |x: f64| sy + (x - sx) * dy_dx;
+    let w = f64::from(width_px);
+    let width_i = i64::from(width_px);
+    let bucket = width_px as usize;
 
-    let mut c = sx.floor() as i64;
-    let c_end = ex.floor() as i64;
+    // COST (F-0009): the walk below is clamped to the canvas window, so it
+    // performs at most `width_px` steps per row piece no matter how far the
+    // geometry extends. Both tails are exact in O(1):
+    //   - columns < 0 lie entirely to the LEFT of every canvas pixel, and
+    //     the winding ray looks RIGHT, so they contribute nothing at all;
+    //   - columns >= width lie to the RIGHT of every canvas pixel, so each
+    //     contributes its full `dy` to the same full-cover bucket; their
+    //     sum telescopes to one subtraction of the entry/exit y values.
+    // Previously the loop stepped through every column between the true
+    // endpoints, making render time Θ(coordinate magnitude): 5.4 s for one
+    // triangle on a 16x16 canvas at x = 1e9.
     let mut cur_y = sy;
     let mut cur_x = sx;
     if ex > sx {
-        while c < c_end {
+        // Ascending in x; y grows with x along the piece.
+        if ex <= 0.0 {
+            return; // entirely left of the canvas: no contribution
+        }
+        if cur_x < 0.0 {
+            // Skip the zero-contribution left tail in one step.
+            cur_y = y_of_x(0.0).min(ey).max(cur_y);
+            cur_x = 0.0;
+        }
+        if cur_x >= w {
+            // Entirely right of the canvas: one bucket add.
+            diff[bucket] += sign * (ey - cur_y);
+            return;
+        }
+        let c_end = ex.floor() as i64;
+        let mut c = cur_x.floor() as i64;
+        while c < c_end && c < width_i {
             let bnd = (c + 1) as f64;
             let ycross = y_of_x(bnd).min(ey).max(cur_y);
             emit(c, sign * (ycross - cur_y), cur_x, bnd, area, diff);
@@ -214,9 +242,38 @@ fn emit_row_pieces(
             cur_x = bnd;
             c += 1;
         }
-        emit(c, sign * (ey - cur_y), cur_x, ex, area, diff);
+        if c >= width_i {
+            // The remaining run is right of the canvas: one bucket add.
+            diff[bucket] += sign * (ey - cur_y);
+        } else {
+            emit(c, sign * (ey - cur_y), cur_x, ex, area, diff);
+        }
     } else {
-        while c > c_end {
+        // Descending in x; y still grows along the piece.
+        if sx <= 0.0 {
+            return; // entirely left of the canvas: no contribution
+        }
+        if ex >= w {
+            // Entirely right of the canvas (ex < sx, so both are >= w):
+            // full cover for every canvas cell, one bucket add. Without
+            // this the tail skip below would leave `cur_x = w` and then
+            // emit a final piece at column w-1 with `x1 = ex > w`, i.e.
+            // outside its own column — the invariant the column-local
+            // trapezoid proof rests on (caught by its debug_assert).
+            diff[bucket] += sign * (ey - sy);
+            return;
+        }
+        if cur_x > w {
+            // Right tail first (x descends into the canvas): one bucket add.
+            let ycross = y_of_x(w).min(ey).max(cur_y);
+            diff[bucket] += sign * (ycross - cur_y);
+            cur_y = ycross;
+            cur_x = w;
+        }
+        let c_end = ex.floor() as i64;
+        // `cur_x == w` belongs to column width-1 when walking left.
+        let mut c = (cur_x.floor() as i64).min(width_i - 1);
+        while c > c_end && c >= 0 {
             let bnd = c as f64;
             let ycross = y_of_x(bnd).min(ey).max(cur_y);
             emit(c, sign * (ycross - cur_y), cur_x, bnd, area, diff);
@@ -224,7 +281,10 @@ fn emit_row_pieces(
             cur_x = bnd;
             c -= 1;
         }
-        emit(c, sign * (ey - cur_y), cur_x, ex, area, diff);
+        if c >= 0 {
+            emit(c, sign * (ey - cur_y), cur_x, ex, area, diff);
+        }
+        // c < 0: the remaining run is left of the canvas — nothing to add.
     }
 }
 

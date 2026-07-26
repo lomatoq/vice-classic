@@ -401,3 +401,104 @@ pub fn triple_junction_scene(w: u32, h: u32) -> ValidatedScene {
         ],
     )
 }
+
+// ---------------------------------------------------------------------
+// Independent exact coverage reference (Sutherland–Hodgman clipping).
+//
+// A SECOND implementation of the same mathematical quantity by a
+// different algorithm: instead of a scanline sweep with trapezoids and a
+// per-row difference fold, each closed loop is clipped against each pixel
+// box by four half-planes and the shoelace area of the clipped polygon is
+// taken. For a closed loop `signed_area(L ∩ box) = ∫∫_box w_L dA`, so the
+// sum over loops is exactly what the accumulator claims to compute — with
+// no scanline, no trapezoid, no fold, and no shared code.
+//
+// Used as the arbiter wherever an external rasterizer is too coarse to
+// judge us (8-bit alpha) or is itself the thing under suspicion.
+// ---------------------------------------------------------------------
+
+/// Clip `poly` (closed, first == last not required) to the half-plane
+/// selected by `keep`, Sutherland–Hodgman.
+fn clip_half_plane(
+    poly: &[Pt],
+    keep: impl Fn(Pt) -> bool,
+    isect: impl Fn(Pt, Pt) -> Pt,
+) -> Vec<Pt> {
+    let mut out = Vec::with_capacity(poly.len() + 4);
+    if poly.is_empty() {
+        return out;
+    }
+    let mut prev = poly[poly.len() - 1];
+    let mut prev_in = keep(prev);
+    for &cur in poly {
+        let cur_in = keep(cur);
+        if cur_in {
+            if !prev_in {
+                out.push(isect(prev, cur));
+            }
+            out.push(cur);
+        } else if prev_in {
+            out.push(isect(prev, cur));
+        }
+        prev = cur;
+        prev_in = cur_in;
+    }
+    out
+}
+
+fn lerp_x(a: Pt, b: Pt, x: f64) -> Pt {
+    let t = if (b.x - a.x) == 0.0 {
+        0.0
+    } else {
+        (x - a.x) / (b.x - a.x)
+    };
+    Pt::new(x, a.y + t * (b.y - a.y))
+}
+
+fn lerp_y(a: Pt, b: Pt, y: f64) -> Pt {
+    let t = if (b.y - a.y) == 0.0 {
+        0.0
+    } else {
+        (y - a.y) / (b.y - a.y)
+    };
+    Pt::new(a.x + t * (b.x - a.x), y)
+}
+
+fn shoelace(poly: &[Pt]) -> f64 {
+    if poly.len() < 3 {
+        return 0.0;
+    }
+    let mut s = 0.0;
+    let mut prev = poly[poly.len() - 1];
+    for &p in poly {
+        s += prev.x * p.y - p.x * prev.y;
+        prev = p;
+    }
+    0.5 * s
+}
+
+/// Exact per-pixel winding integral of `loops` over a `w x h` canvas,
+/// computed by per-pixel polygon clipping. Row-major, like the renderer.
+pub fn sh_clip_coverage(loops: &[&[Pt]], w: u32, h: u32) -> Vec<f64> {
+    let mut out = vec![0.0f64; (w as usize) * (h as usize)];
+    for lp in loops {
+        // Drop the duplicated closing vertex if present.
+        let poly: Vec<Pt> = if lp.len() >= 2 && lp[0] == lp[lp.len() - 1] {
+            lp[..lp.len() - 1].to_vec()
+        } else {
+            lp.to_vec()
+        };
+        for py in 0..h {
+            let (y0, y1) = (f64::from(py), f64::from(py) + 1.0);
+            for px in 0..w {
+                let (x0, x1) = (f64::from(px), f64::from(px) + 1.0);
+                let c = clip_half_plane(&poly, |p| p.x >= x0, |a, b| lerp_x(a, b, x0));
+                let c = clip_half_plane(&c, |p| p.x <= x1, |a, b| lerp_x(a, b, x1));
+                let c = clip_half_plane(&c, |p| p.y >= y0, |a, b| lerp_y(a, b, y0));
+                let c = clip_half_plane(&c, |p| p.y <= y1, |a, b| lerp_y(a, b, y1));
+                out[(py as usize) * (w as usize) + px as usize] += shoelace(&c);
+            }
+        }
+    }
+    out
+}
