@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/vice-bench", "crates/vice-geom"]
+members = ["crates/vice-bench", "crates/vice-geom", "crates/vice-ir"]
 # Baseline checkouts are cloned under runs/<out>/checkouts/ at run time; a
 # donor crate without its own [workspace] must not be captured by this one.
 exclude = ["runs", "baselines-work"]
