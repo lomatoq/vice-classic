@@ -1,0 +1,96 @@
+# Frozen gates and code-table placeholders (spec v1.3 §27.7, §28 M3).
+#
+# RULE (§27.7, §32 rule 9): "Gate/config/noise/code tables меняются
+# отдельным reviewed commit. Feature PR не может одновременно ослабить
+# собственный gate."
+#
+# That rule is enforced, not requested. `baseline-runner gates check-commit`
+# fails when a commit touches this file AND any file under `crates/` or
+# `tests/fixtures/`, and CI runs it on every push. A gate change is a
+# separate reviewed commit or it does not land.
+#
+# The values below are the M3 measurement contract. Numbers that no
+# measurement supports yet are marked `status = "placeholder"` and carry the
+# milestone that will set them; a placeholder is NOT a threshold and the
+# scorecard refuses to gate on one.
+
+schema = "vice-classic/gates/v1"
+version = "v1"
+
+# --- Statistical court (§27.4, frozen before any audit) ---------------------
+[reliability]
+status = "frozen"
+confidence = 0.99
+catastrophic_risk_target = 0.01
+# Derived, not typed in: see reliability::required_groups_for_zero_failures.
+min_accepted_source_groups_zero_failures = 459
+unit_of_trial = "source_group"
+
+# --- Corpus instruments (§27.1; measured in C066) ---------------------------
+[corpus_instruments]
+status = "frozen"
+# Measured accuracy of the supersampling integrator against the exact
+# per-pixel clip integrator, on box coverage. Sensitivity and specificity of
+# these numbers are the measurement in gt::raster::tests.
+supersample_max_abs = 0.06
+supersample_edge_mean_abs = 0.02
+# The inverse-crime arm must keep agreeing with the exact integrator to f64
+# noise; if it ever does not, one of the two is broken.
+vice_render_max_abs = 1e-9
+# The external engines are the INDEPENDENCE arm, not the accuracy arm
+# (ADR-0012 §2). These bound their 8-bit AA noise on the committed corpus.
+tiny_skia_max_abs = 0.35
+raqote_max_abs = 0.35
+
+# --- Identifiability (§1.5; calibrated in C067) -----------------------------
+[identifiability]
+status = "frozen"
+# Smallest salient LENGTH in render px whose parameters stay recoverable.
+# Calibrated against a rival member 1.4x larger; both directions asserted.
+observability_floor_px = 0.35
+rival_indistinguishable_codes = 4
+quantization_floor_codes = 1.0
+
+# --- Split and audit (§27.1) ------------------------------------------------
+[split]
+status = "frozen"
+policy_version = "vice-classic/gt-split/v1"
+development_pct = 55
+calibration_pct = 20
+sealed_audit_pct = 25
+unit_of_assignment = "shape_family"
+held_out_profiles = ["tiny-skia"]
+
+# --- Likelihood (§17.1) -----------------------------------------------------
+[likelihood]
+status = "frozen"
+# `iid_pixel` is diagnostic ONLY and may never drive production confidence
+# (§17.1). The gate that enforces this is
+# correlation::guard_confidence_claim.
+allowed_production_residual_models = ["whitening", "block", "orthogonal_band"]
+diagnostic_only_residual_models = ["iid_pixel"]
+
+# --- Code tables and quality gates that M3 cannot set yet -------------------
+# These exist so the shape of the contract is fixed and so that a later
+# milestone has to CHANGE a declared placeholder rather than invent a
+# threshold. A placeholder is not a threshold: the scorecard refuses to
+# gate on any entry whose status is "placeholder".
+[boundary_accuracy]
+status = "placeholder"
+set_by_milestone = "M7"
+p95_px = 0.35
+p99_px = 0.60
+max_px = 1.50
+
+[geometry_code_table]
+status = "placeholder"
+set_by_milestone = "M6"
+bits_per_anchor = 0.0
+bits_per_segment_family = 0.0
+bits_per_relation = 0.0
+
+[noise_scales]
+status = "placeholder"
+set_by_milestone = "M4"
+clean_bucket_sigma_codes = 0.0
+degraded_bucket_sigma_codes = 0.0
