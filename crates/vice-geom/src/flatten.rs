@@ -99,6 +99,37 @@ fn max_abs_coord(points: &[Pt]) -> f64 {
     m
 }
 
+/// Turn a real-valued subdivision ESTIMATE into a piece count.
+///
+/// The single place in this module where a real number becomes an integer
+/// count, and the reason it exists (F-0007): `f64 as u32` SATURATES in
+/// Rust, so `estimate.ceil() as u32 + 1` yields `u32::MAX + 1` for large
+/// estimates — a panic under `overflow-checks` (the `dev` profile that
+/// `cargo test` uses) and a wrapped value otherwise. One input, two
+/// outcomes, on a scene the validator accepts.
+///
+/// Rule derived from that failure: the rounding slack AND the cap are
+/// applied in the f64 domain BEFORE the cast, so the cast only ever sees a
+/// value provably inside `(1, MAX_SUBDIVISIONS]`. Non-finite estimates
+/// (`+inf` from a denormal tolerance, `NaN`) take the cap branch and
+/// surface as an honest over-budget certificate, never as a wrapped count.
+///
+/// `ceil() + 1` reproduces the previous piece counts exactly for every
+/// input that did not overflow, so tessellation of ordinary scenes — and
+/// every frozen digest that depends on it — is unchanged.
+fn piece_count_from_estimate(estimate: f64) -> u32 {
+    let bumped = estimate.ceil() + 1.0;
+    // NaN fails both comparisons below, so it is caught here explicitly.
+    if bumped.is_nan() || bumped >= f64::from(MAX_SUBDIVISIONS) {
+        return MAX_SUBDIVISIONS;
+    }
+    if bumped <= 1.0 {
+        return 1;
+    }
+    // 1 < bumped < MAX_SUBDIVISIONS: the cast cannot saturate.
+    bumped as u32
+}
+
 /// Subdivision count from the analytic relation `deviation(n) = k / n²`:
 /// smallest `n` with `k / n² <= tol`, clamped to `[1, MAX_SUBDIVISIONS]`.
 /// The +1 absorbs sqrt/division rounding; the certified bound is always
@@ -107,8 +138,7 @@ fn subdivisions_for_quadratic_decay(k: f64, tol: f64) -> u32 {
     if k <= tol {
         return 1;
     }
-    let n = (k / tol).sqrt().ceil() as u32 + 1;
-    n.clamp(1, MAX_SUBDIVISIONS)
+    piece_count_from_estimate((k / tol).sqrt())
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +254,18 @@ pub fn circular_arc_center(
     let u = Vec2::new(-d.y, d.x) * (1.0 / chord); // rot90_ccw(chord), unit
     let side = if ccw != large_arc { 1.0 } else { -1.0 };
     let center = mid + u * (side * h);
+    // `radius_px * radius_px` overflows to +inf for astronomical radii, and
+    // `0 * inf` in the offset then makes a NaN CENTER — non-finite geometry
+    // silently entering the mesh instead of a typed refusal. Same class as
+    // F-0007 (the numeric domain of a conversion left unstated), found by
+    // the totality property test written for it.
+    if !center.is_finite() {
+        return Err(ArcError::NotRepresentable {
+            reason: format!(
+                "center not representable in f64 for radius {radius_px} and chord {chord}"
+            ),
+        });
+    }
 
     let theta0 = (p0.y - center.y).atan2(p0.x - center.x);
     let theta1 = (p1.y - center.y).atan2(p1.x - center.x);
@@ -253,6 +295,11 @@ pub fn circular_arc_center(
 
 /// Pieces needed so the per-piece sagitta `r(1 - cos(φ/2))` stays under
 /// `tol`: `φ_max = 2·acos(1 - tol/r)`.
+///
+/// Shares [`piece_count_from_estimate`] with the Bézier path: the same
+/// saturating-cast pattern lived here too (no reachable input was found —
+/// `1 - tol/r` rounds to `1.0` and the `phi_max <= 0` guard fires first —
+/// but the class is fixed in both places, not only where it was reachable).
 fn arc_subdivisions(sweep_abs: f64, r: f64, tol: f64) -> u32 {
     let ratio = 1.0 - tol / r;
     if ratio <= -1.0 {
@@ -262,8 +309,7 @@ fn arc_subdivisions(sweep_abs: f64, r: f64, tol: f64) -> u32 {
     if phi_max <= 0.0 {
         return MAX_SUBDIVISIONS;
     }
-    let n = (sweep_abs / phi_max).ceil() as u32 + 1;
-    n.clamp(1, MAX_SUBDIVISIONS)
+    piece_count_from_estimate(sweep_abs / phi_max)
 }
 
 fn sagitta(r: f64, phi: f64) -> f64 {

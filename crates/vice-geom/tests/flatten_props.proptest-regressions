@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc dbae0b51cd91f67cbf6ec1301a769b88a72fcfe23329b39bbb9f803b91b5a814 # shrinks to p0 = Vec2 { x: 0.0, y: 1.0 }, p1 = Vec2 { x: 0.0, y: 1.0 }, rx = 259.5622387501737, ry = 5e-324, phi = 0.0, large = false, ccw = false, tol = ChordTolerancePx(1e-6)
+cc 3cf3f6dd587ef488976be050e05f97b27e2e3d57753d75ea2c0691eebaf81d1f # shrinks to p0 = Vec2 { x: 0.0, y: 0.0 }, p1 = Vec2 { x: 2.2250738585072014e-308, y: 1e17 }, r = 1.7976931348623157e308, large = false, ccw = false, tol = ChordTolerancePx(1e-6)
