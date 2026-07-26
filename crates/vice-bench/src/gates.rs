@@ -164,18 +164,97 @@ impl GatesFile {
     }
 }
 
+/// How a path was touched, as `git diff --name-status` reports it.
+///
+/// The distinction matters because §27.7 forbids WEAKENING your own gate,
+/// and a gate that did not exist cannot be weakened. Creating the gate file
+/// alongside the code that reads it is therefore allowed - explicitly, as a
+/// named rule with its own test, not as an oversight (REVIEW_M3 M3-N2).
+/// Everything else that touches an existing gate - modification, deletion,
+/// rename - is a gate change.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChangeKind {
+    Added,
+    Other,
+}
+
+impl ChangeKind {
+    /// Parse a `git diff --name-status` status letter. Unknown letters are
+    /// `Other`: an unrecognised status must not become an exemption.
+    pub fn from_status(letter: &str) -> ChangeKind {
+        match letter.chars().next() {
+            Some('A') => ChangeKind::Added,
+            _ => ChangeKind::Other,
+        }
+    }
+}
+
+/// One entry of a change set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangedPath {
+    pub path: String,
+    pub kind: ChangeKind,
+}
+
+impl ChangedPath {
+    pub fn modified(path: impl Into<String>) -> ChangedPath {
+        ChangedPath {
+            path: path.into(),
+            kind: ChangeKind::Other,
+        }
+    }
+
+    pub fn added(path: impl Into<String>) -> ChangedPath {
+        ChangedPath {
+            path: path.into(),
+            kind: ChangeKind::Added,
+        }
+    }
+
+    /// Parse one `git diff --name-status` line. A bare path with no status
+    /// column is treated as a modification, which is the conservative
+    /// reading.
+    pub fn parse(line: &str) -> Option<ChangedPath> {
+        let line = line.trim();
+        if line.is_empty() {
+            return None;
+        }
+        match line.split_once(char::is_whitespace) {
+            Some((status, rest)) if status.len() <= 4 && !rest.trim().is_empty() => {
+                Some(ChangedPath {
+                    path: rest.trim().to_string(),
+                    kind: ChangeKind::from_status(status),
+                })
+            }
+            _ => Some(ChangedPath::modified(line)),
+        }
+    }
+}
+
 /// The §27.7 rule as a predicate over a change set.
 ///
 /// Returns the offending (gate path, feature path) pair when a single
-/// change set touches both. Pure so it can be tested without git, and used
-/// by `gates check-commit` against `git diff --name-only`.
-pub fn same_commit_violation(changed: &[String]) -> Option<(String, String)> {
-    let norm: Vec<String> = changed.iter().map(|p| p.replace('\\', "/")).collect();
-    let gate = norm.iter().find(|p| GATE_PATHS.contains(&p.as_str()))?;
-    let feature = norm
+/// change set MODIFIES a gate and touches production code. Pure, so it can
+/// be tested without git, and used by `gt-corpus gates-check` against
+/// `git diff --name-status` over the whole pushed range.
+pub fn same_commit_violation(changed: &[ChangedPath]) -> Option<(String, String)> {
+    let norm: Vec<ChangedPath> = changed
         .iter()
-        .find(|p| FEATURE_PATH_PREFIXES.iter().any(|pre| p.starts_with(pre)))?;
-    Some((gate.clone(), feature.clone()))
+        .map(|c| ChangedPath {
+            path: c.path.replace('\\', "/"),
+            kind: c.kind,
+        })
+        .collect();
+    // Only an EXISTING gate can be weakened; creating one is the exemption.
+    let gate = norm
+        .iter()
+        .find(|c| GATE_PATHS.contains(&c.path.as_str()) && c.kind != ChangeKind::Added)?;
+    let feature = norm.iter().find(|c| {
+        FEATURE_PATH_PREFIXES
+            .iter()
+            .any(|pre| c.path.starts_with(pre))
+    })?;
+    Some((gate.path.clone(), feature.path.clone()))
 }
 
 #[cfg(test)]
@@ -256,46 +335,122 @@ mod tests {
         );
     }
 
-    /// The §27.7 rule itself: a change set may not touch a gate and a
-    /// feature together.
+    /// The §27.7 rule itself: a change set may not MODIFY a gate and touch
+    /// production code together.
     #[test]
     fn changing_a_gate_together_with_code_is_a_violation() {
-        let ok_feature = vec![
-            "crates/vice-bench/src/gt/raster.rs".to_string(),
-            "docs/STATUS_M3.md".to_string(),
-        ];
-        assert!(same_commit_violation(&ok_feature).is_none());
+        let m = ChangedPath::modified;
+        let a = ChangedPath::added;
 
-        let ok_gate = vec![
-            "configs/GATES_V1.toml".to_string(),
-            "docs/adr/ADR-0018.md".to_string(),
-        ];
+        assert!(same_commit_violation(&[
+            m("crates/vice-bench/src/gt/raster.rs"),
+            m("docs/STATUS_M3.md"),
+        ])
+        .is_none());
+
         assert!(
-            same_commit_violation(&ok_gate).is_none(),
+            same_commit_violation(&[m("configs/GATES_V1.toml"), m("docs/adr/ADR-0018.md")])
+                .is_none(),
             "a gate change with documentation is exactly the allowed form"
         );
 
-        let violation = vec![
-            "configs/GATES_V1.toml".to_string(),
-            "crates/vice-bench/src/gt/degradation.rs".to_string(),
-        ];
-        let (gate, feature) = same_commit_violation(&violation).expect("must be a violation");
+        let (gate, feature) = same_commit_violation(&[
+            m("configs/GATES_V1.toml"),
+            m("crates/vice-bench/src/gt/degradation.rs"),
+        ])
+        .expect("must be a violation");
         assert_eq!(gate, "configs/GATES_V1.toml");
         assert!(feature.starts_with("crates/"));
 
         // Fixtures are features too: weakening a gate while changing the
         // corpus it is measured on is the same move.
-        let fixtures = vec![
-            "configs/GATES_V1.toml".to_string(),
-            "tests/fixtures/gt/authored/leaf.svg".to_string(),
-        ];
-        assert!(same_commit_violation(&fixtures).is_some());
+        assert!(same_commit_violation(&[
+            m("configs/GATES_V1.toml"),
+            m("tests/fixtures/gt/authored/leaf.svg"),
+        ])
+        .is_some());
 
         // Windows-style separators must not smuggle a change past the rule.
-        let backslashes = vec![
-            "configs\\GATES_V1.toml".to_string(),
-            "crates\\vice-bench\\src\\lib.rs".to_string(),
+        assert!(same_commit_violation(&[
+            m("configs\\GATES_V1.toml"),
+            m("crates\\vice-bench\\src\\lib.rs"),
+        ])
+        .is_some());
+
+        // The NAMED exemption (REVIEW_M3 M3-N2): creating the gate file
+        // alongside its loader is allowed, because §27.7 forbids WEAKENING
+        // a gate and a gate that does not exist cannot be weakened. This is
+        // the case of C072, which the one-commit-deep CI check never saw.
+        assert!(
+            same_commit_violation(&[
+                a("configs/GATES_V1.toml"),
+                a("crates/vice-bench/src/gates.rs"),
+                m("crates/vice-bench/src/lib.rs"),
+            ])
+            .is_none(),
+            "creating a gate file with its loader is the named exemption"
+        );
+
+        // And the exemption is narrow: once the file EXISTS, touching it
+        // with code is a violation again, and deletion is not an addition.
+        assert!(same_commit_violation(&[
+            m("configs/GATES_V1.toml"),
+            a("crates/vice-bench/src/gates.rs"),
+        ])
+        .is_some());
+        assert!(same_commit_violation(&[
+            ChangedPath {
+                path: "configs/GATES_V1.toml".into(),
+                kind: ChangeKind::from_status("D"),
+            },
+            m("crates/vice-bench/src/lib.rs"),
+        ])
+        .is_some());
+    }
+
+    /// Status letters are parsed conservatively: only `A` exempts, and an
+    /// unrecognised or absent letter is a modification.
+    #[test]
+    fn only_addition_exempts_and_unknown_statuses_do_not() {
+        assert_eq!(ChangeKind::from_status("A"), ChangeKind::Added);
+        for letter in ["M", "D", "R100", "C75", "T", "U", "X", ""] {
+            assert_eq!(
+                ChangeKind::from_status(letter),
+                ChangeKind::Other,
+                "status {letter:?} must not exempt"
+            );
+        }
+        // A bare path (no status column) is a modification.
+        let p = ChangedPath::parse("configs/GATES_V1.toml").unwrap();
+        assert_eq!(p.kind, ChangeKind::Other);
+        assert_eq!(p.path, "configs/GATES_V1.toml");
+        for line in [
+            "A\tconfigs/GATES_V1.toml",
+            "A  configs/GATES_V1.toml",
+            "R100\tconfigs/OLD.toml",
+        ] {
+            let p = ChangedPath::parse(line).unwrap();
+            assert!(!p.path.contains('\t'), "{line:?} -> {p:?}");
+            assert!(!p.path.starts_with(' '));
+        }
+        assert!(ChangedPath::parse("   ").is_none());
+    }
+
+    /// The change set that actually shipped in M3: C072 created the gate
+    /// file together with its loader, and the predicate must accept it -
+    /// while the same file set with the gate MODIFIED must not.
+    #[test]
+    fn the_real_c072_change_set_is_accepted_and_its_modified_twin_is_not() {
+        let created = [
+            ChangedPath::added("configs/GATES_V1.toml"),
+            ChangedPath::added("crates/vice-bench/src/gates.rs"),
+            ChangedPath::modified("crates/vice-bench/src/lib.rs"),
+            ChangedPath::added("crates/vice-bench/src/prereg.rs"),
         ];
-        assert!(same_commit_violation(&backslashes).is_some());
+        assert!(same_commit_violation(&created).is_none());
+
+        let mut modified = created;
+        modified[0] = ChangedPath::modified("configs/GATES_V1.toml");
+        assert!(same_commit_violation(&modified).is_some());
     }
 }

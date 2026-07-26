@@ -15,7 +15,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use vice_bench::gates::{same_commit_violation, GatesFile};
+use vice_bench::gates::{same_commit_violation, ChangedPath, GatesFile};
 use vice_bench::gt::corpus::{build_manifest, fast_cell_filter, test_cell_filter, CorpusManifest};
 use vice_bench::gt::split::{AuditSeal, SPLIT_POLICY_V1};
 use vice_bench::prereg::Preregistration;
@@ -78,11 +78,21 @@ enum Cmd {
         #[arg(long)]
         gates: PathBuf,
     },
-    /// Enforce §27.7: a gate file and production code may not change in the
-    /// same commit. Pass the changed paths (e.g. from `git diff --name-only`).
+    /// Enforce §27.7: an EXISTING gate file and production code may not
+    /// change together. Pass `git diff --name-status` lines (status letter
+    /// and path) via `--changed`, or a whole diff on stdin with `--stdin`.
+    ///
+    /// Creating a gate file alongside its loader is a named exemption: the
+    /// rule forbids weakening a gate, and a gate that does not exist cannot
+    /// be weakened (REVIEW_M3 M3-N2).
     GatesCheck {
         #[arg(long = "changed")]
         changed: Vec<String>,
+        /// Read `git diff --name-status` lines from stdin as well. This is
+        /// what CI uses, so the check can cover the whole pushed range
+        /// rather than one commit.
+        #[arg(long)]
+        stdin: bool,
     },
 }
 
@@ -318,18 +328,31 @@ fn real_main() -> i32 {
                 }
             }
         }
-        Cmd::GatesCheck { changed } => match same_commit_violation(&changed) {
-            None => {
-                println!("no gate/feature co-change in {} path(s)", changed.len());
-                0
+        Cmd::GatesCheck { changed, stdin } => {
+            let mut lines: Vec<String> = changed;
+            if stdin {
+                let mut buf = String::new();
+                if let Err(e) = std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf) {
+                    eprintln!("error: read stdin: {e}");
+                    return 2;
+                }
+                lines.extend(buf.lines().map(|l| l.to_string()));
             }
-            Some((gate, feature)) => {
-                eprintln!(
-                    "spec §27.7 violation: {gate} changed together with {feature}. A gate change \
-                     is a separate reviewed commit."
-                );
-                1
+            let parsed: Vec<ChangedPath> =
+                lines.iter().filter_map(|l| ChangedPath::parse(l)).collect();
+            match same_commit_violation(&parsed) {
+                None => {
+                    println!("no gate/feature co-change in {} path(s)", parsed.len());
+                    0
+                }
+                Some((gate, feature)) => {
+                    eprintln!(
+                        "spec §27.7 violation: existing gate {gate} changed together with \
+                         {feature}. A gate change is a separate reviewed commit."
+                    );
+                    1
+                }
             }
-        },
+        }
     }
 }

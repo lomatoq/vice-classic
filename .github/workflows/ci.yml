@@ -56,17 +56,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          # 0 = full history: the frozen-gate rule below walks every commit
+          # of the pushed range, and a depth of 2 made that impossible.
+          fetch-depth: 0
       - name: Install pinned toolchain
         run: rustup show
-      # Spec §27.7 / §32 rule 9, enforced rather than requested: a gate file
-      # and production code may not change in the same commit.
-      - name: Frozen-gate rule (§27.7)
+      # Spec §27.7 / §32 rule 9, enforced rather than requested: an EXISTING
+      # gate file and production code may not change together.
+      #
+      # Checked over the WHOLE pushed range and PER COMMIT (REVIEW_M3 M3-N2).
+      # The previous version diffed HEAD~1..HEAD, so a push carrying
+      # twenty-two commits was inspected at its tip only and the interior was
+      # never seen. Per commit rather than per range, because a range diff
+      # would hide a gate change that a later commit reverted, and §27.7 is
+      # about what one reviewed change contains.
+      #
+      # `--name-status` is required: creating a gate file alongside its
+      # loader is a named exemption, and the status letter is what
+      # distinguishes creation from modification.
+      - name: Frozen-gate rule (§27.7) over the whole pushed range
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 HEAD || true)
-          ARGS=""
-          for f in $CHANGED; do ARGS="$ARGS --changed $f"; done
-          cargo run --release --bin gt-corpus -- gates-check $ARGS
+          set -u
+          BEFORE="${{ github.event.before }}"
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            COMMITS=$(git rev-list "${BEFORE}..${{ github.sha }}")
+          else
+            # First push of a branch, a force-push, or a fetch depth that
+            # does not reach the base: check the tip rather than nothing, and
+            # say so instead of reporting a silent pass.
+            echo "NOTE: base commit unavailable; checking the tip commit only"
+            COMMITS=$(git rev-list -1 HEAD)
+          fi
+          echo "commits to check:"
+          echo "$COMMITS"
+          FAIL=0
+          for C in $COMMITS; do
+            if git cat-file -e "${C}^^{commit}" 2>/dev/null; then
+              DIFF=$(git diff --name-status "${C}^" "$C")
+            else
+              DIFF=$(git show --name-status --format= "$C")
+            fi
+            if ! printf '%s\n' "$DIFF" | cargo run --quiet --release --bin gt-corpus -- gates-check --stdin; then
+              echo "offending commit: $C"
+              FAIL=1
+            fi
+          done
+          exit $FAIL
+
       # The sealed audit must be SEALED and untouched. A change after opening
       # is a typed burn violation and fails the build.
       - name: Sealed-audit burn policy (§27.1)
