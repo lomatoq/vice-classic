@@ -69,7 +69,7 @@ pub fn render_partition_roi(
         return Err(RenderError::UnsupportedPixelFilter { got: filter });
     }
     let mesh = RenderMesh::build(scene, options.budget)?;
-    render_mesh_partition_roi_in_domain(&mesh, options.tolerances, &options.domain, roi)
+    render_mesh_partition_roi_in_domain(&mesh, options.tolerances(), options.domain(), roi)
 }
 
 /// ROI render from an already-built mesh, in the default M2 domain.

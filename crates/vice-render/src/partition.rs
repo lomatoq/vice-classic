@@ -76,23 +76,55 @@ impl Default for PartitionTolerances {
 }
 
 /// Options of a partition render.
+///
+/// `tolerances` and `domain` are PRIVATE and always consistent (F-M2-R9).
+/// ADR-0013 states that a tolerance is only meaningful together with the
+/// domain it was proven on — but as independent public fields that was a
+/// caller's discipline, not a guarantee, and the red team reproduced the
+/// original defect straight through the public API by widening the domain
+/// while leaving the frozen tolerance in place (1.33e-9 of real error
+/// against a declared 1e-9). The pairing is now established by
+/// construction: the only way to obtain a `RenderOptions` derives the
+/// tolerances from the domain.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RenderOptions {
     pub budget: TessellationBudget,
-    pub tolerances: PartitionTolerances,
-    /// The numeric domain this render is allowed to work in. Geometry or a
-    /// canvas outside it is a typed refusal, not a silent approximation.
-    pub domain: NumericDomain,
+    tolerances: PartitionTolerances,
+    domain: NumericDomain,
 }
 
-impl Default for RenderOptions {
-    fn default() -> Self {
-        let domain = NumericDomain::m2_default();
+impl RenderOptions {
+    /// Options for an explicitly chosen numeric domain, with the
+    /// tolerances derived from it.
+    pub fn for_domain(domain: NumericDomain) -> RenderOptions {
         RenderOptions {
             budget: TessellationBudget::default_m2(),
             tolerances: PartitionTolerances::for_domain(&domain),
             domain,
         }
+    }
+
+    /// Same options with a different tessellation budget. The budget is
+    /// independent of the domain, so it stays freely settable.
+    pub fn with_budget(mut self, budget: TessellationBudget) -> RenderOptions {
+        self.budget = budget;
+        self
+    }
+
+    pub fn domain(&self) -> &NumericDomain {
+        &self.domain
+    }
+
+    /// The tolerances derived from [`Self::domain`]. Read-only on purpose:
+    /// see the type-level note above.
+    pub fn tolerances(&self) -> PartitionTolerances {
+        self.tolerances
+    }
+}
+
+impl Default for RenderOptions {
+    fn default() -> Self {
+        RenderOptions::for_domain(NumericDomain::m2_default())
     }
 }
 
@@ -196,16 +228,26 @@ pub(crate) fn check_numeric_domain(
             });
         }
     }
-    for poly in &mesh.boundary_polylines {
-        for p in &poly.points {
-            for (what, v) in [("mesh point x", p.x), ("mesh point y", p.y)] {
-                if !domain.contains_coord(v) {
-                    return Err(RenderError::OutsideNumericDomain {
-                        what,
-                        value: v,
-                        limit: domain.max_abs_coord_px,
-                    });
-                }
+    // BOTH mesh point fields are checked, not just the shared polylines:
+    // `face_coverage_band` reads `face_loops`, and a check that does not
+    // cover what the consumer actually reads is not a check (red team
+    // observation on the delta). `RenderMesh` fields are public, so the
+    // two can be desynchronised by a direct constructor even though
+    // `RenderMesh::build` derives one from the other.
+    let polyline_points = mesh.boundary_polylines.iter().flat_map(|p| p.points.iter());
+    let loop_points = mesh
+        .face_loops
+        .iter()
+        .flat_map(|loops| loops.iter())
+        .flat_map(|lp| lp.points.iter());
+    for p in polyline_points.chain(loop_points) {
+        for (what, v) in [("mesh point x", p.x), ("mesh point y", p.y)] {
+            if !domain.contains_coord(v) {
+                return Err(RenderError::OutsideNumericDomain {
+                    what,
+                    value: v,
+                    limit: domain.max_abs_coord_px,
+                });
             }
         }
     }

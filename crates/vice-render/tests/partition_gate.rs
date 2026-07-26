@@ -287,10 +287,8 @@ fn hole_wired_to_wrong_face_is_rejected_typed() {
 #[test]
 fn uncertifiable_orientation_is_a_typed_reject_not_a_guess() {
     let scene = circle_scene(32, 32, 16.0, 16.0, 0.2);
-    let coarse = RenderOptions {
-        budget: TessellationBudget::with_chord_tolerance_px(0.5).unwrap(),
-        ..RenderOptions::default()
-    };
+    let coarse = RenderOptions::default()
+        .with_budget(TessellationBudget::with_chord_tolerance_px(0.5).unwrap());
     match render_partition(&scene, &coarse) {
         Err(RenderError::UncertifiableLoopOrientation {
             signed_area_px2,
@@ -364,14 +362,16 @@ fn geometry_outside_the_numeric_domain_is_a_typed_refusal() {
 #[test]
 fn widening_the_domain_widens_the_tolerance_explicitly() {
     let wide = vice_render::NumericDomain::with_max_abs_coord_px(1.0e7).unwrap();
-    let opts_wide = RenderOptions {
-        domain: wide,
-        tolerances: vice_render::PartitionTolerances::for_domain(&wide),
-        ..RenderOptions::default()
-    };
+    let opts_wide = RenderOptions::for_domain(wide);
     assert!(
-        opts_wide.tolerances.sum_abs_tol > vice_render::PartitionTolerances::FROZEN_FLOOR,
+        opts_wide.tolerances().sum_abs_tol > vice_render::PartitionTolerances::FROZEN_FLOOR,
         "a wider domain must carry a wider, derived tolerance"
+    );
+    // The pairing is structural: there is no way to build options whose
+    // tolerance does not come from their domain (F-M2-R9).
+    assert_eq!(
+        opts_wide.tolerances(),
+        vice_render::PartitionTolerances::for_domain(opts_wide.domain())
     );
     // 1e6 is outside the default domain (65536) but inside the widened one.
     let scene = rect_scene(16, 16, 1.0e6, 3.0, 1.0e6 + 8.0, 9.0, red());
@@ -416,4 +416,44 @@ fn transparent_interior_face_contributes_no_color() {
         (0.0, 0.0, 0.0, 0.0)
     );
     assert_eq!(r.face_coverage[1][8 * w + 8], 1.0);
+}
+
+/// F-M2-R9: the red team reproduced the original silent-error defect
+/// straight through the public API by widening the domain while keeping
+/// the frozen tolerance — 1.33e-9 of real error against a declared 1e-9.
+/// That construction must now be UNBUILDABLE, not merely discouraged.
+///
+/// The compile-time half (private fields, no struct literal, no `..`
+/// update from another domain) cannot be asserted at runtime; what is
+/// asserted here is the invariant it enforces: for every way of building
+/// options, the tolerance equals the one derived from that options'
+/// domain.
+#[test]
+fn options_cannot_carry_a_tolerance_that_does_not_match_their_domain() {
+    let candidates = [
+        RenderOptions::default(),
+        RenderOptions::for_domain(vice_render::NumericDomain::m2_default()),
+        RenderOptions::for_domain(
+            vice_render::NumericDomain::with_max_abs_coord_px(4.0 * 2f64.powi(24)).unwrap(),
+        ),
+        RenderOptions::for_domain(
+            vice_render::NumericDomain::with_max_abs_coord_px(1024.0).unwrap(),
+        )
+        .with_budget(TessellationBudget::with_chord_tolerance_px(0.5).unwrap()),
+    ];
+    for (i, o) in candidates.iter().enumerate() {
+        assert_eq!(
+            o.tolerances(),
+            vice_render::PartitionTolerances::for_domain(o.domain()),
+            "options #{i} carry a tolerance unrelated to their domain"
+        );
+    }
+    // The specific widened domain from the red team's repro now carries a
+    // tolerance that actually covers its own error bound.
+    let wide = vice_render::NumericDomain::with_max_abs_coord_px(4.0 * 2f64.powi(24)).unwrap();
+    let o = RenderOptions::for_domain(wide);
+    assert!(
+        o.tolerances().sum_abs_tol >= wide.coverage_error_bound_px(),
+        "a widened domain must widen the tolerance past its own bound"
+    );
 }
