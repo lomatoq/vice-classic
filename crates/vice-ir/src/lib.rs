@@ -33,6 +33,7 @@ pub mod color;
 pub mod connectivity;
 pub mod curve;
 pub mod graph;
+pub mod interference;
 pub mod scene;
 pub mod validate;
 
@@ -46,10 +47,8 @@ pub use graph::{
     Boundary, BoundaryId, Face, FaceId, GraphVertex, HalfEdge, HalfEdgeId, Paint, PlanarGraph,
     VertexId,
 };
+pub use interference::{uncertified_interference_pairs, UncertifiedPair};
 pub use scene::{
     Canvas, ExteriorModel, GlobalFormationHypothesis, PixelFilter, QuantizationModel, VectorScene,
 };
-pub use validate::{
-    uncertified_interference_pairs, validate_graph, validate_scene, ChainPointRef, GraphError,
-    SceneError, UncertifiedPair,
-};
+pub use validate::{validate_graph, validate_scene, ChainPointRef, GraphError, SceneError};
