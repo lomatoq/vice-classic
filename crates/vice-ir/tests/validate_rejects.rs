@@ -809,8 +809,8 @@ fn uncertified_pairs_are_reported_not_hidden() {
             mixed_island(Pt::new(36.0, 20.0), blue()),
         ],
     );
-    validate_scene(&s).unwrap();
-    let pairs = vice_ir::uncertified_interference_pairs(&s.graph);
+    let validated = vice_ir::ValidatedScene::new(s).expect("scene validates");
+    let pairs = vice_ir::uncertified_interference_pairs(&validated);
     assert!(
         !pairs.is_empty(),
         "expected undetermined curve pairs to be reported"
@@ -824,6 +824,40 @@ fn uncertified_pairs_are_reported_not_hidden() {
             square_island(Pt::new(40.0, 40.0), 8.0, blue()),
         ],
     );
-    validate_scene(&clean).unwrap();
-    assert!(vice_ir::uncertified_interference_pairs(&clean.graph).is_empty());
+    let clean = vice_ir::ValidatedScene::new(clean).expect("scene validates");
+    assert!(vice_ir::uncertified_interference_pairs(&clean).is_empty());
+}
+
+/// REVIEW_M1 M1-N10: the "graph passed validation" precondition of the
+/// interference worklist (and of the M2 renderer) is a TYPE now, not a doc
+/// comment. The only constructor validates; an invalid scene cannot be
+/// wrapped.
+#[test]
+fn validated_scene_is_the_typed_precondition() {
+    let ok = vice_ir::ValidatedScene::new(one_square_scene()).expect("valid scene wraps");
+    assert_eq!(ok.scene().canvas.width_px, 64);
+    assert_eq!(ok.graph().faces.len(), 2);
+    assert_eq!(ok.clone().into_inner(), one_square_scene());
+
+    // An unrepresented junction (REVIEW_M1 scene-C4 class) cannot become a
+    // ValidatedScene: the typed constructor rejects it.
+    let mut bad = one_square_scene();
+    bad.graph.boundaries[0].curve = CurveChain {
+        interior_nodes: vec![ChainNode {
+            pos: Pt::new(50.0, 50.0),
+            join: JoinKind::Corner,
+        }],
+        segments: vec![Segment::Line, Segment::Line],
+    };
+    bad.graph.boundaries[1].curve = CurveChain {
+        interior_nodes: vec![ChainNode {
+            pos: Pt::new(50.0, 50.0),
+            join: JoinKind::Corner,
+        }],
+        segments: vec![Segment::Line, Segment::Line],
+    };
+    match vice_ir::ValidatedScene::new(bad) {
+        Err(SceneError::Graph(GraphError::UnrepresentedJunction { .. })) => {}
+        other => panic!("expected UnrepresentedJunction, got {other:?}"),
+    }
 }

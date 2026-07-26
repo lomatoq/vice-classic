@@ -51,4 +51,6 @@ pub use interference::{uncertified_interference_pairs, UncertifiedPair};
 pub use scene::{
     Canvas, ExteriorModel, GlobalFormationHypothesis, PixelFilter, QuantizationModel, VectorScene,
 };
-pub use validate::{validate_graph, validate_scene, ChainPointRef, GraphError, SceneError};
+pub use validate::{
+    validate_graph, validate_scene, ChainPointRef, GraphError, SceneError, ValidatedScene,
+};

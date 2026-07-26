@@ -10,7 +10,7 @@ use vice_geom::Pt;
 
 use crate::curve::Segment;
 use crate::graph::{BoundaryId, PlanarGraph};
-use crate::validate::GraphError;
+use crate::validate::{GraphError, ValidatedScene};
 
 pub(crate) struct PrimSeg<'a> {
     boundary: usize,
@@ -128,10 +128,12 @@ pub struct UncertifiedPair {
 /// and never appear here. The list is the M2+ worklist for certified
 /// curve-curve intersection.
 ///
-/// Precondition: `g` passed [`crate::validate::validate_graph`] — in
-/// particular the chain-point distinctness invariant, which makes the
-/// adjacency test exact (ids and arities are trusted too).
-pub fn uncertified_interference_pairs(g: &PlanarGraph) -> Vec<UncertifiedPair> {
+/// Precondition — TYPED since M2 (REVIEW_M1 M1-N10): the argument is a
+/// [`ValidatedScene`], so the chain-point distinctness invariant that makes
+/// the adjacency test exact (and the id/arity trust) is guaranteed by
+/// construction, not by a doc-comment contract.
+pub fn uncertified_interference_pairs(s: &ValidatedScene) -> Vec<UncertifiedPair> {
+    let g = s.graph();
     let prims = collect_prims(g);
     let mut out = Vec::new();
     for i in 0..prims.len() {

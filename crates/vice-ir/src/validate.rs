@@ -167,6 +167,41 @@ pub fn validate_scene(scene: &VectorScene) -> Result<(), SceneError> {
     Ok(())
 }
 
+/// A scene that HAS passed [`validate_scene`] — the typed form of the
+/// precondition that used to live only in doc comments (REVIEW_M1 M1-N10).
+///
+/// The inner scene is private and immutable through this wrapper, so the
+/// only way to hold a `ValidatedScene` is to have gone through
+/// [`ValidatedScene::new`]. Consumers whose soundness depends on the §12
+/// invariants (the interference worklist's position-identity adjacency,
+/// the M2 renderer's shared-boundary tessellation) take `&ValidatedScene`
+/// instead of documenting "must be validated" and hoping.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValidatedScene {
+    scene: VectorScene,
+}
+
+impl ValidatedScene {
+    /// Validate and wrap. The ONLY constructor.
+    pub fn new(scene: VectorScene) -> Result<Self, SceneError> {
+        validate_scene(&scene)?;
+        Ok(ValidatedScene { scene })
+    }
+
+    pub fn scene(&self) -> &VectorScene {
+        &self.scene
+    }
+
+    pub fn graph(&self) -> &PlanarGraph {
+        &self.scene.graph
+    }
+
+    /// Give the scene back (dropping the validation evidence).
+    pub fn into_inner(self) -> VectorScene {
+        self.scene
+    }
+}
+
 /// Validate the graph invariants alone (numbers must already be canonical).
 pub fn validate_graph(g: &PlanarGraph) -> Result<(), GraphError> {
     check_ids(g)?;
