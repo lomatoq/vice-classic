@@ -103,6 +103,20 @@ impl RasterProfile {
         }
     }
 
+    /// Recover a profile from the id it serializes as.
+    ///
+    /// Needed so a consumer reading a committed artifact can re-derive a
+    /// profile-valued property (e.g. inverse-crime status) from the file
+    /// instead of trusting the flag recorded next to it — which is the check
+    /// REVIEW_M3 M3-N5 asked for after a caller-supplied flag turned out to
+    /// be smuggleable.
+    pub fn from_id(id: &str) -> Option<RasterProfile> {
+        RasterProfile::ALL
+            .iter()
+            .copied()
+            .find(|p| p.as_str() == id)
+    }
+
     /// True when this profile shares an implementation with the system
     /// under test, so its images must not be used as ground truth (§27.1).
     pub fn is_inverse_crime(&self) -> bool {

@@ -299,26 +299,38 @@ pub struct RenderedFixture {
     pub inverse_crime: bool,
 }
 
-/// Render one (scene, cell) pair to 8-bit RGBA.
-pub fn render_cell(
-    scene: &GtScene,
+/// A raster and the coverage stack it was composited from.
+///
+/// The stack is at WORK resolution, i.e. before any resize chain, because
+/// that is where a pixel's partial coverage is defined. A consumer that
+/// needs an edge mask aligned with the output bytes must therefore use a
+/// cell whose `resize` is `None`; the oracle harness refuses the others in
+/// so many words rather than resampling a mask and calling it the truth.
+#[derive(Debug, Clone)]
+pub struct CellRaster {
+    pub rgba8: Vec<u8>,
+    pub width_px: u32,
+    pub stack: super::raster::CoverageStack,
+}
+
+/// Render one (certified scene, cell) pair to 8-bit RGBA.
+///
+/// Extracted from [`render_cell`] so that a second consumer — the oracle
+/// harness, which renders a scene it reconstructed from canonical bytes and
+/// has no fixture metadata for — runs the SAME formation pipeline rather
+/// than a lookalike. `render_cell` is now a thin wrapper over it, so the
+/// corpus digests are the regression test for the extraction.
+pub fn render_cell_raster(
+    certified: &vice_render::CertifiedMesh,
+    paints: &[vice_ir::Paint],
     cell: &DegradationCell,
-    equivalence_members: usize,
-) -> Result<RenderedFixture, String> {
+) -> Result<CellRaster, String> {
     if !cell.is_realizable() {
         return Err(format!(
             "cell {} is not realizable by its profile",
             cell.id()
         ));
     }
-    let paints: Vec<vice_ir::Paint> = scene
-        .scene()
-        .graph()
-        .faces
-        .iter()
-        .map(|f| f.paint)
-        .collect();
-
     let (work_px, upsample_from) = match cell.resize {
         ResizeChain::None => (cell.size_px, None),
         ResizeChain::DownFrom2x => (cell.size_px * 2, None),
@@ -332,8 +344,8 @@ pub fn render_cell(
         width_px: work_px,
         height_px: work_px,
     };
-    let stack = rasterize(scene.certified(), &t, cell.profile, cell.psf)?;
-    let mut rgba = composite_rgba8(&stack, &paints, cell.blend, cell.contrast);
+    let stack = rasterize(certified, &t, cell.profile, cell.psf)?;
+    let mut rgba = composite_rgba8(&stack, paints, cell.blend, cell.contrast);
     let mut w = work_px;
 
     if cell.resize == ResizeChain::DownFrom2x {
@@ -345,13 +357,35 @@ pub fn render_cell(
         w = target;
     }
 
+    Ok(CellRaster {
+        rgba8: rgba,
+        width_px: w,
+        stack,
+    })
+}
+
+/// Render one (scene, cell) pair to 8-bit RGBA, with the fixture metadata a
+/// corpus entry needs.
+pub fn render_cell(
+    scene: &GtScene,
+    cell: &DegradationCell,
+    equivalence_members: usize,
+) -> Result<RenderedFixture, String> {
+    let paints: Vec<vice_ir::Paint> = scene
+        .scene()
+        .graph()
+        .faces
+        .iter()
+        .map(|f| f.paint)
+        .collect();
+    let raster = render_cell_raster(scene.certified(), &paints, cell)?;
     Ok(RenderedFixture {
         scene_id: scene.id().to_string(),
         group_id: scene.group_id().to_string(),
         cell_id: cell.id(),
-        width_px: w,
-        height_px: w,
-        rgba8: rgba,
+        width_px: raster.width_px,
+        height_px: raster.width_px,
+        rgba8: raster.rgba8,
         identifiability: identifiability(scene, cell, equivalence_members),
         inverse_crime: cell.is_inverse_crime(),
     })
