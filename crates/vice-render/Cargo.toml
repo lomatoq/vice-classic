@@ -16,3 +16,5 @@ sha2 = "0.10"
 thiserror = "2"
 
 [dev-dependencies]
+raqote = { version = "0.8", default-features = false }
+tiny-skia = "0.11"
