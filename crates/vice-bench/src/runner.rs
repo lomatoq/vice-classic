@@ -23,11 +23,14 @@ use crate::corpus::{self, CorpusManifest};
 use crate::envinfo;
 use crate::error::{BaselineError, RunError, TopError};
 use crate::exec::run_with_timeout;
+use crate::fsutil::{
+    absolute, collect_artifacts, force_remove_dir_all, git_ok, git_stdout, rel_display,
+};
 use crate::hashing::{sha256_file, sha256_hex};
 use crate::limits::{validate_png_file, ResourceLimits};
 use crate::report::{
-    hashes_from_report, ArtifactRecord, BaselineReport, BuildRecord, CorpusEntry,
-    DeterminismMismatch, DeterminismRecord, RunRecord, RunReport, ToolInfo, REPORT_SCHEMA,
+    hashes_from_report, BaselineReport, BuildRecord, CorpusEntry, DeterminismMismatch,
+    DeterminismRecord, RunRecord, RunReport, ToolInfo, REPORT_SCHEMA,
 };
 
 #[derive(Debug, Clone)]
@@ -676,111 +679,5 @@ pub fn selftest(out_dir: &Path, corpus_dir: &Path, manifest_path: &Path) -> Resu
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn git_output(args: &[&str], cwd: &Path) -> Result<std::process::Output, BaselineError> {
-    // Sanitized like every other child (ADR-0007, REVIEW_M1 M1-N2).
-    crate::exec::sanitized_command("git")
-        .args(args)
-        .current_dir(cwd)
-        .output()
-        .map_err(|e| BaselineError::GitFailed {
-            context: format!("git {}", args.join(" ")),
-            detail: e.to_string(),
-        })
-}
-
-fn git_ok(args: &[&str], cwd: &Path) -> Result<(), BaselineError> {
-    let out = git_output(args, cwd)?;
-    if !out.status.success() {
-        return Err(BaselineError::GitFailed {
-            context: format!("git {}", args.join(" ")),
-            detail: String::from_utf8_lossy(&out.stderr).trim().to_string(),
-        });
-    }
-    Ok(())
-}
-
-fn git_stdout(args: &[&str], cwd: &Path) -> Result<String, BaselineError> {
-    let out = git_output(args, cwd)?;
-    if !out.status.success() {
-        return Err(BaselineError::GitFailed {
-            context: format!("git {}", args.join(" ")),
-            detail: String::from_utf8_lossy(&out.stderr).trim().to_string(),
-        });
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-}
-
-fn absolute(p: &Path) -> PathBuf {
-    std::path::absolute(p).unwrap_or_else(|_| p.to_path_buf())
-}
-
-fn rel_display(path: &Path, base: &Path) -> String {
-    path.strip_prefix(base)
-        .unwrap_or(path)
-        .display()
-        .to_string()
-        .replace('\\', "/")
-}
-
-fn collect_artifacts(root: &Path, declared: &BTreeSet<String>) -> Vec<ArtifactRecord> {
-    let mut out = Vec::new();
-    collect_walk(root, root, declared, &mut out);
-    out.sort_by(|a, b| a.path.cmp(&b.path));
-    out
-}
-
-fn collect_walk(
-    dir: &Path,
-    root: &Path,
-    declared: &BTreeSet<String>,
-    out: &mut Vec<ArtifactRecord>,
-) {
-    let Ok(rd) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut entries: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
-    entries.sort();
-    for p in entries {
-        if p.is_dir() {
-            collect_walk(&p, root, declared, out);
-        } else if p.is_file() {
-            let rel = rel_display(&p, root);
-            let bytes = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-            let sha256 = sha256_file(&p).unwrap_or_else(|e| format!("HASH_ERROR:{e}"));
-            out.push(ArtifactRecord {
-                declared: declared.contains(&rel),
-                path: rel,
-                bytes,
-                sha256,
-            });
-        }
-    }
-}
-
-/// `remove_dir_all` that first clears read-only attributes (git object files
-/// on Windows are read-only, which makes plain `remove_dir_all` fail).
-pub fn force_remove_dir_all(p: &Path) -> std::io::Result<()> {
-    if !p.exists() {
-        return Ok(());
-    }
-    clear_readonly(p)?;
-    std::fs::remove_dir_all(p)
-}
-
-fn clear_readonly(p: &Path) -> std::io::Result<()> {
-    let meta = std::fs::symlink_metadata(p)?;
-    let mut perms = meta.permissions();
-    if perms.readonly() {
-        // Windows-focused cleanup of read-only git pack files; the checkout
-        // tree is disposable scratch state owned by this runner.
-        #[allow(clippy::permissions_set_readonly_false)]
-        perms.set_readonly(false);
-        let _ = std::fs::set_permissions(p, perms);
-    }
-    if meta.is_dir() {
-        for e in std::fs::read_dir(p)?.flatten() {
-            clear_readonly(&e.path())?;
-        }
-    }
-    Ok(())
-}
+// Path / artifact / git helpers live in `fsutil` (extracted unchanged so
+// this module stays under the §4.1 size rule).
