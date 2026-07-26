@@ -271,6 +271,13 @@ fn real_main() -> i32 {
                     return 2;
                 }
             };
+            // The corpus hash MUST be produced the same way every other
+            // component produces it: `CorpusManifest::hash()` on a rebuild,
+            // exactly as `verify` and `report` do (REVIEW_M3 M3-N1). The
+            // first version hashed the PARSED json instead, whose keys
+            // serde_json sorts, so the burn check compared a value no
+            // component ever produced and a faithful `open` reported BURNED
+            // on an untouched corpus. There is now one function, not two.
             let recorded = match read_manifest(&manifest) {
                 Ok(v) => v,
                 Err(e) => {
@@ -278,18 +285,13 @@ fn real_main() -> i32 {
                     return 2;
                 }
             };
-            let corpus_hash = recorded["corpus_hash_recorded"]
-                .as_str()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| {
-                    // The manifest does not carry its own hash (that would
-                    // be self-referential); recompute it from the file.
-                    vice_bench::hashing::sha256_hex(
-                        serde_json::to_string(&recorded)
-                            .unwrap_or_default()
-                            .as_bytes(),
-                    )
-                });
+            let corpus_hash = match rebuild_matching(&recorded) {
+                Ok(m) => m.hash(),
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
             let gates_hash = match GatesFile::load(&gates) {
                 Ok(g) => g.sha256,
                 Err(e) => {
