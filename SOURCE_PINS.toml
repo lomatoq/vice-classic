@@ -15,6 +15,28 @@ role = "algorithm donor + Rust baseline + GT/diagnostics donor"
 license_status = "OWNER_CONTROLLED_VERIFY_BEFORE_PUBLIC_RELEASE"
 local_mirror_hint = "v-ice"
 
+# M0 blocker B1, resolved before M3 (REVIEW_M0 §6 condition 7; ADR-0014).
+#
+# The spec pin above cannot be built on a machine without dav1d/pkg-config:
+# its `image` dependency enables `avif-native`. Upstream fixed exactly this
+# in 59ab86d1 ("Drop avif-native image feature (dav1d/pkg-config build on
+# Windows)"), which touches only Cargo.toml and Cargo.lock.
+#
+# Measured ancestry, not assumed: 9211b321 and 59ab86d1 are SIBLINGS, both
+# children of 49f308d9. The spec pin is an unmerged side branch; 59ab86d1 is
+# an ancestor of upstream main. So this is not "the same code with the build
+# fixed", and it does NOT replace the spec pin: the audit anchor of §2 stays
+# where the spec put it and keeps its honest build_failed record. This is an
+# ADDITIONAL declared pin so that M3's scorecard has a v-ice opponent that
+# actually runs (§27.3), with the divergence stated instead of hidden.
+[[source]]
+name = "v-ice-mainline"
+repo = "lomatoq/v-ice"
+sha = "59ab86d16458a43877a72270dfd71a68ff9eecb7"
+role = "buildable v-ice baseline for the M3 scorecard (sibling of the §2 pin, ancestor of upstream main)"
+license_status = "OWNER_CONTROLLED_VERIFY_BEFORE_PUBLIC_RELEASE"
+local_mirror_hint = "v-ice"
+
 [[source]]
 name = "v-ize"
 repo = "lomatoq/v-ize"
