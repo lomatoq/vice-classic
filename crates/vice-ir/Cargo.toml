@@ -11,7 +11,10 @@ workspace = true
 [dependencies]
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# float_roundtrip is REQUIRED for the seal skeleton: without it serde_json
+# parses f64 with up to 2 ulp error and parse -> re-serialize is not
+# byte-identical (caught by the roundtrip property test; ADR-0006).
+serde_json = { version = "1", features = ["float_roundtrip"] }
 sha2 = "0.10"
 thiserror = "2"
 vice-geom = { path = "../vice-geom" }

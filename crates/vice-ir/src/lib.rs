@@ -10,7 +10,9 @@
 //!   ([`graph`]);
 //! - canvas / minimal global formation hypothesis / scene ([`scene`]);
 //! - typed validation of the §12 invariants — an invalid graph is a typed
-//!   reject, never a panic ([`validate`]).
+//!   reject, never a panic ([`validate`]);
+//! - canonical serialization + sha256 digests, the M1 seal skeleton
+//!   ([`canonical`]).
 //!
 //! Deliberate M1 boundaries (documented, spec §32 rule 7 — no API without a
 //! call site):
@@ -26,6 +28,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod canonical;
 pub mod color;
 pub mod connectivity;
 pub mod curve;
@@ -33,6 +36,10 @@ pub mod graph;
 pub mod scene;
 pub mod validate;
 
+pub use canonical::{
+    canonical_scene_bytes, canonicalize_graph, parse_scene, scene_digest_sha256, ParseError,
+    SCENE_SCHEMA,
+};
 pub use color::{BlendSpace, LinearRgb, LinearRgba, PremulRgba};
 pub use curve::{ChainNode, CurveChain, JoinKind, Segment};
 pub use graph::{
