@@ -595,3 +595,52 @@ M2 принят reviewer-ом B на HEAD
 —
 *Independent reviewer B (cold agent context, Fable)*
 *2026-07-26 · re-reviewed delta C031–C038 · HEAD `9f7d523fb55fc22f02d6dc192c39a4a5e958b716` · spec v1.3 SHA-256 `652fd0b6…8d9bb1` · харнесс `%TEMP%\m2advB`: 39/39 в обоих профилях*
+
+---
+
+## Addendum 2 — подтверждение по дельте-2 (C040–C044)
+
+**HEAD:** `bd859cd6eadf9bbbf69e476c1596f78c20c916e8` (клон обновлён, SHA
+совпал, дерево чистое; CI run 30204393606 — success). Объём дельты-2
+проверен diff-ом `fdd4aa4..bd859cd`: только vice-render (coverage,
+partition, roi + тесты, включая новый property-тест тотальности
+`coverage_props`), governance-документы и dev-dep `proptest` (лицензия
+проверена мной ещё в M1); vice-geom, vice-ir, vice-bench, baselines и
+`seal_gate.rs` не тронуты — golden digests структурно не могли
+сдвинуться, и не сдвинулись. Объём не вышел за перечень находок.
+
+Мои прогоны: `cargo fmt`/`clippy -D warnings` — 0; `cargo test
+--workspace` **201/0 в обоих профилях**. Харнесс `%TEMP%\m2advB` —
+**39/39 в release И в debug**, причём без единой адаптации: поле
+`budget` осталось публичным, а к приватизированным
+`tolerances`/`domain` мой код и раньше не обращался (использую
+`RenderOptions::default()`); привязку допуска к домену конструктором
+считаю правильным закрытием F-M2-R9 — мой прежний сценарий «widened
+domain» теперь непредставим через публичный API. Прежние подтверждения
+целы: точные half/eighth-pixel равенства, quad junction ровно 0.25×4,
+ROI побитово (включая границы canvas), typed B2/B4- и
+domain-reject-ы, 1-ulp чувствительность; мои seal-digests **бит-в-бит
+те же, что на 9f7d523 и db1a18a, и debug==release**
+(`e8e80d8b…`/`9bf198ca…`). Пологий sliver ~1.5° после смены порога
+SH-арбитра по-прежнему в порогах суда: ts max 0.2037 ≤ 0.27, edge_mean
+0.0585 ≤ 0.16 (rq 0.2373/0.0697 ≤ 0.31/0.17). Ложных
+`NonFinitePoint`/`NonFiniteIntermediate` на законных сценах нет (39/39,
+десятки прямых вызовов аккумулятора с конечными входами); порядок
+«конечность ДО замкнутости» считаю верным диагнозом (NaN != NaN дал бы
+верный отказ с неверной причиной), а `NonFiniteIntermediate` —
+корректное закрытие третьей дыры класса F-0007 на конечных входах
+публичного API (1e300 недостижим через render-путь из-за домена, но
+достижим через публичный аккумулятор). ADV-тайминги держатся:
+out-of-domain отказ 21.6 µs, in-domain far-edge 7.2 µs, рост walk-а
+0.73× (плоский).
+
+## VERDICT (addendum 2): ACCEPT
+
+M2 подтверждён reviewer-ом B на HEAD
+`bd859cd6eadf9bbbf69e476c1596f78c20c916e8`. Прежняя оговорка о G11
+остаётся: моя подпись — одна из требуемых §34, red-team и контекст A
+подписываются отдельно.
+
+—
+*Independent reviewer B (cold agent context, Fable)*
+*2026-07-26 · re-checked delta-2 C040–C044 · HEAD `bd859cd6eadf9bbbf69e476c1596f78c20c916e8` · харнесс 39/39 в обоих профилях*
