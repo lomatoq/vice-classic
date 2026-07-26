@@ -33,6 +33,11 @@ pub enum BaselineKind {
     Python,
     /// Internal copy adapter (selftest only; constructed in code, not config).
     BuiltinCopy,
+    /// An already-installed external vectorizer (spec §27.3 tournament
+    /// opponent). No git pin and no build: provenance is the executable's
+    /// own path, hash and `--version` output, all recorded. Absent tool =
+    /// typed failure, isolated like every other baseline.
+    ExternalTool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -75,6 +80,9 @@ pub struct BaselineSpec {
     /// artifacts.
     #[serde(default)]
     pub outputs: Vec<String>,
+    /// Version probe of an external tool, recorded as its provenance.
+    #[serde(default)]
+    pub version_command: Vec<String>,
     #[serde(default = "default_run_cwd")]
     pub run_cwd: RunCwd,
     /// Out-of-tree files the pinned checkout needs but does not carry, each
@@ -111,6 +119,24 @@ pub fn load_config(path: &Path) -> Result<BaselinesConfig, TopError> {
                 "baseline {:?} has empty run command",
                 b.name
             )));
+        }
+        if b.kind == BaselineKind::ExternalTool {
+            if b.binary.is_none() {
+                return Err(TopError::Config(format!(
+                    "external tool {:?} must declare `binary`",
+                    b.name
+                )));
+            }
+            if !b.build.is_empty() {
+                return Err(TopError::Config(format!(
+                    "external tool {:?} must not declare a build step",
+                    b.name
+                )));
+            }
+            for a in &b.assets {
+                crate::assets::validate_spec(&b.name, a).map_err(TopError::Config)?;
+            }
+            continue;
         }
         if b.pin_sha.len() != 40 || !b.pin_sha.bytes().all(|c| c.is_ascii_hexdigit()) {
             return Err(TopError::Config(format!(

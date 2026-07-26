@@ -127,3 +127,50 @@ path = "models/corner_rf.joblib"
 sha256 = "0b9e30375acc6b7c28eb02331a102242723a19b58cc7db5c96eebc780e0f3941"
 bytes = 109328564
 notes = "corner random forest; gitignored upstream at 104 MiB, required by --extractor mininet via corner_classifier.MODEL_PATH"
+
+# --- External tournament opponents (spec §27.3) ------------------------------
+#
+# §27.3 calls VTracer and Potrace tournament OPPONENTS, never ground truth.
+# They are declared as installed executables rather than as linked crates:
+# provenance is the resolved path, its sha256 and its --version output, all
+# recorded in the report, and an absent tool is a typed failure isolated to
+# that baseline. Nothing is vendored, so no third-party licence is inherited
+# by anything this project ships (licences reviewed in THIRD_PARTY_NOTICES
+# §2c against the actual packages).
+#
+# `pin_sha` is unused for this kind and is set to zeros deliberately: an
+# installed binary has no commit, and inventing one would be a false
+# provenance record.
+
+[[baseline]]
+name = "vtracer-external"
+repo = "visioncortex/vtracer"
+pin_sha = "0000000000000000000000000000000000000000"
+mirror_hint = ""
+kind = "external_tool"
+binary = "vtracer"
+version_command = ["{binary}", "--version"]
+run = ["{binary}", "--input", "{input}", "--output", "{out_dir}/{stem}.svg", "--mode", "polygon"]
+outputs = ["{stem}.svg"]
+notes = """
+Tournament opponent, NOT ground truth (§27.3). MIT OR Apache-2.0, verified \
+against the actual crates.io package. Resolved from PATH; if it is absent the \
+baseline fails typed `binary_missing` and the other baselines are unaffected."""
+
+[[baseline]]
+name = "potrace-external"
+repo = "potrace"
+pin_sha = "0000000000000000000000000000000000000000"
+mirror_hint = ""
+kind = "external_tool"
+binary = "potrace"
+version_command = ["{binary}", "--version"]
+run = ["{binary}", "--svg", "-o", "{out_dir}/{stem}.svg", "{input}"]
+outputs = ["{stem}.svg"]
+notes = """
+Tournament opponent, NOT ground truth (§27.3). Potrace is GPL-2.0-or-later: \
+it is therefore run ONLY as a separate process and is never linked, vendored \
+or derived from, so no copyleft obligation attaches to this project. Potrace \
+also consumes bitmaps rather than colour PNGs, so a colour input is expected \
+to fail or to be silently thresholded - a caveat that belongs in the record \
+rather than in a wrapper that hides it."""

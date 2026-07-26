@@ -236,6 +236,16 @@ impl BaselineCtx<'_> {
                 })?;
                 (None, Some(exe))
             }
+            BaselineKind::ExternalTool => {
+                // No pin and no checkout: an installed tool is identified by
+                // WHAT IT IS - path, sha256 and version output - rather than
+                // by a commit. Recording that in the same BuildRecord the
+                // pinned baselines use keeps one provenance shape.
+                rep.mirror = "external tool".to_string();
+                let exe = self.resolve_external_tool()?;
+                self.record_external_tool(&exe, rep)?;
+                (None, Some(exe))
+            }
             BaselineKind::Rust | BaselineKind::Python => {
                 let mirror = self.opts.mirror_root.join(&self.spec.mirror_hint);
                 rep.mirror = mirror.display().to_string();
@@ -269,6 +279,66 @@ impl BaselineCtx<'_> {
         };
         self.execute_runs(checkout.as_deref(), binary.as_deref(), rep);
         self.compute_determinism(rep);
+        Ok(())
+    }
+
+    /// Locate the declared executable: an explicit path, or a bare name
+    /// resolved against PATH. The resolved path is hashed, so "which
+    /// binary answered" is a recorded fact rather than an assumption.
+    fn resolve_external_tool(&self) -> Result<PathBuf, BaselineError> {
+        let declared = self.spec.binary.clone().unwrap_or_default();
+        let direct = PathBuf::from(&declared);
+        if direct.is_file() {
+            return Ok(direct);
+        }
+        let suffix = std::env::consts::EXE_SUFFIX;
+        for dir in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
+            for name in [declared.clone(), format!("{declared}{suffix}")] {
+                let p = dir.join(&name);
+                if p.is_file() {
+                    return Ok(p);
+                }
+            }
+        }
+        Err(BaselineError::BinaryMissing { path: declared })
+    }
+
+    fn record_external_tool(
+        &self,
+        exe: &Path,
+        rep: &mut BaselineReport,
+    ) -> Result<(), BaselineError> {
+        let log = self
+            .opts
+            .out_dir
+            .join("logs")
+            .join(&self.spec.name)
+            .join("version.log");
+        let mut cmd = self.spec.version_command.clone();
+        if cmd.is_empty() {
+            cmd = vec![exe.display().to_string(), "--version".to_string()];
+        }
+        let vars = BTreeMap::from([("binary", exe.display().to_string())]);
+        let cmd = substitute_tokens(&cmd, &vars);
+        let outcome = run_with_timeout(
+            &cmd,
+            &self.opts.out_dir,
+            Duration::from_secs(self.limits.build_timeout_secs.min(120)),
+            &log,
+        )
+        .map_err(|e| BaselineError::Io {
+            context: "spawn version probe".into(),
+            detail: e,
+        })?;
+        rep.build = Some(BuildRecord {
+            command: cmd,
+            exit_code: outcome.exit_code,
+            timed_out: outcome.timed_out,
+            duration_ms: outcome.duration_ms,
+            binary_path: Some(exe.display().to_string()),
+            binary_sha256: sha256_file(exe).ok(),
+            log: rel_display(&log, &self.opts.out_dir),
+        });
         Ok(())
     }
 
@@ -664,6 +734,7 @@ pub fn selftest_spec() -> BaselineSpec {
             "{out_dir}/{stem}.copy.png".to_string(),
         ],
         outputs: vec!["{stem}.copy.png".to_string()],
+        version_command: Vec::new(),
         run_cwd: RunCwd::Workdir,
         assets: Vec::new(),
         notes: "internal determinism selftest; copies input bytes to output".to_string(),
