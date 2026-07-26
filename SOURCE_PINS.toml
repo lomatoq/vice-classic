@@ -29,4 +29,6 @@ repo = "lomatoq/Vice-"
 sha = "200897ab3e888970e330deeb3bb9e157923cc0aa"
 role = "contracts + verifier ideas + failed-system baseline"
 license_status = "OWNER_CONTROLLED_VERIFY_BEFORE_PUBLIC_RELEASE"
-local_mirror_hint = "Vice-"
+# NB: локальный клон lomatoq/Vice- исторически лежит в каталоге "v-ice part"
+# (проверено по git remote; REVIEW_M0 N2).
+local_mirror_hint = "v-ice part"

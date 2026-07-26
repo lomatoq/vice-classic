@@ -61,7 +61,9 @@ cargo run --release --bin baseline-runner -- run --config configs/baselines.toml
 ```
 
 Затем сравните `runs/m0/hashes.json` с записанным
-`docs/baselines/M0/hashes.json`.
+`docs/baselines/M0/hashes.json`, исключив из сравнения поля
+`binary_sha256` (non-normative provenance; REVIEW_M0 N3 — разделение
+hashes.json на нормативную/информационную секции запланировано на M1).
 
 ## Что обязано совпасть, что нет
 

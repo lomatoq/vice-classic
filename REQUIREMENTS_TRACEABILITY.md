@@ -7,7 +7,7 @@ milestone gate. Пока покрыт только M0.
 |---|---|---|---|---|
 | M0-1 | Workspace только из реально нужных M0 crates, без placeholder-ов | `Cargo.toml` (единственный member `crates/vice-bench`), ADR-0001 | `cargo build --workspace`; ревью структуры | STATUS_M0 T1 |
 | M0-2 | `SOURCE_PINS.toml`, `PORTING_MANIFEST.toml` (0 units), `THIRD_PARTY_NOTICES.md` | одноимённые файлы в корне | ревью; манифест пуст ⇔ ни одной копии донорского кода | STATUS_M0 T2 |
-| M0-3 | `REQUIREMENTS_TRACEABILITY.md`, `FAILURE_LEDGER.md`, `docs/ADR/` | этот файл; `FAILURE_LEDGER.md` (3 записи); ADR-0001..0003 | ревью | STATUS_M0 T3 |
+| M0-3 | `REQUIREMENTS_TRACEABILITY.md`, `FAILURE_LEDGER.md`, `docs/ADR/` | этот файл; `FAILURE_LEDGER.md` (4 записи) | ревью; REVIEW_M0 N1 закрыт | STATUS_M0 T3 |
 | M0-4 | Пин toolchain, committed `Cargo.lock`, версии инструментов, env manifest | `rust-toolchain.toml` (1.96.0), `Cargo.lock`, `envinfo.rs` → `env.json` + `environment_sha256` в каждом отчёте | `selftest_pipeline_is_deterministic` (env hash в отчёте) | STATUS_M0 T4 |
 | M0-5 | Deterministic baseline runner на фиксированном smoke corpus | `runner.rs` (fresh clone+detach пина, build, run, repeats), `configs/baselines.toml`, corpus `tests/fixtures/smoke/` | 12 unit + 5 integration тестов; selftest; двойной прогон | STATUS_M0 T5 |
 | M0-6 | Hashes binary/source/config/input/toolchain/env + runtime + exit status + artifacts | `report.rs`, `hashing.rs`; `report.json`/`hashes.json` | `selftest_pipeline_is_deterministic`; ручная сверка hashes.json двух прогонов | STATUS_M0 T6 |

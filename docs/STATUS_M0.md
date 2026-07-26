@@ -17,8 +17,8 @@ Spec: `VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`
   (**ноль перенесённых блоков** — доноры исполняются как внешние чёрные
   ящики), `THIRD_PARTY_NOTICES.md` (включая license-находки по зеркалам).
 - Governance: `REQUIREMENTS_TRACEABILITY.md`, `FAILURE_LEDGER.md`
-  (3 записи: F-0001 исправлена, F-0002/F-0003 открыты как blockers),
-  `docs/ADR/ADR-0001..0003`.
+  (4 записи: F-0001/F-0004 исправлены; F-0002/F-0003 — решения приняты
+  REVIEW_M0), `docs/ADR/ADR-0001..0003`.
 - Репродуцируемость: `rust-toolchain.toml` (1.96.0), committed `Cargo.lock`,
   env-manifest в каждом отчёте (`env.json` + `environment_sha256`),
   `docs/REPRODUCIBILITY_M0.md` с точными командами.
@@ -42,8 +42,12 @@ Spec: `VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`
 ```text
 config_sha256      2376b348e77f9d2077750696360d48652bc94ed90e437b31ea0a896f07450a9c
 environment_sha256 d1ccab0ce0ae698605c0ba55ba1dc63579f014973b8007655aae22f9da627d5e
-runner exe sha256  de58f10d77412496733715c766dd3236e35abe814af3d216012d96250b077e14
+runner exe sha256  de58f10d77412496733715c766dd3236e35abe814af3d216012d96250b077e14   # non-normative
 ```
+
+`runner exe sha256` — non-normative (как и `binary_sha256` донорских
+сборок, невоспроизводим между пересборками; REVIEW_M0 N7): это provenance
+конкретного прогона, не критерий сверки.
 
 | Baseline | Pin resolved | Статус | Runs ok | Primary det. | All-artifacts det. |
 |---|---|---|---|---|---|
