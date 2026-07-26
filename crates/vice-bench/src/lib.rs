@@ -21,6 +21,7 @@ pub mod fsutil;
 pub mod gt;
 pub mod hashing;
 pub mod limits;
+pub mod reliability;
 pub mod report;
 pub mod runner;
 pub mod universe;
