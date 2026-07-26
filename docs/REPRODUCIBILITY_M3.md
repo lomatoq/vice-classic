@@ -134,3 +134,64 @@ cargo run --release --bin baseline-runner -- env --normative
   `true`: объявленные `{stem}/{stem}.svg` совпадают побайтово.
 
 Любое расхождение сверх этого списка — находка, а не шум.
+
+## GT-корпус (M3)
+
+Корпус НЕ хранится в репозитории: он регенерируется из исходников. Хранятся
+только шесть авторских SVG (`tests/fixtures/gt/authored/`) и манифест с
+sha256 каждого рендера — тот же контракт, что у `SMOKE_MANIFEST.toml`, на
+корпусе на три порядка больше.
+
+```bash
+# Пересобрать корпус и записать манифест (scope: full | fast | test)
+cargo run --release --bin gt-corpus -- build \
+  --out docs/gt/CORPUS_MANIFEST.json --scope fast
+
+# Воспроизвести: пересобрать в ТОМ ЖЕ scope, что записан в манифесте,
+# и сверить каждый render digest
+cargo run --release --bin gt-corpus -- verify \
+  --manifest docs/gt/CORPUS_MANIFEST.json
+
+# Отчёт M3 и gate table
+cargo run --release --bin gt-corpus -- report \
+  --manifest docs/gt/CORPUS_MANIFEST.json \
+  --gates configs/GATES_V1.toml \
+  --seal docs/gt/AUDIT_SEAL.json \
+  --out docs/gt/SCORECARD_M3.json
+
+# Burn policy sealed audit (в CI на каждом push)
+cargo run --release --bin gt-corpus -- audit-status \
+  --seal docs/gt/AUDIT_SEAL.json \
+  --manifest docs/gt/CORPUS_MANIFEST.json \
+  --gates configs/GATES_V1.toml
+```
+
+### Честно про SCOPE записанного манифеста
+
+Записанный `docs/gt/CORPUS_MANIFEST.json` собран в scope **`fast`**
+(18 ячеек, размеры ≤32, без суперсэмплированного box-спайна): 60 групп,
+63 сцены, **1086 рендеров**, 4 мин 23 с на записывающей машине.
+
+Scope `full` (47 ячеек, включая 512 px) на одном ядре идёт **часами**:
+exact-clip на 512×512 — это ~1e6 отсечений полигона на face, и прогон был
+прерван спустя час. Это предел ИНСТРУМЕНТА, и он записан как факт, а не
+обойдён: манифест содержит собственный список ячеек, его хеш зависит от
+scope, а тест `a_partial_manifest_cannot_be_mistaken_for_the_full_one`
+запрещает выдать частичный прогон за полный. Ускорение exact-clip (обход по
+строкам вместо bbox-сканирования) — работа M3.5+, а не тихое сужение матрицы:
+матрица заморожена целиком, и `--scope full` доступен любому, кто готов ждать.
+
+CI использует scope `test` (одна размерность, секунды) и проверяет
+ДЕТЕРМИНИЗМ (две сборки побайтово), а не полноту.
+
+### Что при сверке может законно отличаться
+
+Ничего. Рендеры корпуса — чистая f64-арифметика и внешние растеризаторы
+фиксированных версий; расхождение digest-а — находка.
+
+**Оговорка, которую надо знать (REDTEAM_M2 addendum 4, п. 3):** digest-ы
+рендеров сравнимы ТОЛЬКО в пределах одной версии renderer-а. C052 показал,
+что арифметика покрытия не бит-нейтральна между версиями (0.38 % значений,
+max |Δ| = 5.25e-14). Поэтому `verify` сверяет корпус с самим собой на одном
+коммите; межверсионная сверка render digest-ов НЕ заявляется и заявляться не
+будет без отдельного бит-нейтрального контракта.

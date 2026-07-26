@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # rustup installs the toolchain pinned in rust-toolchain.toml.
       - name: Install pinned toolchain
         run: rustup show
       - name: Format
@@ -21,29 +20,81 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests
         run: cargo test --workspace
+      - name: Tests (release)
+        run: cargo test --release --workspace
 
   clean-checkout-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The frozen-gate rule below compares a commit against its parent.
+          fetch-depth: 2
       - name: Install pinned toolchain
         run: rustup show
-      - name: Smoke corpus is byte-reproducible from source
+      - name: Regenerate the smoke corpus and compare bytes
         run: cargo run --release --bin gen-smoke -- --out tests/fixtures/smoke --check
-      - name: Smoke corpus verifies against manifest
-        run: >-
-          cargo run --release --bin baseline-runner -- verify-corpus
-          --corpus tests/fixtures/smoke
-          --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml
-      - name: Runner determinism selftest (no mirrors needed)
-        run: >-
-          cargo run --release --bin baseline-runner -- selftest
-          --out runs/ci-selftest
-          --corpus tests/fixtures/smoke
-          --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml
-      - name: Environment manifest
-        run: cargo run --release --bin baseline-runner -- env
-      # Full pinned-baseline reproduction additionally needs local mirrors of
-      # the three pinned repositories; see docs/REPRODUCIBILITY_M0.md. CI has
-      # no access to them, so that step is executed by the (human or agent)
-      # reviewer on a machine with mirrors, per spec §34.
+      - name: Verify the smoke corpus against its manifest
+        run: |
+          cargo run --release --bin baseline-runner -- verify-corpus \
+            --corpus tests/fixtures/smoke \
+            --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml \
+            --config configs/baselines.toml
+      - name: Runner selftest
+        run: |
+          cargo run --release --bin baseline-runner -- selftest \
+            --out runs/ci-selftest \
+            --corpus tests/fixtures/smoke \
+            --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml
+      - name: Environment manifest (whole and normative projection)
+        run: |
+          cargo run --release --bin baseline-runner -- env
+          cargo run --release --bin baseline-runner -- env --normative
+
+  gt-corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Install pinned toolchain
+        run: rustup show
+      # Spec §27.7 / §32 rule 9, enforced rather than requested: a gate file
+      # and production code may not change in the same commit.
+      - name: Frozen-gate rule (§27.7)
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD || true)
+          ARGS=""
+          for f in $CHANGED; do ARGS="$ARGS --changed $f"; done
+          cargo run --release --bin gt-corpus -- gates-check $ARGS
+      # The sealed audit must be SEALED and untouched. A change after opening
+      # is a typed burn violation and fails the build.
+      - name: Sealed-audit burn policy (§27.1)
+        run: |
+          cargo run --release --bin gt-corpus -- audit-status \
+            --seal docs/gt/AUDIT_SEAL.json \
+            --manifest docs/gt/CORPUS_MANIFEST.json \
+            --gates configs/GATES_V1.toml
+      # The GT corpus regenerates from source on a clean checkout. CI runs
+      # the `test` scope (one size, seconds); the FULL manifest is the
+      # reviewer's documented command in docs/REPRODUCIBILITY_M3.md, because
+      # regenerating every cell of the matrix is minutes of work and a check
+      # nobody waits for is a check nobody runs.
+      - name: GT corpus rebuilds deterministically (test scope)
+        run: |
+          cargo run --release --bin gt-corpus -- build \
+            --out runs/ci-corpus/manifest-a.json --scope test
+          cargo run --release --bin gt-corpus -- build \
+            --out runs/ci-corpus/manifest-b.json --scope test
+          diff runs/ci-corpus/manifest-a.json runs/ci-corpus/manifest-b.json
+      - name: M3 scorecard and gate table
+        run: |
+          cargo run --release --bin gt-corpus -- report \
+            --manifest runs/ci-corpus/manifest-a.json \
+            --gates configs/GATES_V1.toml \
+            --seal docs/gt/AUDIT_SEAL.json \
+            --out runs/ci-corpus/scorecard.json
+
+# Reproducing the pinned donor baselines needs local mirrors and a 104 MiB
+# hash-pinned asset, which CI has neither of; that step is executed by the
+# reviewer on a machine that has them (spec §34, docs/REPRODUCIBILITY_M3.md).

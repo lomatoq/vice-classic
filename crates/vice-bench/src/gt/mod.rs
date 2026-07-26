@@ -27,6 +27,7 @@ pub mod adversarial;
 pub mod authored;
 pub mod build;
 pub mod colour;
+pub mod corpus;
 pub mod degradation;
 pub mod grammar;
 pub mod raster;

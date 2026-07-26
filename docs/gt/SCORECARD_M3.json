@@ -1,0 +1,175 @@
+{
+  "schema": "vice-classic/m3-scorecard/v1",
+  "milestone": "M3",
+  "hashes": {
+    "model_universe": "fed2af8642ee3bdd6be85fead97f5ae834622ad0f68525cad9889d17845b8f5d",
+    "preregistration": "ea04a7b409c3cd42049be40108dce1ef918ea84ecc904824d6cca9afc316f0ba",
+    "gates_sha256": "bbe7f4dd4c21129fe2b79ada79310ccbe35a0012b8a2e97183a279931863752b",
+    "corpus": "5067b3789836fcfbac6f0c35259b7c6b20d5e7cf6ea5ed935df890f506e224da",
+    "split_policy": "vice-classic/gt-split/v1"
+  },
+  "audit_seal_generation": 1,
+  "audit_seal_status": "sealed",
+  "composition": {
+    "source_groups": 60,
+    "scenes": 63,
+    "renders": 1086,
+    "cells": 18,
+    "groups_by_origin": [
+      [
+        "adversarial",
+        6
+      ],
+      [
+        "authored",
+        6
+      ],
+      [
+        "procedural",
+        48
+      ]
+    ],
+    "groups_by_split": [
+      [
+        "calibration",
+        16
+      ],
+      [
+        "development",
+        22
+      ],
+      [
+        "sealed_audit",
+        22
+      ]
+    ],
+    "renders_by_identifiability": [
+      [
+        "equivalent_family",
+        32
+      ],
+      [
+        "identifiable",
+        912
+      ],
+      [
+        "information_lost",
+        142
+      ]
+    ],
+    "renders_by_profile": [
+      [
+        "exact-clip",
+        567
+      ],
+      [
+        "raqote",
+        126
+      ],
+      [
+        "supersample",
+        189
+      ],
+      [
+        "tiny-skia",
+        78
+      ],
+      [
+        "vice-render",
+        126
+      ]
+    ],
+    "intentionally_ambiguous_groups": 3,
+    "inverse_crime_renders": 126
+  },
+  "reliability": [
+    {
+      "bucket": "flat2-clean-aa-identifiable-128-512",
+      "groups_total": 0,
+      "groups_accepted": 0,
+      "groups_catastrophic": 0,
+      "coverage_per_source": 0.0,
+      "renders_total": 0,
+      "renders_accepted": 0,
+      "coverage_per_render": 0.0,
+      "catastrophic_risk_upper": 1.0,
+      "confidence": 0.99,
+      "required_groups": 459,
+      "group_deficit": 459,
+      "contract_met": false
+    },
+    {
+      "bucket": "flat2-clean-aa-identifiable-64",
+      "groups_total": 0,
+      "groups_accepted": 0,
+      "groups_catastrophic": 0,
+      "coverage_per_source": 0.0,
+      "renders_total": 0,
+      "renders_accepted": 0,
+      "coverage_per_render": 0.0,
+      "catastrophic_risk_upper": 1.0,
+      "confidence": 0.99,
+      "required_groups": 459,
+      "group_deficit": 459,
+      "contract_met": false
+    },
+    {
+      "bucket": "flat2-small-16-32",
+      "groups_total": 0,
+      "groups_accepted": 0,
+      "groups_catastrophic": 0,
+      "coverage_per_source": 0.0,
+      "renders_total": 0,
+      "renders_accepted": 0,
+      "coverage_per_render": 0.0,
+      "catastrophic_risk_upper": 1.0,
+      "confidence": 0.99,
+      "required_groups": 459,
+      "group_deficit": 459,
+      "contract_met": false
+    },
+    {
+      "bucket": "equivalent-family",
+      "groups_total": 0,
+      "groups_accepted": 0,
+      "groups_catastrophic": 0,
+      "coverage_per_source": 0.0,
+      "renders_total": 0,
+      "renders_accepted": 0,
+      "coverage_per_render": 0.0,
+      "catastrophic_risk_upper": 1.0,
+      "confidence": 0.99,
+      "required_groups": 459,
+      "group_deficit": 459,
+      "contract_met": false
+    },
+    {
+      "bucket": "information-lost",
+      "groups_total": 0,
+      "groups_accepted": 0,
+      "groups_catastrophic": 0,
+      "coverage_per_source": 0.0,
+      "renders_total": 0,
+      "renders_accepted": 0,
+      "coverage_per_render": 0.0,
+      "catastrophic_risk_upper": 1.0,
+      "confidence": 0.99,
+      "required_groups": 459,
+      "group_deficit": 459,
+      "contract_met": false
+    }
+  ],
+  "confidence": {
+    "residual_model": null,
+    "calibrated": false,
+    "refusal": "residual model block is admissible but uncalibrated: a block size at least the measured correlation support, and a per-block noise scale frozen on the calibration split. An uncalibrated model is not a licence to be confident"
+  },
+  "not_yet_produced": [
+    "posterior bits, delivery-equivalence confidence and DecisionIntervals (M7)",
+    "search truncation / unexplored-mass certificates (M7; both Unknown in the universe)",
+    "boundary p50/p95/p99 metrics against GT (M7: nothing produces a boundary yet)",
+    "factorial oracle arms PF/G (M3.5)",
+    "human court (§27.4: there is no output to judge)",
+    "sealed-audit results (the audit is SEALED and M3 does not open it)"
+  ]
+}
