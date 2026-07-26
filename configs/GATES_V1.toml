@@ -4,10 +4,21 @@
 # отдельным reviewed commit. Feature PR не может одновременно ослабить
 # собственный gate."
 #
-# That rule is enforced, not requested. `baseline-runner gates check-commit`
-# fails when a commit touches this file AND any file under `crates/` or
-# `tests/fixtures/`, and CI runs it on every push. A gate change is a
-# separate reviewed commit or it does not land.
+# That rule is enforced, not requested. `gt-corpus gates-check` fails when a
+# commit MODIFIES this file and also touches anything under `crates/` or
+# `tests/fixtures/`, and CI runs it over every commit of every pushed range
+# (REVIEW_M3 M3-N2 corrected both the command name here and a CI check that
+# only ever looked at the tip of a push).
+#
+# One named exemption, because the rule forbids WEAKENING a gate and a gate
+# that does not exist cannot be weakened: this file may be CREATED in the
+# same commit as its loader. Only status `A` exempts; modification,
+# deletion and rename do not.
+#
+# Every value below is read or cross-checked by the code — enforced by
+# `gates::tests::every_frozen_value_agrees_with_the_code_that_uses_it`,
+# which walks every frozen section and fails on a key nothing consumes. A
+# frozen number with no consumer is not a gate (REVIEW_M3 M3-N3).
 #
 # The values below are the M3 measurement contract. Numbers that no
 # measurement supports yet are marked `status = "placeholder"` and carry the
