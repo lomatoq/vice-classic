@@ -147,14 +147,18 @@ proptest! {
 
     /// Points constructed exactly on a segment are always reported on it;
     /// one lattice step off (non-collinear) is always reported off it.
+    ///
+    /// Generator note (REVIEW_M1 M1-N8): `k` is drawn from `0..=n` via
+    /// `prop_flat_map` and the zero direction is repaired, not rejected, so
+    /// the test has no `prop_assume` rejections and scales to arbitrary
+    /// PROPTEST_CASES without harness tuning.
     #[test]
     fn point_on_segment_is_exact(
+        (n, k) in (1i64..=1000).prop_flat_map(|n| (Just(n), 0i64..=n)),
         ax in -1000i64..=1000, ay in -1000i64..=1000,
-        dx in -1000i64..=1000, dy in -1000i64..=1000,
-        k in 0i64..=1000, n in 1i64..=1000,
+        (dx, dy) in (-1000i64..=1000, -1000i64..=1000)
+            .prop_map(|(dx, dy)| if (dx, dy) == (0, 0) { (1, 0) } else { (dx, dy) }),
     ) {
-        prop_assume!((dx, dy) != (0, 0));
-        prop_assume!(k <= n);
         let a = (ax, ay);
         let b = (ax + n * dx, ay + n * dy);
         let p = (ax + k * dx, ay + k * dy);
