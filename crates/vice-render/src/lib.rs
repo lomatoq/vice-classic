@@ -28,6 +28,7 @@ pub mod mesh;
 pub mod partition;
 pub mod render_error;
 pub mod roi;
+pub mod seal;
 
 pub use coverage::polygon_coverage;
 pub use embedding::verify_embedding;
@@ -38,3 +39,4 @@ pub use partition::{
 };
 pub use render_error::RenderError;
 pub use roi::{render_mesh_partition_roi, render_partition_roi, PixelRect, RoiRender};
+pub use seal::{seal_render_cycle, SealError, SealReport};
