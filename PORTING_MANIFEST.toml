@@ -42,8 +42,25 @@ schema = "vice-classic/porting-manifest/v1"
 # M2 status: STILL ZERO ported units. Spec §28 M2 names a "signed-area
 # polygon coverage port", but REVIEW_M0 condition 6 stands: v-ice has no
 # license grant, so vice-render (tessellation, coverage accumulator,
-# partition renderer, ROI, seal skeleton) is written CLEAN-ROOM — donor
-# sources were not opened while writing it. The raster.rs candidate above
-# remains reference-only. The differential-court rasterizers (tiny-skia,
+# partition renderer, ROI, seal skeleton) is CLEAN-ROOM: not a single line
+# of donor code was carried over, and that independence is what has been
+# verified — by two reviewers' n-gram scans against the pinned donors
+# (REVIEW_M2_A §5: 0.21% of 12-grams and 0.07% of 16-grams against
+# v-ice/src/raster.rs, remainder boilerplate) and by a design comparison
+# showing opposite decisions in every load-bearing choice (prefix vs
+# suffix fold, clamped vs raw signed winding, opposite off-canvas
+# handling). The raster.rs candidate above remains reference-only.
+#
+# One verifiable qualification, recorded rather than glossed (REVIEW_M2_A
+# M2-A-N6): three test NAMES and one canonical fixture coincide with the
+# donor's (`half_pixel_offsets_are_exact`,
+# `coverage_is_continuous_in_translation`, `circle_area_matches_pi_r_squared`,
+# and the [0.5,2.5]^2 half-pixel rectangle). Those names are the natural
+# English for the properties spec §2.1 itself lists as the tests to
+# carry over, and the fixture is the canonical one for half-pixel
+# coverage; no reviewer found copied code. The earlier absolute phrasing
+# ("donor sources were not opened") is replaced by this checkable claim,
+# because the value of this manifest is that every word in it can be
+# verified. The differential-court rasterizers (tiny-skia,
 # raqote) are external OSS cargo DEV-dependencies with verified licenses
 # (THIRD_PARTY_NOTICES §2b), not vendored, not ported.

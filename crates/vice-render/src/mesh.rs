@@ -31,9 +31,27 @@ pub struct TessellationBudget {
 }
 
 impl TessellationBudget {
-    /// The default M2 judging budget: 1/64 px chord error keeps the
-    /// certified area budget of canvas-scale curves well below the
-    /// partition/coverage tolerances it feeds (ADR-0010).
+    /// The default M2 judging budget: 1/64 px chord error.
+    ///
+    /// What that budget actually feeds (corrected per REVIEW_M2_A
+    /// M2-A-N3; the previous wording claimed it stays "well below the
+    /// partition/coverage tolerances", which is wrong by ~9 orders and
+    /// gave the reader a false model of how the budgets relate): the
+    /// certified AREA budget of a canvas-scale curve at this tolerance is
+    /// ~1.55 px² for a disk of r = 10, versus a partition tolerance of
+    /// 1e-9. The two are unrelated quantities. The area budget is the
+    /// uncertainty term in loop-orientation CERTIFICATION
+    /// (`embedding::verify_embedding`), where it is compared against a
+    /// loop's own |signed area| — 1.55 px² against a disk area of 314 px²
+    /// is the meaningful comparison. The partition tolerances bound f64
+    /// accumulation on a FIXED tessellation and are set by the numeric
+    /// domain instead (ADR-0013).
+    ///
+    /// Consequence worth knowing (red team's observation): since the
+    /// bound is Σ(2δ·|chord| + 4δ²), a face is not certifiable at this
+    /// budget if its area is ≲ perimeter/32 px². Small detail therefore
+    /// needs an explicitly tighter budget — a refusal in the safe
+    /// direction, not a silent one.
     pub fn default_m2() -> TessellationBudget {
         TessellationBudget {
             chord_tolerance: ChordTolerancePx::new(1.0 / 64.0).expect("static tolerance"),
