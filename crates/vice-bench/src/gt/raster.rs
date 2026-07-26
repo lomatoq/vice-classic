@@ -337,6 +337,29 @@ fn winding_at(loops: &[Vec<Pt>], p: Pt) -> i32 {
 /// than assumed (see `measure_profile_accuracy`).
 pub const SUPERSAMPLE_RATE: u32 = 24;
 
+// The accuracy gates of the corpus instruments (spec §27.7 frozen values,
+// mirrored in `configs/GATES_V1.toml` `[corpus_instruments]`).
+//
+// These are CONSTANTS rather than literals inside the tests because
+// REVIEW_M3 M3-N3 showed what a literal costs: the frozen file said 0.06
+// and the test said 0.06, but nothing connected them, so relaxing the test
+// to 0.2 would have moved no hash and tripped no rule. Now the gate file
+// and the assertion read the same name, and a test walks every frozen key
+// to check they still agree.
+
+/// Max per-pixel disagreement allowed between our supersampler and the
+/// exact integrator (measured: 0.0186 at k = 24).
+pub const SUPERSAMPLE_MAX_ABS_GATE: f64 = 0.06;
+/// Edge-mean of the same (measured: 0.0118).
+pub const SUPERSAMPLE_EDGE_MEAN_ABS_GATE: f64 = 0.02;
+/// The inverse-crime arm must keep agreeing with the exact integrator to
+/// f64 noise; if it ever does not, one of the two is broken.
+pub const VICE_RENDER_MAX_ABS_GATE: f64 = 1e-9;
+/// Upper bound on the 8-bit AA noise of the external engines on the
+/// committed corpus (measured: tiny-skia 0.0793, raqote 0.2387). They carry
+/// the INDEPENDENCE role, not the accuracy role (ADR-0012 §2).
+pub const EXTERNAL_ENGINE_MAX_ABS_GATE: f64 = 0.35;
+
 fn supersample_face(loops: &[Vec<Pt>], w: u32, h: u32, psf: Psf) -> Vec<f64> {
     let k = SUPERSAMPLE_RATE;
     let r = psf.radius_px();
@@ -546,16 +569,19 @@ mod tests {
         // error is O(1/k) on an edge, k = 24. The bound is stated from the
         // measurement, with margin, not chosen to be comfortable.
         assert!(
-            worst_super < 0.06,
+            worst_super < SUPERSAMPLE_MAX_ABS_GATE,
             "supersampler worse than its documented rate: {worst_super}"
         );
-        assert!(worst_super_edge < 0.02, "edge mean {worst_super_edge}");
+        assert!(
+            worst_super_edge < SUPERSAMPLE_EDGE_MEAN_ABS_GATE,
+            "edge mean {worst_super_edge}"
+        );
         // And the inverse-crime arm agrees with the exact integrator to
         // near machine precision. That is exactly WHY it may not be used as
         // ground truth: agreement this tight measures shared assumptions,
         // not correctness.
         assert!(
-            worst_vice < 1e-9,
+            worst_vice < VICE_RENDER_MAX_ABS_GATE,
             "the production renderer should agree to f64 noise: {worst_vice}"
         );
         assert!(RasterProfile::ViceRender.is_inverse_crime());
@@ -587,7 +613,10 @@ mod tests {
             worst > 1e-3,
             "an external engine agreeing to 1e-3 would mean it is not independent"
         );
-        assert!(worst < 0.35, "but it must still be the same shape: {worst}");
+        assert!(
+            worst < EXTERNAL_ENGINE_MAX_ABS_GATE,
+            "but it must still be the same shape: {worst}"
+        );
     }
 
     /// Every profile must produce a partition: coverage sums to one per

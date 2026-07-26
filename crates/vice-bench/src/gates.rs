@@ -299,40 +299,236 @@ mod tests {
         }
     }
 
-    /// The frozen numbers must agree with the code that measured them.
-    /// A gates file that drifted from the implementation would be a
-    /// contract nobody is under.
+    /// EVERY frozen value must have a consumer in the code, and every one
+    /// must agree with it.
+    ///
+    /// The first version of this test checked six values by name. REVIEW_M3
+    /// M3-N3 measured the consequence: eleven of seventeen frozen values -
+    /// including the whole `[corpus_instruments]` section, whose numbers
+    /// were MEASURED in C066 - were read by nobody and compared by nothing.
+    /// The live thresholds were literals in the code, so `worst_super <
+    /// 0.06` could have been relaxed to `< 0.2` without touching the gate
+    /// file, without moving the gates hash, without tripping the §27.7
+    /// predicate and without the burn policy noticing.
+    ///
+    /// That is meta-rule M-1 exactly - a rule applied to the enumeration of
+    /// six addresses instead of the class of seventeen - inside the
+    /// milestone that wrote M-1 down. So the test now walks the CLASS: every
+    /// frozen section, every key, no name written twice.
     #[test]
-    fn the_frozen_numbers_agree_with_the_code_that_produced_them() {
+    fn every_frozen_value_agrees_with_the_code_that_uses_it() {
         let g = GatesFile::load(&gates_path()).unwrap();
-        let f = |s: &str, k: &str| g.gate_value(s, k).unwrap().as_float().unwrap();
-        let i = |s: &str, k: &str| g.gate_value(s, k).unwrap().as_integer().unwrap();
+        let expected = frozen_values_from_code();
 
-        assert_eq!(f("reliability", "confidence"), 0.99);
-        assert_eq!(f("reliability", "catastrophic_risk_target"), 0.01);
-        assert_eq!(
-            i("reliability", "min_accepted_source_groups_zero_failures") as u64,
-            crate::reliability::required_groups_for_zero_failures(0.99, 0.01),
-            "the frozen sample size must be the DERIVED one"
+        // 1. Every frozen key in the file is claimed by the code.
+        let mut unclaimed = Vec::new();
+        for section in g.frozen_sections() {
+            for key in g.doc.sections[section].values.keys() {
+                if !expected.iter().any(|(s, k, _)| *s == section && k == key) {
+                    unclaimed.push(format!("{section}.{key}"));
+                }
+            }
+        }
+        assert!(
+            unclaimed.is_empty(),
+            "frozen values that nothing in the code reads or checks: {unclaimed:?}. \
+             A value with no consumer is not a gate - give it one, or stop calling it frozen."
         );
-        assert_eq!(
-            f("identifiability", "observability_floor_px"),
-            crate::gt::degradation::OBSERVABILITY_FLOOR_PX
+
+        // 2. Every claimed key exists in the file and matches.
+        for (section, key, want) in &expected {
+            let got = g
+                .gate_value(section, key)
+                .unwrap_or_else(|e| panic!("{section}.{key}: {e}"));
+            assert_eq!(
+                &GateExpectation::of(got),
+                want,
+                "{section}.{key}: the gate file and the code disagree"
+            );
+        }
+
+        // 3. And the walk is not vacuous: it must have covered every frozen
+        // section and a plausible number of keys.
+        let covered: std::collections::BTreeSet<&str> =
+            expected.iter().map(|(s, _, _)| *s).collect();
+        let frozen: std::collections::BTreeSet<&str> = g.frozen_sections().into_iter().collect();
+        assert_eq!(covered, frozen, "a frozen section was skipped entirely");
+        assert!(
+            expected.len() >= 17,
+            "only {} frozen values checked; the file had 17 when this was written",
+            expected.len()
         );
-        assert_eq!(
-            i("split", "development_pct") as u32,
-            crate::gt::split::SPLIT_POLICY_V1.development_pct
-        );
-        assert_eq!(
-            i("split", "sealed_audit_pct") as u32,
-            crate::gt::split::SPLIT_POLICY_V1.sealed_audit_pct
-        );
-        let prereg = crate::prereg::Preregistration::v1();
-        assert_eq!(f("reliability", "confidence"), prereg.confidence);
-        assert_eq!(
-            f("reliability", "catastrophic_risk_target"),
-            prereg.risk_target
-        );
+    }
+
+    /// How a frozen value is compared, without caring which TOML type the
+    /// author reached for.
+    #[derive(Debug, PartialEq)]
+    enum GateExpectation {
+        Num(f64),
+        Text(String),
+        List(Vec<String>),
+    }
+
+    impl GateExpectation {
+        fn of(v: &toml::Value) -> GateExpectation {
+            match v {
+                toml::Value::Float(f) => GateExpectation::Num(*f),
+                toml::Value::Integer(i) => GateExpectation::Num(*i as f64),
+                toml::Value::String(s) => GateExpectation::Text(s.clone()),
+                toml::Value::Array(a) => GateExpectation::List(
+                    a.iter()
+                        .map(|x| x.as_str().unwrap_or_default().to_string())
+                        .collect(),
+                ),
+                other => GateExpectation::Text(other.to_string()),
+            }
+        }
+
+        fn num(v: f64) -> GateExpectation {
+            GateExpectation::Num(v)
+        }
+        fn text(v: &str) -> GateExpectation {
+            GateExpectation::Text(v.to_string())
+        }
+        fn list(v: &[&str]) -> GateExpectation {
+            GateExpectation::List(v.iter().map(|s| (*s).to_string()).collect())
+        }
+    }
+
+    /// The frozen values AS THE CODE HAS THEM. Each entry pulls the value
+    /// from the constant or the measurement bound that actually governs
+    /// behaviour, so a relaxed literal shows up here as a mismatch.
+    fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpectation)> {
+        use crate::correlation::ResidualModel;
+        use crate::gt::degradation as deg;
+        use crate::gt::split::SPLIT_POLICY_V1;
+        use crate::prereg::Preregistration;
+
+        let prereg = Preregistration::v1();
+        let admissible: Vec<&str> = ResidualModel::ALL
+            .iter()
+            .filter(|m| m.admissible_for_confidence())
+            .map(|m| m.id())
+            .collect();
+        let diagnostic: Vec<&str> = ResidualModel::ALL
+            .iter()
+            .filter(|m| !m.admissible_for_confidence())
+            .map(|m| m.id())
+            .collect();
+
+        let v: Vec<(&'static str, &'static str, GateExpectation)> = vec![
+            // --- reliability: the statistical court -------------------
+            (
+                "reliability",
+                "confidence",
+                GateExpectation::num(prereg.confidence),
+            ),
+            (
+                "reliability",
+                "catastrophic_risk_target",
+                GateExpectation::num(prereg.risk_target),
+            ),
+            (
+                "reliability",
+                "min_accepted_source_groups_zero_failures",
+                GateExpectation::num(crate::reliability::required_groups_for_zero_failures(
+                    prereg.confidence,
+                    prereg.risk_target,
+                ) as f64),
+            ),
+            (
+                "reliability",
+                "unit_of_trial",
+                GateExpectation::text(crate::reliability::UNIT_OF_TRIAL),
+            ),
+            // --- corpus instruments: the C066 measurements ------------
+            (
+                "corpus_instruments",
+                "supersample_max_abs",
+                GateExpectation::num(crate::gt::raster::SUPERSAMPLE_MAX_ABS_GATE),
+            ),
+            (
+                "corpus_instruments",
+                "supersample_edge_mean_abs",
+                GateExpectation::num(crate::gt::raster::SUPERSAMPLE_EDGE_MEAN_ABS_GATE),
+            ),
+            (
+                "corpus_instruments",
+                "vice_render_max_abs",
+                GateExpectation::num(crate::gt::raster::VICE_RENDER_MAX_ABS_GATE),
+            ),
+            (
+                "corpus_instruments",
+                "tiny_skia_max_abs",
+                GateExpectation::num(crate::gt::raster::EXTERNAL_ENGINE_MAX_ABS_GATE),
+            ),
+            (
+                "corpus_instruments",
+                "raqote_max_abs",
+                GateExpectation::num(crate::gt::raster::EXTERNAL_ENGINE_MAX_ABS_GATE),
+            ),
+            // --- identifiability: the C067 calibration ----------------
+            (
+                "identifiability",
+                "observability_floor_px",
+                GateExpectation::num(deg::OBSERVABILITY_FLOOR_PX),
+            ),
+            (
+                "identifiability",
+                "rival_indistinguishable_codes",
+                GateExpectation::num(f64::from(deg::RIVAL_INDISTINGUISHABLE_CODES)),
+            ),
+            (
+                "identifiability",
+                "quantization_floor_codes",
+                GateExpectation::num(deg::QUANTIZATION_FLOOR_CODES),
+            ),
+            // --- split -------------------------------------------------
+            (
+                "split",
+                "policy_version",
+                GateExpectation::text(SPLIT_POLICY_V1.version),
+            ),
+            (
+                "split",
+                "development_pct",
+                GateExpectation::num(f64::from(SPLIT_POLICY_V1.development_pct)),
+            ),
+            (
+                "split",
+                "calibration_pct",
+                GateExpectation::num(f64::from(SPLIT_POLICY_V1.calibration_pct)),
+            ),
+            (
+                "split",
+                "sealed_audit_pct",
+                GateExpectation::num(f64::from(SPLIT_POLICY_V1.sealed_audit_pct)),
+            ),
+            (
+                "split",
+                "unit_of_assignment",
+                GateExpectation::text(crate::gt::split::UNIT_OF_ASSIGNMENT),
+            ),
+            (
+                "split",
+                "held_out_profiles",
+                GateExpectation::list(SPLIT_POLICY_V1.held_out_profiles),
+            ),
+            // --- likelihood --------------------------------------------
+            (
+                "likelihood",
+                "allowed_production_residual_models",
+                GateExpectation::list(&admissible),
+            ),
+            (
+                "likelihood",
+                "diagnostic_only_residual_models",
+                GateExpectation::list(&diagnostic),
+            ),
+        ];
+        v.into_iter()
+            .map(|(s, k, e)| (s, k.to_string(), e))
+            .collect()
     }
 
     /// The §27.7 rule itself: a change set may not MODIFY a gate and touch

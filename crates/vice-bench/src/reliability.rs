@@ -30,6 +30,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
+/// The independent unit of a reliability trial (spec §27.4). Frozen in
+/// `configs/GATES_V1.toml` `reliability.unit_of_trial`; named here so the
+/// gate file is checked against the implementation.
+pub const UNIT_OF_TRIAL: &str = "source_group";
+
 /// The regularized incomplete beta function `I_x(a, b)`, by continued
 /// fraction (Lentz). Needed because the Clopper–Pearson bound is a Beta
 /// quantile and pulling in a statistics crate for one function would add a

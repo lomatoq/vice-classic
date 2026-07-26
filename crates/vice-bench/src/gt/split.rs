@@ -68,6 +68,12 @@ pub struct SplitPolicy {
     pub held_out_profiles: &'static [&'static str],
 }
 
+/// What a split assignment is keyed on. Frozen in
+/// `configs/GATES_V1.toml` `split.unit_of_assignment`; named here so the
+/// gate file and the implementation are checked against one another rather
+/// than each carrying the word separately.
+pub const UNIT_OF_ASSIGNMENT: &str = "shape_family";
+
 pub const SPLIT_POLICY_V1: SplitPolicy = SplitPolicy {
     version: "vice-classic/gt-split/v1",
     salt: "gt-split-v1",

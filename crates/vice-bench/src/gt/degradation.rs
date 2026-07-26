@@ -229,6 +229,14 @@ pub const OBSERVABILITY_FLOOR_PX: f64 = 0.35;
 /// The smallest 8-bit code difference that survives quantization.
 pub const QUANTIZATION_FLOOR_CODES: f64 = 1.0;
 
+/// How close a rival member of the same family has to come before a
+/// feature's parameters count as unrecoverable: a few code values, i.e.
+/// the quantization noise. Set from the measurement in
+/// `observability_floor_is_calibrated_against_a_rival_member`, not chosen
+/// first. Module-level rather than test-local so the frozen gate file and
+/// the calibration are checked against one another (REVIEW_M3 M3-N3).
+pub const RIVAL_INDISTINGUISHABLE_CODES: u8 = 4;
+
 /// Label one (scene, cell) pair.
 ///
 /// The rule, in order:
@@ -547,12 +555,6 @@ mod tests {
             }
         }
     }
-
-    /// How close a rival member has to come before the feature's
-    /// parameters count as unrecoverable: a few code values, i.e. the
-    /// quantization noise. Set from the measurement printed by the test
-    /// above, not chosen first.
-    const RIVAL_INDISTINGUISHABLE_CODES: u8 = 4;
 
     /// The contrast clause has the same obligation: below the quantization
     /// floor the two paints must genuinely collapse into the same bytes.
