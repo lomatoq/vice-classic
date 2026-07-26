@@ -31,11 +31,23 @@
 //! (the error is common-mode: adjacent faces traverse the same shared
 //! polyline with opposite `dy` and it cancels bit-for-bit in the sum).
 //!
-//! The residual magnitude dependence is NOT in the integration but in the
-//! geometry itself: an edge position interpolated at coordinate magnitude
-//! M is only representable to ulp(M). That is a property of f64, not of
-//! this algorithm, and it is what the typed [`crate::domain::NumericDomain`]
-//! bounds — see ADR-0013.
+//! The residual magnitude dependence is not in the trapezoid but in the
+//! POSITION fed to it: `accumulate_edge` computes the row-boundary
+//! crossing as `x_at(y) = xlo + (y − ylo)·inv_dy` and stores it in
+//! ABSOLUTE coordinates, so it is quantised to ulp(M).
+//!
+//! Precision of that claim (F-M2-R10; the earlier wording said this was
+//! "a property of f64, not of this algorithm", which overstated it): the
+//! red team measured the same column-relative rearrangement applied one
+//! level up and found it differs by exactly `1.00 × ulp(M)/2` at every
+//! magnitude — so the residual is a limit of the CHOSEN REPRESENTATION of
+//! the intermediate position, not of f64 as such, and it is reducible
+//! again by the same move. It is left in place deliberately: inside the
+//! enforced domain the margin is ~50× (4.5e-12 measured against a
+//! 2.33e-10 bound), while the change would alter the frozen render digest
+//! for no in-domain benefit. Recorded as tracked item D-5 rather than
+//! done silently; the bound that makes it safe is the typed
+//! [`crate::domain::NumericDomain`] — see ADR-0013.
 //!
 //! Determinism (§5.5): loops, edges, rows and cells are processed in a
 //! fixed order; the per-row fold runs right-to-left. No hash maps, no
