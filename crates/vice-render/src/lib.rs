@@ -23,7 +23,16 @@
 #![forbid(unsafe_code)]
 
 pub mod coverage;
+pub mod embedding;
 pub mod mesh;
+pub mod partition;
+pub mod render_error;
 
 pub use coverage::polygon_coverage;
+pub use embedding::verify_embedding;
 pub use mesh::{BoundaryPolyline, LoopPolygon, MeshError, RenderMesh, TessellationBudget};
+pub use partition::{
+    render_digest_sha256, render_mesh_partition, render_partition, PartitionRender,
+    PartitionTolerances, RenderOptions, MAX_COVERAGE_ELEMENTS, RENDER_DIGEST_SCHEMA,
+};
+pub use render_error::RenderError;
