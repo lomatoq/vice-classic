@@ -1,7 +1,20 @@
 # REQUIREMENTS_TRACEABILITY — vice-classic
 
 Формат (spec v1.3 §32 правило 23): invariant → implementation → tests →
-milestone gate. Покрыты M0 и M1.
+milestone gate. Покрыты M0, M1 и M2.
+
+## Перенесённые обязательства (явное отслеживание, REVIEW_M1 M1-N4)
+
+| # | Обязательство | Срок | Статус |
+|---|---|---|---|
+| D-1 | **N3-split `hashes.json`** (нормативная/информационная секции) **+ разведение `env.json`** на нормативную (политика, версии инструментов) и информационную (ambient presence) части — REVIEW_M0 N3/N7, REVIEW_M1 M1-N4. Выполняется ОДНОЙ правкой вместе с pre-M3 перезаписью baseline-ов (B1/B2): менять схему artefact-файлов без одновременной перезаписи записанных артефактов нельзя, `docs/baselines/M0/**` неприкосновенны | до M3 (вместе с B1/B2) | ОТКРЫТО; перенос из M1 зафиксирован здесь явной строкой, а не абзацем в REPRODUCIBILITY (M1-N4) |
+| D-2 | B1 (v-ice build_failed baseline: dav1d либо reviewed-смена пина) и B2 (явный asset-pin для Vice-) — reviewed-решения | до M3 | ОТКРЫТО (REVIEW_M0 §6 п.7) |
+| D-3 | Первый `[[unit]]` в PORTING_MANIFEST — только после license/IP review донора | бессрочно | СОБЛЮДАЕТСЯ (0 units, M2 включительно) |
+
+## M2 — Certified partition renderer + serialized roundtrip (spec §28 M2)
+
+Блок заполняется по мере коммитов M2; итоговые строки — в финальном
+governance-коммите M2 (см. docs/STATUS_M2.md).
 
 ## M1 — Robust conventions + canonical IR + seal skeleton (spec §28 M1)
 
