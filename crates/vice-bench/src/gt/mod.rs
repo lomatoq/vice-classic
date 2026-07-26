@@ -25,6 +25,7 @@
 
 pub mod build;
 pub mod grammar;
+mod recipes;
 
 use std::collections::{BTreeMap, BTreeSet};
 
