@@ -52,7 +52,8 @@ pub mod truth;
 mod tests;
 
 pub use probes_1_6::SemiTransparentProbe;
-pub use truth::{gt_segments, SegmentIndex};
+pub(crate) use truth::gt_segments;
+pub use truth::SegmentIndex;
 
 use serde::Serialize;
 use vice_evidence::analysis::{analyze_full, Flat2Outcome, UnsupportedReason, ANALYSIS_CONFIG_V1};
@@ -136,7 +137,7 @@ pub const SEMI_TRANSPARENT_PROBE_ALPHAS: &[f64] = &[0.35, 0.5, 0.75];
 /// `corridor::tests` reaches the corpus through here and nowhere else,
 /// which `hygiene.rs::frozen_coefficients_are_measured_only_on_the_legal_population`
 /// checks by walking the source rather than by convention.
-pub fn frozen_calibration_groups() -> Result<Vec<crate::gt::GtSourceGroup>, String> {
+pub(crate) fn frozen_calibration_groups() -> Result<Vec<crate::gt::GtSourceGroup>, String> {
     let policy = &SPLIT_POLICY_V1;
     Ok(all_groups()?
         .into_iter()
@@ -748,3 +749,16 @@ fn measure_arm(
     row.p95_distance_px = pick(&dists, 0.95);
     Ok((row, out_samples, probes, over_layer))
 }
+
+/// The ONE public door to a corpus fixture, re-exported here because this is
+/// where a caller looks for the calibration population (REVIEW_M4_5
+/// condition 14 with addendum 2; REDTEAM RT45-A9).
+///
+/// A re-export, not a wrapper. A wrapper here would need
+/// `FrozenPopulation`'s constructor to be `pub(crate)`, and `pub(crate)` does
+/// not separate this module from `gt::corpus`: while the constructor was open,
+/// four lines in any module of `vice-bench` minted the same opaque handle over
+/// the whole corpus — 60 groups, 22 sealed-audit, 63 scenes against the legal
+/// 22 and 24. The mint site now lives beside the private constructor in
+/// [`crate::gt::legal`], and there is exactly one.
+pub use crate::gt::legal::frozen_calibration_population;

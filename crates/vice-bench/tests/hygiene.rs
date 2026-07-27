@@ -227,6 +227,20 @@ fn rel(p: &Path) -> String {
         .to_string()
 }
 
+/// `code` contains a call to `pattern` (`name(`) as a WHOLE identifier.
+///
+/// `contains` alone matches `frozen_calibration_groups(` when looking for
+/// `groups(`, which made the second echelon fire on the one legal door.
+fn contains_call(code: &str, pattern: &str) -> bool {
+    code.match_indices(pattern).any(|(i, _)| {
+        i == 0
+            || !code[..i]
+                .chars()
+                .next_back()
+                .is_some_and(|c| c.is_alphanumeric() || c == '_')
+    })
+}
+
 fn strip_comments(text: &str) -> String {
     text.lines()
         .filter(|l| !l.trim_start().starts_with("//"))
@@ -251,12 +265,15 @@ fn strip_comments(text: &str) -> String {
 /// it carries one in a field.
 const CORPUS_BEARING_TYPES: &[&str] = &["GtSourceGroup", "AmbiguityPair"];
 
-/// The only fully-public function allowed to return one, as `module::name`.
+/// Fully-public functions allowed to return a corpus type: NONE.
 ///
-/// One entry. §27.1 says scoring the sealed audit is what opens it, and this
-/// is the single door through which a frozen coefficient may see the corpus:
-/// development groups, development-legal profiles, nothing else.
-const PUBLIC_CORPUS_DOORS: &[&str] = &["corridor/mod.rs::frozen_calibration_groups"];
+/// The set is empty on purpose. The corpus types are `pub(crate)`, so a public
+/// item that returned one is a compile error before this test runs; the empty
+/// set is the second echelon saying the same thing. The one public door,
+/// `corridor::frozen_calibration_population`, returns an OPAQUE
+/// `FrozenPopulation` and therefore does not appear here — which is the whole
+/// difference between this attempt and the previous three.
+const PUBLIC_CORPUS_DOORS: &[&str] = &[];
 
 /// One declaration of a function whose return type mentions a corpus type.
 struct CorpusFn {
@@ -377,11 +394,152 @@ fn fn_name_at(trimmed: &str) -> Option<&str> {
 ///   `authored_groups()` / `all_adversarial_groups()` were still public. An
 ///   integration test reached two SEALED-AUDIT groups and nothing failed.
 ///
-/// So the check is no longer over names at all. It enumerates every function
-/// in the workspace whose RETURN TYPE hands out a corpus fixture and asserts
-/// the set of FULLY PUBLIC ones equals one declared door. A new public
-/// accessor — under any name, in any module — fails here, which is what
-/// "surface, not place" was supposed to mean the first two times.
+/// - REDTEAM RT45-A9 / REVIEW M45-N14: the scan read the TEXT after `->` and
+///   a hand-kept list of two type names. A `pub type Fixtures =
+///   Vec<GtSourceGroup>` in return position and a `pub struct Basket { pub
+///   groups: Vec<GtSourceGroup> }` walked past it and reached **60 groups,
+///   all 22 sealed-audit**, with `fmt` clean, `clippy -D warnings` silent and
+///   all seven tests here green — worse than the defect it replaced.
+///
+/// Three failures, one cause: a check that READS THE SOURCE has to enumerate
+/// the syntaxes by which a value leaves a crate — return type, type alias,
+/// public field, trait item, `impl Trait`, closure, `static`, `Deref` — and an
+/// enumeration is exactly what "surface, not place" forbids.
+///
+/// So the proof moved to the type system (see
+/// `the_corpus_types_are_sealed_by_the_compiler`), and THIS test is second
+/// echelon: it asserts the public corpus surface is empty, which the compiler
+/// already guarantees, so that the intent survives someone widening a type
+/// back to `pub`.
+/// The seal itself: the corpus types are `pub(crate)` and the lint that makes
+/// that binding is DENIED.
+///
+/// This is the whole of condition 14 / RT45-A9, and it is four lines because
+/// the mechanism is four lines. `GtSourceGroup`, `GtScene` and `AmbiguityPair`
+/// are crate-private; `#![deny(private_interfaces, private_bounds)]` turns the
+/// warn-by-default lints into hard errors, so EVERY syntax that would hand one
+/// out fails to compile rather than needing to be noticed by a parser.
+///
+/// Verified against both attacks verbatim, planted inside the crate exactly
+/// where the red team put them:
+///
+/// ```text
+/// error: type `GtSourceGroup` is more private than the item `Rt45Fixtures`
+/// error: type `GtSourceGroup` is more private than the item `rt45_alias_door`
+/// error: type `GtSourceGroup` is more private than the item `Rt45Basket::groups`
+/// ```
+///
+/// What this test guards is the seal's own preconditions: widen a type back to
+/// `pub`, or drop the `deny`, and the compiler stops being the judge. Those are
+/// the only two ways to undo it, and both fail here.
+#[test]
+fn the_corpus_types_are_sealed_by_the_compiler() {
+    for (module, decl) in [
+        (
+            "vice-bench/src/gt/mod.rs",
+            "pub(crate) struct GtSourceGroup",
+        ),
+        ("vice-bench/src/gt/mod.rs", "pub(crate) struct GtScene"),
+        (
+            "vice-bench/src/gt/adversarial.rs",
+            "pub(crate) struct AmbiguityPair",
+        ),
+    ] {
+        let text = std::fs::read_to_string(repo_root().join("crates").join(module)).expect(module);
+        assert!(
+            text.contains(decl),
+            "{module} no longer declares `{decl}`. Widened to `pub`, a type alias or a public \
+             field can carry a corpus fixture out of the crate again, which is exactly how the \
+             third attempt at this seal was walked around (RT45-A9)"
+        );
+    }
+    let lib = std::fs::read_to_string(repo_root().join("crates/vice-bench/src/lib.rs"))
+        .expect("vice-bench lib.rs");
+    assert!(
+        lib.contains("#![deny(private_interfaces, private_bounds)]"),
+        "vice-bench no longer denies private_interfaces/private_bounds. They are warn-by-default, \
+         so without the deny a public item may hand out a sealed corpus type with only a warning \
+         - and a warning is what three previous scans were unable to notice"
+    );
+}
+
+/// The seal's SECOND question: not what crosses the boundary, but how wide it
+/// is.
+///
+/// The compiler answers the first. It does not answer the second, and the
+/// difference is where the fourth attempt failed: `FrozenPopulation::new` was
+/// `pub(crate)`, and `pub(crate)` restricts nobody inside `vice-bench`. Four
+/// lines in any module of the crate minted the legal-looking opaque handle over
+/// the whole corpus and handed an integration test **60 groups, 22 of them
+/// sealed-audit, 63 scenes** against the legal 22 and 24 — the number
+/// REVIEW_M4_5 addendum 2 reproduced in a clean clone.
+///
+/// What closes it is not this test. It is `FrozenPopulation::of`, which is
+/// private to `gt::legal` and REFUSES any group the split policy does not call
+/// `development`, proven by measurement in
+/// `gt::legal::tests::the_handle_refuses_a_population_that_is_not_development`.
+/// This test guards that mechanism's two preconditions — one mint site, and it
+/// does not name the wide population — and the second list is DERIVED from the
+/// signature scan rather than written out, so a new wide accessor is covered
+/// the day it is added.
+#[test]
+fn the_only_mint_site_for_the_legal_handle_cannot_widen_it() {
+    let path = repo_root().join("crates/vice-bench/src/gt/legal.rs");
+    let text = std::fs::read_to_string(&path).expect("the legal door module");
+    let production = text
+        .split_once("\n#[cfg(test)]")
+        .map(|(p, _)| p.to_string())
+        .expect("legal.rs must keep its in-crate refusal test");
+
+    assert!(
+        production.contains("fn of(") && !production.contains("pub(crate) fn of("),
+        "the constructor of FrozenPopulation is no longer private to gt::legal. `pub(crate)` on \
+         it is exactly the C188 defect: every module of vice-bench could then mint the handle \
+         over all 60 groups, 22 of them sealed-audit"
+    );
+    let code = strip_comments(&production);
+    let mints = code
+        .match_indices("FrozenPopulation {")
+        .filter(|(i, _)| {
+            let before = code[..*i].trim_end();
+            // The type's own declaration and its inherent impl are not mints.
+            !before.ends_with("struct") && !before.ends_with("impl")
+        })
+        .count();
+    assert_eq!(
+        mints, 1,
+        "gt/legal.rs has {mints} struct literals of FrozenPopulation; there must be exactly one, \
+         inside `of`, or a mint that skips the split refusal has been added next to the one that \
+         performs it"
+    );
+
+    // Derived, not listed: every sealed corpus accessor EXCEPT the filtered
+    // one. The mint site may name `frozen_calibration_groups` and nothing else,
+    // because everything else in this set is wider than `development`.
+    let forbidden: Vec<String> = corpus_returning_fns()
+        .into_iter()
+        .filter(|f| !f.fully_public && f.name != "frozen_calibration_groups")
+        .map(|f| format!("{}(", f.name))
+        .collect();
+    assert!(
+        forbidden.len() >= 3,
+        "only {} wide accessors derived; this test would be searching for nothing",
+        forbidden.len()
+    );
+    for wide in &forbidden {
+        // `code`, not `production`: the module documents the three failed
+        // attempts by name, and a doc comment naming a defect is the opposite
+        // of committing it.
+        assert!(
+            !contains_call(&code, wide),
+            "the one mint site of the frozen-measurement handle names {wide}. It may reach the \
+             corpus through the split-filtered accessor and no other way: the refusal inside \
+             `of` would turn this into a run-time error, but a mint site that TRIES is a review \
+             finding, not a caught bug"
+        );
+    }
+}
+
 #[test]
 fn every_public_path_to_a_corpus_fixture_is_the_declared_one() {
     let fns = corpus_returning_fns();
@@ -402,12 +560,6 @@ fn every_public_path_to_a_corpus_fixture_is_the_declared_one() {
         "the scan sees no sealed corpus function at all, so it cannot distinguish sealed from \
          public"
     );
-    assert!(
-        fns.iter().any(|f| f.fully_public),
-        "the scan sees no public corpus function at all; the declared door would be compared \
-         against an empty set and the equality below would prove nothing"
-    );
-
     let mut public: Vec<String> = fns
         .iter()
         .filter(|f| f.fully_public)
@@ -454,7 +606,7 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         .find(|(p, _)| p == "vice-bench/tests/frozen_calibration.rs")
         .expect("the frozen-calibration measurements must exist and be OUTSIDE the crate");
     assert!(
-        frozen.1.contains("frozen_calibration_groups()"),
+        frozen.1.contains("frozen_calibration_population()"),
         "the frozen-calibration file reaches no legal population at all; this test would pass on \
          an empty file"
     );
@@ -463,6 +615,11 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
     // compile if it did; asserting it is what makes the intent survive a
     // future widening, and the names are derived from the scan rather than
     // written out, so this file does not have to exempt itself.
+    // Whole-word calls only. The previous version searched for the bare
+    // substring, so a sealed helper named `groups` made the echelon fire on
+    // `frozen_calibration_groups(` — the ONE legal door (RT45-A9's honest
+    // calibration note). A guard that trips on the only lawful call is not a
+    // guard, it is a coincidence.
     let sealed: Vec<String> = corpus_returning_fns()
         .into_iter()
         .filter(|f| !f.fully_public)
@@ -476,10 +633,10 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
     for (path, code) in &tests {
         for direct in &sealed {
             assert!(
-                !code.contains(direct.as_str()),
+                !contains_call(code, direct),
                 "{path} reaches the corpus through {direct}: a frozen coefficient must come from \
-                 corridor::frozen_calibration_groups(), which excludes the sealed audit and the \
-                 held-out profile"
+                 corridor::frozen_calibration_population(), which excludes the sealed audit and \
+                 the held-out profile"
             );
         }
     }
@@ -499,6 +656,10 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         "vice-bench/src/oracle/mod.rs",
         "vice-bench/src/topology/mod.rs",
         "vice-bench/src/topology/ambiguity.rs",
+        // The ONE mint site of the frozen-measurement handle. It names the
+        // split-filtered accessor and nothing wider, which
+        // `the_only_mint_site_for_the_legal_handle_cannot_widen_it` checks.
+        "vice-bench/src/gt/legal.rs",
         // In-crate unit tests of corpus machinery itself.
         "vice-bench/src/correlation.rs",
         "vice-bench/src/gt/raster.rs",
@@ -509,7 +670,7 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         .iter()
         .filter(|(p, _)| {
             let code = strip_comments(&std::fs::read_to_string(p).unwrap_or_default());
-            sealed.iter().any(|d| code.contains(d.as_str()))
+            sealed.iter().any(|d| contains_call(&code, d))
         })
         .map(|(p, _)| rel(p))
         .collect();

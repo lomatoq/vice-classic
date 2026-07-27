@@ -130,7 +130,7 @@ impl SplitPolicy {
         }
     }
 
-    pub fn split_of_group(&self, group: &GtSourceGroup) -> Split {
+    pub(crate) fn split_of_group(&self, group: &GtSourceGroup) -> Split {
         self.split_of_family(&group.shape_family)
     }
 
@@ -314,7 +314,7 @@ pub struct SplitSummary {
     pub by_origin: Vec<(&'static str, usize)>,
 }
 
-pub fn summarize(policy: &SplitPolicy, groups: &[GtSourceGroup]) -> Vec<SplitSummary> {
+pub(crate) fn summarize(policy: &SplitPolicy, groups: &[GtSourceGroup]) -> Vec<SplitSummary> {
     let mut out = Vec::new();
     for split in [Split::Development, Split::Calibration, Split::SealedAudit] {
         let mine: Vec<&GtSourceGroup> = groups

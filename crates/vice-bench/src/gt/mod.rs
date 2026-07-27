@@ -30,6 +30,7 @@ pub mod colour;
 pub mod corpus;
 pub mod degradation;
 pub mod grammar;
+pub mod legal;
 pub mod raster;
 pub mod raster_external;
 mod recipes;
@@ -39,7 +40,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 use vice_geom::Pt;
-use vice_ir::{FaceId, Paint, ValidatedScene};
+use vice_ir::{Paint, ValidatedScene};
 use vice_render::{CertifiedMesh, RenderOptions};
 
 /// Which of the three independent sources a group came from (§27.1).
@@ -344,7 +345,7 @@ fn count_components(scene: &ValidatedScene) -> u32 {
 /// that is not a certified planar embedding cannot exist (debt D-4). This
 /// is the first non-rendering consumer the reviews were talking about.
 #[derive(Debug, Clone)]
-pub struct GtScene {
+pub(crate) struct GtScene {
     id: String,
     group_id: String,
     scene: ValidatedScene,
@@ -413,10 +414,6 @@ impl GtScene {
             .map(|f| f.required_separation())
             .fold(1.0, f64::min)
     }
-
-    pub fn face_paint(&self, f: FaceId) -> Paint {
-        self.scene.graph().faces[f.index()].paint
-    }
 }
 
 /// Why several scenes are equally correct answers (spec section 27.1: the
@@ -431,7 +428,7 @@ pub struct EquivalenceClass {
 
 /// One independent trial unit (§27.4).
 #[derive(Debug, Clone)]
-pub struct GtSourceGroup {
+pub(crate) struct GtSourceGroup {
     pub id: String,
     pub origin: FixtureOrigin,
     /// Shape family. Splits move whole families, so this is recorded per

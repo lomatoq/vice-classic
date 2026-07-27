@@ -160,7 +160,7 @@ pub struct RoundtrippedScene {
 }
 
 impl RoundtrippedScene {
-    pub fn of(scene: &GtScene) -> Result<RoundtrippedScene, ArmRefusal> {
+    pub(crate) fn of(scene: &GtScene) -> Result<RoundtrippedScene, ArmRefusal> {
         let fail = |detail: String| ArmRefusal::SerializationFailed {
             scene: scene.id().to_string(),
             detail,
@@ -355,7 +355,7 @@ fn estimated_cell(
 }
 
 /// Measure the ceiling of one (scene, cell, backend, formation source) arm.
-pub fn measure_ceiling(
+pub(crate) fn measure_ceiling(
     scene: &GtScene,
     round: &RoundtrippedScene,
     cell: &DegradationCell,

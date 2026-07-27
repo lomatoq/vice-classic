@@ -20,7 +20,7 @@ use crate::gt::grammar::AUTHORING_CANVAS_PX;
 use crate::gt::GtScene;
 
 /// The true visible interface of a scene, in RENDER space.
-pub fn gt_segments(scene: &GtScene, cell: &DegradationCell) -> Vec<(Pt, Pt)> {
+pub(crate) fn gt_segments(scene: &GtScene, cell: &DegradationCell) -> Vec<(Pt, Pt)> {
     let scale = f64::from(cell.size_px) / f64::from(AUTHORING_CANVAS_PX);
     let tx = |p: Pt| {
         Pt::new(

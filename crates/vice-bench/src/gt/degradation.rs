@@ -253,7 +253,7 @@ pub const RIVAL_INDISTINGUISHABLE_CODES: u8 = 4;
 /// is not "several correct answers", it is "no way to tell" — and the
 /// correct behaviour differs (`ambiguous` either way, but for a reason the
 /// report must not confuse).
-pub fn identifiability(
+pub(crate) fn identifiability(
     scene: &GtScene,
     cell: &DegradationCell,
     equivalence_members: usize,
@@ -366,7 +366,7 @@ pub fn render_cell_raster(
 
 /// Render one (scene, cell) pair to 8-bit RGBA, with the fixture metadata a
 /// corpus entry needs.
-pub fn render_cell(
+pub(crate) fn render_cell(
     scene: &GtScene,
     cell: &DegradationCell,
     equivalence_members: usize,

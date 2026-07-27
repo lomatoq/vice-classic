@@ -21,13 +21,19 @@
 //! audit again, and not one test failed. A text scan encodes a habit; it does
 //! not close a class.
 //!
-//! An integration test is a SEPARATE CRATE. `all_groups` and
-//! `procedural_groups` are `pub(crate)`, so nothing here can name them —
-//! neither directly nor through an alias, because the alias is the same
-//! `E0603`. The legal population is reachable through exactly one public
-//! function, [`vice_bench::corridor::frozen_calibration_groups`], and the
-//! compiler is what says so. This is the answer M4 gave `ObservationSource`
-//! and `KeyedMeasurement`: seal the door, do not describe it.
+//! An integration test is a SEPARATE CRATE, and the corpus TYPES are
+//! `pub(crate)`: `GtSourceGroup`, `GtScene` and `AmbiguityPair` cannot be
+//! named here at all, and the crate denies `private_interfaces`, so no public
+//! item anywhere can hand one out — not through a return type, not through a
+//! type alias, not through a public field, not through a trait item. Three
+//! earlier versions of this paragraph claimed the same thing about a source
+//! scan and were walked around three times, the last one reaching all 22
+//! sealed-audit groups (RT45-A9, M45-N14). The judge is the compiler now.
+//!
+//! What crosses the boundary is
+//! [`vice_bench::corridor::frozen_calibration_population`], returning an
+//! opaque `FrozenPopulation` whose scenes can be rendered and rasterized and
+//! cannot be turned back into fixtures.
 //!
 //! ## Why they carry `#[ignore]`
 //!
@@ -38,10 +44,10 @@
 //! They are not thereby optional — CI executes them in release on every push,
 //! as a named step (see `.github/workflows/ci.yml` and REPRODUCIBILITY_M4).
 
-use vice_bench::corridor::{frozen_calibration_groups, frozen_calibration_profiles};
-use vice_bench::gt::degradation::{matrix_v1, render_cell, DegradationCell, ResizeChain};
+use vice_bench::corridor::{frozen_calibration_population, frozen_calibration_profiles};
+use vice_bench::gt::degradation::{matrix_v1, DegradationCell, ResizeChain};
 use vice_bench::gt::grammar::AUTHORING_CANVAS_PX;
-use vice_bench::gt::raster::{rasterize, Psf, RasterProfile, ViewTransform};
+use vice_bench::gt::raster::{Psf, RasterProfile, ViewTransform};
 use vice_evidence::analysis::{analyze_full, ANALYSIS_CONFIG_V1};
 use vice_evidence::formation::{filters_within_margin, transition_width_px, KERNEL_PROFILES_V1};
 use vice_image::{CanonicalImage, IccAssumption};
@@ -59,7 +65,8 @@ fn the_kernel_profile_table_matches_the_corpus() {
     // The LEGAL population, and nothing else: development groups,
     // development-legal profiles. There is no other population this file can
     // reach (condition D1).
-    let groups = frozen_calibration_groups().unwrap();
+    let population = frozen_calibration_population().unwrap();
+    let scenes = population.first_scenes();
     let legal = frozen_calibration_profiles();
     let mut rows = Vec::new();
     for k in KERNEL_PROFILES_V1 {
@@ -90,13 +97,12 @@ fn the_kernel_profile_table_matches_the_corpus() {
         let stride = if psf == Psf::Box { 1 } else { 2 };
         let mut widths = Vec::new();
         let mut unresolved = 0u32;
-        for (g, profile, size) in groups
+        for (scene, profile, size) in scenes
             .iter()
             .step_by(stride)
             .flat_map(|g| engines.iter().map(move |p| (g, *p)))
             .flat_map(|(g, p)| [32u32, 64].iter().map(move |s| (g, p, *s)))
         {
-            let scene = &g.scenes[0];
             let cell = DegradationCell {
                 size_px: size,
                 subpixel_dx: 0.0,
@@ -107,7 +113,7 @@ fn the_kernel_profile_table_matches_the_corpus() {
                 resize: ResizeChain::None,
                 contrast: 1.0,
             };
-            let Ok(f) = render_cell(scene, &cell, 1) else {
+            let Ok(f) = scene.render(&cell) else {
                 continue;
             };
             let img = CanonicalImage::from_straight_srgb8(
@@ -225,7 +231,8 @@ fn the_kernel_profile_table_matches_the_corpus() {
 #[test]
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
-    let groups = frozen_calibration_groups().unwrap();
+    let population = frozen_calibration_population().unwrap();
+    let scenes = population.first_scenes();
     // INDEPENDENT engines that are legal here. `tiny-skia` is held out and
     // is therefore absent: the corridor clause it would contaminate is the
     // one about generalizing to an engine the calibration never saw
@@ -242,8 +249,7 @@ fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
     let mut rows: Vec<(&str, f64, f64, u64)> = Vec::new();
     for engine in engines {
         let (mut sum2, mut max, mut n) = (0.0f64, 0.0f64, 0u64);
-        for g in groups.iter() {
-            let scene = &g.scenes[0];
+        for scene in scenes.iter() {
             for size in [32u32, 64] {
                 let t = ViewTransform {
                     scale: f64::from(size) / f64::from(AUTHORING_CANVAS_PX),
@@ -252,12 +258,10 @@ fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
                     width_px: size,
                     height_px: size,
                 };
-                let Ok(truth) =
-                    rasterize(scene.certified(), &t, RasterProfile::ExactClip, Psf::Box)
-                else {
+                let Ok(truth) = scene.rasterize(&t, RasterProfile::ExactClip, Psf::Box) else {
                     continue;
                 };
-                let Ok(got) = rasterize(scene.certified(), &t, engine, Psf::Box) else {
+                let Ok(got) = scene.rasterize(&t, engine, Psf::Box) else {
                     continue;
                 };
                 for (a, b) in truth.per_face.iter().zip(&got.per_face) {
@@ -309,7 +313,8 @@ fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
 #[test]
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_semi_transparent_floor_separates_both_ways() {
-    let groups = frozen_calibration_groups().unwrap();
+    let population = frozen_calibration_population().unwrap();
+    let scenes = population.all_scenes();
     let cells: Vec<DegradationCell> = [
         "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
         "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -321,10 +326,10 @@ fn the_semi_transparent_floor_separates_both_ways() {
     const RATIOS: &[f64] = &[3.0, 5.0, 8.0, 12.0];
     let mut clean: Vec<(f64, Option<(u64, f64)>)> = Vec::new();
     let mut probe: Vec<(f64, Option<(u64, f64)>)> = Vec::new();
-    for g in groups.iter() {
-        for scene in &g.scenes {
+    for scene in scenes.iter() {
+        {
             for cell in &cells {
-                let Ok(f) = render_cell(scene, cell, 1) else {
+                let Ok(f) = scene.render(cell) else {
                     continue;
                 };
                 for (scale, into) in [(1.0f64, &mut clean), (0.5, &mut probe)] {
@@ -416,15 +421,16 @@ fn the_semi_transparent_floor_separates_both_ways() {
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_residual_tolerance_separates_right_from_wrong_hypotheses() {
     use vice_evidence::analysis::MAX_RESIDUAL_P95_CODES;
-    let groups = frozen_calibration_groups().unwrap();
+    let population = frozen_calibration_population().unwrap();
+    let scenes = population.all_scenes();
     let cell = *matrix_v1()
         .iter()
         .find(|c| c.id() == "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00")
         .unwrap();
     let (mut right, mut wrong) = (Vec::new(), Vec::new());
-    for g in groups.iter() {
-        for scene in &g.scenes {
-            let Ok(f) = render_cell(scene, &cell, 1) else {
+    for scene in scenes.iter() {
+        {
+            let Ok(f) = scene.render(&cell) else {
                 continue;
             };
             let Ok(img) = CanonicalImage::from_straight_srgb8(
@@ -481,16 +487,16 @@ fn the_residual_tolerance_separates_right_from_wrong_hypotheses() {
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn interior_confidence_separates_cores_from_edges() {
     use vice_evidence::interior::{interior_confidence, INTERIOR_CONFIG_V1};
-    let groups = frozen_calibration_groups().unwrap();
+    let population = frozen_calibration_population().unwrap();
+    let scenes = population.first_scenes();
     let cell = *matrix_v1()
         .iter()
         .find(|c| c.id() == "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00")
         .unwrap();
     let mut core = Vec::new();
     let mut rim = Vec::new();
-    for g in groups.iter() {
-        let scene = &g.scenes[0];
-        let Ok(f) = render_cell(scene, &cell, 1) else {
+    for scene in scenes.iter() {
+        let Ok(f) = scene.render(&cell) else {
             continue;
         };
         let Ok(img) = CanonicalImage::from_straight_srgb8(

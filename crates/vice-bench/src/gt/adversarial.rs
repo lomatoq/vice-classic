@@ -62,7 +62,7 @@ fn builder() -> SceneBuilder {
 /// One intentionally ambiguous pair, with the cells that make the claim
 /// checkable.
 #[derive(Debug, Clone)]
-pub struct AmbiguityPair {
+pub(crate) struct AmbiguityPair {
     pub group: GtSourceGroup,
     /// A cell at which the two members become indistinguishable.
     pub collapse_cell: DegradationCell,

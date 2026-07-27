@@ -325,7 +325,7 @@ pub(super) fn view_for(cell: &DegradationCell) -> ViewTransform {
 /// Ink is the union of the OPAQUE faces. A hole face is not the exterior and
 /// is not ink either — its paint is `TransparentExterior` by IR contract, and
 /// treating "not exterior" as "ink" is F-0025.
-pub fn exact_ink_coverage(scene: &GtScene, t: &ViewTransform) -> Result<Vec<f64>, String> {
+pub(crate) fn exact_ink_coverage(scene: &GtScene, t: &ViewTransform) -> Result<Vec<f64>, String> {
     let stack = rasterize(scene.certified(), t, RasterProfile::ExactClip, Psf::Box)?;
     let opaque: Vec<usize> = scene
         .scene()
@@ -366,7 +366,7 @@ pub fn exact_ink_coverage(scene: &GtScene, t: &ViewTransform) -> Result<Vec<f64>
 /// production, which counts holes and derives Euler. A convention error can no
 /// longer cancel, and `the_independent_chain_agrees_with_the_production_signature`
 /// is the witness that says so on a diagonal ring.
-pub fn gt_signature(
+pub(crate) fn gt_signature(
     scene: &GtScene,
     t: &ViewTransform,
     conn: ComplementaryConnectivity,
