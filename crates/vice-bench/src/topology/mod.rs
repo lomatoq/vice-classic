@@ -212,6 +212,21 @@ pub struct TopologyArm {
     pub saddle_alternatives: usize,
     pub budget_removed: usize,
     pub dominated_removed: usize,
+    /// Candidates that CARRIED the GT reading and were removed by the budget,
+    /// counted from the removal record — i.e. from the state BEFORE tier 3 —
+    /// against the envelope that survived it.
+    ///
+    /// M45-N8: the previous number was
+    /// `!gt_in_envelope && budget_removed > 0`, and `gt_in_envelope` is only
+    /// ever computed on the KEPT set, so it could not be non-zero in any world
+    /// where recall was 100 % — while sitting in the same conjunction as
+    /// `hits == arms`. It was a paraphrase published as an independent
+    /// measurement. This one can be non-zero at 100 % recall, which is exactly
+    /// the near-miss a reader of §36 wants to see.
+    pub budget_removed_gt_class_candidates: usize,
+    /// The §36 stop condition proper: the budget removed a candidate carrying
+    /// the GT reading and NONE survived. Two states, not one.
+    pub budget_removed_the_last_gt_class_candidate: bool,
     pub continuation_plans: usize,
     pub continuation_executed_steps: usize,
     pub continuation_partial_steps: usize,
@@ -534,6 +549,18 @@ fn measure_arm(
             gt_eight,
         )
     };
+    // The state BEFORE tier 3: every candidate the budget removed, with the
+    // reading it carried. `Removed` records the signature counts precisely so
+    // that this comparison is possible without keeping a second envelope.
+    let budget_removed_gt = proposal
+        .envelope
+        .pruning
+        .removed
+        .iter()
+        .filter(|rm| {
+            rm.tier == "budget" && matches_gt((rm.components, rm.holes), gt_four, gt_eight)
+        })
+        .count();
     let matching: Vec<&vice_topology::TopologyHypothesis> = proposal
         .envelope
         .hypotheses
@@ -590,6 +617,8 @@ fn measure_arm(
         saddle_alternatives: proposal.saddle_alternatives_generated,
         budget_removed: proposal.envelope.pruning.budget_removed,
         dominated_removed: proposal.envelope.pruning.dominated_removed,
+        budget_removed_gt_class_candidates: budget_removed_gt,
+        budget_removed_the_last_gt_class_candidate: budget_removed_gt > 0 && matching.is_empty(),
         continuation_plans: plans.len(),
         continuation_executed_steps: plans.iter().map(|p| p.executed_steps()).sum(),
         continuation_partial_steps: plans.iter().map(|p| p.partial_steps()).sum(),

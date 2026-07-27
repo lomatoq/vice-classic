@@ -58,12 +58,22 @@ pub struct PruningTotals {
     pub arms_with_budget_pruning: u64,
     pub budget_removed: u64,
     pub dominated_removed: u64,
-    /// Arms where the GT reading was in the envelope BEFORE budget pruning
-    /// and not after. §36 makes this a stop condition, so it is a number and
-    /// not a hope. It is derived from `gt_in_envelope` measured on the kept
-    /// set together with `budget_removed`; see the gate row for what a
-    /// non-zero value would mean.
-    pub arms_where_budget_pruning_could_have_lost_the_answer: u64,
+    /// Arms where the budget removed a candidate CARRYING the GT reading —
+    /// whether or not another one survived.
+    ///
+    /// The near-miss counter, and the one that is not a paraphrase: it can be
+    /// non-zero in a world where recall is 100 %, which is what M45-N8 asked
+    /// of it.
+    pub arms_where_budget_removed_a_gt_class_candidate: u64,
+    /// Arms where the budget removed a GT-carrying candidate and NONE
+    /// survived — the §36 stop condition, computed from the removal record
+    /// (before tier 3) against the envelope (after it).
+    ///
+    /// Still implied by `hits == arms`, and therefore no longer a conjunct of
+    /// the clause: a number implied by its neighbour is not a second witness.
+    /// It stays published because when recall does drop it says WHY — lost to
+    /// pruning, or never generated at all.
+    pub arms_where_budget_pruning_lost_the_last_gt_candidate: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -253,9 +263,13 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
                 as u64,
             budget_removed: run.arms.iter().map(|a| a.budget_removed as u64).sum(),
             dominated_removed: run.arms.iter().map(|a| a.dominated_removed as u64).sum(),
-            arms_where_budget_pruning_could_have_lost_the_answer: pop
+            arms_where_budget_removed_a_gt_class_candidate: pop
                 .iter()
-                .filter(|a| !a.gt_in_envelope && a.budget_removed > 0)
+                .filter(|a| a.budget_removed_gt_class_candidates > 0)
+                .count() as u64,
+            arms_where_budget_pruning_lost_the_last_gt_candidate: pop
+                .iter()
+                .filter(|a| a.budget_removed_the_last_gt_class_candidate)
                 .count() as u64,
         },
         continuation: ContinuationTotals {
@@ -315,16 +329,21 @@ impl TopologyReport {
             && groups >= 5
             && self.non_trivial_gt_arms >= 5
             && r.hits == r.arms
-            && nt.hits == nt.arms
             // The relaxation this clause grants itself — a candidate matching
             // EITHER convention's truth counts — is only justified while the
             // envelope carries BOTH complementary arms. RT45-A1 deleted one
             // from the generator and nothing moved. It moves now.
-            && self.arms_missing_a_connectivity_arm == 0
-            && self
-                .pruning
-                .arms_where_budget_pruning_could_have_lost_the_answer
-                == 0;
+            && self.arms_missing_a_connectivity_arm == 0;
+        // Two conjuncts were removed here rather than fixed, and the reason is
+        // the finding itself (M45-N8, RT45-A6): `nt.hits == nt.arms` and
+        // "budget lost the last GT candidate == 0" are both IMPLIED by
+        // `r.hits == r.arms`, because the non-trivial arms are a subset of the
+        // population and a lost answer is an arm without its reading. A
+        // conjunct implied by its neighbour cannot fail on its own; publishing
+        // its value as a separate measurement inflates the count of
+        // independent witnesses. Both numbers are still published, and the
+        // near-miss counter beside them is the one that can move while recall
+        // stays at 100 %.
 
         // Clause 2: ambiguous fixtures RETAIN ALTERNATIVES. A pair whose two
         // scenes have the same ink topology is not a topology ambiguity and
@@ -405,7 +424,8 @@ impl TopologyReport {
                      {}/{} = {:.4}. The relaxation to EITHER convention is measured rather than \
                      assumed: {} of the {} arms carry candidates from BOTH complementary arms, \
                      and {} carry only one. Budget pruning was the reason an answer was missing \
-                     on {} arms. {} audit groups skipped, {} arms refused",
+                     on {} arms, and removed a GT-carrying candidate without losing the \
+                     reading on {} more. {} audit groups skipped, {} arms refused",
                     self.identifiable_supported_arms,
                     self.arms_measured,
                     groups,
@@ -421,7 +441,8 @@ impl TopologyReport {
                     r.arms,
                     self.arms_missing_a_connectivity_arm,
                     self.pruning
-                        .arms_where_budget_pruning_could_have_lost_the_answer,
+                        .arms_where_budget_pruning_lost_the_last_gt_candidate,
+                    self.pruning.arms_where_budget_removed_a_gt_class_candidate,
                     self.sealed_audit_groups_skipped,
                     self.arms_refused
                 ),
