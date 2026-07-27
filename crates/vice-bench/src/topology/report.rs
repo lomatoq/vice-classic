@@ -499,11 +499,22 @@ impl TopologyReport {
                 && (p.both_retained_fixed_only_from_a == Some(false)
                     || p.both_retained_fixed_only_from_b == Some(false))
         });
+        // `tie_batches_max > 0` used to be a fifth conjunct and is gone
+        // (M45-N8/RT45-A6, second instance). It cannot be false: a tie batch is
+        // a level at which two or more pixels share a value, and over 132 arms
+        // of 32-128 px renders quantized to 8 bits, pigeonhole guarantees one.
+        // A conjunct that cannot be false is not a control, and publishing its
+        // value beside the row inflates the count of independent witnesses —
+        // which is precisely the finding this clause already absorbed once.
+        //
+        // RT45-A13 is that it was announced as removed and was not: STATUS_M4_5
+        // §9 said "`tie_batches_max > 0` удалён" at C177 while this line stood.
+        // The number is still PUBLISHED, in T3d, and T3d says what it is: the
+        // size of the input, not evidence.
         let threshold_row = r.arms > 0
             && e.hits == r.hits
             && one_level_is_not_enough
-            && self.saddle_alternatives_total > 0
-            && self.tie_batches_max > 0;
+            && self.saddle_alternatives_total > 0;
 
         vec![
             (
