@@ -145,3 +145,66 @@ clean_bucket_sigma_codes = 25.57
 status = "placeholder"
 set_by_milestone = "M9"
 degraded_bucket_sigma_codes = 0.0
+
+# --- Topology envelope and its gate thresholds (§11, §28 M4.5) --------------
+# REVIEW_M4_5 condition 7 / M45-N6 / RT45-A5. STATUS_M4_5 §3 said
+# "configs/GATES_V1.toml is untouched: M4.5 freezes no new constant, so §27.7
+# has nothing to enforce here". That was false as a measurement, and it is the
+# kind of false that matters: the numbers deciding whether a §28 M4.5 clause is
+# green live in `report.rs::gate_table` and in the four `*_CONFIG_V1` constants
+# of `vice-topology`, i.e. in the same files a feature commit edits. §27.7's
+# second sentence — "a feature PR may not weaken its own gate" — therefore had
+# nothing to act on, and a single commit could relax a population threshold and
+# change the code that meets it.
+#
+# Registered here so that `gates-check` can do its job. Consumers are declared
+# in `gates::tests::every_frozen_value_agrees_with_the_code_that_uses_it`,
+# which fails on a key nothing reads, and
+# `topology_gate_thresholds_are_registered_here` fails on a threshold in a gate
+# row that has no key.
+#
+# Landed as a placeholder first because §27.7 forbids changing this file and
+# production code in one commit: the section arrives with no code, the claims
+# and the check arrive next, the freeze arrives after. That is the same three
+# step shape M4 used for the clean-bucket noise scale (C134/C135/C136).
+[topology]
+status = "placeholder"
+set_by_milestone = "M4.5"
+
+# Restoration operators of §11.1. Fixed counts and fixed steps: no convergence
+# test, no adaptive step, because the artifact is Tier A and a stopping rule
+# that depends on the data is a stopping rule that depends on the platform.
+field_tv_iterations = 30
+field_tv_step = 0.15
+field_tv_huber_delta = 0.05
+field_tv_data_weight = 1.0
+field_deconv_iterations = 10
+field_deconv_step = 0.7
+
+# Which levels the generator produces at all (§11.2, §23).
+level_max_plateau_levels = 6
+level_max_event_levels = 8
+level_min_event_persistence = 0.02
+level_fixed_smoke_count = 1
+level_fixed_smoke_first = 0.5
+
+# Tier 3 pruning (§11.3). NOT calibrated - measured as harmless on this corpus
+# (no topological class lost, budget active on 11 arms of 132) and recorded as
+# a limitation rather than as a calibration.
+envelope_budget = 48
+envelope_per_quota_class = 2
+envelope_mass_scale = 8.0
+
+# §11.4 continuation.
+continuation_halo_px = 3
+continuation_max_plans = 8
+
+# Population thresholds of the gate rows themselves. These are the ones
+# RT45-A5 weakened together with the code in a single commit that `gates-check`
+# waved through: with `min_recall_arms` at 1 and the envelope budget at 6, one
+# commit both relaxed the clause and changed what had to meet it.
+gate_min_recall_arms = 20
+gate_min_recall_shape_families = 5
+gate_min_non_trivial_gt_arms = 5
+gate_min_topology_pairs = 2
+gate_min_classes_per_retaining_pair = 2
