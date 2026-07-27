@@ -110,10 +110,6 @@ pub struct TopologyEdit {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum ContinuationStep {
-    Executed {
-        what: &'static str,
-        detail: String,
-    },
     /// The step has two halves and only one of them exists yet. Written as
     /// its own variant rather than as an `Executed` with a caveat in the
     /// prose, because "the ROI is computed, the posterior over it is not" is
@@ -134,29 +130,24 @@ pub enum ContinuationStep {
 }
 
 impl ContinuationStep {
-    pub fn is_executed(&self) -> bool {
-        matches!(self, ContinuationStep::Executed { .. })
-    }
     pub fn is_partial(&self) -> bool {
         matches!(self, ContinuationStep::PartiallyExecuted { .. })
     }
     /// Every capability this step is still waiting on.
     pub fn missing(&self) -> &[&'static str] {
         match self {
-            ContinuationStep::Executed { .. } => &[],
             ContinuationStep::PartiallyExecuted { missing, .. }
             | ContinuationStep::NotYetApplicable { missing, .. } => missing,
         }
     }
-    pub fn owner(&self) -> Option<&'static str> {
+    pub fn owner(&self) -> &'static str {
         match self {
-            ContinuationStep::Executed { .. } => None,
             ContinuationStep::PartiallyExecuted {
                 owner_milestone, ..
             }
             | ContinuationStep::NotYetApplicable {
                 owner_milestone, ..
-            } => Some(*owner_milestone),
+            } => owner_milestone,
         }
     }
 }
@@ -224,14 +215,11 @@ pub struct ContinuationPlan {
 }
 
 impl ContinuationPlan {
-    pub fn executed_steps(&self) -> usize {
-        self.steps.iter().filter(|s| s.is_executed()).count()
-    }
     pub fn partial_steps(&self) -> usize {
         self.steps.iter().filter(|s| s.is_partial()).count()
     }
     pub fn refused_steps(&self) -> usize {
-        self.steps.len() - self.executed_steps() - self.partial_steps()
+        self.steps.len() - self.partial_steps()
     }
 }
 
@@ -306,11 +294,12 @@ fn difference(a: &TopologyHypothesis, b: &TopologyHypothesis, halo: u32) -> Opti
 /// The seven steps of §11.4, two computed and five refused by name.
 fn steps_for(edit: &TopologyEdit) -> Vec<ContinuationStep> {
     vec![
-        ContinuationStep::Executed {
-            what: "topology edit",
-            detail: format!(
-                "{} takes ({}, {}) to ({}, {}) across {} px, at level {:.4} with persistence \
-                 {:.4}",
+        partially_executed(
+            "topology edit",
+            format!(
+                "the edit is IDENTIFIED, not applied: {} takes ({}, {}) to ({}, {}) across {} \
+                 px, at level {:.4} with persistence {:.4} — computed as the difference between \
+                 two members the envelope ALREADY contains",
                 edit.kind.as_str(),
                 edit.from_components,
                 edit.from_holes,
@@ -320,7 +309,15 @@ fn steps_for(edit: &TopologyEdit) -> Vec<ContinuationStep> {
                 edit.level_between,
                 edit.persistence
             ),
-        },
+            &["labelling_mutation", "transactional_acceptance"],
+            "M5",
+            "spec 11.4 makes the topology edit the first step of a compound operation that \
+             PRODUCES a new state. Nothing here produces one: edit_kind reads a difference of \
+             signatures and difference() reads a bounding box, both over candidates that already \
+             exist. Computing the description of an operation and applying it are different \
+             steps, and reporting the first as the second moves the scale in my own favour - \
+             which is F-0031 a second time, in the same file",
+        ),
         not_yet_applicable(
             "rebuild affected DCEL",
             &["shared_dcel"],
@@ -548,15 +545,14 @@ mod tests {
             7,
             "the compound operation of 11.4 has seven steps"
         );
-        assert_eq!(
-            steps.iter().filter(|s| s.is_executed()).count(),
-            1,
-            "the topology edit itself is derived from data"
-        );
+        // NOTHING is fully executed, and that is the correction M45-N12 asked
+        // for: the topology edit computes a DESCRIPTION of the difference
+        // between two members the envelope already holds, and describing an
+        // operation is not applying it.
         assert_eq!(
             steps.iter().filter(|s| s.is_partial()).count(),
-            1,
-            "the ROI half of the exact-ROI step is computed and the posterior half is not"
+            2,
+            "the edit is identified but not applied, and the ROI is computed but not scored"
         );
         assert_eq!(
             steps
@@ -566,14 +562,10 @@ mod tests {
             5
         );
         for s in &steps {
-            if s.is_executed() {
-                continue;
-            }
             assert!(!s.missing().is_empty());
-            let owner = s.owner().expect("a refusal has an owner");
-            assert!(["M5", "M6", "M7"].contains(&owner));
+            assert!(["M5", "M6", "M7"].contains(&s.owner()));
         }
-        let owners: Vec<&str> = steps.iter().filter_map(|s| s.owner()).collect();
+        let owners: Vec<&str> = steps.iter().map(|s| s.owner()).collect();
         assert!(owners.contains(&"M5") && owners.contains(&"M6") && owners.contains(&"M7"));
     }
 

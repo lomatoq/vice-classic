@@ -498,6 +498,7 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         "vice-bench/src/corridor/mod.rs",
         "vice-bench/src/oracle/mod.rs",
         "vice-bench/src/topology/mod.rs",
+        "vice-bench/src/topology/ambiguity.rs",
         // In-crate unit tests of corpus machinery itself.
         "vice-bench/src/correlation.rs",
         "vice-bench/src/gt/raster.rs",

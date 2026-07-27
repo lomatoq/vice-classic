@@ -7,7 +7,8 @@
 
 use serde::Serialize;
 
-use super::{AmbiguityRow, TopologyArm, TopologyRun};
+use super::ambiguity::AmbiguityRow;
+use super::{TopologyArm, TopologyRun};
 use crate::gt::corpus::Platform;
 
 pub const TOPOLOGY_REPORT_SCHEMA: &str = "vice-classic/topology-report/v1";
@@ -79,7 +80,9 @@ pub struct PruningTotals {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ContinuationTotals {
     pub plans: u64,
-    pub executed_steps: u64,
+    /// Steps of the §11.4 compound operation that half-exist. There is no
+    /// `executed` count any more, and its absence is the point: M4.5 applies
+    /// no topology edit at all (M45-N12).
     pub partially_executed_steps: u64,
     pub refused_steps: u64,
 }
@@ -336,11 +339,6 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
         },
         continuation: ContinuationTotals {
             plans: run.arms.iter().map(|a| a.continuation_plans as u64).sum(),
-            executed_steps: run
-                .arms
-                .iter()
-                .map(|a| a.continuation_executed_steps as u64)
-                .sum(),
             partially_executed_steps: run
                 .arms
                 .iter()
@@ -607,8 +605,13 @@ impl TopologyReport {
                      single level provably CANNOT do the job: on the ambiguous pairs the answer \
                      is TWO readings, one level yields one labelling, and the fixed-only \
                      generator fails to retain both on a pair where the full generator succeeds \
-                     ({}). Saddle alternatives generated: {}; largest batch of equal-valued \
-                     pixels: {} px, over {} tie batches",
+                     ({}), and it stands on ONE pair. Saddle alternatives generated: {}. NOT \
+                     offered as evidence, and named here so that it is not read as any: {} px is \
+                     the largest equal-valued batch and {} levels carry a tie, and both are true \
+                     of EVERY image this corpus contains — 513 quantized levels against at least \
+                     1024 pixels makes a tie certain by the pigeonhole principle — so they \
+                     measure the size of the input. The batch rule of 11.2 is tested at the unit \
+                     level instead, on fixtures built for it",
                     e.hits,
                     e.arms,
                     r.hits,
