@@ -840,6 +840,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vice-evidence"
+version = "0.0.1"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "vice-geom",
+ "vice-image",
+ "vice-ir",
+]
+
+[[package]]
 name = "vice-geom"
 version = "0.0.1"
 dependencies = [

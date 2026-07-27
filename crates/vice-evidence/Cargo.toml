@@ -1,0 +1,21 @@
+[package]
+name = "vice-evidence"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "vice-classic M4: palette/exterior hypotheses, minimal global formation, premultiplied mixture evidence, corridor uncertainty and boundary observations"
+
+[lints]
+workspace = true
+
+[dependencies]
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+thiserror = "2"
+vice-geom = { path = "../vice-geom" }
+vice-image = { path = "../vice-image" }
+vice-ir = { path = "../vice-ir" }
+
+[dev-dependencies]
+serde_json = "1"
