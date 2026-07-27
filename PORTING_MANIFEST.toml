@@ -109,3 +109,25 @@ schema = "vice-classic/porting-manifest/v1"
 # entry. The only crates the new module uses are already-declared ones
 # (`serde`, `serde_json`, `sha2`, `hex`, `thiserror`) plus this workspace's
 # own `vice-ir`, `vice-render` and `vice-geom`.
+
+# --- M4 -----------------------------------------------------------------
+# Units after M4: still ZERO.
+#
+# M4 is the milestone where the temptation is concrete rather than
+# theoretical: `src/pipeline/energy.rs` in v-ice carries a two-colour
+# projection, and `vice_compiler/coverage_evidence.py` in Vice- carries
+# robust two-colour coverage, linear-RGB projection, residual-derived
+# uncertainty, marching squares at alpha=0.5, the +0.5 pixel-centre
+# convention, arclength samples, normals, corridor halfwidth and physical ds
+# weights - i.e. the §13 field list almost verbatim.
+#
+# Neither file was opened. Debt D-3 requires a licence/IP review of the donor
+# BEFORE the first `[[unit]]`, and both repositories are
+# OWNER_CONTROLLED_VERIFY_BEFORE_PUBLIC_RELEASE (SOURCE_PINS.toml). Reading a
+# donor "just to check" is a port that nobody recorded, which is exactly what
+# this manifest exists to prevent.
+#
+# What M4 used instead: the spec's own formulas (§10 gives the estimator
+# verbatim, §13 gives the sample fields), the closed forms of the transition
+# statistic derived here and checked against synthetic profiles, and the
+# clean-room literature basis of §37.

@@ -145,3 +145,31 @@ this purpose; the adversarial fixtures are constructed in code. Nothing is
 taken from the donor pins — `PORTING_MANIFEST.toml` remains at **zero
 units** (REVIEW_M0 condition 6, debt D-3), which for a ground-truth corpus
 is exactly where the temptation was strongest.
+
+## 2d. Зависимости M4
+
+**Ни одной новой третьесторонней зависимости.** Проверено, а не выведено из
+молчания: `git diff <M3.5 HEAD> -- Cargo.lock` показывает ровно три новых
+пакета, и все три — крейты этого воркспейса (`vice-image`, `vice-evidence`,
+`vice-cli`). Внешний набор не изменился.
+
+Три новых крейта используют только уже записанное выше:
+
+| Крейт | Внешние зависимости | Где записаны |
+|---|---|---|
+| `vice-image` | `png` 0.17, `serde`, `sha2`, `hex`, `thiserror` | §2 (M0) |
+| `vice-evidence` | `serde`, `serde_json`, `sha2`, `hex`, `thiserror` | §2 (M0) |
+| `vice-cli` | `clap` 4, `serde_json`; `tempfile` (dev) | §2 (M0), §2c |
+
+`png` перешёл из «зависимость бинаря `gen-smoke`» в «зависимость библиотеки
+`vice-image`», то есть в путь, который однажды будет отгружаться. Лицензия
+та же (MIT OR Apache-2.0) и уже проверена по фактическому пакету в §2;
+отдельного действия это не требует, но переход отмечен здесь, потому что
+роль зависимости изменилась.
+
+PORTING_MANIFEST на M4 остаётся при **нуле units**: донорские
+`energy.rs` (v-ice) и `coverage_evidence.py` (Vice-) — ближайшие
+родственники того, что делает M4, и ни один не открывался. Оба под
+`OWNER_CONTROLLED_VERIFY_BEFORE_PUBLIC_RELEASE` (§2), а долг D-3 требует
+license/IP review ДО первого `[[unit]]`; смотреть на код донора «чтобы
+свериться» — это и есть перенос, только неучтённый.
