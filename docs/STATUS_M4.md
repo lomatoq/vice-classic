@@ -202,11 +202,13 @@ Blend space идентифицируем только там, где смеши�
 ```text
 cargo fmt --all --check                                  OK
 cargo clippy --workspace --all-targets -- -D warnings    OK (0 warnings)
-cargo test --release --workspace                         439 passed / 0 failed
-cargo test --workspace (debug)                           439 passed / 0 failed
+cargo test --release --workspace                         434 passed / 0 failed / 5 ignored
+cargo test --workspace (debug)                           434 passed / 0 failed / 5 ignored
+cargo test --release -p vice-bench --lib corridor::tests     -- --ignored                                         5 passed / 0 failed  (86 с)
 ```
 
-355 в M3.5 → **439** (+84). Оба профиля обязательны: расхождение
+355 в M3.5 → **439** (+84), из них 5 — корпусные измерения, вынесенные из
+пути по умолчанию (см. ниже); в обоих профилях по умолчанию идут 434. Оба профиля обязательны: расхождение
 debug/release само по себе является находкой (F-0007, F-0012).
 
 **Цена, названная числом, и что с ней сделано.** Пять корпусных измерений
