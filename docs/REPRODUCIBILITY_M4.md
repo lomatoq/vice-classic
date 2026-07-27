@@ -12,8 +12,9 @@
 ## Команды
 
 ```bash
-# Корридорная калибровка §13.1: полный scope — 41 сцена (sealed audit
-# пропущен), 14 ячеек, 497 arms. На машине автора около 3 минут в release.
+# Корридорная калибровка §13.1: полный scope. Числа прогона — в таблице
+# «Числа, которые цитируют документы M4» ниже; она сверяется тестом.
+# На машине автора около 3 минут в release.
 cargo run --release --bin gt-corpus -- corridor \
   --out docs/gt/CORRIDOR_M4.json --scope full
 
@@ -76,13 +77,53 @@ inverse crime, типизированные отказы и `config_hash`; он�
 | Величина | Где | Как проверяется |
 |---|---|---|
 | `config_hash` | шапка обоих артефактов | компонент compatibility key (§27.6) |
-| 497 arms корридора | `arms` | пересборка и побайтовое сравнение JSON |
+| arms корридора | `arms` | пересборка и побайтовое сравнение JSON |
 | покрытие/резкость по 7 осям | `buckets` | условная калибровка §13.1 |
-| held-out растеризатор | `held_out` | tiny-skia, которого split-политика не пускает в development |
-| 1233 §1.6-пробы | `probes` | каждая — отдельная строка с исходом |
-| 1132 arms oracle | `ceiling_arms` | PF10 и PF11 как отдельные плечи |
+| held-out растеризатор | `held_out` | tiny-skia, которого split-политика не пускает ни в development, ни в калибровку замороженных коэффициентов |
+| §1.6-пробы | `probes` | каждая — отдельная строка с исходом |
+| arms oracle | `ceiling_arms` | PF10 и PF11 как отдельные плечи |
 | 6 факториалов × 3 эффекта | `factorial` | каждый — commensurable contrast либо типизированный отказ |
 | гейт-таблицы §28 M4 | вывод команд | ненулевой exit при провале любой клаузы |
+
+## Числа, которые цитируют документы M4 (СВЕРЯЮТСЯ ТЕСТОМ)
+
+Условие B3 прошлого гейта: «утверждения, которые STATUS и REPRODUCIBILITY
+подают как измеренные факты, должны быть измерены». REVIEW_M4 нашёл третий
+экземпляр класса — пять чисел, разошедшихся с артефактом. Поэтому величины
+объявлены здесь ОДИН раз, каждая со своим путём в артефакте, и
+`crates/vice-bench/tests/doc_claims.rs` резолвит каждый путь и сравнивает.
+Разошедшееся число роняет тест, как уже роняют его модуль свыше 800 строк,
+необъявленное чтение env и крейт без `forbid(unsafe_code)`.
+
+Float-ы округлены до четырёх знаков и сверяются в этой же точности.
+
+| Величина | Путь | Значение |
+|---|---|---|
+| сцен в корридорном прогоне | `corridor:scenes` | 41 |
+| arms | `corridor:arms_measured` | 500 |
+| отказов | `corridor:arms_refused` | 2 |
+| sealed-audit групп ПРОПУЩЕНО | `corridor:sealed_audit_groups_skipped` | 22 |
+| held-out сэмплов | `corridor:held_out.samples` | 14330 |
+| held-out coverage@50 | `corridor:held_out.coverage@50` | 0.8532 |
+| held-out coverage@90 | `corridor:held_out.coverage@90` | 0.9761 |
+| held-out coverage@95 | `corridor:held_out.coverage@95` | 0.9964 |
+| held-out coverage@99 | `corridor:held_out.coverage@99` | 0.9984 |
+| held-out median halfwidth, px | `corridor:held_out.median_halfwidth_px` | 0.3111 |
+| held-out p95 halfwidth, px | `corridor:held_out.p95_halfwidth_px` | 0.3959 |
+| held-out bias вдоль нормали, px | `corridor:held_out.bias_px` | 0.0018 |
+| контроль сдвига (held-out) | `corridor:held_out.coverage_under_displacement` | 0 |
+| §1.6-проб всего | `corridor:semi_transparent.probes` | 1242 |
+| из них разрешимых | `corridor:semi_transparent.probes_observable` | 849 |
+| отвергнуто среди разрешимых | `corridor:semi_transparent.rejected_where_observable` | 841 |
+| доставлено как two-colour среди разрешимых | `corridor:semi_transparent.delivered_as_two_colour_where_observable` | 0 |
+| доставлено как two-colour ВСЕГО | `corridor:semi_transparent.delivered_as_two_colour` | 26 |
+| чистых arms отвергнуто по §1.6 | `corridor:semi_transparent.clean_arms_rejected` | 0 |
+| supported arms | `corridor:formation_recovery.supported_arms` | 342 |
+| из них с неверным exterior | `corridor:formation_recovery.exterior_wrong` | 0 |
+| arms oracle | `oracle:arms_measured` | 1162 |
+| отказов oracle | `oracle:arms_refused` | 350 |
+| общих (scene, cell) пар факториала | `oracle:factorial_common_fixtures` | 406 |
+| отброшено факториалом | `oracle:factorial_dropped_fixtures` | 350 |
 
 ## CI
 
