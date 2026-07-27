@@ -75,6 +75,15 @@ const DECLARING_DOCS: &[&str] = &["docs/REPRODUCIBILITY_M4.md", "docs/REPRODUCIB
 const CLAUSE_ROWS: &[(&str, &[&str])] = &[
     ("docs/STATUS_M4.md", &["| G7 ", "| G8 ", "| G9 ", "| G10 "]),
     ("docs/STATUS_M4_5.md", &["| T1 ", "| T2 ", "| T3 "]),
+    // Condition 10. One of the five original B3 defects (M4-N3) was in THIS
+    // file - a step-invariance triple from an older run - and it stayed
+    // outside the mechanism that closes B3, so two of the class's three
+    // instances were closed and the third was not. The list of documents
+    // under check is itself an object of meta-rule M-1.
+    (
+        "REQUIREMENTS_TRACEABILITY.md",
+        &["| M45-11 ", "| M45-13 ", "| M45-14 "],
+    ),
 ];
 
 /// POSITIONAL tier: the i-th number of the row must EQUAL the i-th declared
