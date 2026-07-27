@@ -135,7 +135,7 @@
     "bias_px": 0.007867493244363985,
     "mean_corr_length_px": 1.2440108637572054,
     "capped_fraction_at_95": 0.00012080942313500453,
-    "coverage_under_displacement": 0.0009493479144648742
+    "margin_survival": 0.0009493479144648742
   },
   "held_out": {
     "samples": 14330,
@@ -166,7 +166,7 @@
     "bias_px": 0.0017579749919436009,
     "mean_corr_length_px": 1.2668316406538882,
     "capped_fraction_at_95": 0.0,
-    "coverage_under_displacement": 0.0
+    "margin_survival": 0.0
   },
   "held_out_profiles": [
     "tiny-skia"
@@ -204,7 +204,7 @@
         "bias_px": 0.014109925614706958,
         "mean_corr_length_px": 1.2466043031145595,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.00017868638282107625
+        "margin_survival": 0.00017868638282107625
       }
     },
     {
@@ -239,7 +239,7 @@
         "bias_px": 0.006810726172568525,
         "mean_corr_length_px": 1.2435718263510052,
         "capped_fraction_at_95": 0.00014126146488139082,
-        "coverage_under_displacement": 0.0010798114392294212
+        "margin_survival": 0.0010798114392294212
       }
     },
     {
@@ -274,7 +274,7 @@
         "bias_px": 0.01301800838945139,
         "mean_corr_length_px": 2.605160280647785,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.0002385833493078138
+        "margin_survival": 0.0002385833493078138
       }
     },
     {
@@ -309,7 +309,7 @@
         "bias_px": 0.006995678677834273,
         "mean_corr_length_px": 1.0136125724328366,
         "capped_fraction_at_95": 0.00014126003955281107,
-        "coverage_under_displacement": 0.0010696572201986867
+        "margin_survival": 0.0010696572201986867
       }
     },
     {
@@ -344,7 +344,7 @@
         "bias_px": 0.009311036893228744,
         "mean_corr_length_px": 1.3398380014872644,
         "capped_fraction_at_95": 9.955796264585242e-6,
-        "coverage_under_displacement": 0.0005410576518312215
+        "margin_survival": 0.0005410576518312215
       }
     },
     {
@@ -379,7 +379,7 @@
         "bias_px": -0.001523371008990358,
         "mean_corr_length_px": 0.620614652000049,
         "capped_fraction_at_95": 0.0008419143837834337,
-        "coverage_under_displacement": 0.003605449401506056
+        "margin_survival": 0.003605449401506056
       }
     },
     {
@@ -414,7 +414,7 @@
         "bias_px": 0.010554666278571271,
         "mean_corr_length_px": 1.3315286082272257,
         "capped_fraction_at_95": 0.00016618728028124002,
-        "coverage_under_displacement": 0.0010709054494838072
+        "margin_survival": 0.0010709054494838072
       }
     },
     {
@@ -449,7 +449,7 @@
         "bias_px": -0.008640230411537471,
         "mean_corr_length_px": 0.8546771146969536,
         "capped_fraction_at_95": 0.00007671064743786438,
-        "coverage_under_displacement": 0.001401153288001887
+        "margin_survival": 0.001401153288001887
       }
     },
     {
@@ -484,7 +484,7 @@
         "bias_px": 0.016856281512545816,
         "mean_corr_length_px": 1.0403199515971937,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.0007750217776706936
+        "margin_survival": 0.0007750217776706936
       }
     },
     {
@@ -519,7 +519,7 @@
         "bias_px": 0.0017579749919436009,
         "mean_corr_length_px": 1.2668316406538882,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.0
+        "margin_survival": 0.0
       }
     },
     {
@@ -554,7 +554,7 @@
         "bias_px": 0.006990954183200264,
         "mean_corr_length_px": 1.263873723531637,
         "capped_fraction_at_95": 0.00013258705760907654,
-        "coverage_under_displacement": 0.0009663472767507115
+        "margin_survival": 0.0009663472767507115
       }
     },
     {
@@ -589,7 +589,7 @@
         "bias_px": 0.00947330741179358,
         "mean_corr_length_px": 1.0867458852281802,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.0
+        "margin_survival": 0.0
       }
     },
     {
@@ -624,7 +624,7 @@
         "bias_px": 0.03831339731621185,
         "mean_corr_length_px": 1.1263732477303754,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.001209045096133046
+        "margin_survival": 0.001209045096133046
       }
     },
     {
@@ -659,7 +659,7 @@
         "bias_px": 0.004034890705847062,
         "mean_corr_length_px": 0.9135303047020314,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.0011358843111010058
+        "margin_survival": 0.0011358843111010058
       }
     },
     {
@@ -694,7 +694,7 @@
         "bias_px": 0.010185580230003778,
         "mean_corr_length_px": 1.4047989273652735,
         "capped_fraction_at_95": 0.00017606826031015102,
-        "coverage_under_displacement": 0.0008894370414642843
+        "margin_survival": 0.0008894370414642843
       }
     },
     {
@@ -729,7 +729,7 @@
         "bias_px": 0.0041366330773571994,
         "mean_corr_length_px": 0.913200045377345,
         "capped_fraction_at_95": 0.000047810288774144196,
-        "coverage_under_displacement": 0.0014717199133405397
+        "margin_survival": 0.0014717199133405397
       }
     },
     {
@@ -764,7 +764,7 @@
         "bias_px": 0.003462806347978646,
         "mean_corr_length_px": 1.0097752831861002,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.0006416466292166897
+        "margin_survival": 0.0006416466292166897
       }
     },
     {
@@ -799,7 +799,7 @@
         "bias_px": 0.007622679167485974,
         "mean_corr_length_px": 1.2896699736457793,
         "capped_fraction_at_95": 0.0,
-        "coverage_under_displacement": 0.00009323055124631762
+        "margin_survival": 0.00009323055124631762
       }
     },
     {
@@ -834,7 +834,7 @@
         "bias_px": 0.008173392141663249,
         "mean_corr_length_px": 1.186959114343873,
         "capped_fraction_at_95": 0.0002717549546751558,
-        "coverage_under_displacement": 0.0020190795275763676
+        "margin_survival": 0.0020190795275763676
       }
     }
   ],

@@ -112,7 +112,7 @@ Float-ы округлены до четырёх знаков и сверяютс
 | held-out median halfwidth, px | `corridor:held_out.median_halfwidth_px` | 0.3111 |
 | held-out p95 halfwidth, px | `corridor:held_out.p95_halfwidth_px` | 0.3959 |
 | held-out bias вдоль нормали, px | `corridor:held_out.bias_px` | 0.0018 |
-| контроль сдвига (held-out) | `corridor:held_out.coverage_under_displacement` | 0 |
+| контроль резкости (held-out) | `corridor:held_out.margin_survival` | 0 |
 | §1.6-проб всего | `corridor:semi_transparent.probes` | 1242 |
 | из них разрешимых | `corridor:semi_transparent.probes_observable` | 849 |
 | отвергнуто среди разрешимых | `corridor:semi_transparent.rejected_where_observable` | 841 |

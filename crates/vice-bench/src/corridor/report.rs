@@ -36,10 +36,10 @@ pub const TARGET_COVERAGE_AT_95: f64 = 0.95;
 pub const TARGET_MEDIAN_HALFWIDTH_PX: f64 = 0.35;
 pub const TARGET_P95_HALFWIDTH_PX: f64 = 0.75;
 
-/// The displacement, in px, at which the coverage control must collapse.
+/// The margin, in px, by which the control widens each sample's own error.
 /// One pixel is far outside any corridor a clean AA edge can justify, so a
-/// coverage that survives it would mean the corridor is measuring nothing.
-pub const CONTROL_DISPLACEMENT_PX: f64 = 1.0;
+/// corridor that still covers the sample would mean it is measuring nothing.
+pub const CONTROL_MARGIN_PX: f64 = 1.0;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CoverageSummary {
@@ -57,10 +57,20 @@ pub struct CoverageSummary {
     pub bias_px: f64,
     pub mean_corr_length_px: f64,
     pub capped_fraction_at_95: f64,
-    /// The control: the same samples scored against a truth displaced by
-    /// [`CONTROL_DISPLACEMENT_PX`]. A corridor that still covers them is
-    /// not measuring anything.
-    pub coverage_under_displacement: f64,
+    /// The control: the ds-weighted fraction of samples whose corridor is
+    /// still wider than their own distance PLUS [`CONTROL_MARGIN_PX`]. A
+    /// corridor that survives that is not measuring anything.
+    ///
+    /// REVIEW_M4 M4-N6: this was called `coverage_under_displacement` and the
+    /// gate row described it as the same samples scored against a truth
+    /// displaced by one pixel, which is not what the line below computes. The
+    /// reviewer did that recomputation and got 0.0003 along the sample
+    /// normals, so the conclusion held and the description did not. What the
+    /// quantity IS is a bound on SHARPNESS - no sample's corridor exceeds its
+    /// own error by a pixel - and that is exactly the control worth having,
+    /// because it is what catches a corridor inflated until the coverage
+    /// clause passes. It is named for what it computes now.
+    pub margin_survival: f64,
 }
 
 fn quantile(sorted: &[f64], q: f64) -> f64 {
@@ -76,7 +86,7 @@ fn summarize<'a>(samples: impl Iterator<Item = &'a ScoredSample> + Clone) -> Cov
     let mut bias = 0.0;
     let mut corr = 0.0;
     let mut capped = 0u64;
-    let mut displaced_inside = 0.0;
+    let mut survives_margin = 0.0;
     let mut n = 0u64;
     let mut hw: Vec<f64> = Vec::new();
     let mut dist: Vec<f64> = Vec::new();
@@ -88,8 +98,8 @@ fn summarize<'a>(samples: impl Iterator<Item = &'a ScoredSample> + Clone) -> Cov
                 *acc += s.weight_ds;
             }
         }
-        if s.distance_px + CONTROL_DISPLACEMENT_PX <= s.halfwidth_px[2] {
-            displaced_inside += s.weight_ds;
+        if s.distance_px + CONTROL_MARGIN_PX <= s.halfwidth_px[2] {
+            survives_margin += s.weight_ds;
         }
         if s.capped[2] {
             capped += 1;
@@ -118,7 +128,7 @@ fn summarize<'a>(samples: impl Iterator<Item = &'a ScoredSample> + Clone) -> Cov
         bias_px: bias / norm,
         mean_corr_length_px: corr / norm,
         capped_fraction_at_95: capped as f64 / n.max(1) as f64,
-        coverage_under_displacement: displaced_inside / norm,
+        margin_survival: survives_margin / norm,
     }
 }
 
@@ -477,7 +487,7 @@ impl CorridorReport {
         // corridor is not measuring the boundary.
         let h = &self.held_out;
         let coverage_ok = self.targets.iter().all(|(_, _, _, ok)| *ok);
-        let control_collapses = h.coverage_under_displacement < 0.05;
+        let control_collapses = h.margin_survival < 0.05;
         let non_vacuous = h.samples > 100
             && self
                 .arms
@@ -527,8 +537,9 @@ impl CorridorReport {
                 format!(
                     "held-out {} samples over {:.0} px of boundary: coverage@50/90/95/99 = \
                      {:.3}/{:.3}/{:.3}/{:.3}, median halfwidth {:.3} px, p95 {:.3} px, bias \
-                     {:+.4} px; the same samples against a truth displaced {} px are covered \
-                     {:.4} of the time",
+                     {:+.4} px; and the sharpness control - the ds-weighted fraction of samples \
+                     whose corridor is still wider than their own distance plus {} px - stands \
+                     at {:.4}",
                     h.samples,
                     h.ds_px,
                     self.coverage_at(h, 0.50),
@@ -538,8 +549,8 @@ impl CorridorReport {
                     h.median_halfwidth_px,
                     h.p95_halfwidth_px,
                     h.bias_px,
-                    CONTROL_DISPLACEMENT_PX,
-                    h.coverage_under_displacement
+                    CONTROL_MARGIN_PX,
+                    h.margin_survival
                 ),
             ),
             (
