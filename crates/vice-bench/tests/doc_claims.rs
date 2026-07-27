@@ -47,8 +47,35 @@
 //! - the escape-aware split is itself unit-tested against the row shape that
 //!   defeated the old one.
 //!
-//! What it still does NOT do: read prose. A sentence elsewhere can go stale.
-//! What it does is make the quantities themselves have one source.
+//! ## What this does NOT do, stated at the width it actually holds
+//!
+//! Condition 19 is that the paragraph above promised more than the code keeps,
+//! so the promise is narrowed here rather than the finding being answered with
+//! a sentence.
+//!
+//! - **It does not read prose.** A sentence outside a table can go stale in
+//!   silence, and one did: STATUS_M4_5 §3 said "78 declared values" for the
+//!   whole delta. The mitigation is not a check — it is that the count is
+//!   PRINTED by this test and the documents now spell it in words, so a reader
+//!   who wants the figure has to take it from the run. That makes it noticeable,
+//!   not verified, and the difference is the point.
+//! - **Membership is not equality.** A row under [`CLAUSE_ROWS`] only has to
+//!   quote numbers that appear SOMEWHERE among the declared values. With
+//!   ninety-five of them, most small integers, a false measurement can usually
+//!   be assembled from someone else's. The positional tier fixes that for the
+//!   rows it covers, and only for those.
+//! - **The positional tier covers rows that NAME a spec clause.** That is
+//!   derived rather than listed (RT45-A11), but a row reporting a clause without
+//!   naming it would not be caught. A row declares itself by its name or it does
+//!   not declare itself at all, and the alternative is the hand-list that failed
+//!   three times in this milestone.
+//! - **It compares documents to artifacts, not artifacts to reality.** That a
+//!   number agrees with `TOPOLOGY_M4_5.json` says nothing about whether the
+//!   harness that produced the JSON measured the right thing. That is what the
+//!   gate rows, their controls and their knockouts are for.
+//!
+//! What it DOES do is make every quantity a document presents as measured have
+//! exactly one source, and make an edit to one side fail against the other.
 
 use std::path::{Path, PathBuf};
 
@@ -75,6 +102,18 @@ const DECLARING_DOCS: &[&str] = &["docs/REPRODUCIBILITY_M4.md", "docs/REPRODUCIB
 const CLAUSE_ROWS: &[(&str, &[&str])] = &[
     ("docs/STATUS_M4.md", &["| G7 ", "| G8 ", "| G9 ", "| G10 "]),
     ("docs/STATUS_M4_5.md", &["| T1 ", "| T2 ", "| T3 "]),
+    // The delta-2 gate table. Its rows report CONDITIONS rather than spec
+    // clauses, so the positional derivation does not claim them and they are
+    // held to membership - the same tier a signed document is held to. The
+    // limitation is written down (STATUS_M4_5 §13, limitation 21) rather than
+    // left as a gap: what a row declares about itself is the only thing a
+    // derivation can read, and the alternative is a list again.
+    (
+        "docs/STATUS_M4_5.md",
+        &[
+            "| T10d ", "| T11d ", "| T12d ", "| T13d ", "| T14d ", "| T15d ",
+        ],
+    ),
     // Condition 10. One of the five original B3 defects (M4-N3) was in THIS
     // file - a step-invariance triple from an older run - and it stayed
     // outside the mechanism that closes B3, so two of the class's three
@@ -623,6 +662,12 @@ fn the_status_clause_rows_quote_only_declared_numbers() {
         declared.len() >= 12 && declared.iter().all(|v| v.is_finite()),
         "the declared table did not resolve, so this test would compare against nothing"
     );
+    // Printed because STATUS_M4_5 §3 and row T11 refer to this number in PROSE,
+    // and prose is the one thing this mechanism cannot check (condition 19).
+    // The documents spell it out in words rather than digits, so a reader who
+    // wants the figure has to take it from here - where it is measured - rather
+    // than from a sentence that can go stale in silence.
+    println!("{} declared measurements resolve", declared.len());
 
     let mut tables = 0;
     let mut total = 0;
