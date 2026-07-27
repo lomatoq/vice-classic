@@ -274,6 +274,15 @@ pub struct TopologyRun {
     pub refused: Vec<RefusedArm>,
     pub ambiguity: Vec<AmbiguityRow>,
     pub sealed_audit_groups_skipped: u64,
+    /// Ambiguity pairs skipped because their GROUP is in the sealed audit.
+    ///
+    /// Zero today, and the point is that it is a NUMBER rather than a fact
+    /// about the current split assignment. The recall loop filters the audit
+    /// and the pair loop reads `adversarial::ambiguity_pairs()` directly, so
+    /// without this the rule "the sealed audit is never scored" would be
+    /// applied to one of the two loops — which is FAILURE_LEDGER F-0026
+    /// exactly (four measurements filtered, the fifth did not).
+    pub ambiguity_pairs_in_sealed_audit_skipped: u64,
     /// Arms whose scene has an OPAQUE exterior: run, counted, and excluded
     /// from the recall clause with the reason in the gate row.
     pub opaque_exterior_arms: u64,
@@ -432,7 +441,7 @@ pub fn run(scope: TopologyScope) -> Result<TopologyRun, String> {
         }
     }
 
-    let ambiguity = measure_ambiguity_pairs()?;
+    let (ambiguity, ambiguity_skipped) = measure_ambiguity_pairs()?;
 
     digests.sort();
     Ok(TopologyRun {
@@ -443,6 +452,7 @@ pub fn run(scope: TopologyScope) -> Result<TopologyRun, String> {
         arms,
         refused,
         ambiguity,
+        ambiguity_pairs_in_sealed_audit_skipped: ambiguity_skipped,
         sealed_audit_groups_skipped: skipped_audit,
         opaque_exterior_arms: opaque_arms,
     })
@@ -575,10 +585,19 @@ fn measure_arm(
 /// that would be trivially true. It is whether the envelope keeps BOTH
 /// readings: the topology scene A really has and the topology scene B really
 /// has, each taken where they are distinguishable.
-fn measure_ambiguity_pairs() -> Result<Vec<AmbiguityRow>, String> {
+fn measure_ambiguity_pairs() -> Result<(Vec<AmbiguityRow>, u64), String> {
     let mut out = Vec::new();
+    let mut skipped = 0u64;
     for pair in crate::gt::adversarial::ambiguity_pairs() {
         let g = &pair.group;
+        // §27.1: scoring the sealed audit is what OPENS it. The recall loop
+        // filters it; this loop reads the pairs directly, so it has to
+        // filter it too. Applying the rule to one loop and not the other is
+        // F-0026 verbatim.
+        if SPLIT_POLICY_V1.split_of_group(g) == Split::SealedAudit {
+            skipped += 1;
+            continue;
+        }
         if g.scenes.len() != 2 {
             continue;
         }
@@ -658,7 +677,7 @@ fn measure_ambiguity_pairs() -> Result<Vec<AmbiguityRow>, String> {
         }
         out.push(row);
     }
-    Ok(out)
+    Ok((out, skipped))
 }
 
 fn envelope_classes(

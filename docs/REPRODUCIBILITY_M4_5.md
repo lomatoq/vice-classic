@@ -87,6 +87,7 @@ Float-ы округлены до четырёх знаков и сверяютс
 | arms измерено | `topology:arms_measured` | 132 |
 | arms отказано | `topology:arms_refused` | 52 |
 | sealed-audit групп ПРОПУЩЕНО | `topology:sealed_audit_groups_skipped` | 22 |
+| ambiguity-пар пропущено по sealed audit | `topology:ambiguity_pairs_in_sealed_audit_skipped` | 0 |
 | arms с НЕПРОЗРАЧНЫМ exterior-ом, исключены по имени | `topology:opaque_exterior_arms_excluded` | 38 |
 | recall-популяция (identifiable + supported) | `topology:identifiable_supported_arms` | 100 |
 | независимых source groups в ней | `topology:recall_source_groups` | 18 |

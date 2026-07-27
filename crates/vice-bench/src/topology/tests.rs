@@ -44,6 +44,48 @@ fn a_run_produces_arms_and_the_three_gate_rows() {
     assert_eq!(rep.gate_table().len(), 3, "spec 28 M4.5 has three clauses");
 }
 
+/// The sealed audit is filtered in BOTH loops, not only in the one where
+/// the rule was first written.
+///
+/// The recall loop skips audit groups; the ambiguity loop reads
+/// `adversarial::ambiguity_pairs()` directly, so it needs its own filter.
+/// F-0026 is exactly a project that applied a split filter to four
+/// measurements and not to the fifth, and the fifth was the one that
+/// mattered. The count is published rather than left as a property of
+/// today's split assignment: if the corpus ever moves an ambiguity pair into
+/// the audit, the number appears in the artifact instead of the audit being
+/// scored in silence.
+#[test]
+fn the_sealed_audit_is_filtered_in_both_loops() {
+    let r = run_once();
+    assert!(
+        r.sealed_audit_groups_skipped > 0,
+        "the recall loop must be skipping audit groups, or this test compares two zeroes"
+    );
+    assert_eq!(
+        r.ambiguity_pairs_in_sealed_audit_skipped, 0,
+        "no ambiguity pair is in the audit today; the number exists so that a corpus change \
+         becomes visible rather than silent"
+    );
+    // And the filter is REACHED: every pair the loop saw was asked for its
+    // split, which is what makes the zero above a measurement.
+    for pair in crate::gt::adversarial::ambiguity_pairs() {
+        let split = SPLIT_POLICY_V1.split_of_group(&pair.group);
+        println!("{} -> {}", pair.group.id, split.as_str());
+        assert_ne!(
+            split,
+            Split::SealedAudit,
+            "{} is in the sealed audit and the harness would have to skip it",
+            pair.group.id
+        );
+    }
+    assert_eq!(
+        r.ambiguity.len() + r.ambiguity_pairs_in_sealed_audit_skipped as usize,
+        crate::gt::adversarial::ambiguity_pairs().len(),
+        "every corpus pair is either measured or skipped by a NAMED filter"
+    );
+}
+
 /// The run is deterministic, which is what makes the committed artifact a
 /// comparison rather than a judgement call.
 #[test]

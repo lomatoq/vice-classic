@@ -87,6 +87,8 @@ pub struct TopologyReport {
     pub arms_measured: u64,
     pub arms_refused: u64,
     pub sealed_audit_groups_skipped: u64,
+    /// Ambiguity pairs the sealed-audit filter removed from clause 2.
+    pub ambiguity_pairs_in_sealed_audit_skipped: u64,
     /// Arms excluded from the recall clause because the scene has an OPAQUE
     /// exterior. Named, counted, and NOT silently absent.
     pub opaque_exterior_arms_excluded: u64,
@@ -213,6 +215,7 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
         arms_measured: run.arms.len() as u64,
         arms_refused: run.refused.len() as u64,
         sealed_audit_groups_skipped: run.sealed_audit_groups_skipped,
+        ambiguity_pairs_in_sealed_audit_skipped: run.ambiguity_pairs_in_sealed_audit_skipped,
         opaque_exterior_arms_excluded: run.opaque_exterior_arms,
         identifiable_supported_arms: pop.len() as u64,
         recall_source_groups: pop
@@ -552,6 +555,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "arms_measured": v["arms_measured"],
         "arms_refused": v["arms_refused"],
         "sealed_audit_groups_skipped": v["sealed_audit_groups_skipped"],
+        "ambiguity_pairs_in_sealed_audit_skipped": v["ambiguity_pairs_in_sealed_audit_skipped"],
         "opaque_exterior_arms_excluded": v["opaque_exterior_arms_excluded"],
         "identifiable_supported_arms": v["identifiable_supported_arms"],
         "recall_source_groups": v["recall_source_groups"],
