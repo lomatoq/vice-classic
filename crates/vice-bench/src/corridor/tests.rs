@@ -5,6 +5,17 @@
 //! it is set to must separate the case it is about from the case it is not.
 //! That is the discipline F-0016 and F-0010 record, applied to the four
 //! numbers M4 introduces.
+//!
+//! The corpus-wide measurements carry `#[ignore]`, and the reason is the
+//! project's own rule that a check nobody waits for is a check nobody runs:
+//! they render and analyse hundreds of images, which is seconds in release
+//! and MINUTES in debug, and putting them in the default `cargo test` path
+//! would push the standard command past the point where anyone runs it. They
+//! are not thereby optional — CI executes them in release on every push, as
+//! a named step, exactly as the M3 corpus reserved its full manifest for a
+//! documented command. What stays in the default path is the shape of the
+//! run and its determinism, plus (in `gates`) the check that every frozen
+//! number still agrees with the constant the code uses.
 
 use super::*;
 use crate::gt::grammar::procedural_groups;
@@ -19,6 +30,7 @@ fn run_once() -> &'static CorridorRun {
 /// The kernel profile table of `vice-evidence::formation`, measured on the
 /// corpus rather than asserted.
 #[test]
+#[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_kernel_profile_table_matches_the_corpus() {
     let groups = procedural_groups(1);
     let mut rows = Vec::new();
@@ -196,6 +208,7 @@ fn a_run_produces_arms_and_a_report() {
 /// construction and would dilute the scale into a statement about canvas
 /// size (the same reason `measure_profile_accuracy` does it).
 #[test]
+#[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
     use crate::gt::raster::{rasterize, ViewTransform};
     use crate::gt::split::SPLIT_POLICY_V1;
@@ -271,6 +284,7 @@ fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
 /// over the constant-alpha probes, so the floor sits in a gap the data
 /// shows rather than in one somebody chose.
 #[test]
+#[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_semi_transparent_floor_separates_both_ways() {
     let groups = all_groups().unwrap();
     let cells: Vec<DegradationCell> = [
@@ -379,6 +393,7 @@ fn the_semi_transparent_floor_separates_both_ways() {
 /// directions: the CORRECT hypothesis on an independently rasterized render
 /// leaves a few codes, and a wrong one leaves an order of magnitude more.
 #[test]
+#[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_residual_tolerance_separates_right_from_wrong_hypotheses() {
     use vice_evidence::analysis::MAX_RESIDUAL_P95_CODES;
     let groups = all_groups().unwrap();
@@ -446,6 +461,7 @@ fn the_residual_tolerance_separates_right_from_wrong_hypotheses() {
 /// Interior confidence separates a flat core from an antialiased rim ON THE
 /// CORPUS, not only on the synthetic fixture in `vice-evidence`.
 #[test]
+#[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn interior_confidence_separates_cores_from_edges() {
     use vice_evidence::interior::{interior_confidence, INTERIOR_CONFIG_V1};
     let groups = all_groups().unwrap();

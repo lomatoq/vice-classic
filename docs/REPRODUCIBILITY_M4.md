@@ -33,6 +33,16 @@ cargo run --release --bin vicec -- evidence \
   tests/fixtures/smoke/circle_64.png --out runs/m4-cli
 ```
 
+```bash
+# Корпусные измерения, которыми заморожены константы M4 (таблица ядер,
+# clean-bucket шум, §1.6-порог толщины, residual-tolerance, взвешивание
+# интерьера). Они помечены #[ignore] и не входят в путь по умолчанию:
+# сотни рендеров и анализов — это секунды в release и МИНУТЫ в debug, а
+# проверка, которой никто не дожидается, — это проверка, которую никто не
+# запускает. CI гоняет их отдельным шагом на каждом push.
+cargo test --release -p vice-bench --lib corridor::tests -- --ignored --nocapture
+```
+
 Exit-коды `corridor` и `oracle`: `0` — все гейт-строки выполнены; `1` — хотя
 бы одна не выполнена; `2` — типизированный отказ. Exit-коды `vicec evidence`
 — это §1.4 outcomes: `0` supported, `3` ambiguous, `4` unsupported, `2`
@@ -78,6 +88,7 @@ inverse crime, типизированные отказы и `config_hash`; он�
 
 | job | раннер | что сверяет |
 |---|---|---|
+| `checks` | ubuntu | fmt, clippy, тесты в обоих профилях И отдельный шаг «M4 calibration measurements (release, --ignored)» |
 | `gt-corpus` | ubuntu | прогоняет оба харнесса целиком (гейт-таблицы исполняются) и `*-check --structural` на обоих закоммиченных артефактах — состав, идентичности, исходы |
 | `tier-a-digests` | windows | `verify`, `oracle-check` и `corridor-check` БЕЗ флага, то есть **сами цифры** |
 | `clean-checkout-smoke` | ubuntu | добавлен шаг `vicec evidence` на закоммиченной фикстуре |

@@ -22,6 +22,15 @@ jobs:
         run: cargo test --workspace
       - name: Tests (release)
         run: cargo test --release --workspace
+      # The corpus-wide calibration measurements: they render and analyse
+      # hundreds of images, so they are `#[ignore]`d out of the default path
+      # (minutes in debug) and run HERE, in release, on every push. This is
+      # the step that keeps the frozen M4 numbers measured rather than
+      # remembered: the kernel width table, the clean-bucket noise scale, the
+      # §1.6 thickness floor, the residual tolerance and the interior
+      # weighting.
+      - name: M4 calibration measurements (release, --ignored)
+        run: cargo test --release -p vice-bench --lib corridor::tests -- --ignored --nocapture
 
   clean-checkout-smoke:
     runs-on: ubuntu-latest
