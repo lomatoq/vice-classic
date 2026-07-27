@@ -177,6 +177,7 @@ fn each_gate_row_can_fail() {
         a.gt_in_envelope = true;
         a.gt_in_envelope_events_only = true;
         a.gt_in_envelope_fixed_only = rep.arms.len().is_multiple_of(3);
+        a.gt_in_envelope_unrelated_field = rep.arms.len().is_multiple_of(2);
         rep.arms.push(a);
         let pop: Vec<&TopologyArm> = rep.arms.iter().collect();
         rep.identifiable_supported_arms = pop.len() as u64;
@@ -204,6 +205,15 @@ fn each_gate_row_can_fail() {
             .map(|a| a.shape_family.as_str())
             .collect::<std::collections::BTreeSet<_>>()
             .len() as u64;
+        let un = pop
+            .iter()
+            .filter(|a| a.gt_in_envelope_unrelated_field)
+            .count() as u64;
+        r.recall_unrelated_field = report::Recall {
+            arms: n,
+            hits: un,
+            fraction: un as f64 / n as f64,
+        };
         r.arms_missing_a_connectivity_arm = pop
             .iter()
             .filter(|a| a.candidates_by_arm.0 == 0 || a.candidates_by_arm.1 == 0)
@@ -268,6 +278,29 @@ fn each_gate_row_can_fail() {
     miss.arms[in_pop].gt_in_envelope = false;
     let miss = rebuilt(&miss);
     assert!(!miss.gate_table()[0].1, "a lost answer must fail row 1");
+
+    // Row 1 fails when the knockout stops losing: an envelope built from a
+    // field unrelated to the scene scoring as well as the real one means the
+    // clause is measuring nothing (condition 4).
+    let mut knockout_ties = base.clone();
+    for a in &mut knockout_ties.arms {
+        a.gt_in_envelope_unrelated_field = a.gt_in_envelope;
+    }
+    let knockout_ties = rebuilt(&knockout_ties);
+    assert!(
+        !knockout_ties.gate_table()[0].1,
+        "if an unrelated field scored the same as the real one, row 1 would not be a measurement          and must say so"
+    );
+
+    // Row 1 fails when an arm loses a connectivity arm: the clause relaxes its
+    // success condition by pointing at both, so both have to be there.
+    let mut one_arm = base.clone();
+    one_arm.arms[in_pop].candidates_by_arm = (3, 0);
+    let one_arm = rebuilt(&one_arm);
+    assert!(
+        !one_arm.gate_table()[0].1,
+        "an envelope carrying only one complementary arm must fail row 1 (RT45-A1)"
+    );
 
     // Row 2 fails when a topology pair collapses.
     let mut collapsed = base.clone();

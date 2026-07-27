@@ -207,6 +207,16 @@ pub struct TopologyArm {
     /// The same question for a generator whose ONLY source is the fixed
     /// probes.
     pub gt_in_envelope_fixed_only: bool,
+    /// The same question for an envelope built from a field that has NOTHING
+    /// to do with the scene.
+    ///
+    /// The knockout control of condition 4, and the number it produces is
+    /// uncomfortable on purpose: on an arm whose GT is (1, 0) — 69 of 100 —
+    /// almost any single blob matches, so the metric cannot tell a working
+    /// generator from a synthetic disk there. Meta-rule M-2 says a metric that
+    /// answers the same with and without the mechanism is a coincidence and
+    /// not a proof; the only way to know which one this is, is to measure it.
+    pub gt_in_envelope_unrelated_field: bool,
     /// Fields of §11.1 that produced a matching candidate.
     pub matching_fields: Vec<&'static str>,
     /// Fields whose removal would lose the match, i.e. the only field that
@@ -617,6 +627,33 @@ fn measure_arm(
         .iter()
         .any(|c| !c.ambiguity.level_from_fixed_probe_only);
 
+    // The KNOCKOUT: the same generator on a field that is not this scene.
+    // A centred disk of radius 0.3 min(w, h) — no palette, no formation and
+    // no pixel of the render enters it.
+    let (kw, kh) = (ev.width_px() as usize, ev.height_px() as usize);
+    let unrelated: Vec<f64> = {
+        let (cx, cy) = (kw as f64 / 2.0, kh as f64 / 2.0);
+        let r = 0.3 * (kw.min(kh) as f64);
+        (0..kw * kh)
+            .map(|i| {
+                let (x, y) = ((i % kw) as f64 + 0.5, (i / kw) as f64 + 0.5);
+                let d = ((x - cx).powi(2) + (y - cy).powi(2)).sqrt();
+                (r + 0.5 - d).clamp(0.0, 1.0)
+            })
+            .collect()
+    };
+    let unrelated_obs = CoverageObservation {
+        palette_id: "knockout".to_string(),
+        formation_id: obs.formation_id.clone(),
+        filter: obs.filter,
+        filter_identifiable: obs.filter_identifiable,
+        alpha: &unrelated,
+        width_px: kw,
+        height_px: kh,
+    };
+    let knockout = propose(std::slice::from_ref(&unrelated_obs), &TOPOLOGY_CONFIG_V1);
+    let knockout_hit = knockout.envelope.hypotheses.iter().any(hit);
+
     // The ablation: the SAME generator with its event-driven sources
     // switched off. A second program would be measuring two programs.
     let fixed_cfg = TopologyConfig {
@@ -648,6 +685,7 @@ fn measure_arm(
         gt_in_envelope: !matching.is_empty(),
         gt_in_envelope_events_only: events_only,
         gt_in_envelope_fixed_only: fixed_hit,
+        gt_in_envelope_unrelated_field: knockout_hit,
         matching_fields,
         unique_field,
         events: proposal.events_seen,

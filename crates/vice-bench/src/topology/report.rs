@@ -135,6 +135,15 @@ pub struct TopologyReport {
     /// contains a disk, which it always does.
     pub non_trivial_gt_arms: u64,
     pub recall_non_trivial: Recall,
+    /// The KNOCKOUT: recall of an envelope built from a field unrelated to the
+    /// scene, scored against the real ground truth (condition 4).
+    ///
+    /// This is the number that says how much of the population is a TEST. On
+    /// the trivial arms it is close to the real recall, because (1, 0) is what
+    /// almost any blob reads as; the non-trivial figure beside it is where the
+    /// metric discriminates.
+    pub recall_unrelated_field: Recall,
+    pub recall_unrelated_field_non_trivial: Recall,
     /// Arms whose envelope carries candidates from BOTH complementary arms,
     /// and arms where one of the two contributed nothing.
     ///
@@ -284,6 +293,10 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
         recall_fixed_only: recall(&pop, |a| a.gt_in_envelope_fixed_only),
         non_trivial_gt_arms: nontrivial.len() as u64,
         recall_non_trivial: recall(&nontrivial, |a| a.gt_in_envelope),
+        recall_unrelated_field: recall(&pop, |a| a.gt_in_envelope_unrelated_field),
+        recall_unrelated_field_non_trivial: recall(&nontrivial, |a| {
+            a.gt_in_envelope_unrelated_field
+        }),
         arms_with_both_connectivity_arms: pop
             .iter()
             .filter(|a| a.candidates_by_arm.0 > 0 && a.candidates_by_arm.1 > 0)
@@ -375,7 +388,14 @@ impl TopologyReport {
             // EITHER convention's truth counts — is only justified while the
             // envelope carries BOTH complementary arms. RT45-A1 deleted one
             // from the generator and nothing moved. It moves now.
-            && self.arms_missing_a_connectivity_arm == 0;
+            && self.arms_missing_a_connectivity_arm == 0
+            // The knockout has to LOSE. If an envelope built from a field
+            // unrelated to the scene scored the same as the real one, this
+            // clause would not be a measurement of anything (condition 4,
+            // M45-N2). It does not have to lose by much for the row to be
+            // true — the number is published so a reader can see by how
+            // little.
+            && self.recall_unrelated_field.hits < r.hits;
         // Two conjuncts were removed here rather than fixed, and the reason is
         // the finding itself (M45-N8, RT45-A6): `nt.hits == nt.arms` and
         // "budget lost the last GT candidate == 0" are both IMPLIED by
@@ -471,7 +491,12 @@ impl TopologyReport {
                      assumed: {} of the {} arms carry candidates from BOTH complementary arms, \
                      and {} carry only one. Budget pruning was the reason an answer was missing \
                      on {} arms, and removed a GT-carrying candidate without losing the \
-                     reading on {} more. {} audit groups skipped, {} arms refused",
+                     reading on {} more. KNOCKOUT, and it is the number that says how much of \
+                     this population is a test at all: an envelope built from a field UNRELATED \
+                     to the scene still matches on {}/{} arms, and on the non-trivial ones \
+                     {}/{} — so the discriminating part of the population is the non-trivial \
+                     part, and a (1, 0) arm is nearly free. {} audit groups skipped, {} arms \
+                     refused",
                     self.identifiable_supported_arms,
                     self.arms_measured,
                     families,
@@ -492,6 +517,10 @@ impl TopologyReport {
                     self.pruning
                         .arms_where_budget_pruning_lost_the_last_gt_candidate,
                     self.pruning.arms_where_budget_removed_a_gt_class_candidate,
+                    self.recall_unrelated_field.hits,
+                    self.recall_unrelated_field.arms,
+                    self.recall_unrelated_field_non_trivial.hits,
+                    self.recall_unrelated_field_non_trivial.arms,
                     self.sealed_audit_groups_skipped,
                     self.arms_refused
                 ),
@@ -618,6 +647,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
                 "gt_in_envelope": a["gt_in_envelope"],
                 "gt_in_envelope_events_only": a["gt_in_envelope_events_only"],
                 "gt_in_envelope_fixed_only": a["gt_in_envelope_fixed_only"],
+                "gt_in_envelope_unrelated_field": a["gt_in_envelope_unrelated_field"],
                 "candidates_by_arm": a["candidates_by_arm"],
                 "matching_fields": a["matching_fields"],
             })
@@ -671,6 +701,14 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
             "hits": v["recall_fixed_only"]["hits"]
         },
         "non_trivial_gt_arms": v["non_trivial_gt_arms"],
+        "recall_unrelated_field": {
+            "arms": v["recall_unrelated_field"]["arms"],
+            "hits": v["recall_unrelated_field"]["hits"]
+        },
+        "recall_unrelated_field_non_trivial": {
+            "arms": v["recall_unrelated_field_non_trivial"]["arms"],
+            "hits": v["recall_unrelated_field_non_trivial"]["hits"]
+        },
         "arms_with_both_connectivity_arms": v["arms_with_both_connectivity_arms"],
         "arms_missing_a_connectivity_arm": v["arms_missing_a_connectivity_arm"],
         "field_contributions": v["field_contributions"],
