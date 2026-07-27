@@ -324,6 +324,24 @@ fn extract_chains(
     (chains, vertex, saddles)
 }
 
+/// Total length of the extracted level set, in px, without linking it into
+/// chains.
+///
+/// Used by the formation stage: the transition-width statistic of §10.1
+/// divides the "undecided mass" by this length, and computing it does not
+/// need chains, endpoints or a topology hypothesis.
+pub fn contour_length_px(alpha: &[f64], w: usize, h: usize, level: f64) -> f64 {
+    let (chains, vertex, _) = extract_chains(alpha, w, h, level);
+    let mut total = 0.0;
+    for (path, _) in &chains {
+        for k in 1..path.len() {
+            let (a, b) = (vertex[&path[k - 1]], vertex[&path[k]]);
+            total += (b.x - a.x).hypot(b.y - a.y);
+        }
+    }
+    total
+}
+
 fn bilinear(field: &[f64], w: usize, h: usize, p: Pt) -> f64 {
     // Lattice coordinates: a pixel centre sits at (i+0.5, j+0.5).
     let fx = (p.x - 0.5).clamp(0.0, (w - 1) as f64);

@@ -23,6 +23,10 @@
 //! - [`corridor`]: the calibrated normal interval of §13.1, derived from
 //!   the quantization cell, the local residual and the frozen clean-bucket
 //!   noise scale;
+//! - [`analysis`]: the stage as a whole — hypotheses in, one typed outcome
+//!   out (`supported` / `ambiguous` / `unsupported`), with the §1.6
+//!   exclusion of semi-transparent interiors as an OUTCOME rather than a
+//!   comment;
 //! - [`support`]: the mechanism that keeps evidence from becoming a second
 //!   pixel likelihood (§10.2).
 //!
@@ -39,6 +43,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod analysis;
 pub mod boundary;
 pub mod corridor;
 pub mod formation;
@@ -47,6 +52,10 @@ pub mod mixture;
 pub mod palette;
 pub mod support;
 
+pub use analysis::{
+    analyze, AnalysisConfig, Flat2Analysis, Flat2Outcome, UnsupportedReason, ANALYSIS_CONFIG_V1,
+    ANALYSIS_SCHEMA, MAX_RESIDUAL_P95_CODES,
+};
 pub use boundary::{
     observe_boundaries, BoundaryChain, BoundaryConfig, BoundaryObservation, BoundaryRefusal,
     BoundarySample, ChainStatus, BOUNDARY_CONFIG_V1,
