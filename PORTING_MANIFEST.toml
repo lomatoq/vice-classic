@@ -91,3 +91,21 @@ schema = "vice-classic/porting-manifest/v1"
 # The external tournament opponents of §27.3 (VTracer, Potrace) are run as
 # separate PROCESSES and are likewise neither vendored nor linked; Potrace
 # is GPL-2.0-or-later and out-of-process for exactly that reason.
+
+# ---------------------------------------------------------------------------
+# M3.5 status: STILL ZERO ported units.
+#
+# The factorial oracle harness (`crates/vice-bench/src/oracle/`) is written
+# from spec §27.6 and §28 M3.5 directly. Nothing was taken from a donor: the
+# donors have no factorial harness, no compatibility keys and no typed
+# refusal vocabulary to take. The one thing that LOOKS like a port is the
+# ceiling metric's edge-mean, and it is not one - it is the same scale-
+# invariant statistic REVIEW_M2_A M2-A-N1 forced this repository to adopt for
+# its own differential court, re-derived in `oracle::ceiling` over 8-bit
+# premultiplied codes rather than over coverage.
+#
+# No new third-party dependency was added in M3.5; `Cargo.toml` and
+# `Cargo.lock` are unchanged since 1e6ef13, so THIRD_PARTY_NOTICES needs no
+# entry. The only crates the new module uses are already-declared ones
+# (`serde`, `serde_json`, `sha2`, `hex`, `thiserror`) plus this workspace's
+# own `vice-ir`, `vice-render` and `vice-geom`.
