@@ -206,6 +206,26 @@ jobs:
         run: |
           cargo run --release --bin gt-corpus -- oracle-check \
             --report docs/gt/ORACLE_M4.json --structural
+      # §28 M4.5. All THREE gate clauses are computed from the recall
+      # report's own data and the command exits non-zero when any of them
+      # fails, so "the GT-equivalent topology is in the envelope",
+      # "ambiguous fixtures retain alternatives" and "no
+      # magic-threshold-only architecture" are things CI runs rather than
+      # things a status document says.
+      - name: M4.5 topology candidate recall and gate table
+        run: |
+          cargo run --release --bin gt-corpus -- topology \
+            --out runs/ci-topology/report.json --scope full
+      # `--structural` for the same reason the three steps above use it: the
+      # metrics are libm-derived floats and this runner is Linux while the
+      # artifact is recorded on Windows. The M4.5 projection is deliberately
+      # LESS lossy than the other two - it keeps every component and hole
+      # count and every recall boolean, because those are integers a
+      # different libm cannot move without moving the topology itself.
+      - name: The committed topology report reproduces (structural, cross-platform)
+        run: |
+          cargo run --release --bin gt-corpus -- topology-check \
+            --report docs/gt/TOPOLOGY_M4_5.json --structural
 
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
   # verified by nobody: the ubuntu job above physically cannot, because
@@ -235,6 +255,8 @@ jobs:
         run: cargo run --release --bin gt-corpus -- oracle-check --report docs/gt/ORACLE_M4.json
       - name: The committed corridor report reproduces (Tier A, every metric)
         run: cargo run --release --bin gt-corpus -- corridor-check --report docs/gt/CORRIDOR_M4.json
+      - name: The committed topology report reproduces (Tier A, every metric)
+        run: cargo run --release --bin gt-corpus -- topology-check --report docs/gt/TOPOLOGY_M4_5.json
 
 # Reproducing the pinned donor baselines needs local mirrors and a 104 MiB
 # hash-pinned asset, which CI has neither of; that step is executed by the

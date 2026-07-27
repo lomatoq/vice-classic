@@ -227,6 +227,15 @@ fn resolve(root: &serde_json::Value, path: &str) -> Option<f64> {
             here = pair.get(1)?.clone();
             continue;
         }
+        // A numeric step indexes an ARRAY. Needed by the M4.5 table, whose
+        // per-field and per-bucket rows live in arrays; `Value::get` with a
+        // string key returns `None` on an array, so without this a declared
+        // path would silently fail to resolve — and a path that silently
+        // fails to resolve is the very hole condition D2 closed.
+        if let Ok(i) = step.parse::<usize>() {
+            here = here.get(i)?.clone();
+            continue;
+        }
         here = here.get(step)?.clone();
     }
     here.as_f64()
