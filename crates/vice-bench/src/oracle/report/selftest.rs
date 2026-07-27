@@ -62,6 +62,8 @@ struct Synthetic {
     crime: InverseCrime,
 }
 
+impl crate::oracle::key::sealed::Sealed for Synthetic {}
+
 impl KeyedMeasurement for Synthetic {
     fn measurement_key(&self) -> &CompatibilityKey {
         &self.key

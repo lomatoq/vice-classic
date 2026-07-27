@@ -213,6 +213,7 @@ mod tests {
 
     pub(crate) fn synthetic_arm(id: &str, value: f64) -> super::super::key::FactorialArm {
         struct M(super::super::key::CompatibilityKey, f64);
+        impl super::super::key::sealed::Sealed for M {}
         impl super::super::key::KeyedMeasurement for M {
             fn measurement_key(&self) -> &super::super::key::CompatibilityKey {
                 &self.0

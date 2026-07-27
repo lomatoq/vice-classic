@@ -242,6 +242,8 @@ pub struct CeilingArm {
     pub metrics: CeilingMetrics,
 }
 
+impl super::key::sealed::Sealed for CeilingArm {}
+
 impl KeyedMeasurement for CeilingArm {
     fn measurement_key(&self) -> &CompatibilityKey {
         &self.key

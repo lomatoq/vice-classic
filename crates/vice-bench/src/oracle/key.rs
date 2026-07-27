@@ -136,10 +136,30 @@ impl CompatibilityKey {
 /// the same `key`, so `first_difference` compared a key with itself and
 /// could not fire. M4 publishes a second arm, so the hole stopped being
 /// theoretical.
-pub trait KeyedMeasurement {
+///
+/// SEALED, and that is REVIEW_M4 M4-N7. The trait was public, so a caller
+/// could write a type that returns whatever key it likes and collect two
+/// populations under one — the reviewer did exactly that and got a forged
+/// `CausalDelta` of 7. The residue was strictly smaller than the original
+/// defect (it takes a type, not just arguments) but it is the same shape, and
+/// the same shape was found a third time in `vice_evidence::support` this
+/// milestone. The private supertrait closes it the same way: every
+/// implementation is in this crate, where `CeilingArm` builds its key out of
+/// the real run conditions, and no downstream crate can assert a key at all.
+///
+/// What the seal does NOT do is stop a test in THIS crate from writing a
+/// deliberately incommensurable pair — `key::tests` and `report::selftest` do
+/// precisely that, on purpose, to prove the refusal fires.
+pub trait KeyedMeasurement: sealed::Sealed {
     fn measurement_key(&self) -> &CompatibilityKey;
     fn measurement_value(&self, metric: &str) -> Option<f64>;
     fn measurement_crime(&self) -> &InverseCrime;
+}
+
+pub(crate) mod sealed {
+    /// Private supertrait of [`super::KeyedMeasurement`]. Naming it is
+    /// impossible outside `vice-bench`, so implementing the trait is too.
+    pub trait Sealed {}
 }
 
 /// How several measurements become one arm value.
@@ -459,6 +479,7 @@ mod tests {
 
     struct M(CompatibilityKey, f64, InverseCrime);
 
+    impl sealed::Sealed for M {}
     impl KeyedMeasurement for M {
         fn measurement_key(&self) -> &CompatibilityKey {
             &self.0
