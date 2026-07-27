@@ -57,9 +57,12 @@ fn the_kernel_profile_table_matches_the_corpus() {
         };
         // The box row walks EVERY family, because the statistic varies with
         // the shape (corner density, curvature) at least as much as with the
-        // engine, and a spread measured on a third of the families would
+        // engine, and a spread measured on a fraction of the families would
         // understate it. The other kernels run only on the supersampler,
-        // which costs 576 inside-tests per pixel, so they walk every third.
+        // which costs 576 inside-tests per pixel, so they subsample the
+        // families — every SECOND one since M4-N1 shrank the population to
+        // the development split, where every third would have left the
+        // spread standing on a handful of shapes.
         let stride = if psf == Psf::Box { 1 } else { 2 };
         let mut widths = Vec::new();
         let mut unresolved = 0u32;
