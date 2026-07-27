@@ -115,19 +115,27 @@ bits_per_relation = 0.0
 #
 # Consumer: `vice_evidence::corridor::CLEAN_BUCKET_SIGMA_CODES`, cross-checked
 # by `gates::tests::every_frozen_value_agrees_with_the_code_that_uses_it`.
+# RE-FROZEN by the M4 delta after the procedure was corrected (REVIEW_M4
+# blocker 2 / M4-N2, FAILURE_LEDGER F-0027).
 #
-# UN-FROZEN by M4 delta (REVIEW_M4 blocker 2 / M4-N2). The value 18.8 was
-# measured with the HELD-OUT rasterizer `tiny-skia` in the pool, which the
-# frozen `[split] held_out_profiles` in this same file forbids, and the §28 M4
-# clause it feeds is precisely the one about generalizing to an engine the
-# calibration never saw. A number whose procedure is illegal is not a gate, so
-# the section returns to `placeholder` until the re-measurement lands and is
-# re-frozen by its own reviewed commit. This is the only direction in which a
-# frozen value may move without a measurement behind it: out of the gate.
+# WAS: 18.8, pooled over `tiny-skia` (9.54) and `raqote` (24.84). That pool
+# contained the HELD-OUT engine, which `[split] held_out_profiles` above keeps
+# out of development, and the §28 M4 clause this number sets the width of is
+# precisely the one about generalizing to an engine the calibration never saw.
+#
+# IS: 25.57 codes, from `raqote` alone over 11481 edge pixels, measured on
+# `corridor::frozen_calibration_groups()` — development groups, and only the
+# profiles the split policy allows there. It is the coarsest engine the
+# calibration may see, which is the right choice because inference is not told
+# which engine drew the image.
+#
+# The correction WIDENED the corridor (median halfwidth 0.233 -> 0.311 px) and
+# raised held-out coverage@95 from 0.976 to 0.996, so the old number was the
+# stricter one: the published coverage was never bought with width.
 [noise_scales]
-status = "placeholder"
+status = "frozen"
 set_by_milestone = "M4"
-clean_bucket_sigma_codes = 18.8
+clean_bucket_sigma_codes = 25.57
 
 # The degraded bucket of §17.1 is a robust mixture with a codec/outlier
 # component, and no measurement supports it yet: JPEG/WebP arrive with M9
