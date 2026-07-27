@@ -567,7 +567,7 @@ fn real_main() -> i32 {
                 eprintln!("warning: {w}");
             }
             let mut all_ok = true;
-            println!("M3.5 gate table:");
+            println!("M3.5 + M4 gate table:");
             for (name, ok, why) in report.gate_table() {
                 println!("  [{}] {name}: {why}", if ok { "MET" } else { "NOT MET" });
                 all_ok &= ok;

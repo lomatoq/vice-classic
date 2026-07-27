@@ -151,7 +151,7 @@ jobs:
 
       # §28 M3.5. The command exits non-zero when either gate clause fails,
       # so the two sentences are enforced by CI rather than read in a report.
-      - name: M3.5 factorial oracle harness and gate table
+      - name: M3.5 + M4 factorial oracle harness and gate table
         run: |
           cargo run --release --bin gt-corpus -- oracle \
             --out runs/ci-oracle/report.json --scope full
@@ -174,7 +174,7 @@ jobs:
       - name: The committed oracle report reproduces (structural, cross-platform)
         run: |
           cargo run --release --bin gt-corpus -- oracle-check \
-            --report docs/gt/ORACLE_M3_5.json --structural
+            --report docs/gt/ORACLE_M4.json --structural
 
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
   # verified by nobody: the ubuntu job above physically cannot, because
@@ -201,7 +201,7 @@ jobs:
       - name: The committed corpus manifest reproduces (Tier A, all 1086 digests)
         run: cargo run --release --bin gt-corpus -- verify --manifest docs/gt/CORPUS_MANIFEST.json
       - name: The committed oracle report reproduces (Tier A, every metric)
-        run: cargo run --release --bin gt-corpus -- oracle-check --report docs/gt/ORACLE_M3_5.json
+        run: cargo run --release --bin gt-corpus -- oracle-check --report docs/gt/ORACLE_M4.json
       - name: The committed corridor report reproduces (Tier A, every metric)
         run: cargo run --release --bin gt-corpus -- corridor-check --report docs/gt/CORRIDOR_M4.json
 

@@ -17,163 +17,25 @@
 //! (meta-rule M-1), and its inputs are obviously synthetic so they cannot be
 //! mistaken for a measurement of the corpus.
 
+pub mod gate;
+pub mod selftest;
+
 use serde::Serialize;
 
 use super::ceiling::{CeilingAggregate, CeilingArm, CEILING_METRICS};
 use super::crime::InverseCrime;
-use super::design::{ArmDeclaration, GArm, PfArm};
+use super::design::{ArmDeclaration, FormationSource, GArm, PfArm};
 use super::effects::{geometry_deltas, pf_effects, FactorialEffects, GeometryDelta};
-use super::key::{CandidateBudget, CommensurableArms, CompatibilityKey, KEY_COMPONENTS};
+use super::key::{CommensurableArms, FactorialArm, Reduce};
 use super::{OracleConfig, OracleRun, RefusedArm};
 use crate::gt::corpus::Platform;
-use crate::gt::raster::RasterProfile;
-use crate::hashing::sha256_hex;
+pub use selftest::{KeyComponentCheck, MechanismSelftest};
 
-pub const ORACLE_SCHEMA: &str = "vice-classic/m3_5-oracle/v1";
-
-/// One component of the compatibility key, and whether mutating it alone is
-/// refused.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct KeyComponentCheck {
-    pub component: &'static str,
-    pub mismatch_refused: bool,
-    pub refusal: String,
-}
-
-/// Evidence that the two gate mechanisms execute, produced by running them
-/// on SYNTHETIC arms at report time.
-///
-/// These numbers measure nothing about the corpus and are not arms: the
-/// values 1/2/4/8 are chosen to be visibly artificial and the block is named
-/// so it cannot be read as data. Its only job is to answer the question a
-/// reviewer would otherwise have to take on trust — "does the refusal ever
-/// fire, or is everything simply absent?".
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct MechanismSelftest {
-    pub note: &'static str,
-    pub synthetic_arm_values: Vec<(&'static str, f64)>,
-    pub effects_produced: u64,
-    pub partition_main_effect: f64,
-    pub formation_main_effect: f64,
-    pub interaction: f64,
-    /// The sequential difference §27.6 replaced, printed next to the main
-    /// effect it is NOT: if these two were ever equal the harness would be
-    /// publishing the ladder under a factorial name.
-    pub sequential_pf10_minus_pf00: f64,
-    pub key_components: Vec<KeyComponentCheck>,
-    pub all_key_components_refuse_a_mismatch: bool,
-    pub contaminated_arm_contaminates_the_aggregate: bool,
-    pub all_clean_arms_leave_the_aggregate_clean: bool,
-}
-
-fn selftest_key() -> CompatibilityKey {
-    CompatibilityKey {
-        backend_id: "selftest-backend".to_string(),
-        config_hash: "selftest-config".to_string(),
-        candidate_budget: CandidateBudget::NotApplicable,
-        fixture_hash: "selftest-fixture".to_string(),
-        intervention_schema_version: super::design::INTERVENTION_SCHEMA_VERSION.to_string(),
-    }
-}
-
-fn mutate(key: &CompatibilityKey, component: &str) -> CompatibilityKey {
-    let mut k = key.clone();
-    match component {
-        "backend_id" => k.backend_id.push_str("-other"),
-        "config_hash" => k.config_hash.push_str("-other"),
-        "candidate_budget" => k.candidate_budget = CandidateBudget::Candidates { max: 1 },
-        "fixture_hash" => k.fixture_hash.push_str("-other"),
-        "intervention_schema_version" => k.intervention_schema_version.push_str("-other"),
-        other => unreachable!("unknown key component {other}"),
-    }
-    k
-}
-
-impl MechanismSelftest {
-    pub fn run() -> MechanismSelftest {
-        let key = selftest_key();
-        let values: Vec<(&'static str, f64)> =
-            vec![("PF00", 1.0), ("PF10", 2.0), ("PF01", 4.0), ("PF11", 8.0)];
-        let mut set = CommensurableArms::new(key.clone());
-        for (arm, v) in &values {
-            set.insert(arm, &key, *v, InverseCrime::Clean)
-                .expect("synthetic arms share one key");
-        }
-        let e = pf_effects("selftest", &set);
-        let val = |o: &super::design::ArmOutcome<super::key::CausalDelta>| {
-            o.measured().map(|d| d.value()).unwrap_or(f64::NAN)
-        };
-        let produced = e
-            .effects()
-            .iter()
-            .filter(|o| o.measured().is_some())
-            .count() as u64;
-        let ladder = set
-            .contrast("selftest-sequential", &[("PF10", 1.0), ("PF00", -1.0)])
-            .expect("both arms present")
-            .value();
-
-        // Walk the CLASS of key components: mutate each one alone and
-        // record whether the set refuses. A component absent from this walk
-        // would be a component the fingerprint does not defend.
-        let key_components: Vec<KeyComponentCheck> = KEY_COMPONENTS
-            .iter()
-            .map(|component| {
-                let mut probe = CommensurableArms::new(key.clone());
-                probe
-                    .insert("PF11", &key, 1.0, InverseCrime::Clean)
-                    .expect("same key");
-                let outcome =
-                    probe.insert("PF10", &mutate(&key, component), 2.0, InverseCrime::Clean);
-                KeyComponentCheck {
-                    component,
-                    mismatch_refused: outcome.is_err(),
-                    refusal: outcome
-                        .err()
-                        .map(|e| e.to_string())
-                        .unwrap_or_else(|| "NOT REFUSED".to_string()),
-                }
-            })
-            .collect();
-
-        // The aggregation property, on the state where it matters: one
-        // contaminated arm among clean ones.
-        let dirty = InverseCrime::of(RasterProfile::ViceRender, RasterProfile::TinySkia);
-        let mixed = InverseCrime::fold_all(
-            [
-                &InverseCrime::Clean,
-                &InverseCrime::Clean,
-                &dirty,
-                &InverseCrime::Clean,
-            ]
-            .into_iter(),
-        );
-        let clean = InverseCrime::fold_all(
-            [
-                &InverseCrime::Clean,
-                &InverseCrime::Clean,
-                &InverseCrime::Clean,
-            ]
-            .into_iter(),
-        );
-
-        MechanismSelftest {
-            note: "SYNTHETIC. These values measure nothing about the corpus; they exist so the \
-                   gate rows below are not green merely because no delta was produced.",
-            synthetic_arm_values: values,
-            effects_produced: produced,
-            partition_main_effect: val(&e.partition_main_effect),
-            formation_main_effect: val(&e.formation_main_effect),
-            interaction: val(&e.interaction),
-            sequential_pf10_minus_pf00: ladder,
-            all_key_components_refuse_a_mismatch: key_components.iter().all(|c| c.mismatch_refused)
-                && key_components.len() == KEY_COMPONENTS.len(),
-            key_components,
-            contaminated_arm_contaminates_the_aggregate: mixed.is_contaminated(),
-            all_clean_arms_leave_the_aggregate_clean: !clean.is_contaminated(),
-        }
-    }
-}
+/// The schema moves with the harness. M4 changed what an arm IS (a second
+/// formation source), what its key says (an exhaustive search budget where
+/// M3.5 had none) and what the report carries, so an M3.5 artifact and an M4
+/// artifact are not the same document and must not share a name.
+pub const ORACLE_SCHEMA: &str = "vice-classic/m4-oracle/v1";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct OracleReport {
@@ -200,45 +62,79 @@ pub struct OracleReport {
     pub factorial: Vec<FactorialEffects>,
     pub geometry_deltas: Vec<GeometryDelta>,
     pub refused: Vec<RefusedArm>,
+    /// Arms the factorial could not ASSEMBLE, with the typed reason. Empty
+    /// in a healthy run; non-empty would mean two measurements that should
+    /// share a key do not.
+    pub assembly_refusals: Vec<String>,
+    /// (scene, cell) pairs on which BOTH formation sources produced an arm,
+    /// and the ones only the ground-truth source did. §27.6 requires the
+    /// arms of a factorial to share fixtures, so the factorial runs over the
+    /// intersection and the difference is published rather than averaged in.
+    pub factorial_common_fixtures: u64,
+    pub factorial_dropped_fixtures: u64,
     pub mechanism_selftest: MechanismSelftest,
     pub not_yet_produced: Vec<&'static str>,
 }
 
-/// Aggregate one metric over a set of arms, with the statistic that makes
-/// the metric conservative: worst case for the error metrics, worst case for
-/// the agreement fraction.
-fn aggregate_metric(arms: &[&CeilingArm], metric: &str) -> f64 {
-    let vals = arms.iter().filter_map(|a| a.metrics.get(metric));
+/// How each metric is reduced over the arms of one factorial arm: the
+/// statistic that makes it conservative.
+fn reduce_for(metric: &str) -> Reduce {
     match metric {
-        "max_abs_code" => vals.fold(f64::NEG_INFINITY, f64::max),
-        "identical_pixels_frac" => vals.fold(f64::INFINITY, f64::min),
-        _ => {
-            let v: Vec<f64> = vals.collect();
-            if v.is_empty() {
-                f64::NAN
-            } else {
-                v.iter().sum::<f64>() / v.len() as f64
-            }
-        }
+        "max_abs_code" => Reduce::Max,
+        "identical_pixels_frac" => Reduce::Min,
+        _ => Reduce::Mean,
     }
+}
+
+/// The warnings a report MUST carry, derived from its arms and aggregates.
+///
+/// Shared by `build` and by the gate row, so clause 2 compares the published
+/// warnings with a derived SET rather than with emptiness — the second of
+/// the two vacuum gaps REVIEW_M3_5 M35-N4 found ("the weather is fine"
+/// satisfied `!warnings.is_empty()`).
+pub fn derived_warnings(
+    arms: &[CeilingArm],
+    aggregates: &[CeilingAggregate],
+    has_factorial: bool,
+) -> Vec<String> {
+    let overall = InverseCrime::fold_all(arms.iter().map(|a| &a.inverse_crime));
+    let mut out: Vec<String> = overall.warnings().iter().map(|w| w.to_string()).collect();
+    for agg in aggregates
+        .iter()
+        .filter(|a| a.inverse_crime.is_contaminated())
+    {
+        out.push(format!(
+            "contaminated pairing: backend {} against observation profile {} (cell {}, arm {})",
+            agg.backend_id, agg.observation_profile, agg.cell_id, agg.arm
+        ));
+    }
+    if has_factorial && overall.is_contaminated() {
+        out.push(
+            "every factorial arm of this report inherits the contamination above through the \
+             aggregation fold; no effect below may be read as evidence about accuracy"
+                .to_string(),
+        );
+    }
+    out
 }
 
 pub fn build(run: &OracleRun) -> OracleReport {
     let arms: Vec<&CeilingArm> = run.arms.iter().collect();
 
-    // Aggregates per (backend, observation cell): the level at which a
-    // clean pairing and a contaminated one are both visible.
+    // Aggregates per (arm, backend, observation cell): the level at which a
+    // clean pairing and a contaminated one are both visible, now split by
+    // which formation the arm rendered with.
     let mut ceiling = Vec::new();
-    let mut pairs: Vec<(String, String)> = arms
+    let mut pairs: Vec<(&'static str, String, String)> = arms
         .iter()
-        .map(|a| (a.backend_id.clone(), a.cell_id.clone()))
+        .map(|a| (a.arm, a.backend_id.clone(), a.cell_id.clone()))
         .collect();
     pairs.sort();
     pairs.dedup();
-    for (backend, cell) in &pairs {
+    for (arm_id, backend, cell) in &pairs {
         let group: Vec<&CeilingArm> = arms
             .iter()
-            .filter(|a| &a.backend_id == backend && &a.cell_id == cell)
+            .filter(|a| a.arm == *arm_id && &a.backend_id == backend && &a.cell_id == cell)
             .copied()
             .collect();
         if let Some(agg) = CeilingAggregate::of(&group) {
@@ -246,77 +142,88 @@ pub fn build(run: &OracleRun) -> OracleReport {
         }
     }
 
-    // One factorial per (backend, metric). The fixture side of the key is
-    // the whole fixture SET, because §27.6 requires all arms of a factorial
-    // to share fixtures - so the arm value is the aggregate over them.
+    // One factorial per (backend, metric). Each arm is DERIVED from the
+    // measurements it aggregates — the key comes from them, not from here
+    // (condition B1 / REVIEW_M3_5 M35-N3) — so a factorial cannot be
+    // assembled out of arms that were not measured under one key.
     let mut backends: Vec<String> = arms.iter().map(|a| a.backend_id.clone()).collect();
     backends.sort();
     backends.dedup();
     let mut factorial = Vec::new();
     let mut geometry = Vec::new();
+    let mut assembly_refusals: Vec<String> = Vec::new();
+    let mut common_fixtures = 0u64;
+    let mut dropped_fixtures = 0u64;
     for backend in &backends {
-        let group: Vec<&CeilingArm> = arms
-            .iter()
-            .filter(|a| &a.backend_id == backend)
-            .copied()
-            .collect();
-        let crime = InverseCrime::fold_all(group.iter().map(|a| &a.inverse_crime));
-        let key = CompatibilityKey {
-            backend_id: backend.clone(),
-            config_hash: run.config_hash.clone(),
-            candidate_budget: CandidateBudget::NotApplicable,
-            fixture_hash: sha256_hex(
-                format!(
-                    "{}\u{1f}{}",
-                    run.fixture_set_hash,
-                    run.config.cells.join(",")
-                )
-                .as_bytes(),
-            ),
-            intervention_schema_version: super::design::INTERVENTION_SCHEMA_VERSION.to_string(),
+        // The two arms of a factorial must range over the SAME fixtures
+        // (§27.6), and they do not automatically: an estimated-formation arm
+        // is refused wherever the estimate is not realizable by the backend.
+        // So the factorial runs over the INTERSECTION, and the arms the
+        // intersection drops are counted rather than quietly averaged in.
+        //
+        // Nothing enforces this by convention: the derived key's fixture
+        // component is a hash over the members' own, so two arms over
+        // different fixture sets are refused at `insert` — which is how this
+        // was found (condition B1 doing its work on the first run).
+        let present = |source: FormationSource| -> std::collections::BTreeSet<(String, String)> {
+            arms.iter()
+                .filter(|a| &a.backend_id == backend && a.formation_source == source)
+                .map(|a| (a.scene_id.clone(), a.cell_id.clone()))
+                .collect()
         };
+        let gt = present(FormationSource::GroundTruth);
+        let est = present(FormationSource::Estimated);
+        let shared: std::collections::BTreeSet<(String, String)> =
+            gt.intersection(&est).cloned().collect();
+        common_fixtures += shared.len() as u64;
+        dropped_fixtures += (gt.len() - shared.len()) as u64;
         for metric in CEILING_METRICS {
-            let mut set = CommensurableArms::new(key.clone());
-            // PF11 == G30: GT partition and GT formation, which is the one
-            // arm this milestone can inject honestly.
-            set.insert(
-                PfArm::Pf11.id(),
-                &key,
-                aggregate_metric(&group, metric),
-                crime.clone(),
-            )
-            .expect("the arm carries the set's own key");
+            let mut set = CommensurableArms::new();
+            for (pf, source) in [
+                (PfArm::Pf10, FormationSource::Estimated),
+                (PfArm::Pf11, FormationSource::GroundTruth),
+            ] {
+                let members: Vec<&CeilingArm> = arms
+                    .iter()
+                    .filter(|a| {
+                        &a.backend_id == backend
+                            && a.formation_source == source
+                            && shared.contains(&(a.scene_id.clone(), a.cell_id.clone()))
+                    })
+                    .copied()
+                    .collect();
+                match FactorialArm::aggregate(pf.id(), metric, &members, reduce_for(metric)) {
+                    Ok(a) => {
+                        if let Err(e) = set.insert(&a) {
+                            assembly_refusals.push(e.to_string());
+                        }
+                    }
+                    Err(e) => assembly_refusals.push(e.to_string()),
+                }
+            }
             factorial.push(pf_effects(metric, &set));
             if *metric == CEILING_METRICS[0] {
-                let mut g = CommensurableArms::new(key.clone());
-                g.insert(
-                    GArm::G30.id(),
-                    &key,
-                    aggregate_metric(&group, metric),
-                    crime.clone(),
-                )
-                .expect("same key");
+                let members: Vec<&CeilingArm> = arms
+                    .iter()
+                    .filter(|a| {
+                        &a.backend_id == backend
+                            && a.formation_source == FormationSource::GroundTruth
+                            && shared.contains(&(a.scene_id.clone(), a.cell_id.clone()))
+                    })
+                    .copied()
+                    .collect();
+                let mut g = CommensurableArms::new();
+                if let Ok(a) =
+                    FactorialArm::aggregate(GArm::G30.id(), metric, &members, reduce_for(metric))
+                {
+                    let _ = g.insert(&a);
+                }
                 geometry.extend(geometry_deltas(&g));
             }
         }
     }
 
-    let overall = InverseCrime::fold_all(arms.iter().map(|a| &a.inverse_crime));
-    let mut warnings: Vec<String> = overall.warnings().iter().map(|w| w.to_string()).collect();
-    for agg in ceiling.iter().filter(|a| a.inverse_crime.is_contaminated()) {
-        warnings.push(format!(
-            "contaminated pairing: backend {} against observation profile {} (cell {})",
-            agg.backend_id, agg.observation_profile, agg.cell_id
-        ));
-    }
-    if !factorial.is_empty() && overall.is_contaminated() {
-        warnings.push(
-            "every factorial arm of this report inherits the contamination above through the \
-             aggregation fold; no effect below may be read as evidence about accuracy"
-                .to_string(),
-        );
-    }
-
+    let warnings = derived_warnings(&run.arms, &ceiling, !factorial.is_empty());
     let clean_arms = arms
         .iter()
         .filter(|a| !a.inverse_crime.is_contaminated())
@@ -324,7 +231,7 @@ pub fn build(run: &OracleRun) -> OracleReport {
 
     OracleReport {
         schema: ORACLE_SCHEMA,
-        milestone: "M3.5",
+        milestone: "M4",
         platform: Platform::current(),
         config: run.config.clone(),
         config_hash: run.config_hash.clone(),
@@ -342,12 +249,20 @@ pub fn build(run: &OracleRun) -> OracleReport {
             .map(|a| {
                 ArmDeclaration::pf(
                     *a,
-                    (a.missing().is_empty()).then(|| {
-                        "measured as G30: the renderer/serialization ceiling above".to_string()
+                    (a.missing().is_empty()).then(|| match a {
+                        PfArm::Pf11 => "measured: GT partition + GT formation, which is also G30 \
+                                         (the renderer/serialization ceiling above)"
+                            .to_string(),
+                        _ => "measured: GT partition + the formation ESTIMATED from the \
+                              observation by vice-evidence (M4)"
+                            .to_string(),
                     }),
                 )
             })
             .collect(),
+        assembly_refusals,
+        factorial_common_fixtures: common_fixtures,
+        factorial_dropped_fixtures: dropped_fixtures,
         g_arms: GArm::ALL
             .iter()
             .map(|a| {
@@ -362,8 +277,8 @@ pub fn build(run: &OracleRun) -> OracleReport {
         refused: run.refused.clone(),
         mechanism_selftest: MechanismSelftest::run(),
         not_yet_produced: vec![
-            "PF00/PF01/PF10 and all three factorial effects (auto partition M4.5, formation \
-             estimation M4)",
+            "PF00/PF01 and all three factorial effects (auto partition, M4.5). PF10 joined the \
+             measured arms in M4",
             "G00/G01/G10/G11/G20 and the geometry ladder deltas (M6)",
             "paint oracle (M8) and formation-expansion oracle (M9), per §27.6",
             "boundary/topology/primitive metrics: there is no vectorizer output to measure (M6+)",
@@ -375,101 +290,6 @@ pub fn build(run: &OracleRun) -> OracleReport {
 impl OracleReport {
     pub fn canonical_json(&self) -> String {
         serde_json::to_string_pretty(self).expect("oracle report serializes")
-    }
-
-    /// The §28 M3.5 gate, as booleans computed from this report's own data.
-    pub fn gate_table(&self) -> Vec<(&'static str, bool, String)> {
-        // Clause 1. Every published effect is either a delta whose operands
-        // carry the factorial's own key fingerprint, or a typed refusal that
-        // names what is missing - AND the machinery demonstrably refuses a
-        // mismatch on every key component and demonstrably produces effects
-        // when the arms ARE commensurable. Without the second half this row
-        // would be green because nothing was subtracted (meta-rule M-2).
-        let effects_well_formed = self.factorial.iter().all(|f| {
-            f.effects().iter().all(|o| match o {
-                super::design::ArmOutcome::Measured(d) => {
-                    d.key_fingerprint() == f.key_fingerprint && d.terms().len() == 4
-                }
-                super::design::ArmOutcome::NotYetApplicable(r) => {
-                    !r.reason.is_empty() && !r.owner_milestone.is_empty()
-                }
-            })
-        }) && self.geometry_deltas.iter().all(|g| match &g.outcome {
-            super::design::ArmOutcome::Measured(d) => !d.terms().is_empty(),
-            super::design::ArmOutcome::NotYetApplicable(r) => !r.reason.is_empty(),
-        });
-        // `!is_empty()` is not decoration. Without it a report containing NO
-        // factorial at all satisfies clause 1 by having nothing to check -
-        // `all()` over an empty set is true and `0 == 0 * 3` holds - which is
-        // meta-rule M-2 in the one place this file exists to defend against
-        // it. The clause is about deltas being commensurable, and a report
-        // that publishes no effects has not demonstrated that.
-        let effect_count_intact = !self.factorial.is_empty()
-            && self.factorial.len() == self.config.backends.len() * CEILING_METRICS.len()
-            && self.factorial.iter().all(|f| f.effects().len() == 3);
-        let st = &self.mechanism_selftest;
-        let mechanism_live = st.all_key_components_refuse_a_mismatch
-            && st.effects_produced == 3
-            && (st.partition_main_effect - st.sequential_pf10_minus_pf00).abs() > 1e-9;
-
-        // Clause 2. The warning exists, is attached to the arms that earn
-        // it, survives every aggregation, and is not constant.
-        let recomputed_ok = self.ceiling.iter().all(|agg| {
-            let fold = InverseCrime::fold_all(
-                self.ceiling_arms
-                    .iter()
-                    .filter(|a| a.backend_id == agg.backend_id && a.cell_id == agg.cell_id)
-                    .map(|a| &a.inverse_crime),
-            );
-            fold == agg.inverse_crime
-        });
-        // Re-derived from the two profile NAMES the artifact records, by the
-        // same function that produced them: a reader of the JSON can repeat
-        // this without trusting the flag stored next to it.
-        let derived_ok = self.ceiling_arms.iter().all(|a| {
-            match (
-                RasterProfile::from_id(a.backend_rasterizer),
-                RasterProfile::from_id(a.observation_profile),
-            ) {
-                (Some(b), Some(o)) => InverseCrime::of(b, o) == a.inverse_crime,
-                _ => false,
-            }
-        });
-        let warning_visible = self.inverse_crime_arms > 0
-            && self.clean_arms > 0
-            && !self.warnings.is_empty()
-            && recomputed_ok
-            && derived_ok
-            && st.contaminated_arm_contaminates_the_aggregate
-            && st.all_clean_arms_leave_the_aggregate_clean;
-
-        vec![
-            (
-                "no causal deltas across incompatible runs",
-                effects_well_formed && effect_count_intact && mechanism_live,
-                format!(
-                    "{} factorial instances x 3 effects, each a commensurable contrast or a typed \
-                     refusal; the selftest shows all {} key components refuse a mismatch and that \
-                     four commensurable arms DO yield 3 effects ({} vs the sequential {})",
-                    self.factorial.len(),
-                    st.key_components.len(),
-                    st.partition_main_effect,
-                    st.sequential_pf10_minus_pf00
-                ),
-            ),
-            (
-                "inverse-crime warning visible",
-                warning_visible,
-                format!(
-                    "{} contaminated arms and {} clean ones; {} warning line(s); every aggregate \
-                     status equals the fold of its own arms and every arm status equals the one \
-                     derived from its two profiles",
-                    self.inverse_crime_arms,
-                    self.clean_arms,
-                    self.warnings.len()
-                ),
-            ),
-        ]
     }
 }
 
@@ -519,6 +339,10 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
                 "backend_id": a["backend_id"],
                 "observation_profile": a["observation_profile"],
                 "backend_rasterizer": a["backend_rasterizer"],
+                "arm": a["arm"],
+                "formation_source": a["formation_source"],
+                "formation": a["formation"],
+                "formation_matches_gt": a["formation_matches_gt"],
                 "inverse_crime": a["inverse_crime"],
                 "serialization_digest_identical": a["metrics"]["serialization_digest_identical"],
             })
@@ -559,9 +383,11 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         .iter()
         .map(|c| {
             serde_json::json!({
+                "arm": c["arm"],
                 "backend_id": c["backend_id"],
                 "cell_id": c["cell_id"],
                 "arms": c["arms"],
+                "formation_matches_gt": c["formation_matches_gt"],
                 "inverse_crime": c["inverse_crime"],
                 "all_serialization_identical": c["all_serialization_identical"],
             })
@@ -587,6 +413,9 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "factorial": factorial,
         "geometry_deltas": geometry,
         "refused": v["refused"],
+        "assembly_refusals": v["assembly_refusals"],
+        "factorial_common_fixtures": v["factorial_common_fixtures"],
+        "factorial_dropped_fixtures": v["factorial_dropped_fixtures"],
         "ceiling": ceiling,
         "ceiling_arms": arms,
     })
@@ -606,7 +435,11 @@ mod tests {
     fn both_gate_rows_are_met_and_name_their_mechanism() {
         let r = report();
         let table = r.gate_table();
-        assert_eq!(table.len(), 2, "spec 28 M3.5 states two clauses");
+        assert_eq!(
+            table.len(),
+            3,
+            "two clauses from 28 M3.5 and the factorial clause of 28 M4"
+        );
         for (name, ok, why) in &table {
             assert!(*ok, "gate {name} not met: {why}");
             assert!(why.len() > 40, "gate {name} states no mechanism");
@@ -749,20 +582,28 @@ mod tests {
             .chain(&r.g_arms)
             .filter(|a| a.outcome.refusal().is_some())
             .collect();
-        assert_eq!(refused.len(), 8, "PF00/PF01/PF10 and G00/G01/G10/G11/G20");
+        assert_eq!(
+            refused.len(),
+            7,
+            "PF00/PF01 and G00/G01/G10/G11/G20 - PF10 became measurable in M4"
+        );
         for a in refused {
             let x = a.outcome.refusal().unwrap();
             assert!(!x.missing.is_empty());
-            assert!(["M4", "M4.5", "M6"].contains(&x.owner_milestone));
+            assert!(["M4.5", "M6"].contains(&x.owner_milestone));
         }
-        assert!(r
-            .pf_arms
-            .iter()
-            .find(|a| a.arm == "PF11")
-            .unwrap()
-            .outcome
-            .measured()
-            .is_some());
+        for arm in ["PF10", "PF11"] {
+            assert!(
+                r.pf_arms
+                    .iter()
+                    .find(|a| a.arm == arm)
+                    .unwrap()
+                    .outcome
+                    .measured()
+                    .is_some(),
+                "{arm} must be measured in M4"
+            );
+        }
         assert!(r
             .g_arms
             .iter()

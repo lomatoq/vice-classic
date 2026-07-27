@@ -137,7 +137,7 @@ fn a_perturbed_metric_and_a_foreign_platform_are_both_caught() {
 /// refusal, which is the honest outcome rather than a skipped assertion.
 #[test]
 fn the_committed_report_verifies_or_refuses_by_platform() {
-    let path = repo_root().join("docs/gt/ORACLE_M3_5.json");
+    let path = repo_root().join("docs/gt/ORACLE_M4.json");
     let v: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     assert_eq!(

@@ -34,6 +34,7 @@ pub mod report;
 use serde::Serialize;
 
 use ceiling::{measure_ceiling, ArmRefusal, CeilingArm, OracleBackend, RoundtrippedScene};
+use design::FormationSource;
 
 use crate::gt::corpus::all_groups;
 use crate::gt::degradation::{matrix_v1, DegradationCell};
@@ -81,6 +82,13 @@ pub const ORACLE_CELL_IDS: &[&str] = &[
     "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
     "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
     "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
+    // Added in M4, because PF10 estimates the formation and these are the
+    // two cells where the estimate can be WRONG: a cell that blended in
+    // encoded sRGB, and one whose paints are close enough that the mixture
+    // is poorly conditioned. Without them the factorial's new arm would run
+    // only where the answer is the default.
+    "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+    "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
 ];
 
 /// The reference backends. `ViceRender` is present ON PURPOSE and always
@@ -201,17 +209,30 @@ pub fn run(scope: OracleScope) -> Result<OracleRun, String> {
             digests.push(round.scene_digest.clone());
             for cell in &cells {
                 for backend in ORACLE_BACKENDS.iter().map(|p| OracleBackend::new(*p)) {
-                    match measure_ceiling(scene, &round, cell, backend, members, &config_hash) {
-                        Ok(a) => arms.push(a),
-                        Err(e) => refused.push(RefusedArm {
-                            scene_id: scene.id().to_string(),
-                            cell_id: cell.id(),
-                            backend_id: backend.id(),
-                            reason: match &e {
-                                ArmRefusal::RenderFailed { .. } => e.to_string(),
-                                other => other.to_string(),
-                            },
-                        }),
+                    // Both formation sources of the 2x2's formation factor.
+                    // The partition factor is GT on both: auto partition is
+                    // M4.5's, and PF00/PF01 stay typed refusals.
+                    for source in [FormationSource::GroundTruth, FormationSource::Estimated] {
+                        match measure_ceiling(
+                            scene,
+                            &round,
+                            cell,
+                            backend,
+                            source,
+                            members,
+                            &config_hash,
+                        ) {
+                            Ok(a) => arms.push(a),
+                            Err(e) => refused.push(RefusedArm {
+                                scene_id: scene.id().to_string(),
+                                cell_id: cell.id(),
+                                backend_id: backend.id(),
+                                reason: match &e {
+                                    ArmRefusal::RenderFailed { .. } => e.to_string(),
+                                    other => other.to_string(),
+                                },
+                            }),
+                        }
                     }
                 }
             }
@@ -266,12 +287,16 @@ mod tests {
         let r = test_run();
         assert!(r.scenes >= 4, "scenes {}", r.scenes);
         assert_eq!(
-            r.arms.len() as u64,
-            r.scenes * (ORACLE_CELL_IDS.len() * ORACLE_BACKENDS.len()) as u64,
-            "every (scene, cell, backend) triple must be measured or refused, and none of \
-             these cells is refusable"
+            r.arms.len() as u64 + r.refused.len() as u64,
+            r.scenes * (ORACLE_CELL_IDS.len() * ORACLE_BACKENDS.len() * 2) as u64,
+            "every (scene, cell, backend, formation source) tuple must be measured or refused"
         );
-        assert!(r.refused.is_empty(), "unexpected refusals: {:?}", r.refused);
+        // BOTH arms of the formation factor exist on real data.
+        assert!(r.arms.iter().any(|a| a.arm == "PF11"));
+        assert!(
+            r.arms.iter().any(|a| a.arm == "PF10"),
+            "M4 must produce the estimated-formation arm on the corpus"
+        );
         assert_ne!(
             OracleConfig::v1(OracleScope::Test).hash(),
             OracleConfig::v1(OracleScope::Full).hash()

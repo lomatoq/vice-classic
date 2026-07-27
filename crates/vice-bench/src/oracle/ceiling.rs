@@ -38,7 +38,8 @@
 use serde::Serialize;
 
 use super::crime::InverseCrime;
-use super::key::{CandidateBudget, CompatibilityKey};
+use super::design::FormationSource;
+use super::key::{CandidateBudget, CompatibilityKey, KeyedMeasurement};
 use crate::gt::degradation::{render_cell_raster, DegradationCell, ResizeChain};
 use crate::gt::raster::RasterProfile;
 use crate::gt::GtScene;
@@ -117,6 +118,27 @@ pub enum ArmRefusal {
     },
     #[error("scene {scene}: observation is {obs} px and model is {model} px")]
     SizeMismatch { scene: String, obs: u32, model: u32 },
+    #[error(
+        "the formation estimator did not deliver a formation for scene {scene} under cell \
+         {cell}: it returned {outcome}. The arm is refused rather than filled with the ground \
+         truth, which would make PF10 a copy of PF11"
+    )]
+    FormationEstimationFailed {
+        scene: String,
+        cell: String,
+        outcome: String,
+    },
+    #[error(
+        "the ESTIMATED formation for scene {scene} is {estimated}, and backend {backend} \
+         integrates a unit box only. Refused rather than substituted: an estimate the backend \
+         cannot realize is an estimation error, and hiding it behind the ground truth would \
+         make the arm measure something else"
+    )]
+    EstimatedFormationNotRealizable {
+        scene: String,
+        backend: String,
+        estimated: String,
+    },
 }
 
 /// A scene put through the backend's serialization stage, once.
@@ -190,6 +212,15 @@ pub struct CeilingMetrics {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CeilingArm {
     pub arm: &'static str,
+    /// Where the formation this arm rendered with came from. The factor of
+    /// the 2x2 that M4 made measurable.
+    pub formation_source: FormationSource,
+    /// The formation the arm actually rendered with, as an id.
+    pub formation: String,
+    /// True when the estimated formation equals the cell's own. Recorded per
+    /// arm so "the estimator recovered the truth" is a count and not a
+    /// claim.
+    pub formation_matches_gt: bool,
     pub scene_id: String,
     pub group_id: String,
     pub cell_id: String,
@@ -199,9 +230,28 @@ pub struct CeilingArm {
     /// reader of the artifact can RE-DERIVE `inverse_crime` from the two
     /// profiles instead of trusting the recorded flag (REVIEW_M3 M3-N5).
     pub backend_rasterizer: &'static str,
+    /// The compatibility key this arm was measured under.
+    ///
+    /// Carried in full, not only as a fingerprint, because a factorial arm
+    /// is DERIVED from measurements and the derivation needs the components
+    /// (condition B1 / REVIEW_M3_5 M35-N3). The fingerprint stays for a
+    /// reader who wants one value to compare.
+    pub key: CompatibilityKey,
     pub key_fingerprint: String,
     pub inverse_crime: InverseCrime,
     pub metrics: CeilingMetrics,
+}
+
+impl KeyedMeasurement for CeilingArm {
+    fn measurement_key(&self) -> &CompatibilityKey {
+        &self.key
+    }
+    fn measurement_value(&self, metric: &str) -> Option<f64> {
+        self.metrics.get(metric)
+    }
+    fn measurement_crime(&self) -> &InverseCrime {
+        &self.inverse_crime
+    }
 }
 
 /// The named metrics an arm publishes, so the factorial can be assembled
@@ -233,28 +283,91 @@ pub fn arm_key(
     CompatibilityKey {
         backend_id: backend.id(),
         config_hash: config_hash.to_string(),
-        // M3.5 runs no search: the candidate IS the injected ground truth.
-        candidate_budget: CandidateBudget::NotApplicable,
+        // M4 runs a formation estimator, and it enumerates the §10.1 family
+        // EXHAUSTIVELY - nothing truncated, so no search bound is claimed.
+        // The budget is a property of the RUN, identical on every arm: PF11
+        // simply does not need the search it is allowed. M3.5's arms said
+        // `not_applicable` because no search existed at all, so an M3.5 arm
+        // and an M4 arm are not commensurable, which is the key doing its
+        // job rather than a versioning accident.
+        candidate_budget: CandidateBudget::Exhaustive {
+            formation_family: vice_evidence::formation::FAMILY_SIZE as u64,
+        },
         fixture_hash: sha256_hex(format!("{scene_digest}\u{1f}{}", cell.id()).as_bytes()),
         intervention_schema_version: super::design::INTERVENTION_SCHEMA_VERSION.to_string(),
     }
 }
 
-/// Measure the ceiling of one (scene, cell, backend) arm.
+/// Map an estimated formation onto the cell the model renders under.
+fn estimated_cell(
+    scene: &GtScene,
+    cell: &DegradationCell,
+    backend: &OracleBackend,
+    rgba8: &[u8],
+    width_px: u32,
+    height_px: u32,
+) -> Result<(DegradationCell, String), ArmRefusal> {
+    let img = vice_image::CanonicalImage::from_straight_srgb8(
+        width_px,
+        height_px,
+        rgba8.to_vec(),
+        true,
+        vice_image::IccAssumption::NoProfileAssumedSrgb,
+    )
+    .map_err(|e| ArmRefusal::RenderFailed {
+        scene: scene.id().to_string(),
+        cell: cell.id(),
+        detail: e.to_string(),
+    })?;
+    let out = vice_evidence::analysis::analyze_full(
+        &img,
+        &vice_evidence::analysis::ANALYSIS_CONFIG_V1,
+        None,
+    );
+    let Some(ev) = out.chosen else {
+        return Err(ArmRefusal::FormationEstimationFailed {
+            scene: scene.id().to_string(),
+            cell: cell.id(),
+            outcome: serde_json::to_string(&out.report.outcome).unwrap_or_default(),
+        });
+    };
+    let mut model_cell = *cell;
+    model_cell.profile = backend.rasterizer;
+    model_cell.blend = ev.formation.blend_space;
+    model_cell.psf = match ev.formation.pixel_filter {
+        vice_ir::PixelFilter::Box => crate::gt::raster::Psf::Box,
+        vice_ir::PixelFilter::Triangle => crate::gt::raster::Psf::Triangle,
+        vice_ir::PixelFilter::Gaussian { sigma_px } => {
+            crate::gt::raster::Psf::Gaussian { sigma_px }
+        }
+    };
+    let id = vice_evidence::formation::formation_id(&ev.formation);
+    if !model_cell.is_realizable() {
+        return Err(ArmRefusal::EstimatedFormationNotRealizable {
+            scene: scene.id().to_string(),
+            backend: backend.id(),
+            estimated: id,
+        });
+    }
+    Ok((model_cell, id))
+}
+
+/// Measure the ceiling of one (scene, cell, backend, formation source) arm.
 pub fn measure_ceiling(
     scene: &GtScene,
     round: &RoundtrippedScene,
     cell: &DegradationCell,
     backend: OracleBackend,
+    formation_source: FormationSource,
     equivalence_members: usize,
     config_hash: &str,
 ) -> Result<CeilingArm, ArmRefusal> {
     if cell.resize != ResizeChain::None {
         return Err(ArmRefusal::ResizeChainNotSupported { cell: cell.id() });
     }
-    // The model runs the SAME cell with the backend's rasterizer swapped in:
-    // same size, same phase, same blend space, same contrast, same PSF. That
-    // is what "GT formation injected" means here - the true observation
+    // The GT model runs the SAME cell with the backend's rasterizer swapped
+    // in: same size, same phase, same blend space, same contrast, same PSF.
+    // That is what "GT formation injected" means here - the true observation
     // model, not a nearby one.
     let mut model_cell = *cell;
     model_cell.profile = backend.rasterizer;
@@ -271,6 +384,35 @@ pub fn measure_ceiling(
             cell: cell.id(),
             detail,
         })?;
+
+    let gt_formation_id = format!(
+        "{}/{}",
+        match cell.blend {
+            vice_ir::BlendSpace::LinearLight => "lin",
+            vice_ir::BlendSpace::EncodedSrgb => "srgb",
+        },
+        match cell.psf {
+            crate::gt::raster::Psf::Gaussian { sigma_px } => format!("gauss{sigma_px:.2}"),
+            other => other.as_str().to_string(),
+        }
+    );
+    let (model_cell, formation_id) = match formation_source {
+        FormationSource::GroundTruth => (model_cell, gt_formation_id.clone()),
+        FormationSource::Estimated => {
+            let (c, id) = estimated_cell(
+                scene,
+                cell,
+                &backend,
+                &observation.rgba8,
+                observation.width_px,
+                observation.height_px,
+            )?;
+            // The estimator's id carries the exterior too; compare only the
+            // part the model render can act on.
+            let short = id.split('/').take(2).collect::<Vec<_>>().join("/");
+            (c, short)
+        }
+    };
     let model =
         render_cell_raster(&round.certified, &round.paints, &model_cell).map_err(|detail| {
             ArmRefusal::RenderFailed {
@@ -295,7 +437,13 @@ pub fn measure_ceiling(
     );
     let key = arm_key(&backend, config_hash, &round.scene_digest, cell);
     Ok(CeilingArm {
-        arm: "G30",
+        arm: match formation_source {
+            FormationSource::GroundTruth => "PF11",
+            FormationSource::Estimated => "PF10",
+        },
+        formation_source,
+        formation_matches_gt: formation_id == gt_formation_id,
+        formation: formation_id,
         scene_id: round.scene_id.clone(),
         group_id: round.group_id.clone(),
         cell_id: cell.id(),
@@ -303,6 +451,7 @@ pub fn measure_ceiling(
         backend_id: backend.id(),
         backend_rasterizer: backend.rasterizer.as_str(),
         key_fingerprint: key.fingerprint(),
+        key,
         inverse_crime: InverseCrime::of(backend.rasterizer, cell.profile),
         metrics,
     })
@@ -376,6 +525,7 @@ fn compare(
 /// remembering.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CeilingAggregate {
+    pub arm: &'static str,
     pub backend_id: String,
     pub cell_id: String,
     pub observation_profile: &'static str,
@@ -388,6 +538,10 @@ pub struct CeilingAggregate {
     pub edge_mean_abs_code_max: f64,
     pub identical_pixels_frac_min: f64,
     pub all_serialization_identical: bool,
+    /// How many arms of this group rendered with the formation the cell
+    /// actually used. On a GT arm this is trivially all of them; on an
+    /// ESTIMATED arm it is the estimator's recovery rate, per pairing.
+    pub formation_matches_gt: u64,
 }
 
 impl CeilingAggregate {
@@ -411,6 +565,7 @@ impl CeilingAggregate {
             all_ser &= a.metrics.serialization_digest_identical;
         }
         Some(CeilingAggregate {
+            arm: first.arm,
             backend_id: first.backend_id.clone(),
             cell_id: first.cell_id.clone(),
             observation_profile: first.observation_profile,
@@ -422,6 +577,7 @@ impl CeilingAggregate {
             edge_mean_abs_code_max: edge_max,
             identical_pixels_frac_min: ident_min,
             all_serialization_identical: all_ser,
+            formation_matches_gt: arms.iter().filter(|a| a.formation_matches_gt).count() as u64,
         })
     }
 }

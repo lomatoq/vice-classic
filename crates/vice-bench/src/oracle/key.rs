@@ -46,7 +46,17 @@ pub const ORACLE_CONFIG_SCHEMA: &str = "vice-classic/oracle-config/v1";
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CandidateBudget {
     NotApplicable,
-    Candidates { max: u64 },
+    Candidates {
+        max: u64,
+    },
+    /// The hypothesis set was enumerated EXHAUSTIVELY: nothing was
+    /// truncated, so no search bound is claimed and none is needed. Distinct
+    /// from `NotApplicable`, which means no search happened at all — M4 runs
+    /// a formation estimator, so "not applicable" stopped being true and the
+    /// key moved with it.
+    Exhaustive {
+        formation_family: u64,
+    },
 }
 
 impl CandidateBudget {
@@ -54,6 +64,9 @@ impl CandidateBudget {
         match self {
             CandidateBudget::NotApplicable => "not_applicable".to_string(),
             CandidateBudget::Candidates { max } => format!("candidates:{max}"),
+            CandidateBudget::Exhaustive { formation_family } => {
+                format!("exhaustive:formation_family={formation_family}")
+            }
         }
     }
 }
@@ -84,7 +97,7 @@ pub const KEY_COMPONENTS: &[&str] = &[
 ];
 
 impl CompatibilityKey {
-    fn component(&self, name: &str) -> String {
+    pub(crate) fn component(&self, name: &str) -> String {
         match name {
             "backend_id" => self.backend_id.clone(),
             "config_hash" => self.config_hash.clone(),
@@ -113,8 +126,151 @@ impl CompatibilityKey {
     }
 }
 
+/// A measurement that KNOWS the conditions it was taken under.
+///
+/// This is condition B1 of REVIEW_M3_5 (finding M35-N3) as a type. The old
+/// `insert(arm, key, value, crime)` took the key and the value as two
+/// independent arguments, so the guarantee was "the caller presented one
+/// key", not "the operands were measured under one". On the single
+/// production call site the set was built from `key` and then filled with
+/// the same `key`, so `first_difference` compared a key with itself and
+/// could not fire. M4 publishes a second arm, so the hole stopped being
+/// theoretical.
+pub trait KeyedMeasurement {
+    fn measurement_key(&self) -> &CompatibilityKey;
+    fn measurement_value(&self, metric: &str) -> Option<f64>;
+    fn measurement_crime(&self) -> &InverseCrime;
+}
+
+/// How several measurements become one arm value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Reduce {
+    /// Worst case: the conservative statistic for an error metric.
+    Max,
+    /// Worst case for an agreement fraction.
+    Min,
+    Mean,
+}
+
+impl Reduce {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Reduce::Max => "max",
+            Reduce::Min => "min",
+            Reduce::Mean => "mean",
+        }
+    }
+}
+
+/// One arm of a factorial, DERIVED from the measurements it aggregates.
+///
+/// The key is not an argument. It is built from the members: the components
+/// that must be identical are TAKEN from them (and a member that disagrees
+/// is a typed refusal naming the component), and the fixture component is a
+/// hash over the members' own fixture hashes, so it is a function of exactly
+/// the measurements that went in. There is no constructor that accepts a key.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FactorialArm {
+    id: String,
+    key: CompatibilityKey,
+    value: f64,
+    inverse_crime: InverseCrime,
+    members: u64,
+    reduce: Reduce,
+}
+
+impl FactorialArm {
+    pub fn aggregate<M: KeyedMeasurement>(
+        id: &str,
+        metric: &str,
+        members: &[&M],
+        reduce: Reduce,
+    ) -> Result<FactorialArm, Incommensurable> {
+        let first = members
+            .first()
+            .ok_or_else(|| Incommensurable::NoMeasurements {
+                arm: id.to_string(),
+            })?;
+        let base = first.measurement_key();
+        for m in members.iter().skip(1) {
+            // Every component EXCEPT the fixture must be identical: the
+            // fixture is what an aggregate ranges over.
+            let k = m.measurement_key();
+            if let Some(component) = KEY_COMPONENTS
+                .iter()
+                .filter(|n| **n != "fixture_hash")
+                .find(|n| base.component(n) != k.component(n))
+            {
+                return Err(Incommensurable::KeyMismatch {
+                    arm: id.to_string(),
+                    component,
+                    got: k.component(component),
+                    want: base.component(component),
+                });
+            }
+        }
+        let mut fixtures: Vec<String> = members
+            .iter()
+            .map(|m| m.measurement_key().fixture_hash.clone())
+            .collect();
+        fixtures.sort();
+        fixtures.dedup();
+        let key = CompatibilityKey {
+            backend_id: base.backend_id.clone(),
+            config_hash: base.config_hash.clone(),
+            candidate_budget: base.candidate_budget,
+            fixture_hash: sha256_hex(fixtures.join("\u{1f}").as_bytes()),
+            intervention_schema_version: base.intervention_schema_version.clone(),
+        };
+        let values: Vec<f64> = members
+            .iter()
+            .filter_map(|m| m.measurement_value(metric))
+            .collect();
+        if values.is_empty() {
+            return Err(Incommensurable::NoMeasurements {
+                arm: id.to_string(),
+            });
+        }
+        let value = match reduce {
+            Reduce::Max => values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
+            Reduce::Min => values.iter().copied().fold(f64::INFINITY, f64::min),
+            Reduce::Mean => values.iter().sum::<f64>() / values.len() as f64,
+        };
+        Ok(FactorialArm {
+            id: id.to_string(),
+            key,
+            value,
+            inverse_crime: InverseCrime::fold_all(members.iter().map(|m| m.measurement_crime())),
+            members: members.len() as u64,
+            reduce,
+        })
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+    pub fn key(&self) -> &CompatibilityKey {
+        &self.key
+    }
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+    pub fn members(&self) -> u64 {
+        self.members
+    }
+    pub fn reduce(&self) -> Reduce {
+        self.reduce
+    }
+    pub fn inverse_crime(&self) -> &InverseCrime {
+        &self.inverse_crime
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum Incommensurable {
+    #[error("arm {arm} aggregates no measurement: an arm with no data is not an arm")]
+    NoMeasurements { arm: String },
     #[error(
         "arm {arm} may not join this set: {component} differs ({got:?} vs {want:?}). \
          Spec 27.6: incompatible arms may not be subtracted."
@@ -146,29 +302,31 @@ struct ArmValue {
 ///
 /// Built one arm at a time; every insertion re-checks the whole key, so
 /// there is no "trusted" path that skips the comparison.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CommensurableArms {
-    key: CompatibilityKey,
-    fingerprint: String,
+    key: Option<CompatibilityKey>,
     arms: BTreeMap<String, ArmValue>,
 }
 
 impl CommensurableArms {
-    pub fn new(key: CompatibilityKey) -> CommensurableArms {
-        let fingerprint = key.fingerprint();
+    /// An empty set with NO key. The key is adopted from the first arm
+    /// inserted, so there is nowhere for a caller to assert one.
+    pub fn new() -> CommensurableArms {
         CommensurableArms {
-            key,
-            fingerprint,
+            key: None,
             arms: BTreeMap::new(),
         }
     }
 
-    pub fn key(&self) -> &CompatibilityKey {
-        &self.key
+    pub fn key(&self) -> Option<&CompatibilityKey> {
+        self.key.as_ref()
     }
 
-    pub fn fingerprint(&self) -> &str {
-        &self.fingerprint
+    pub fn fingerprint(&self) -> String {
+        self.key
+            .as_ref()
+            .map(|k| k.fingerprint())
+            .unwrap_or_default()
     }
 
     pub fn arm_ids(&self) -> Vec<&str> {
@@ -179,33 +337,33 @@ impl CommensurableArms {
         self.arms.contains_key(arm)
     }
 
-    /// Add one arm. The key travels WITH the value, so an arm cannot be
-    /// inserted without presenting the conditions it was measured under.
-    pub fn insert(
-        &mut self,
-        arm: &str,
-        key: &CompatibilityKey,
-        value: f64,
-        inverse_crime: InverseCrime,
-    ) -> Result<(), Incommensurable> {
-        if let Some(component) = self.key.first_difference(key) {
-            return Err(Incommensurable::KeyMismatch {
-                arm: arm.to_string(),
-                component,
-                got: key.component(component),
-                want: self.key.component(component),
-            });
+    /// Add one arm. The arm CARRIES its key — there is no parameter for one
+    /// — so what the set proves is that the operands were measured under one
+    /// key, not that a caller said so (condition B1 / M35-N3).
+    pub fn insert(&mut self, arm: &FactorialArm) -> Result<(), Incommensurable> {
+        match &self.key {
+            None => self.key = Some(arm.key.clone()),
+            Some(k) => {
+                if let Some(component) = k.first_difference(&arm.key) {
+                    return Err(Incommensurable::KeyMismatch {
+                        arm: arm.id.clone(),
+                        component,
+                        got: arm.key.component(component),
+                        want: k.component(component),
+                    });
+                }
+            }
         }
-        if self.arms.contains_key(arm) {
+        if self.arms.contains_key(&arm.id) {
             return Err(Incommensurable::Duplicate {
-                arm: arm.to_string(),
+                arm: arm.id.clone(),
             });
         }
         self.arms.insert(
-            arm.to_string(),
+            arm.id.clone(),
             ArmValue {
-                value,
-                inverse_crime,
+                value: arm.value,
+                inverse_crime: arm.inverse_crime.clone(),
             },
         );
         Ok(())
@@ -238,7 +396,7 @@ impl CommensurableArms {
             label: label.to_string(),
             value,
             terms: recorded,
-            key_fingerprint: self.fingerprint.clone(),
+            key_fingerprint: self.fingerprint(),
             inverse_crime: crime,
         })
     }
@@ -299,10 +457,29 @@ mod tests {
         }
     }
 
+    struct M(CompatibilityKey, f64, InverseCrime);
+
+    impl KeyedMeasurement for M {
+        fn measurement_key(&self) -> &CompatibilityKey {
+            &self.0
+        }
+        fn measurement_value(&self, _metric: &str) -> Option<f64> {
+            Some(self.1)
+        }
+        fn measurement_crime(&self) -> &InverseCrime {
+            &self.2
+        }
+    }
+
+    fn arm(id: &str, k: &CompatibilityKey, v: f64) -> FactorialArm {
+        let m = M(k.clone(), v, InverseCrime::Clean);
+        FactorialArm::aggregate(id, "m", &[&m], Reduce::Max).unwrap()
+    }
+
     /// The walk over key components must cover the whole struct. Adding a
     /// field without adding it to `KEY_COMPONENTS` changes the serialized
     /// key but not the fingerprint, which is exactly the hole meta-rule M-1
-    /// is about — so the two are compared here.
+    /// is about, so the two are compared here.
     #[test]
     fn every_key_component_is_covered_by_the_walk() {
         let k = key("b", "f");
@@ -322,8 +499,9 @@ mod tests {
         assert_eq!(KEY_COMPONENTS.len(), 5, "spec 27.6 names five components");
     }
 
-    /// Mutating ANY ONE of the five components is refused, and the refusal
-    /// names which one. The class, not an example.
+    /// Mutating ANY ONE of the five components makes two arms
+    /// incommensurable, and the refusal names which one. The class, not an
+    /// example.
     #[test]
     fn each_of_the_five_components_alone_makes_two_arms_incommensurable() {
         let base = key("exact-clip", "fixture-a");
@@ -341,32 +519,77 @@ mod tests {
             }
             assert_ne!(base.fingerprint(), other.fingerprint(), "{component}");
 
-            let mut set = CommensurableArms::new(base.clone());
-            set.insert("PF11", &base, 1.0, InverseCrime::Clean).unwrap();
+            let mut set = CommensurableArms::new();
+            set.insert(&arm("PF11", &base, 1.0)).unwrap();
             let err = set
-                .insert("PF10", &other, 2.0, InverseCrime::Clean)
+                .insert(&arm("PF10", &other, 2.0))
                 .expect_err("a differing key must be refused");
             match err {
-                Incommensurable::KeyMismatch { component: c, .. } => assert_eq!(&c, component),
+                Incommensurable::KeyMismatch { component: c, .. } => {
+                    // The fixture component is the one an AGGREGATE ranges
+                    // over, so two arms differing only in it differ in the
+                    // DERIVED fixture hash, which is still a mismatch.
+                    assert!(c == *component || c == "fixture_hash", "{c} vs {component}");
+                }
                 other => panic!("{other:?}"),
             }
-            // And the delta that would have used it does not exist.
             assert!(set
                 .contrast("effect", &[("PF11", 1.0), ("PF10", -1.0)])
                 .is_err());
         }
     }
 
+    /// Condition B1 (REVIEW_M3_5 M35-N3), as the property that closes it: an
+    /// arm is DERIVED from its measurements, so measurements taken under two
+    /// different keys cannot become one arm at all. There is no parameter
+    /// through which a caller could assert otherwise.
+    #[test]
+    fn an_arm_cannot_be_aggregated_from_measurements_of_two_runs() {
+        let here = M(key("exact-clip", "f1"), 1.0, InverseCrime::Clean);
+        let there = M(key("vice-render", "f2"), 2.0, InverseCrime::Clean);
+        match FactorialArm::aggregate("PF11", "m", &[&here, &there], Reduce::Max) {
+            Err(Incommensurable::KeyMismatch { component, .. }) => {
+                assert_eq!(component, "backend_id")
+            }
+            other => panic!("{other:?}"),
+        }
+        // The control: measurements that DO share everything but the fixture
+        // aggregate fine, and the aggregate's fixture component is a
+        // function of theirs, not of anything a caller supplied.
+        let a = M(key("exact-clip", "f1"), 1.0, InverseCrime::Clean);
+        let b = M(key("exact-clip", "f2"), 5.0, InverseCrime::Clean);
+        let agg = FactorialArm::aggregate("PF11", "m", &[&a, &b], Reduce::Max).unwrap();
+        assert_eq!(agg.value(), 5.0);
+        assert_eq!(agg.members(), 2);
+        assert_ne!(agg.key().fixture_hash, "f1");
+        assert_ne!(agg.key().fixture_hash, "f2");
+        let swapped = FactorialArm::aggregate("PF11", "m", &[&b, &a], Reduce::Max).unwrap();
+        assert_eq!(
+            agg.key().fixture_hash,
+            swapped.key().fixture_hash,
+            "the derived fixture component must not depend on iteration order"
+        );
+        // A different member set is a different key: an aggregate cannot be
+        // compared with one taken over other fixtures.
+        let fewer = FactorialArm::aggregate("PF11", "m", &[&a], Reduce::Max).unwrap();
+        assert_ne!(agg.key().fixture_hash, fewer.key().fixture_hash);
+        // And an arm over nothing is refused rather than being a zero.
+        let none: Vec<&M> = Vec::new();
+        assert!(matches!(
+            FactorialArm::aggregate("PF11", "m", &none, Reduce::Max),
+            Err(Incommensurable::NoMeasurements { .. })
+        ));
+    }
+
     /// The machinery is not merely refusing everything: four commensurable
-    /// arms produce the three factorial effects, with the standard 2²
-    /// arithmetic. Without this control, "no deltas across incompatible
-    /// runs" would be satisfied by producing no deltas at all.
+    /// arms produce the three factorial effects, with the standard 2x2
+    /// arithmetic.
     #[test]
     fn commensurable_arms_do_produce_the_three_factorial_effects() {
         let k = key("exact-clip", "fixture-a");
-        let mut set = CommensurableArms::new(k.clone());
-        for (arm, v) in [("PF00", 1.0), ("PF10", 2.0), ("PF01", 4.0), ("PF11", 8.0)] {
-            set.insert(arm, &k, v, InverseCrime::Clean).unwrap();
+        let mut set = CommensurableArms::new();
+        for (id, v) in [("PF00", 1.0), ("PF10", 2.0), ("PF01", 4.0), ("PF11", 8.0)] {
+            set.insert(&arm(id, &k, v)).unwrap();
         }
         let a = set
             .contrast(
@@ -389,12 +612,10 @@ mod tests {
         assert!((a.value() - 2.5).abs() < 1e-12, "{}", a.value());
         assert!((b.value() - 4.5).abs() < 1e-12, "{}", b.value());
         assert!((ab.value() - 1.5).abs() < 1e-12, "{}", ab.value());
-        assert_eq!(a.key_fingerprint(), k.fingerprint());
         assert_eq!(a.terms().len(), 4);
+        assert!(!a.key_fingerprint().is_empty());
 
-        // A main effect is NOT a sequential difference: PF10-PF00 alone is
-        // 1.0 and the main effect is 2.5, so the two are distinguishable and
-        // the report cannot be publishing the ladder under a factorial name.
+        // A main effect is NOT a sequential difference.
         let ladder = set
             .contrast("sequential", &[("PF10", 1.0), ("PF00", -1.0)])
             .unwrap();
@@ -402,20 +623,25 @@ mod tests {
         assert_ne!(ladder.value(), a.value());
     }
 
-    /// Contamination reaches the delta through the fold, and one dirty arm
-    /// out of four is enough.
+    /// Contamination reaches the delta through the fold, and one dirty
+    /// measurement among clean ones is enough.
     #[test]
     fn a_delta_inherits_contamination_from_any_of_its_arms() {
-        let k = key("vice-render", "fixture-a");
-        let mut set = CommensurableArms::new(k.clone());
-        set.insert("PF00", &k, 1.0, InverseCrime::Clean).unwrap();
-        set.insert(
-            "PF10",
-            &k,
-            2.0,
-            InverseCrime::of(RasterProfile::ViceRender, RasterProfile::TinySkia),
-        )
-        .unwrap();
+        // Two arms over the SAME fixture set, so their derived keys agree;
+        // one of the measurements behind the first is contaminated.
+        let crime = InverseCrime::of(RasterProfile::ViceRender, RasterProfile::TinySkia);
+        let a1 = M(key("vice-render", "f1"), 1.0, InverseCrime::Clean);
+        let a2 = M(key("vice-render", "f2"), 2.0, crime);
+        let b1 = M(key("vice-render", "f1"), 3.0, InverseCrime::Clean);
+        let b2 = M(key("vice-render", "f2"), 1.0, InverseCrime::Clean);
+        let dirty_arm = FactorialArm::aggregate("PF10", "m", &[&a1, &a2], Reduce::Max).unwrap();
+        let clean_arm = FactorialArm::aggregate("PF00", "m", &[&b1, &b2], Reduce::Min).unwrap();
+        assert!(dirty_arm.inverse_crime().is_contaminated());
+        assert!(!clean_arm.inverse_crime().is_contaminated());
+
+        let mut set = CommensurableArms::new();
+        set.insert(&dirty_arm).unwrap();
+        set.insert(&clean_arm).unwrap();
         let d = set
             .contrast("sequential", &[("PF10", 1.0), ("PF00", -1.0)])
             .unwrap();
@@ -423,9 +649,10 @@ mod tests {
         assert!(!d.inverse_crime().warnings().is_empty());
 
         // Control: an all-clean contrast is clean.
-        let mut clean = CommensurableArms::new(k.clone());
-        clean.insert("PF00", &k, 1.0, InverseCrime::Clean).unwrap();
-        clean.insert("PF10", &k, 2.0, InverseCrime::Clean).unwrap();
+        let k = key("exact-clip", "f");
+        let mut clean = CommensurableArms::new();
+        clean.insert(&arm("PF00", &k, 1.0)).unwrap();
+        clean.insert(&arm("PF10", &k, 2.0)).unwrap();
         assert!(!clean
             .contrast("sequential", &[("PF10", 1.0), ("PF00", -1.0)])
             .unwrap()
@@ -436,15 +663,32 @@ mod tests {
     #[test]
     fn an_arm_cannot_be_inserted_twice_and_a_missing_arm_is_named() {
         let k = key("exact-clip", "f");
-        let mut set = CommensurableArms::new(k.clone());
-        set.insert("PF11", &k, 1.0, InverseCrime::Clean).unwrap();
+        let mut set = CommensurableArms::new();
+        set.insert(&arm("PF11", &k, 1.0)).unwrap();
         assert!(matches!(
-            set.insert("PF11", &k, 9.0, InverseCrime::Clean),
+            set.insert(&arm("PF11", &k, 9.0)),
             Err(Incommensurable::Duplicate { .. })
         ));
         let err = set
             .contrast("x", &[("PF11", 1.0), ("PF00", -1.0)])
             .unwrap_err();
         assert_eq!(err.arm, "PF00");
+    }
+
+    /// The exhaustive budget is a DISTINCT key component value: an M3.5 arm
+    /// (no search at all) and an M4 arm (an exhaustively enumerated family)
+    /// are not commensurable, which is the key doing its job rather than a
+    /// versioning accident.
+    #[test]
+    fn an_exhaustive_budget_is_not_the_same_as_no_search() {
+        let mut a = key("b", "f");
+        a.candidate_budget = CandidateBudget::NotApplicable;
+        let mut b = key("b", "f");
+        b.candidate_budget = CandidateBudget::Exhaustive {
+            formation_family: 8,
+        };
+        assert_ne!(a.fingerprint(), b.fingerprint());
+        assert_eq!(a.first_difference(&b), Some("candidate_budget"));
+        assert!(b.candidate_budget.as_key_text().contains("exhaustive"));
     }
 }

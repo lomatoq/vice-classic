@@ -104,7 +104,7 @@ fn effect_outcome(effect: &str, metric: &str, arms: &CommensurableArms) -> ArmOu
 pub fn pf_effects(metric: &str, arms: &CommensurableArms) -> FactorialEffects {
     FactorialEffects {
         metric: metric.to_string(),
-        key_fingerprint: arms.fingerprint().to_string(),
+        key_fingerprint: arms.fingerprint(),
         present_arms: PfArm::ALL
             .iter()
             .filter(|a| arms.contains(a.id()))
@@ -201,30 +201,51 @@ mod tests {
         }
     }
 
+    /// A set built the way production builds one: every arm carries the key
+    /// it was measured under, and the set adopts it.
     fn with_arms(vals: &[(&str, f64)]) -> CommensurableArms {
-        let k = key();
-        let mut set = CommensurableArms::new(k.clone());
+        let mut set = CommensurableArms::new();
         for (arm, v) in vals {
-            set.insert(arm, &k, *v, InverseCrime::Clean).unwrap();
+            set.insert(&synthetic_arm(arm, *v)).unwrap();
         }
         set
     }
 
-    /// The M3.5 state: only PF11 exists, so all three effects refuse and
-    /// each refusal names the absent arms and the milestone that owns them.
+    pub(crate) fn synthetic_arm(id: &str, value: f64) -> super::super::key::FactorialArm {
+        struct M(super::super::key::CompatibilityKey, f64);
+        impl super::super::key::KeyedMeasurement for M {
+            fn measurement_key(&self) -> &super::super::key::CompatibilityKey {
+                &self.0
+            }
+            fn measurement_value(&self, _metric: &str) -> Option<f64> {
+                Some(self.1)
+            }
+            fn measurement_crime(&self) -> &InverseCrime {
+                &InverseCrime::Clean
+            }
+        }
+        let m = M(key(), value);
+        super::super::key::FactorialArm::aggregate(id, "m", &[&m], super::super::key::Reduce::Max)
+            .expect("one measurement is an arm")
+    }
+
+    /// The M4 state: PF11 and PF10 exist, the other two do not, so all
+    /// three effects still refuse — a contrast over half a factorial is the
+    /// order-dependent difference §27.6 abolished.
     #[test]
-    fn with_only_the_gt_arm_all_three_effects_refuse_and_say_why() {
-        let e = pf_effects("edge_mean_abs_code", &with_arms(&[("PF11", 3.0)]));
-        assert_eq!(e.present_arms, vec!["PF11".to_string()]);
+    fn with_only_the_gt_partition_arms_all_three_effects_refuse_and_say_why() {
+        let e = pf_effects(
+            "edge_mean_abs_code",
+            &with_arms(&[("PF11", 3.0), ("PF10", 2.0)]),
+        );
+        assert_eq!(e.present_arms, vec!["PF10".to_string(), "PF11".to_string()]);
         for outcome in e.effects() {
             let r = outcome.refusal().expect("must refuse");
             assert!(r.reason.contains("PF00"));
             assert!(r.reason.contains("PF01"));
-            assert!(r.reason.contains("PF10"));
             assert!(r.reason.contains("sequential difference"));
             assert_eq!(r.owner_milestone, "M4.5");
             assert!(r.missing.contains(&"auto_partition"));
-            assert!(r.missing.contains(&"formation_estimation"));
         }
         let json = serde_json::to_string(&e).unwrap();
         assert!(
@@ -264,7 +285,7 @@ mod tests {
         assert!((ab.value() - 1.5).abs() < 1e-12);
         for d in [a, b, ab] {
             assert_eq!(d.terms().len(), 4, "an effect uses all four arms");
-            assert_eq!(d.key_fingerprint(), key().fingerprint());
+            assert!(!d.key_fingerprint().is_empty());
         }
     }
 

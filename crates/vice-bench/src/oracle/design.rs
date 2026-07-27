@@ -30,8 +30,13 @@ pub const INTERVENTION_SCHEMA_VERSION: &str = "vice-classic/oracle-intervention/
 pub enum MissingCapability {
     /// Proposing a visible partition from an image (§28 M4.5).
     AutoPartition,
-    /// Estimating the global image-formation hypothesis (§28 M4).
-    FormationEstimation,
+    // `FormationEstimation` USED to be here and is gone, not filled in:
+    // M4 estimates the global formation from the image
+    // (`vice_evidence::analysis`), so the capability exists and the variant
+    // that recorded its absence has no subject. That is what this enum's
+    // doc comment promised would happen — "adding the capability means
+    // deleting the variant's use" — and deleting the variant itself is the
+    // stronger form: nothing can now record an absence that ended.
     /// Generating typed span candidates (§28 M6).
     CandidateGeneration,
     /// Selecting among candidates by an explicit code length (§28 M6).
@@ -44,7 +49,6 @@ impl MissingCapability {
     pub fn id(&self) -> &'static str {
         match self {
             MissingCapability::AutoPartition => "auto_partition",
-            MissingCapability::FormationEstimation => "formation_estimation",
             MissingCapability::CandidateGeneration => "candidate_generation",
             MissingCapability::Selector => "selector",
             MissingCapability::ParameterFit => "parameter_fit",
@@ -54,7 +58,6 @@ impl MissingCapability {
     pub fn owner_milestone(&self) -> &'static str {
         match self {
             MissingCapability::AutoPartition => "M4.5",
-            MissingCapability::FormationEstimation => "M4",
             MissingCapability::CandidateGeneration
             | MissingCapability::Selector
             | MissingCapability::ParameterFit => "M6",
@@ -137,9 +140,9 @@ impl PfArm {
         if self.partition() == PartitionSource::Auto {
             v.push(MissingCapability::AutoPartition);
         }
-        if self.formation() == FormationSource::Estimated {
-            v.push(MissingCapability::FormationEstimation);
-        }
+        // The formation side no longer contributes: M4 estimates it. PF10
+        // therefore became producible, which is the whole point of the
+        // milestone's factorial clause.
         v
     }
 }
@@ -377,26 +380,24 @@ mod tests {
         assert_eq!(PfArm::Pf00.formation(), FormationSource::Estimated);
     }
 
-    /// Exactly one PF arm is producible at this milestone, and the other
-    /// three name what they need. If a later milestone adds an estimator
-    /// and forgets to remove the capability, this test fails loudly.
+    /// TWO PF arms are producible at M4 — the estimated-formation arm
+    /// joined the ground-truth one — and the other two name what they still
+    /// need. If a later milestone adds a partitioner and forgets to remove
+    /// the capability, this test fails loudly.
     #[test]
-    fn only_the_double_ground_truth_arm_is_producible_in_m3_5() {
+    fn both_ground_truth_partition_arms_are_producible_in_m4() {
         assert!(PfArm::Pf11.missing().is_empty());
-        for arm in [PfArm::Pf00, PfArm::Pf01, PfArm::Pf10] {
-            let missing = arm.missing();
-            assert!(!missing.is_empty(), "{} claims to be producible", arm.id());
-            let r = NotYetApplicable::from_missing(arm.id(), &missing);
-            assert!(!r.missing.is_empty());
-            assert!(r.reason.contains("27.6"));
-            assert!(["M4", "M4.5"].contains(&r.owner_milestone));
-        }
-        // PF00 needs both, so its owner is the LATER milestone, not the
-        // first one listed.
-        assert_eq!(
-            NotYetApplicable::from_missing("PF00", &PfArm::Pf00.missing()).owner_milestone,
-            "M4.5"
+        assert!(
+            PfArm::Pf10.missing().is_empty(),
+            "M4 estimates the formation, so PF10 stopped being a refusal"
         );
+        for arm in [PfArm::Pf00, PfArm::Pf01] {
+            let missing = arm.missing();
+            assert_eq!(missing, vec![MissingCapability::AutoPartition]);
+            let r = NotYetApplicable::from_missing(arm.id(), &missing);
+            assert!(r.reason.contains("27.6"));
+            assert_eq!(r.owner_milestone, "M4.5");
+        }
     }
 
     /// The geometry ladder: G30 is the M3.5 arm and every other G arm is
