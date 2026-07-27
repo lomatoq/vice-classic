@@ -252,8 +252,21 @@ mod tests {
              A value with no consumer is not a gate - give it one, or stop calling it frozen."
         );
 
-        // 2. Every claimed key exists in the file and matches.
+        // 2. Every claimed key of a FROZEN section exists in the file and
+        // matches.
+        //
+        // A claim about a PLACEHOLDER section is inert: a placeholder is not
+        // a threshold and `gate_value` refuses to return one. Claims are
+        // allowed to exist before the section is frozen, because the code
+        // side has to land first — §27.7 forbids changing a gate file and
+        // production code in one commit, so the constant and its claim are
+        // one commit and the freeze is the next.
+        let frozen: std::collections::BTreeSet<&str> = g.frozen_sections().into_iter().collect();
+        let mut checked = 0;
         for (section, key, want) in &expected {
+            if !frozen.contains(section) {
+                continue;
+            }
             let got = g
                 .gate_value(section, key)
                 .unwrap_or_else(|e| panic!("{section}.{key}: {e}"));
@@ -262,18 +275,20 @@ mod tests {
                 want,
                 "{section}.{key}: the gate file and the code disagree"
             );
+            checked += 1;
         }
 
         // 3. And the walk is not vacuous: it must have covered every frozen
         // section and a plausible number of keys.
-        let covered: std::collections::BTreeSet<&str> =
-            expected.iter().map(|(s, _, _)| *s).collect();
-        let frozen: std::collections::BTreeSet<&str> = g.frozen_sections().into_iter().collect();
+        let covered: std::collections::BTreeSet<&str> = expected
+            .iter()
+            .map(|(s, _, _)| *s)
+            .filter(|s| frozen.contains(s))
+            .collect();
         assert_eq!(covered, frozen, "a frozen section was skipped entirely");
         assert!(
-            expected.len() >= 17,
-            "only {} frozen values checked; the file had 17 when this was written",
-            expected.len()
+            checked >= 17,
+            "only {checked} frozen values checked; the file had 17 when this was written"
         );
     }
 
@@ -430,6 +445,17 @@ mod tests {
                 "split",
                 "held_out_profiles",
                 GateExpectation::list(SPLIT_POLICY_V1.held_out_profiles),
+            ),
+            // --- noise scales: the M4 measurement ----------------------
+            // Measured by
+            // `corridor::tests::the_clean_bucket_noise_scale_is_measured_on_the_development_split`
+            // and consumed by the corridor's sigma budget, so the frozen
+            // number has a reader and a producer rather than being a
+            // decoration (F-0019).
+            (
+                "noise_scales",
+                "clean_bucket_sigma_codes",
+                GateExpectation::num(vice_evidence::corridor::CLEAN_BUCKET_SIGMA_CODES),
             ),
             // --- likelihood --------------------------------------------
             (
