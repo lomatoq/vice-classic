@@ -483,3 +483,414 @@ HEAD не изменился, рабочее дерево чистое, ниче
 ---
 
 Red team (adversarial pass, cold agent context, Opus 5)
+
+---
+---
+
+# ADDENDUM — RED TEAM M4.5, дельта-проход по C170–C185
+
+> Addendum публикуется **дословно**. Governor его не редактировал. Подписанный текст выше не изменён ни в одной строке.
+
+## §A0. Гигиена и спека, начало
+
+```text
+$ git status --porcelain
+(пусто)
+
+$ git rev-parse HEAD
+d1ab2b990348a2f8bfc60df0df8ee3b5b1c9eb93
+
+$ git worktree list
+C:/Users/nirrt/Toolset/vice-classic  d1ab2b9 [main]        ← только основное дерево
+
+$ sha256sum /c/Users/nirrt/Downloads/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md
+652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1
+```
+
+Посторонний worktree, зафиксированный в §0/§5 подписанного отчёта, действительно исчез. Спека та же. Метод тот же: основное дерево только на чтение, всё ломающее — в `git worktree` (`…/scratchpad/d2`, detached `d1ab2b9`, отдельный `CARGO_TARGET_DIR`), удалён в конце. Донорские исходники не открывались.
+
+Базовые факты на HEAD, измеренные до атак:
+
+```text
+$ gt-corpus topology-check --report docs/gt/TOPOLOGY_M4_5.json
+topology report reproduced with every metric compared          EXIT=0
+
+$ cargo test --release --workspace          493 passed / 0 failed
+$ gt-corpus topology --scope full           3/3 MET, EXIT=0
+```
+
+---
+
+## §A1. Восемь атак подписанного отчёта, повторённые дословно
+
+| # | что атаковалось | вердикт |
+|---|---|---|
+| RT45-A1 | нокаут второго плеча комплементарной связности | **ОТБИТА** |
+| RT45-A2 | GT-сигнатура считалась той же функцией, что и кандидат | **ОТБИТА** (на юнит-эшелоне; гейт-строка по-прежнему слепа) |
+| RT45-A3 | печать популяции D1 | **ПО-ПРЕЖНЕМУ ПРОХОДИТ** — в новой форме и шире прежнего (RT45-A9) |
+| RT45-A4 | сверка чисел клаузной строки | **ОТБИТА ЧАСТИЧНО** — новый механизм на новых строках, старые не покрыты (RT45-A11) |
+| RT45-A5 | §27.7 и гейт-константы | **ОТБИТА ЧАСТИЧНО** — значения закрыты, сравнения нет (RT45-A10) |
+| RT45-A6 | импликуемые конъюнкты клаузы 1 | **ОТБИТА** |
+| RT45-A7 | контроль, истинный по принципу Дирихле | **ПО-ПРЕЖНЕМУ ПРОХОДИТ** (в узкой форме, RT45-A13) |
+| RT45-A8 | состав и ширина популяции | **ОТБИТА** (с остатком) |
+
+### RT45-A1 — ОТБИТА
+
+Процедура прежняя: в `crates/vice-topology/src/lib.rs::propose`
+
+```diff
+-            for conn in ComplementaryConnectivity::arms() {
++            for conn in [ComplementaryConnectivity::arms()[0]] {
+```
+
+```text
+$ gt-corpus topology --out /tmp/d_k1.json --scope full
+  [NOT MET] GT-equivalent topology present in envelope
+  [MET]     ambiguous fixtures retain alternatives
+  [MET]     no magic-threshold-only architecture
+EXIT=1
+… carry candidates from BOTH complementary arms, and 100 carry only one
+```
+
+В прошлый раз: 3/3 MET, exit 0, 489 тестов зелёные, структурная проекция побайтово совпадала. Теперь строка краснеет, `arms_missing_a_connectivity_arm` идёт 0 → 100. Послабление «годится любая из двух конвенций» теперь опирается на измеренный факт, а не на комментарий. Удаление `both_connectivity_arms_agree` (флаг, выставлявшийся на 0 кандидатов) — правильный шаг: мёртвый флаг заменён считаемой величиной.
+
+### RT45-A2 — ОТБИТА на юнит-эшелоне; гейт-строка осталась слепа
+
+Процедура прежняя: в `cubical.rs::signature` `conn.background()` → `conn.foreground()`.
+
+```text
+$ cargo test --release --workspace
+test topology::independent::tests::the_independent_chain_agrees_with_the_production_signature ... FAILED
+test result: FAILED. 158 passed; 1 failed
+```
+
+Это ровно то, чего атака требовала: раньше мутация §5.3 не роняла НИЧЕГО. Но полезно сказать вторую половину точно, потому что автор её не заявлял, а я её измерил:
+
+```text
+$ gt-corpus topology --out /tmp/d_k2.json --scope full     # с той же мутацией
+  [MET] GT-equivalent topology present in envelope
+  [MET] ambiguous fixtures retain alternatives
+  [MET] no magic-threshold-only architecture
+  recall all 100/100                                        EXIT=0
+```
+
+**Сама гейт-таблица §28 по-прежнему не видит нарушения §5.3.** Ловит его юнит-тест на диагональном кольце. Это законное разделение труда (ADR-0027 так и говорит), но строка T1 не является свидетельством о конвенции и не должна читаться как таковое: на 132 arm-ах корпуса GT-сигнатуры не двигаются ни при какой из двух конвенций.
+
+### RT45-A3 — ПО-ПРЕЖНЕМУ ПРОХОДИТ
+
+Атака в ДОСЛОВНОЙ прежней форме теперь не компилируется — это честная победа:
+
+```text
+error[E0603]: function `authored_groups` is private
+error[E0603]: function `all_adversarial_groups` is private
+```
+
+Но класс не закрыт; подробности — RT45-A9 ниже. Коротко: две обычные Rust-сигнатуры, которые скан не моделирует, открывают из интеграционного теста **60 групп, включая ВСЕ 22 sealed-audit**, при `cargo fmt --check` чистом, `cargo clippy -- -D warnings` с нулём диагностик и всех семи тестах `hygiene.rs` зелёных.
+
+### RT45-A4 — ОТБИТА ЧАСТИЧНО
+
+Позиционная привязка работает — я это проверил в обе стороны. Подделка первого позиционного числа строки `T1d` (100 → 56, где 56 — объявленная величина):
+
+```text
+docs/STATUS_M4_5.md row "| T1d " position 1: the row says 56, but
+TOPOLOGY_M4_5.json:identifiable_supported_arms is 100. This is the check
+membership could not make
+test result: FAILED. 4 passed; 1 failed
+```
+
+Но `POSITIONAL_ROWS` покрывает `T1d/T2d/T3d`, а моя исходная атака была на `T1`. Строка `T1` жива, стоит под заголовком **«## 4. Gate table (author-side; §28 M4.5)»**, помечена «клауза спеки 1», несёт PASS, и там же написано: «Числа в T1–T3 обязаны быть объявленными величинами и сверяются `doc_claims.rs`». Дословный повтор моей подделки:
+
+```diff
+-recall 100 из 100; на 31 arm-е с нетривиальной GT — 31
++recall  56 из 132; на  8 arm-е с нетривиальной GT —  5
+```
+
+```text
+running 5 tests
+test the_delta_clause_rows_equal_their_declared_keys_position_by_position ... ok
+test the_status_clause_rows_quote_only_declared_numbers ... ok
+test result: ok. 5 passed; 0 failed
+```
+
+Подробности — RT45-A11.
+
+### RT45-A5 — ОТБИТА ЧАСТИЧНО
+
+Половина, которая закрыта, закрыта по-настоящему. Калибровка:
+
+```diff
+- envelope.rs:  budget: 48,
++ envelope.rs:  budget: 6,
+```
+```text
+gates::tests::every_frozen_value_agrees_with_the_code_that_uses_it ... FAILED
+topology.envelope_budget: the gate file and the code disagree
+```
+
+21 ключ секции `[topology]` действительно связан с константами кода, и молча подвинуть замороженное ЗНАЧЕНИЕ больше нельзя. Половина, которая не закрыта, — СРАВНЕНИЕ: см. RT45-A10.
+
+### RT45-A6 — ОТБИТА
+
+Импликуемые конъюнкты (`nt.hits == nt.arms`, «бюджет потерял ответ == 0») удалены из конъюнкции и остались публикуемыми числами. Появилась величина, которая может двигаться при recall 100 %:
+
+```text
+pruning: {arms_with_budget_pruning: 11, budget_removed: 308, dominated_removed: 2,
+          arms_where_budget_removed_a_gt_class_candidate: 9,
+          arms_where_budget_pruning_lost_the_last_gt_candidate: 0}
+```
+
+`9` при recall 100/100 — это ровно то измерение, отсутствие которого я называл: near-miss, который существует и до сих пор был невидим. Хороший ответ.
+
+### RT45-A7 — ПО-ПРЕЖНЕМУ ПРОХОДИТ (узко)
+
+Заявление C177: «The conjunct is gone.» Исполнение:
+
+```text
+$ sed -n '502,506p' crates/vice-bench/src/topology/report.rs
+        let threshold_row = r.arms > 0
+            && e.hits == r.hits
+            && one_level_is_not_enough
+            && self.saddle_alternatives_total > 0
+            && self.tie_batches_max > 0;          ← конъюнкт на месте
+
+$ git log --oneline -S"tie_batches_max > 0" -- crates/vice-bench/src/topology/report.rs
+fe45e18 C157 M4.5: the corpus recall harness, the artifact and the three gate rows
+```
+
+Строка `-S` показывает: подстрока внесена в C157 и ни одним коммитом дельты не удалялась. Изменился только ПРОЗАИЧЕСКИЙ текст гейт-строки (теперь он честно говорит, что 377 и 14821 — не свидетельство). См. RT45-A13.
+
+### RT45-A8 — ОТБИТА, с остатком
+
+Артефакт теперь несёт всё, чего не хватало:
+
+```text
+recall_shape_families: 8            (при recall_source_groups: 18)
+identifiable_arms_refused_before_topology: 44
+families_absent_from_recall_population:
+  ['adversarial/near-tangent','adversarial/sliver','ambiguity/topology',
+   'authored/twotone','triple_junction','two_islands']
+recall_unrelated_field:            {arms:100, hits:76}
+recall_unrelated_field_non_trivial:{arms: 31, hits: 7}
+```
+
+И вот что стоит отметить как независимое подтверждение: нокаут-контроль автора на нетривиальной части даёт **7 из 31**, а число arm-ов, чья 8-связная GT РАВНА обычному диску, — тоже ровно **7**:
+
+```text
+non-trivial GT classes: ((1,1),(1,1)) → 24;  ((3,0),(1,0)) → 3;  ((5,0),(1,0)) → 4
+non-trivial arms whose 8-conn GT IS a plain disk: 7
+```
+
+То есть несвязанный диск выигрывает в точности на тех семи arm-ах, про которые я писал, что там правильным ответом является тривиальный. Автор отказался сузить «31» до «24», но опубликованный им контроль делает это сужение выводимым из артефакта — этого достаточно, и заявление больше не вводит в заблуждение.
+
+Остаток, MINOR и не блокирующий: ширина НЕТРИВИАЛЬНОЙ части не публикуется. Её 24 кольцевых arm-а происходят из двух shape family (`annulus`, `keyhole`), а `recall_shape_families = 8` относится ко всей популяции. Число, которое честно описывало бы разрешающую способность клаузы 1, — это семейства нетривиальных arm-ов, и его в артефакте нет.
+
+---
+
+## §A2. Новые атаки — на сами починки
+
+### RT45-A9 — тип-печать популяции обходится двумя обычными сигнатурами; достижимы ВСЕ 22 sealed-audit группы — **BLOCKER**
+
+**Что заявлено.** Условие 1 REVIEW_M4_5 (BLOCKING) закрыто. Докблок теста: «A new public accessor — under any name, in any module — fails here, which is what "surface, not place" was supposed to mean the first two times.»
+
+**Что скан на самом деле моделирует.** `corpus_returning_fns()` в `hygiene.rs`: (1) берёт из каждого производственного модуля текст ДО первого встроенного `#[cfg(test)] mod tests {`; (2) для каждой строки, объявляющей `fn`, склеивает до 10 строк сигнатуры; (3) смотрит ТЕКСТ после `->`; (4) считает «полностью публичной» только строку, начинающуюся с `pub fn `/`pub async fn `. Синтаксис Rust богаче каждого из четырёх шагов.
+
+**Процедура воспроизведения.** В `crates/vice-bench/src/gt/authored.rs` (модуль уже стоит в объявленном внутрикрейтовом списке, так что второй эшелон не двигается), ПЕРЕД встроенным `mod tests`:
+
+```rust
+pub type Rt45Fixtures = Vec<GtSourceGroup>;
+
+/// Дверь 1: псевдоним типа в позиции возврата.
+pub fn rt45_alias_door() -> Rt45Fixtures {
+    crate::gt::corpus::all_groups().unwrap_or_default()
+}
+
+/// Дверь 2: фикстуры едут в ПУБЛИЧНОМ ПОЛЕ, а не в типе возврата.
+pub struct Rt45Basket { pub groups: Vec<GtSourceGroup> }
+
+pub fn rt45_basket_door() -> Rt45Basket {
+    Rt45Basket { groups: crate::gt::corpus::all_groups().unwrap_or_default() }
+}
+```
+
+Плюс интеграционный тест `crates/vice-bench/tests/rt45_seal_bypass.rs`, который зовёт обе двери и фильтрует по `SPLIT_POLICY_V1`.
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --release -p vice-bench --test rt45_seal_bypass --test hygiene -- --nocapture
+cargo test --release --workspace
+```
+
+**Результат.**
+
+```text
+FMT CLEAN
+clippy: 0 errors, 0 warnings
+
+door type alias    : 60 groups, 22 SEALED AUDIT, e.g. ["authored/bracket","authored/leaf","proc/arc_disk/000"]
+door public field  : 60 groups, 22 SEALED AUDIT, e.g. ["authored/bracket","authored/leaf","proc/arc_disk/000"]
+test rt45_two_undeclared_doors_reach_the_whole_sealed_audit ... ok
+
+hygiene.rs: 7 passed; 0 failed
+  test every_public_path_to_a_corpus_fixture_is_the_declared_one ... ok
+  test the_measurements_reach_the_corpus_through_the_legal_population ... ok
+
+cargo test --release --workspace: 494 passed / 0 failed
+```
+
+**Это ХУЖЕ исходной находки, а не лучше.** RT45-A3 доставала 12 групп и 2 sealed-audit из 22. Эти две двери достают всю широкую популяцию — 60 групп и все 22 закрытые. `frozen_calibration.rs` может завтра заморозить коэффициент на sealed audit через `rt45_alias_door()`, и ни компилятор, ни семь тестов гигиены, ни clippy, ни fmt не скажут ни слова.
+
+**Честная калибровка — что защита ВСЁ ЖЕ поймала.** Я пробовал четыре двери, и две из них отбиты, поэтому называю их:
+
+- `pub fn … -> Vec<GtSourceGroup>`, поставленная ПОСЛЕ встроенного `mod tests` (скан там не читает), ловится **clippy**: `error: items after a test module`. Настоящая защита, засчитываю;
+- метод трейта (`pub trait Rt45Doorway { fn groups(&self) -> Vec<GtSourceGroup>; }` — у элементов трейта нет `pub`, скан кладёт их в «запечатанные») ловится вторым эшелоном, но **по ложному срабатыванию, а не по существу**: имя метода `groups` попадает в производный список запечатанных, а дальше эшелон ищет подстроку `groups(` в интеграционных тестах и падает на легальном файле —
+
+  ```text
+  vice-bench/tests/frozen_calibration.rs reaches the corpus through groups(:
+  a frozen coefficient must come from corridor::frozen_calibration_groups()
+  ```
+
+  то есть срабатывает на `frozen_calibration_groups(`, который и есть ЕДИНСТВЕННАЯ ЛЕГАЛЬНАЯ дверь. Трейт-метод, названный `fixtures`, не дал бы ни ложного срабатывания, ни истинного.
+
+**Общее правило класса, третий раз в этом проекте.** Печать по имени закрыла имена; печать по «типу в позиции возврата» закрыла одну синтаксическую позицию. Множество способов, которыми значение покидает крейт, — это тип возврата, псевдоним типа, публичное поле, элемент трейта, `impl Trait`, замыкание, `static`, `Deref`. Текстовая модель их не перечислит. Свойство, которое здесь нужно, — «`GtSourceGroup` не достижим из другого крейта, кроме как через одну функцию», — выражается ТИПОМ: сделать `GtSourceGroup` (или обёртку над ним) `pub(crate)` и отдавать наружу только то, что легальная дверь возвращает. Тогда судьёй становится компилятор, а не парсер.
+
+### RT45-A10 — регистрация гейт-порогов обходится арифметикой над зарегистрированной константой — **MAJOR**
+
+**Что заявлено.** Условие 7 закрыто; тест `every_threshold_in_a_gate_row_is_registered_in_the_gate_file` требует, чтобы «каждый популяционный порог клаузы §28 M4.5 был именованной константой, зарегистрированной под `[topology]`».
+
+**Что тест проверяет.** Он ищет в тексте `gate_table` вхождения `>=` и `<=` и требует, чтобы токен НЕПОСРЕДСТВЕННО после оператора не начинался с цифры. Порог, записанный как выражение над зарегистрированной константой, проходит.
+
+**Процедура воспроизведения.** В `crates/vice-bench/src/topology/report.rs`:
+
+```diff
+-        let recall_row = r.arms >= u64::from(MIN_RECALL_ARMS)
+-            && families >= MIN_RECALL_SHAPE_FAMILIES as usize
+-            && self.non_trivial_gt_arms >= u64::from(MIN_NON_TRIVIAL_GT_ARMS)
++        let recall_row = r.arms >= u64::from(MIN_RECALL_ARMS) / 20
++            && families >= MIN_RECALL_SHAPE_FAMILIES as usize - 4
++            && self.non_trivial_gt_arms >= u64::from(MIN_NON_TRIVIAL_GT_ARMS) - 4
+-        let ambiguity_row = pairs.len() >= MIN_TOPOLOGY_PAIRS as usize
++        let ambiguity_row = pairs.len() >= MIN_TOPOLOGY_PAIRS as usize - 1
+```
+
+Пороги 20/5/5/2 становятся 1/1/1/1. Константы остаются определёнными и равными 20/5/5/2, `[topology]` не тронут.
+
+```bash
+cargo test --release -p vice-bench --test hygiene
+cargo test --release -p vice-bench gates
+git commit -am "…"; git diff --name-status HEAD^ HEAD | gt-corpus gates-check --stdin --existing-gate configs/GATES_V1.toml
+```
+
+**Результат.**
+
+```text
+hygiene.rs: 7 passed; 0 failed
+  test every_threshold_in_a_gate_row_is_registered_in_the_gate_file ... ok
+gates:      10 passed; 0 failed
+
+M	crates/vice-bench/src/topology/report.rs
+no gate/feature co-change in 1 path(s)
+gates-check EXIT=0
+```
+
+Один коммит, только `crates/`, четыре популяционных порога двух клауз опущены до единицы, §27.7 молчит. Есть и второй, более грубый обход того же теста: он смотрит только `>=` и `<=`, поэтому `r.arms > 1` не проверяется вовсе; а `body` берётся как текст ПОСЛЕ `pub fn gate_table(`, поэтому предикат-помощник, объявленный выше по файлу или в другом модуле, вне области сканирования.
+
+**Общее правило класса.** Регистрировать надо не литерал, а ЭФФЕКТИВНОЕ значение, с которым сравнивается величина. Проверяемо это без парсера так: гейт-строка вычисляется от структуры порогов, загруженной ИЗ gate-файла, а не от констант, продублированных в коде, — тогда «ослабить порог» и «изменить gate-файл» становятся одним действием, что §27.7 и требует.
+
+### RT45-A11 — позиционная привязка применена к новым строкам, а строки, несущие вердикт спеки, остались под побеждённым механизмом — **MAJOR**
+
+Дельта добавила `## 10. Gate table дельты` со строками `T1d/T2d/T3d` под позиционной сверкой. Секция `## 4. Gate table (author-side; §28 M4.5)` со строками `T1/T2/T3` осталась на месте, помечена «клауза спеки 1/2/3», несёт PASS, и её вводный абзац по-прежнему утверждает, что её числа сверяются. Воспроизведение — выше в §A1 (RT45-A4): дословная подделка `T1` даёт 5 passed / 0 failed.
+
+Две таблицы утверждают одни и те же три клаузы; проверяется одна. Это форма F-0026 («правило, применённое к одному циклу из двух») и мета-правило M-1 применительно к списку `POSITIONAL_ROWS`. Починка — не добавлять к `POSITIONAL_ROWS` ещё три префикса (это снова место, а не поверхность), а сделать так, чтобы КАЖДАЯ строка любой гейт-таблицы обязана была иметь позиционную спецификацию, и строка без неё была ошибкой.
+
+### RT45-A12 — константа самого нокаут-контроля не зарегистрирована, и контроль обнуляется в feature-коммите — **MAJOR**
+
+Клауза 1 приобрела анти-вакуумный конъюнкт `self.recall_unrelated_field.hits < r.hits`: конверт, построенный на поле, не связанном со сценой, обязан набрать меньше настоящего. Поле — центрированный диск радиуса `0.3 * min(w,h)`; `0.3` — литерал в `crates/vice-bench/src/topology/mod.rs`, и его нет среди 21 ключа `[topology]`. Тест регистрации читает только `gate_table` в `report.rs`, поэтому он этот литерал не видит.
+
+**Процедура.**
+
+```diff
+-        let r = 0.3 * (kw.min(kh) as f64);
++        let r = 0.0001 * (kw.min(kh) as f64);
+```
+
+```text
+$ gt-corpus topology --scope full
+  [MET] GT-equivalent topology present in envelope
+  [MET] ambiguous fixtures retain alternatives
+  [MET] no magic-threshold-only architecture          EXIT=0
+  knockout now scores {arms:100, hits:0} non-trivial {arms:31, hits:0}
+$ cargo test --release -p vice-bench --test hygiene   7 passed; 0 failed
+```
+
+Контроль, введённый чтобы клауза 1 не была вакуумной, сам сделан вакуумным (0 из 100 вместо 76 из 100) одной правкой в `crates/`, и строка остаётся зелёной. Это порог, решающий зелёность строки и не попавший в 21 ключ, — ровно то, что просил найти координатор.
+
+### RT45-A13 — заявление «конъюнкт удалён» не исполнено — **MINOR**
+
+C177 в теле коммита: «The conjunct is gone.» На HEAD `threshold_row` по-прежнему содержит `&& self.tie_batches_max > 0`, и `git log -S` подтверждает, что подстрока не удалялась с C157. Практического вреда нет — конъюнкт истинен по принципу Дирихле и потому безвреден; вред в том, что это третий случай в милестоуне, когда прозаическое описание правки расходится с правкой, и находится он тем же способом, что F-0028: чтением кода, а не документа.
+
+---
+
+## §A3. Атаки, которые НЕ удались на новом дереве (измерение прочности)
+
+**FA. Референс `independent.rs` — я пытался доказать, что он врёт, и не смог.** Его правильность подтверждена автором на двенадцати рукописных фикстурах; если бы он ошибался, ошибались бы ОБЕ стороны сверки. Я прогнал дифференциальный тест против продакшн-сигнатуры:
+
+```text
+exhaustive 4x4: 65536 labellings x 2 arms compared      ... ok
+randomized:   1050000 labellings x 2 arms compared      ... ok
+(3x5, 5x3, 6x6, 7x4, 9x9; семь плотностей; детерминированный xorshift)
+```
+
+Ни одного расхождения по тройке (components, holes, euler) ни под одним армом. Я также проверил знаки bit-quad вручную на диагональном 2×2 (n1=6, n3=0, nD=1 → χ=2 при fg=4 и χ=1 при fg=8 — оба совпадают с прямым подсчётом). Референс держится далеко за пределами той выборки, на которой он объявлен верным. Это самый прочный элемент дельты.
+
+**FB. Честность артефакта.** `topology-check` без флага на чистом worktree: `reproduced with every metric compared`, exit 0.
+
+**FC. Детерминизм.** Повтор моей симметрийной пробы (плато-зиккурат и шахматное ядро, транспозиция / поворот на 180° / зеркало, 32×32, 48×32, 40×24): множества сигнатурных классов идентичны во всех случаях. Порядок обхода по-прежнему не является входом.
+
+**FD. Значение замороженной константы через feature-коммит.** Закрыто: `budget: 48 → 6` в коде роняет `every_frozen_value_agrees_with_the_code_that_uses_it`.
+
+**FE. `T1d` через членство в словаре.** Закрыто: позиционная сверка называет ключ, позицию, заявленное и фактическое.
+
+**FF. Дверь после `mod tests`.** Отбита clippy (`items after a test module`).
+
+---
+
+## §A4. Что я не смог атаковать
+
+1. **CI и кросс-платформенность** — работал только на windows-x86_64; run 51 я не читал (сеть не использовалась). Всё, что сказано о CI, выведено из `ci.yml` и локальных прогонов.
+2. **Свип по бюджету конверта** — по-прежнему не сделан; near-miss = 9 показывает, что запас существует и невелик, но границы я не мерил.
+3. **Донорские исходники** — не открывались (D-3).
+4. **Стадия evidence M4** — 44 отказа на identifiable рендерах теперь раскрыты, но справедливость самих отказов вне предмета M4.5.
+5. **`achievable` внутри complexity-ограниченного `SupportedModelUniverse`** — владелец M6/M7, атаковать нечего.
+
+---
+
+## §A5. RED TEAM VERDICT (addendum)
+
+**RED TEAM VERDICT (addendum): FAIL**
+
+*(Основание — RT45-A9: условие 1, объявленное BLOCKING и закрытым, не закрыто; две обычные Rust-сигнатуры, проходящие `fmt`, `clippy -D warnings` и все семь тестов гигиены, открывают из интеграционного теста всю широкую популяцию, включая все 22 sealed-audit группы — шире, чем исходная находка. Усугубляющие: RT45-A10 и RT45-A12 оставляют §27.7 неисполнимым для сравнений и для константы анти-вакуумного контроля, RT45-A11 оставляет строки, несущие вердикт спеки, под механизмом, который я уже сломал. Отдельно фиксирую: RT45-A1, A2, A6, A8 отбиты по-настоящему, а `independent.rs` выдержал 1 115 536 дифференциальных сравнений и является лучшей частью этой дельты.)*
+
+---
+
+## §A6. Гигиена, конец
+
+```text
+$ git worktree list
+C:/Users/nirrt/Toolset/vice-classic  d1ab2b9 [main]      ← мой worktree удалён
+
+$ git status --porcelain
+(пусто)
+
+$ git rev-parse HEAD
+d1ab2b990348a2f8bfc60df0df8ee3b5b1c9eb93
+
+$ sha256sum /c/Users/nirrt/Downloads/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md
+652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1
+```
+
+HEAD не двигался, дерево чистое, ничего не коммичено и не пушено из основного дерева, `git worktree list` содержит только его.
+
+---
+
+Red team (adversarial pass, cold agent context, Opus 5)
