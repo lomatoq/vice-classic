@@ -155,6 +155,15 @@ jobs:
         run: |
           cargo run --release --bin gt-corpus -- oracle \
             --out runs/ci-oracle/report.json --scope full
+      # §28 M4. Three of the four gate clauses are computed from the
+      # corridor report's own data, and the command exits non-zero when any
+      # of them fails.
+      - name: M4 corridor calibration and gate table
+        run: |
+          cargo run --release --bin gt-corpus -- corridor             --out runs/ci-corridor/report.json --scope full
+      - name: The committed corridor report reproduces (structural, cross-platform)
+        run: |
+          cargo run --release --bin gt-corpus -- corridor-check             --report docs/gt/CORRIDOR_M4.json --structural
       # `--structural` for the same reason the corpus step uses it: the
       # oracle metrics are libm-derived floats and therefore Tier A (§5.5),
       # this runner is Linux and the artifact is recorded on Windows. Without
@@ -193,6 +202,8 @@ jobs:
         run: cargo run --release --bin gt-corpus -- verify --manifest docs/gt/CORPUS_MANIFEST.json
       - name: The committed oracle report reproduces (Tier A, every metric)
         run: cargo run --release --bin gt-corpus -- oracle-check --report docs/gt/ORACLE_M3_5.json
+      - name: The committed corridor report reproduces (Tier A, every metric)
+        run: cargo run --release --bin gt-corpus -- corridor-check --report docs/gt/CORRIDOR_M4.json
 
 # Reproducing the pinned donor baselines needs local mirrors and a 104 MiB
 # hash-pinned asset, which CI has neither of; that step is executed by the

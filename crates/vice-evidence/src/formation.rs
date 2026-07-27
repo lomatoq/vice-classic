@@ -180,6 +180,34 @@ pub fn transition_width_px(alpha: &[f64], contour_length_px: f64) -> f64 {
     mass / contour_length_px
 }
 
+/// Share of the covered pixels that reach FULL coverage.
+///
+/// The statistic above is a width only while the shape is RESOLVED. On a
+/// shape thinner than the kernel the coverage never reaches one, the
+/// "undecided mass" is the whole shape, and `mass/length` measures the
+/// shape's half-thickness instead of the kernel. The corpus says how much
+/// that matters: over every family the box statistic has a spread of 1.36 px
+/// around a mean of 1.09 - no information at all - while over the resolved
+/// subset the spread is 0.07.
+pub fn resolved_fraction(alpha: &[f64]) -> f64 {
+    let covered = alpha.iter().filter(|a| **a > 0.02).count();
+    if covered == 0 {
+        return 0.0;
+    }
+    alpha.iter().filter(|a| **a >= 0.98).count() as f64 / covered as f64
+}
+
+/// Below this share of fully covered pixels the transition-width statistic
+/// is measuring the shape rather than the kernel, and the pixel filter is
+/// NOT identifiable from it. Both directions are measured on the corpus by
+/// `vice-bench::corridor::tests::the_kernel_profile_table_matches_the_corpus`.
+pub const MIN_RESOLVED_FRACTION: f64 = 0.25;
+
+/// Is the pixel filter identifiable from this coverage field at all?
+pub fn filter_is_identifiable(alpha: &[f64]) -> bool {
+    resolved_fraction(alpha) >= MIN_RESOLVED_FRACTION
+}
+
 /// The transition width one kernel produces, as MEASURED on the development
 /// split, with the spread over shapes and phases.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -194,34 +222,46 @@ pub struct KernelProfile {
     pub sd_px: f64,
 }
 
-/// Measured on the development split at 64 px by
+/// Measured on the corpus by
 /// `vice-bench::corridor::tests::the_kernel_profile_table_matches_the_corpus`,
 /// which prints the table and fails if the code and the corpus disagree.
 ///
-/// The numbers are close to the closed forms quoted on
-/// [`transition_width_px`] (box 2/3, Gaussian 2.26σ) and they are NOT the
-/// closed forms: a real shape has corners and a finite perimeter, and the
-/// statistic sees them. Using the measurement is the point.
+/// The BOX row is measured over EVERY engine that can realize it — the
+/// exact integrator, the supersampler and both external engines — over two
+/// sizes and over every shape family, which is why its spread is the widest
+/// of the four. A table measured on one engine would describe that engine's
+/// antialiasing rather than the kernel: the first draft did exactly that and
+/// recovered the filter on three arms out of seven.
+///
+/// The honest consequence of the measured spreads: box (0.748 ± 0.131) and
+/// triangle (1.045 ± 0.067) are separated by about two pooled spreads, so a
+/// shape whose statistic lands in the tail IS misclassified, and the
+/// corridor report publishes the recovery rate rather than a claim.
+///
+/// The numbers are NEAR the closed forms quoted on [`transition_width_px`]
+/// (box 2/3, Gaussian 2.26σ) and are not equal to them: a real shape has
+/// corners and a finite perimeter, and the statistic sees them. Using the
+/// measurement rather than the closed form is the point.
 pub const KERNEL_PROFILES_V1: &[KernelProfile] = &[
     KernelProfile {
         filter: PixelFilter::Box,
-        width_px: 0.667,
-        sd_px: 0.10,
+        width_px: 0.748,
+        sd_px: 0.131,
     },
     KernelProfile {
         filter: PixelFilter::Triangle,
-        width_px: 1.088,
-        sd_px: 0.10,
+        width_px: 1.045,
+        sd_px: 0.067,
     },
     KernelProfile {
         filter: PixelFilter::Gaussian { sigma_px: 0.5 },
-        width_px: 1.166,
-        sd_px: 0.10,
+        width_px: 1.218,
+        sd_px: 0.049,
     },
     KernelProfile {
         filter: PixelFilter::Gaussian { sigma_px: 1.0 },
-        width_px: 2.262,
-        sd_px: 0.15,
+        width_px: 2.388,
+        sd_px: 0.030,
     },
 ];
 
@@ -378,18 +418,17 @@ mod tests {
     /// and where it does not, the estimator has to say so. Both directions.
     #[test]
     fn the_kernel_table_separates_what_it_can_and_admits_what_it_cannot() {
-        // A width of 2/3 picks the box, and picks it alone.
-        let picked = filters_within_margin(0.667, 2.0);
+        // Each kernel's own measured width picks it, and picks it alone.
+        let picked = filters_within_margin(0.748, 2.0);
         assert_eq!(picked, vec![PixelFilter::Box], "{picked:?}");
-        // A width of 2.26 picks the wide Gaussian alone.
         assert_eq!(
-            filters_within_margin(2.262, 2.0),
+            filters_within_margin(2.388, 2.0),
             vec![PixelFilter::Gaussian { sigma_px: 1.0 }]
         );
-        // Triangle and the narrow Gaussian are 0.08 px apart against a
-        // measured spread of 0.10: this statistic CANNOT separate them, and
-        // the estimator returns both instead of choosing.
-        let ambiguous = filters_within_margin(1.12, 2.0);
+        // Halfway between the triangle and the narrow Gaussian the
+        // statistic CANNOT choose, and the estimator returns both instead of
+        // pretending. That case exists — it is not a hypothetical.
+        let ambiguous = filters_within_margin(1.125, 2.0);
         assert!(
             ambiguous.contains(&PixelFilter::Triangle)
                 && ambiguous.contains(&PixelFilter::Gaussian { sigma_px: 0.5 }),

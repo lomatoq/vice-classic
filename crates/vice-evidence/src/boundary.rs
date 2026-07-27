@@ -439,9 +439,9 @@ pub fn observe_boundaries(
                 pts[seg - 1].y + t * (pts[seg].y - pts[seg - 1].y),
             );
             let (ux, uy) = (bilinear(&gx, w, h, p), bilinear(&gy, w, h, p));
-            let g = ux.hypot(uy);
-            let normal = if g > 1e-12 {
-                Pt::new(ux / g, uy / g)
+            let gmag = ux.hypot(uy);
+            let normal = if gmag > 1e-12 {
+                Pt::new(ux / gmag, uy / gmag)
             } else {
                 // Degenerate gradient: fall back to the polyline normal and
                 // let the corridor say the position is unconstrained.
@@ -449,8 +449,16 @@ pub fn observe_boundaries(
                 let l = d.x.hypot(d.y).max(1e-12);
                 Pt::new(-d.y / l, d.x / l)
             };
+            // The two derivatives the corridor needs, taken ALONG THE
+            // NORMAL over a unit baseline centred on the sample. A central
+            // difference of the pixel grid would span two pixels and halve
+            // the gradient of a one-pixel edge (corridor module docs).
+            let along =
+                |t: f64| bilinear(alpha, w, h, Pt::new(p.x + t * normal.x, p.y + t * normal.y));
+            let g = along(0.5) - along(-0.5);
+            let d2 = along(1.0) - 2.0 * along(0.0) + along(-1.0);
             let pixel = at(p.x.floor() as i64, p.y.floor() as i64);
-            let c: Corridor = corridor_at(e, pixel, g, coverage_level, ccfg).ok_or(
+            let c: Corridor = corridor_at(e, pixel, g, d2, coverage_level, ccfg).ok_or(
                 BoundaryRefusal::UnknownCoverageLevel {
                     level: coverage_level,
                 },

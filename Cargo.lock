@@ -834,7 +834,9 @@ dependencies = [
  "thiserror",
  "tiny-skia",
  "toml",
+ "vice-evidence",
  "vice-geom",
+ "vice-image",
  "vice-ir",
  "vice-render",
 ]

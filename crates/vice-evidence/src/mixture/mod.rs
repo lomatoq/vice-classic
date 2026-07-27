@@ -57,21 +57,34 @@ pub struct MixtureConfig {
     /// The alpha band that counts as INTERMEDIATE for §1.6.
     pub intermediate_alpha_lo: f64,
     pub intermediate_alpha_hi: f64,
-    /// `|∇α|`, in units of the alpha quantization noise, below which a pixel
-    /// counts as FLAT.
+    /// One-sided coverage difference, in units of the alpha quantization
+    /// noise, below which a pixel counts as FLAT.
+    ///
+    /// Swept on the corpus (`the_semi_transparent_floor_separates_both_ways`)
+    /// at 3 / 5 / 8 / 12: the CLEAN population is insensitive to it — its
+    /// largest flat-region thickness stays 1.83 px at every value, because
+    /// the thickness gate is what protects it — while the constant-alpha
+    /// probes caught rise 29 → 31 → 32 → 33 of 39. 8 is where the gain
+    /// flattens.
     pub flat_alpha_gradient_ratio: f64,
     /// Smallest flat intermediate-alpha region, in px, that is reported as a
     /// semi-transparent interior. Measured in both directions on the corpus
     /// by `vice-bench` (`the_semi_transparent_floor_separates_both_ways`).
     pub semi_transparent_min_area_px: u64,
+    /// Thickness, in px, above which a flat intermediate region cannot be a
+    /// thin opaque shape's partial coverage and IS a semi-transparent fill
+    /// (§1.6). Below it the two readings are the same bytes and the outcome
+    /// is `ambiguous` rather than `unsupported`.
+    pub min_flat_thickness_px: f64,
 }
 
 pub const MIXTURE_CONFIG_V1: MixtureConfig = MixtureConfig {
     min_conditioning: 0.02,
     intermediate_alpha_lo: 0.08,
     intermediate_alpha_hi: 0.92,
-    flat_alpha_gradient_ratio: 3.0,
+    flat_alpha_gradient_ratio: 8.0,
     semi_transparent_min_area_px: 24,
+    min_flat_thickness_px: 2.0,
 };
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
@@ -267,16 +280,33 @@ pub fn infer_mixture(
         (cy as usize) * (w as usize) + (cx as usize)
     };
     let mut gradient = vec![0.0f64; n];
+    let mut flatness = vec![0.0f64; n];
     for y in 0..h {
         for x in 0..w {
+            let here = alpha[at(x, y)];
             let gx = 0.5 * (alpha[at(x + 1, y)] - alpha[at(x - 1, y)]);
             let gy = 0.5 * (alpha[at(x, y + 1)] - alpha[at(x, y - 1)]);
             gradient[at(x, y)] = gx.hypot(gy);
+            // The FLATNESS statistic uses the smaller of the two one-sided
+            // differences on each axis, and it is a different question from
+            // the gradient. A central difference makes every pixel next to
+            // a plateau's edge look sloped, so a plateau 69 px across
+            // shrinks to 22 px of "flat" and falls under the area floor —
+            // measured, on `proc/l_shape/000#a` at 32 px. A pixel whose
+            // field is flat on ONE side belongs to the plateau; a pixel on a
+            // ramp slopes on both.
+            let fx = (here - alpha[at(x - 1, y)])
+                .abs()
+                .min((alpha[at(x + 1, y)] - here).abs());
+            let fy = (here - alpha[at(x, y - 1)])
+                .abs()
+                .min((alpha[at(x, y + 1)] - here).abs());
+            flatness[at(x, y)] = fx.hypot(fy);
         }
     }
 
     let indicators = indicators_of(t, &residual, d, conditioning);
-    let semi = detect_semi_transparent(&alpha, &gradient, &quant, w as usize, h as usize, cfg);
+    let semi = detect_semi_transparent(&alpha, &flatness, &quant, w as usize, h as usize, cfg);
     let support = ObservationSupport::whole_image(image_sha256, n);
     // The surrogate that orders hypotheses: a standardized residual mass.
     // Deliberately NOT a log-likelihood over pixels — those pixels are

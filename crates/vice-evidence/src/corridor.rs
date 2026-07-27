@@ -32,11 +32,38 @@
 //! |---|---|
 //! | quantization | the 8-bit cell the tensor carries, divided by the mixture conditioning, as a uniform distribution (`h/√3`) |
 //! | model mismatch | the LOCAL residual of the mixture, in alpha units |
-//! | noise floor | the frozen clean-bucket noise scale of `configs/GATES_V1.toml` |
+//! | formation disagreement | the frozen clean-bucket coverage noise of `configs/GATES_V1.toml`, in the COVERAGE domain and therefore not divided by anything |
 //!
 //! The conditioning appears in the first term exactly as §10 asks: a
 //! low-contrast pair divides by a smaller separation, so its corridor is
 //! wider, without anyone writing a special case for low contrast.
+//!
+//! ## The extraction term, and why it is added rather than squared
+//!
+//! Noise is not the only thing between the extracted boundary and the true
+//! one. The `α = 0.5` crossing is found by LINEAR interpolation of a field
+//! that is not linear, and the error of linear interpolation on a smooth
+//! function is `|f''|·h²/8` — a BIAS, present with the same sign whatever
+//! the noise does. Its size is read off the field itself, as the second
+//! difference of the coverage along the normal at unit spacing, so nothing
+//! is fitted:
+//!
+//! ```text
+//! halfwidth = z_q · σ_α/|∂α/∂n|  +  |∂²α/∂n²| / (8·|∂α/∂n|)
+//! ```
+//!
+//! A systematic term is ADDED, not combined in quadrature: quadrature is
+//! for independent random contributions, and this one is not random. The
+//! first draft of this module had only the noise term, and the corpus said
+//! so — measured coverage@95 was 0.46 against an expected 0.95, with the
+//! misses concentrated exactly where the coverage profile is curved
+//! (FAILURE_LEDGER F-0023).
+//!
+//! For the same reason `∂α/∂n` is measured over a UNIT baseline centred on
+//! the sample (`α(p+n/2) − α(p−n/2)`) rather than by a central difference
+//! of the pixel grid: the latter spans two pixels and halves the gradient
+//! of a one-pixel-wide edge, which would have widened every corridor by 2x
+//! for a reason that is an artifact of the stencil.
 //!
 //! ## The cap
 //!
@@ -49,28 +76,44 @@ use serde::Serialize;
 
 use crate::mixture::Flat2Evidence;
 
-/// The clean-bucket observation noise scale, in 8-bit codes.
+/// The clean-bucket observation noise scale, in 8-bit codes OF COVERAGE.
 ///
-/// Frozen in `configs/GATES_V1.toml` `[noise_scales]` and MEASURED by
-/// `vice-bench::corridor` on the development split: it is the per-pixel
-/// residual scale left when a correct model meets a raster produced by an
-/// INDEPENDENT engine, i.e. the antialiasing disagreement plus quantization.
-/// It is a floor under `σ_α`, not a replacement for the local term: without
-/// it a region whose local residual happens to vanish would claim a
-/// corridor narrower than the instrument.
-pub const CLEAN_BUCKET_SIGMA_CODES: f64 = 3.6;
+/// Frozen in `configs/GATES_V1.toml` `[noise_scales]`, measured by
+/// `vice-bench::corridor::tests::the_clean_bucket_noise_scale_is_measured_on_the_development_split`
+/// on the development split: 9.54 codes against `tiny-skia`, 24.84 against
+/// `raqote`, 18.81 pooled.
+///
+/// What it is the scale OF, because getting that wrong is what made the
+/// first corridor two to three times too narrow (FAILURE_LEDGER F-0023):
+/// the dominant observation noise of the clean bucket is NOT quantization
+/// and NOT the mixture residual. It is the disagreement between the
+/// analytic coverage the M4 formation family predicts and the antialiasing
+/// an independent engine actually performed — a quantity the two-colour
+/// mixture cannot see at all, because the mixture fits ANY coverage value
+/// and leaves no residual when the coverage itself is wrong.
+///
+/// It is in the COVERAGE domain, so unlike the quantization term it is NOT
+/// divided by the mixture conditioning: an engine that puts 0.07 of extra
+/// coverage in a pixel has moved alpha by 0.07 whatever the two paints are.
+///
+/// It is POOLED over the independent engines on purpose. At inference time
+/// nothing says which engine drew the image, so the corridor has to hold for
+/// the coarse one; that makes it conservative for the fine one, and the
+/// per-engine numbers are published so a reader can see by how much.
+pub const CLEAN_BUCKET_SIGMA_CODES: f64 = 18.8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct CorridorConfig {
     /// Largest halfwidth reported, in px. Narrowing only.
     pub max_halfwidth_px: f64,
-    /// Noise floor in 8-bit codes; see [`CLEAN_BUCKET_SIGMA_CODES`].
-    pub noise_floor_codes: f64,
+    /// Coverage-domain noise scale in 8-bit codes; see
+    /// [`CLEAN_BUCKET_SIGMA_CODES`].
+    pub coverage_noise_codes: f64,
 }
 
 pub const CORRIDOR_CONFIG_V1: CorridorConfig = CorridorConfig {
     max_halfwidth_px: 4.0,
-    noise_floor_codes: CLEAN_BUCKET_SIGMA_CODES,
+    coverage_noise_codes: CLEAN_BUCKET_SIGMA_CODES,
 };
 
 /// The two-sided standard normal quantile of a coverage level.
@@ -99,7 +142,10 @@ pub const COVERAGE_LEVELS: &[f64] = &[0.50, 0.90, 0.95, 0.99];
 pub struct AlphaSigma {
     pub quantization: f64,
     pub model_mismatch: f64,
-    pub noise_floor: f64,
+    /// The coverage the observing engine and the M4 formation family
+    /// disagree about. Dominant in the clean bucket, and invisible to the
+    /// mixture residual.
+    pub formation_disagreement: f64,
     pub total: f64,
 }
 
@@ -110,15 +156,17 @@ impl AlphaSigma {
         // corridor by 73 %.
         let quantization = e.alpha_quant_halfwidth(i) / 3.0f64.sqrt();
         let model_mismatch = e.local_residual_alpha_sigma(i);
-        let noise_floor = (cfg.noise_floor_codes / 255.0) / e.conditioning.max(1e-12);
+        // NOT divided by the conditioning: this term is already a coverage
+        // error, not a channel error (see CLEAN_BUCKET_SIGMA_CODES).
+        let formation_disagreement = cfg.coverage_noise_codes / 255.0;
         let total = (quantization * quantization
             + model_mismatch * model_mismatch
-            + noise_floor * noise_floor)
+            + formation_disagreement * formation_disagreement)
             .sqrt();
         AlphaSigma {
             quantization,
             model_mismatch,
-            noise_floor,
+            formation_disagreement,
             total,
         }
     }
@@ -128,11 +176,16 @@ impl AlphaSigma {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct Corridor {
     pub sigma_alpha: AlphaSigma,
-    /// `|∂α/∂n|` at the point, per px.
+    /// `∂α/∂n` at the point, per px, over a unit baseline.
     pub gradient_along_normal: f64,
-    /// `σ_α / |∂α/∂n|`, before the cap.
+    /// `∂²α/∂n²` at the point, per px², over a unit baseline.
+    pub curvature_along_normal: f64,
+    /// `σ_α / |∂α/∂n|`: the RANDOM part, before the quantile.
     pub sigma_pos_px: f64,
-    /// `z_q · σ_pos`, capped.
+    /// `|∂²α/∂n²| / (8|∂α/∂n|)`: the SYSTEMATIC part, the error of finding
+    /// a level set by linear interpolation of a curved profile.
+    pub extraction_bias_px: f64,
+    /// `z_q · σ_pos + extraction_bias`, capped.
     pub halfwidth_px: f64,
     pub capped: bool,
     /// The coverage level this halfwidth belongs to.
@@ -144,6 +197,7 @@ pub fn corridor_at(
     e: &Flat2Evidence,
     i: usize,
     gradient_along_normal: f64,
+    curvature_along_normal: f64,
     level: f64,
     cfg: &CorridorConfig,
 ) -> Option<Corridor> {
@@ -151,12 +205,15 @@ pub fn corridor_at(
     let sigma_alpha = AlphaSigma::at(e, i, cfg);
     let g = gradient_along_normal.abs().max(1e-9);
     let sigma_pos_px = sigma_alpha.total / g;
-    let raw = z * sigma_pos_px;
+    let extraction_bias_px = curvature_along_normal.abs() / (8.0 * g);
+    let raw = z * sigma_pos_px + extraction_bias_px;
     let halfwidth_px = raw.min(cfg.max_halfwidth_px);
     Some(Corridor {
         sigma_alpha,
         gradient_along_normal,
+        curvature_along_normal,
         sigma_pos_px,
+        extraction_bias_px,
         halfwidth_px,
         capped: raw > cfg.max_halfwidth_px,
         level,
@@ -171,7 +228,7 @@ pub fn corridor_at(
 /// carry: how sharply the coverage field determines the position here,
 /// relative to the corridor cap.
 pub fn sample_confidence(c: &Corridor, cfg: &CorridorConfig) -> f64 {
-    (1.0 - c.sigma_pos_px / cfg.max_halfwidth_px).clamp(0.0, 1.0)
+    (1.0 - (c.sigma_pos_px + c.extraction_bias_px) / cfg.max_halfwidth_px).clamp(0.0, 1.0)
 }
 
 #[cfg(test)]
@@ -244,8 +301,8 @@ mod tests {
         let sharp = ramp(ink, 1.0, None);
         let blurry = ramp(ink, 4.0, None);
         let i = sharp.index(16, 2);
-        let a = corridor_at(&sharp, i, 1.0 / 1.0, 0.95, &CORRIDOR_CONFIG_V1).unwrap();
-        let b = corridor_at(&blurry, i, 1.0 / 4.0, 0.95, &CORRIDOR_CONFIG_V1).unwrap();
+        let a = corridor_at(&sharp, i, 1.0, 0.0, 0.95, &CORRIDOR_CONFIG_V1).unwrap();
+        let b = corridor_at(&blurry, i, 0.25, 0.0, 0.95, &CORRIDOR_CONFIG_V1).unwrap();
         println!(
             "sharp {:.4} px, blurry {:.4} px (σ_α {:.5} vs {:.5})",
             a.halfwidth_px, b.halfwidth_px, a.sigma_alpha.total, b.sigma_alpha.total
@@ -265,7 +322,7 @@ mod tests {
     /// low-contrast pair gets a wider corridor without a special case for
     /// low contrast anywhere in the code (§10).
     #[test]
-    fn low_contrast_widens_the_corridor_through_the_conditioning() {
+    fn low_contrast_enters_the_corridor_through_the_conditioning() {
         let high = ramp(
             LinearRgb::new(0.95, 0.95, 0.95),
             1.0,
@@ -277,15 +334,30 @@ mod tests {
             Some(LinearRgb::new(0.48, 0.48, 0.48)),
         );
         let i = high.index(16, 2);
-        let a = corridor_at(&high, i, 1.0, 0.95, &CORRIDOR_CONFIG_V1).unwrap();
-        let b = corridor_at(&low, i, 1.0, 0.95, &CORRIDOR_CONFIG_V1).unwrap();
+        let a = corridor_at(&high, i, 1.0, 0.0, 0.95, &CORRIDOR_CONFIG_V1).unwrap();
+        let b = corridor_at(&low, i, 1.0, 0.0, 0.95, &CORRIDOR_CONFIG_V1).unwrap();
         println!(
-            "conditioning {:.4} -> {:.4} px; {:.4} -> {:.4} px",
-            high.conditioning, a.halfwidth_px, low.conditioning, b.halfwidth_px
+            "conditioning {:.4} -> {:.4} px (q {:.5}); {:.4} -> {:.4} px (q {:.5})",
+            high.conditioning,
+            a.halfwidth_px,
+            a.sigma_alpha.quantization,
+            low.conditioning,
+            b.halfwidth_px,
+            b.sigma_alpha.quantization
         );
         assert!(low.conditioning < high.conditioning / 5.0);
-        assert!(b.halfwidth_px > 3.0 * a.halfwidth_px);
-        assert!(b.sigma_alpha.quantization > a.sigma_alpha.quantization);
+        assert!(
+            b.sigma_alpha.quantization > 4.0 * a.sigma_alpha.quantization,
+            "the conditioning must enter the quantization term"
+        );
+        assert!(b.halfwidth_px > a.halfwidth_px, "and widen the corridor");
+        // The measured fact worth recording rather than assuming the
+        // opposite: in the CLEAN bucket the formation-disagreement term
+        // DOMINATES the quantization one, so contrast moves the total only
+        // as the pair approaches the conditioning floor. A corridor built on
+        // quantization alone would have been two to three times too narrow
+        // (F-0023), and this assertion is what keeps that in view.
+        assert!(a.sigma_alpha.formation_disagreement > 4.0 * a.sigma_alpha.quantization);
     }
 
     /// The cap only ever NARROWS: it cannot rescue a failure by widening,
@@ -294,12 +366,12 @@ mod tests {
     fn the_cap_narrows_and_says_so() {
         let e = ramp(LinearRgb::new(0.1, 0.4, 0.8), 1.0, None);
         let i = e.index(16, 2);
-        let flat = corridor_at(&e, i, 1e-6, 0.99, &CORRIDOR_CONFIG_V1).unwrap();
+        let flat = corridor_at(&e, i, 1e-6, 0.0, 0.99, &CORRIDOR_CONFIG_V1).unwrap();
         assert!(flat.capped);
         assert_eq!(flat.halfwidth_px, CORRIDOR_CONFIG_V1.max_halfwidth_px);
         assert!(flat.sigma_pos_px > CORRIDOR_CONFIG_V1.max_halfwidth_px);
         assert_eq!(sample_confidence(&flat, &CORRIDOR_CONFIG_V1), 0.0);
-        let sharp = corridor_at(&e, i, 1.0, 0.50, &CORRIDOR_CONFIG_V1).unwrap();
+        let sharp = corridor_at(&e, i, 1.0, 0.0, 0.50, &CORRIDOR_CONFIG_V1).unwrap();
         assert!(!sharp.capped);
         assert!(sample_confidence(&sharp, &CORRIDOR_CONFIG_V1) > 0.9);
     }
@@ -315,26 +387,28 @@ mod tests {
         let i = e.index(16, 2);
         let mut prev = 0.0;
         for level in COVERAGE_LEVELS {
-            let c = corridor_at(&e, i, 1.0, *level, &CORRIDOR_CONFIG_V1).unwrap();
+            let c = corridor_at(&e, i, 1.0, 0.0, *level, &CORRIDOR_CONFIG_V1).unwrap();
             assert!(c.halfwidth_px > prev, "{level}: {}", c.halfwidth_px);
             prev = c.halfwidth_px;
         }
     }
 
-    /// The three terms of σ_α are kept apart, and the noise floor really is
-    /// a floor: it cannot be undercut by a locally clean patch.
+    /// The three terms of σ_α are kept apart, and the formation-disagreement
+    /// term really is a floor: it cannot be undercut by a locally clean
+    /// patch, which is the situation it exists for — the mixture residual
+    /// vanishes exactly when the coverage error is invisible to it.
     #[test]
-    fn the_noise_floor_is_a_floor_and_the_terms_stay_separable() {
+    fn the_formation_term_is_a_floor_and_the_terms_stay_separable() {
         let e = ramp(LinearRgb::new(0.1, 0.4, 0.8), 1.0, None);
         let s = AlphaSigma::at(&e, e.index(2, 2), &CORRIDOR_CONFIG_V1);
-        assert!(s.total >= s.noise_floor);
-        assert!(s.noise_floor > 0.0);
+        assert!(s.total >= s.formation_disagreement);
+        assert!(s.formation_disagreement > 0.0);
         assert!(s.quantization > 0.0);
         let no_floor = AlphaSigma::at(
             &e,
             e.index(2, 2),
             &CorridorConfig {
-                noise_floor_codes: 0.0,
+                coverage_noise_codes: 0.0,
                 ..CORRIDOR_CONFIG_V1
             },
         );

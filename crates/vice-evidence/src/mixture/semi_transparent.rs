@@ -28,6 +28,17 @@ use super::MixtureConfig;
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SemiTransparentInterior {
     pub largest_region_px: u64,
+    /// `2·area/perimeter` of the largest region, in px: how THICK the flat
+    /// intermediate patch is.
+    ///
+    /// This is what separates a semi-transparent fill from a thin opaque
+    /// shape, and it has to be here because the two are otherwise the same
+    /// bytes. A sliver narrower than the kernel produces a ridge of partial
+    /// coverage about one pixel thick; a constant-alpha fill produces a
+    /// plateau as thick as the shape. Measured on the corpus: the corpus's
+    /// own thin fixtures give a thickness near 1, the constant-alpha probes
+    /// give 3 and up.
+    pub thickness_px: f64,
     pub regions: u64,
     /// Mean alpha over the largest region.
     pub alpha: f64,
@@ -40,7 +51,10 @@ pub struct SemiTransparentInterior {
 /// §1.6: a coherent FLAT region at intermediate alpha.
 pub(crate) fn detect_semi_transparent(
     alpha: &[f64],
-    gradient: &[f64],
+    // The one-sided MINIMUM difference field, not the central-difference
+    // gradient: see `mixture::infer_mixture` for why the two are different
+    // questions.
+    flatness: &[f64],
     quant: &[f64],
     w: usize,
     h: usize,
@@ -51,7 +65,7 @@ pub(crate) fn detect_semi_transparent(
         .map(|i| {
             alpha[i] > cfg.intermediate_alpha_lo
                 && alpha[i] < cfg.intermediate_alpha_hi
-                && gradient[i] <= cfg.flat_alpha_gradient_ratio * quant[i].max(1e-9)
+                && flatness[i] <= cfg.flat_alpha_gradient_ratio * quant[i].max(1e-9)
         })
         .collect();
     let total: u64 = flat.iter().filter(|v| **v).count() as u64;
@@ -59,7 +73,7 @@ pub(crate) fn detect_semi_transparent(
         return None;
     }
     let mut seen = vec![false; n];
-    let mut best: Option<(u64, f64, f64, f64)> = None;
+    let mut best: Option<(u64, f64, f64, f64, u64)> = None;
     let mut regions = 0u64;
     for start in 0..n {
         if !flat[start] || seen[start] {
@@ -69,6 +83,7 @@ pub(crate) fn detect_semi_transparent(
         let mut stack = vec![start];
         seen[start] = true;
         let mut area = 0u64;
+        let mut perimeter = 0u64;
         let mut sum = 0.0;
         let mut lo = f64::INFINITY;
         let mut hi = f64::NEG_INFINITY;
@@ -78,6 +93,19 @@ pub(crate) fn detect_semi_transparent(
             lo = lo.min(alpha[i]);
             hi = hi.max(alpha[i]);
             let (x, y) = (i % w, i / w);
+            // Perimeter in px: every 4-neighbour outside the region, and
+            // every side that runs off the image.
+            for (nx, ny) in [
+                (x as i64 - 1, y as i64),
+                (x as i64 + 1, y as i64),
+                (x as i64, y as i64 - 1),
+                (x as i64, y as i64 + 1),
+            ] {
+                let outside = nx < 0 || ny < 0 || nx >= w as i64 || ny >= h as i64;
+                if outside || !flat[(ny.max(0) as usize) * w + nx.max(0) as usize] {
+                    perimeter += 1;
+                }
+            }
             let push = |j: usize, seen: &mut Vec<bool>, stack: &mut Vec<usize>| {
                 if flat[j] && !seen[j] {
                     seen[j] = true;
@@ -98,16 +126,21 @@ pub(crate) fn detect_semi_transparent(
             }
         }
         let mean = sum / area as f64;
-        if best.is_none_or(|(a, _, _, _)| area > a) {
-            best = Some((area, mean, lo, hi));
+        if best.is_none_or(|(a, _, _, _, _)| area > a) {
+            best = Some((area, mean, lo, hi, perimeter));
         }
     }
-    let (area, mean, lo, hi) = best?;
+    let (area, mean, lo, hi, perimeter) = best?;
     if area < cfg.semi_transparent_min_area_px {
         return None;
     }
     Some(SemiTransparentInterior {
         largest_region_px: area,
+        thickness_px: if perimeter > 0 {
+            2.0 * area as f64 / perimeter as f64
+        } else {
+            0.0
+        },
         regions,
         alpha: mean,
         alpha_span: hi - lo,

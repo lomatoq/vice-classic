@@ -15,6 +15,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use vice_bench::corridor::{self, CorridorScope};
 use vice_bench::gates::{same_commit_violation, ChangedPath, GatesFile};
 use vice_bench::gt::corpus::{build_manifest, fast_cell_filter, test_cell_filter, CorpusManifest};
 use vice_bench::gt::split::{AuditSeal, SPLIT_POLICY_V1};
@@ -46,6 +47,23 @@ impl From<OracleScopeArg> for OracleScope {
         match v {
             OracleScopeArg::Full => OracleScope::Full,
             OracleScopeArg::Test => OracleScope::Test,
+        }
+    }
+}
+
+/// How much of the corpus the corridor calibration covers. Part of its
+/// config hash, so a cheap run is not comparable with a full one.
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+enum CorridorScopeArg {
+    Full,
+    Test,
+}
+
+impl From<CorridorScopeArg> for CorridorScope {
+    fn from(v: CorridorScopeArg) -> CorridorScope {
+        match v {
+            CorridorScopeArg::Full => CorridorScope::Full,
+            CorridorScopeArg::Test => CorridorScope::Test,
         }
     }
 }
@@ -121,6 +139,21 @@ enum Cmd {
     /// they are a TIER A artifact (§5.5): a report recorded on another
     /// platform is refused unless `--structural` is given.
     OracleCheck {
+        #[arg(long)]
+        report: PathBuf,
+        #[arg(long)]
+        structural: bool,
+    },
+    /// Run the M4 corridor calibration and write its report (§13.1).
+    Corridor {
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, value_enum, default_value_t = CorridorScopeArg::Full)]
+        scope: CorridorScopeArg,
+    },
+    /// Re-run the corridor calibration at the report's own scope and
+    /// compare. Tier A, exactly like the oracle report.
+    CorridorCheck {
         #[arg(long)]
         report: PathBuf,
         #[arg(long)]
@@ -543,6 +576,122 @@ fn real_main() -> i32 {
             if all_ok {
                 0
             } else {
+                1
+            }
+        }
+        Cmd::Corridor { out, scope } => {
+            let run = match corridor::run(scope.into()) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let report = corridor::report::build(&run);
+            if let Some(parent) = out.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Err(e) = std::fs::write(&out, format!("{}\n", report.canonical_json())) {
+                eprintln!("error: write {}: {e}", out.display());
+                return 2;
+            }
+            println!(
+                "corridor: {} scenes, {} arms, {} refused, {} sealed-audit groups skipped, \
+                 config_hash {}",
+                report.scenes,
+                report.arms_measured,
+                report.arms_refused,
+                report.sealed_audit_groups_skipped,
+                report.config_hash
+            );
+            for (name, got, want, ok) in &report.targets {
+                println!(
+                    "  [{}] {name}: measured {got:.4} against the provisional {want:.4}",
+                    if *ok { "MET" } else { "MISSED" }
+                );
+            }
+            println!(
+                "  held-out coverage@50/90/95/99 = {}",
+                report
+                    .held_out
+                    .coverage
+                    .iter()
+                    .map(|(l, c)| format!("{l:.2}:{c:.3}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
+            for w in &report.warnings {
+                eprintln!("warning: {w}");
+            }
+            let mut all_ok = true;
+            println!("M4 gate table (three of four clauses; the factorial is the oracle's):");
+            for (name, ok, why) in report.gate_table() {
+                println!("  [{}] {name}: {why}", if ok { "MET" } else { "NOT MET" });
+                all_ok &= ok;
+            }
+            println!("corridor report: {}", out.display());
+            if all_ok {
+                0
+            } else {
+                1
+            }
+        }
+        Cmd::CorridorCheck { report, structural } => {
+            let recorded = match read_manifest(&report) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let here = serde_json::json!({
+                "os": std::env::consts::OS,
+                "arch": std::env::consts::ARCH,
+            });
+            let recorded_platform = recorded.get("platform").cloned().unwrap_or_default();
+            let same_platform = recorded_platform == here;
+            if !same_platform && !structural {
+                eprintln!(
+                    "error: this corridor report records metrics for platform \
+                     {recorded_platform}, and this is {here}. The metrics are libm-derived \
+                     floats and therefore TIER A (spec 5.5, ADR-0008). Re-run on the recording \
+                     platform, or pass --structural to compare the platform-independent \
+                     projection."
+                );
+                return 2;
+            }
+            let scope = match recorded["config"]["scope"].as_str() {
+                Some("full") => CorridorScope::Full,
+                Some("test") => CorridorScope::Test,
+                other => {
+                    eprintln!("error: report declares unknown scope {other:?}");
+                    return 2;
+                }
+            };
+            let run = match corridor::run(scope) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let rebuilt: serde_json::Value =
+                serde_json::from_str(&corridor::report::build(&run).canonical_json())
+                    .expect("round trip");
+            let (a, b, mode) = if structural && !same_platform {
+                (
+                    corridor::report::structural_projection(&recorded),
+                    corridor::report::structural_projection(&rebuilt),
+                    "STRUCTURALLY across platforms (metrics NOT compared - they are Tier A)",
+                )
+            } else {
+                (recorded, rebuilt, "with every metric compared")
+            };
+            if a == b {
+                println!("corridor report reproduced {mode}");
+                0
+            } else {
+                eprintln!("corridor report did NOT reproduce {mode}");
                 1
             }
         }

@@ -43,7 +43,8 @@ use crate::boundary::{
 };
 use crate::corridor::{CorridorConfig, CORRIDOR_CONFIG_V1};
 use crate::formation::{
-    blend_space_is_identifiable, filter_penalty, for_palette, formation_id, transition_width_px,
+    blend_space_is_identifiable, filter_is_identifiable, filter_penalty, for_palette, formation_id,
+    resolved_fraction, transition_width_px,
 };
 use crate::interior::{interior_confidence, InteriorConfig, InteriorSummary, INTERIOR_CONFIG_V1};
 use crate::mixture::{
@@ -114,6 +115,10 @@ pub struct EvidenceSummary {
     pub residual: crate::mixture::ResidualIndicators,
     pub score: f64,
     pub blend_space_identifiable: bool,
+    /// False when the shape is thinner than the kernel, so the transition
+    /// width measures the shape and not the filter.
+    pub filter_identifiable: bool,
+    pub resolved_fraction: f64,
     pub foreground_is_interval: bool,
     pub semi_transparent_interior: Option<SemiTransparentInterior>,
     pub fit: SurrogateSummary,
@@ -215,12 +220,32 @@ fn mixture_class(h: &Flat2Hypothesis) -> String {
     }
 }
 
+/// The report, plus the evidence the outcome selected.
+///
+/// Separate from [`analyze`] because a `Flat2Evidence` carries a residual
+/// VECTOR per pixel — megabytes on a large image — and only the calibration
+/// harness needs it (to re-observe the boundary at the other coverage
+/// levels of §13.1). Everything a report needs is in [`Flat2Analysis`].
+pub struct AnalysisOutput {
+    pub report: Flat2Analysis,
+    pub chosen: Option<Flat2Evidence>,
+}
+
 /// Run the M4 evidence stage on one image.
 pub fn analyze(
     img: &CanonicalImage,
     cfg: &AnalysisConfig,
     override_hypothesis: Option<Flat2Hypothesis>,
 ) -> Flat2Analysis {
+    analyze_full(img, cfg, override_hypothesis).report
+}
+
+/// [`analyze`], keeping the chosen evidence.
+pub fn analyze_full(
+    img: &CanonicalImage,
+    cfg: &AnalysisConfig,
+    override_hypothesis: Option<Flat2Hypothesis>,
+) -> AnalysisOutput {
     let linear = ObservationTensor::of(img, BlendSpace::LinearLight);
     let encoded = ObservationTensor::of(img, BlendSpace::EncodedSrgb);
     // Interior confidence and the palette are read off the LINEAR tensor:
@@ -268,7 +293,16 @@ pub fn analyze(
                         cfg.boundary.level,
                     );
                     let width = transition_width_px(ev.alpha_field(), length);
-                    let fp = filter_penalty(f.pixel_filter, width);
+                    // A kernel the coverage field cannot distinguish costs
+                    // nothing, so every filter ties and the tie is REPORTED
+                    // (§5.4) instead of being resolved by a statistic that
+                    // is measuring the shape.
+                    let filter_identifiable = filter_is_identifiable(ev.alpha_field());
+                    let fp = if filter_identifiable {
+                        filter_penalty(f.pixel_filter, width)
+                    } else {
+                        0.0
+                    };
                     let residual_z = ev.indicators.p95_abs_codes
                         / crate::corridor::CLEAN_BUCKET_SIGMA_CODES.max(1e-9);
                     let summary = EvidenceSummary {
@@ -283,6 +317,8 @@ pub fn analyze(
                         residual: ev.indicators.clone(),
                         score: fp + 0.5 * residual_z * residual_z,
                         blend_space_identifiable: blend_space_is_identifiable(h),
+                        filter_identifiable,
+                        resolved_fraction: resolved_fraction(ev.alpha_field()),
                         foreground_is_interval: matches!(
                             h.foreground,
                             ColorHypothesis::Interval { .. }
@@ -319,14 +355,15 @@ pub fn analyze(
     };
 
     let mut explaining: Vec<(String, usize)> = Vec::new();
-    let mut semi: Vec<(String, SemiTransparentInterior)> = Vec::new();
+    let mut semi: Vec<(String, SemiTransparentInterior, bool)> = Vec::new();
     let mut best_residual = f64::INFINITY;
     for class in &classes {
         let Some(i) = best_of(class) else { continue };
         let s = &evidences[i].1;
         best_residual = best_residual.min(s.residual.p95_abs_codes);
         if let Some(d) = &s.semi_transparent_interior {
-            semi.push((class.clone(), d.clone()));
+            let thick = d.thickness_px >= cfg.mixture.min_flat_thickness_px;
+            semi.push((class.clone(), d.clone(), thick));
             continue;
         }
         if s.residual.p95_abs_codes <= cfg.max_residual_p95_codes {
@@ -334,27 +371,48 @@ pub fn analyze(
         }
     }
 
-    let outcome = if let Some(r) = &proposals.refusal {
-        if override_hypothesis.is_none() {
-            Flat2Outcome::Unsupported(UnsupportedReason::Palette {
-                detail: r.to_string(),
-            })
-        } else {
-            unreachable!("an override supplies its own hypothesis")
-        }
+    // An oracle override supplies its own hypothesis, so a palette refusal
+    // does not apply to it: the run is diagnostic and the caller asked for
+    // exactly this pair. Found by
+    // `vice-bench::corridor::tests::the_residual_tolerance_separates_right_from_wrong_hypotheses`,
+    // which overrides the palette on an image whose own proposal refuses -
+    // the first version reached an `unreachable!` there.
+    let palette_refusal = match (&proposals.refusal, &override_hypothesis) {
+        (Some(r), None) => Some(r.to_string()),
+        _ => None,
+    };
+    let outcome = if let Some(detail) = palette_refusal {
+        Flat2Outcome::Unsupported(UnsupportedReason::Palette { detail })
     } else if evidences.is_empty() {
         Flat2Outcome::Unsupported(UnsupportedReason::NoWellConditionedPair {
             refusals: refused.len(),
         })
     } else if explaining.is_empty() {
-        if let Some((_, d)) = semi.first() {
-            Flat2Outcome::Unsupported(UnsupportedReason::SemiTransparentInterior {
-                detail: d.clone(),
-                classes: semi.iter().map(|(c, _)| c.clone()).collect(),
-                note: "spec 1.6: Flat2 v1 does not support an interior fill with a true constant \
-                       0 < alpha < 1; reading it as coverage 0.5 everywhere would be the failure \
-                       that clause names",
-            })
+        if let Some((_, d, thick_enough)) = semi.first() {
+            if *thick_enough {
+                Flat2Outcome::Unsupported(UnsupportedReason::SemiTransparentInterior {
+                    detail: d.clone(),
+                    classes: semi.iter().map(|(c, _, _)| c.clone()).collect(),
+                    note: "spec 1.6: Flat2 v1 does not support an interior fill with a true \
+                           constant 0 < alpha < 1; reading it as coverage 0.5 everywhere would be \
+                           the failure that clause names",
+                })
+            } else {
+                // The flat intermediate region is THINNER than the kernel
+                // can resolve, and there the two readings are the same
+                // bytes: a sliver of partial coverage and a semi-transparent
+                // fill of the same patch are not distinguishable (§1.5
+                // information loss). §1.6 allows exactly this — "unsupported
+                // OR still in a competing model" — so both readings are
+                // retained instead of one being asserted.
+                Flat2Outcome::Ambiguous {
+                    mixture_classes: semi.iter().map(|(c, _, _)| c.clone()).collect(),
+                    note: "a flat intermediate-alpha region thinner than the kernel can \
+                           resolve: a thin opaque shape at partial coverage and a \
+                           semi-transparent fill produce the same bytes, so spec 1.6 keeps both \
+                           readings rather than choosing",
+                }
+            }
         } else {
             Flat2Outcome::Unsupported(UnsupportedReason::NoHypothesisExplains {
                 best_residual_p95_codes: best_residual,
@@ -384,6 +442,8 @@ pub fn analyze(
                     && s.id != chosen.id
                     && ((!chosen.blend_space_identifiable
                         && ev.formation.pixel_filter == chosen_formation.pixel_filter)
+                        || (!chosen.filter_identifiable
+                            && ev.formation.blend_space == chosen_formation.blend_space)
                         || (s.score - chosen.score).abs() <= 1e-9)
             })
             .map(|(_, s)| s.formation.clone())
@@ -413,7 +473,15 @@ pub fn analyze(
         _ => (None, None),
     };
 
-    Flat2Analysis {
+    let chosen_evidence = match &outcome {
+        Flat2Outcome::Supported { evidence_id, .. } => evidences
+            .iter()
+            .find(|(_, s)| &s.id == evidence_id)
+            .map(|(ev, _)| ev.clone()),
+        _ => None,
+    };
+
+    let report = Flat2Analysis {
         schema: ANALYSIS_SCHEMA,
         image: facts,
         interior: interior.summary(),
@@ -429,6 +497,10 @@ pub fn analyze(
         boundary_refusal,
         production,
         evidence_is_not_a_likelihood: NOT_A_LIKELIHOOD,
+    };
+    AnalysisOutput {
+        report,
+        chosen: chosen_evidence,
     }
 }
 

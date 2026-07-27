@@ -53,8 +53,8 @@ pub mod palette;
 pub mod support;
 
 pub use analysis::{
-    analyze, AnalysisConfig, Flat2Analysis, Flat2Outcome, UnsupportedReason, ANALYSIS_CONFIG_V1,
-    ANALYSIS_SCHEMA, MAX_RESIDUAL_P95_CODES,
+    analyze, analyze_full, AnalysisConfig, AnalysisOutput, Flat2Analysis, Flat2Outcome,
+    UnsupportedReason, ANALYSIS_CONFIG_V1, ANALYSIS_SCHEMA, MAX_RESIDUAL_P95_CODES,
 };
 pub use boundary::{
     observe_boundaries, BoundaryChain, BoundaryConfig, BoundaryObservation, BoundaryRefusal,
@@ -65,8 +65,9 @@ pub use corridor::{
     CORRIDOR_CONFIG_V1, COVERAGE_LEVELS,
 };
 pub use formation::{
-    blend_space_is_identifiable, enumerate as enumerate_formations, filter_penalty, for_palette,
-    formation_id, transition_width_px, FAMILY_SIZE, KERNEL_PROFILES_V1,
+    blend_space_is_identifiable, enumerate as enumerate_formations, filter_is_identifiable,
+    filter_penalty, for_palette, formation_id, resolved_fraction, transition_width_px, FAMILY_SIZE,
+    KERNEL_PROFILES_V1, MIN_RESOLVED_FRACTION,
 };
 pub use interior::{interior_confidence, InteriorConfidence, InteriorConfig, INTERIOR_CONFIG_V1};
 pub use mixture::{
