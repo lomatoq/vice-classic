@@ -31,7 +31,7 @@
 //!    number and its provenance as two independent parameters is the shape
 //!    of M35-N3, which this milestone removed from `oracle::key` under
 //!    condition B1 and left standing here, one module away. The general
-//!    rule is in the ledger (F-0028).
+//!    rule is in the ledger (F-0029).
 //!
 //!    [`ObservationSource`] is SEALED, so the derivation cannot be reopened
 //!    by implementing the trait either — a caller who wants a support has to
