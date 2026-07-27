@@ -107,6 +107,15 @@ pub struct TopologyReport {
     /// contains a disk, which it always does.
     pub non_trivial_gt_arms: u64,
     pub recall_non_trivial: Recall,
+    /// Arms whose envelope carries candidates from BOTH complementary arms,
+    /// and arms where one of the two contributed nothing.
+    ///
+    /// The second number is the one that matters: it is zero today, and it is
+    /// what makes the clause-1 relaxation ("a candidate matching either
+    /// convention counts") a measured statement rather than a promise
+    /// (RT45-A1).
+    pub arms_with_both_connectivity_arms: u64,
+    pub arms_missing_a_connectivity_arm: u64,
     pub field_contributions: Vec<FieldContribution>,
     pub buckets: Vec<Bucket>,
     pub pruning: PruningTotals,
@@ -228,6 +237,14 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
         recall_fixed_only: recall(&pop, |a| a.gt_in_envelope_fixed_only),
         non_trivial_gt_arms: nontrivial.len() as u64,
         recall_non_trivial: recall(&nontrivial, |a| a.gt_in_envelope),
+        arms_with_both_connectivity_arms: pop
+            .iter()
+            .filter(|a| a.candidates_by_arm.0 > 0 && a.candidates_by_arm.1 > 0)
+            .count() as u64,
+        arms_missing_a_connectivity_arm: pop
+            .iter()
+            .filter(|a| a.candidates_by_arm.0 == 0 || a.candidates_by_arm.1 == 0)
+            .count() as u64,
         field_contributions,
         buckets,
         pruning: PruningTotals {
@@ -299,6 +316,11 @@ impl TopologyReport {
             && self.non_trivial_gt_arms >= 5
             && r.hits == r.arms
             && nt.hits == nt.arms
+            // The relaxation this clause grants itself — a candidate matching
+            // EITHER convention's truth counts — is only justified while the
+            // envelope carries BOTH complementary arms. RT45-A1 deleted one
+            // from the generator and nothing moved. It moves now.
+            && self.arms_missing_a_connectivity_arm == 0
             && self
                 .pruning
                 .arms_where_budget_pruning_could_have_lost_the_answer
@@ -380,8 +402,10 @@ impl TopologyReport {
                      digital topology (majority-rule digitization of the exact ink coverage, \
                      under either admissible connectivity convention) is present in the envelope \
                      on {}/{} arms = {:.4}; on the {} arms whose GT is NOT a plain disk it is \
-                     {}/{} = {:.4}. Budget pruning was the reason an answer was missing on {} \
-                     arms. {} audit groups skipped, {} arms refused",
+                     {}/{} = {:.4}. The relaxation to EITHER convention is measured rather than \
+                     assumed: {} of the {} arms carry candidates from BOTH complementary arms, \
+                     and {} carry only one. Budget pruning was the reason an answer was missing \
+                     on {} arms. {} audit groups skipped, {} arms refused",
                     self.identifiable_supported_arms,
                     self.arms_measured,
                     groups,
@@ -393,6 +417,9 @@ impl TopologyReport {
                     nt.hits,
                     nt.arms,
                     nt.fraction,
+                    self.arms_with_both_connectivity_arms,
+                    r.arms,
+                    self.arms_missing_a_connectivity_arm,
                     self.pruning
                         .arms_where_budget_pruning_could_have_lost_the_answer,
                     self.sealed_audit_groups_skipped,
@@ -520,6 +547,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
                 "gt_in_envelope": a["gt_in_envelope"],
                 "gt_in_envelope_events_only": a["gt_in_envelope_events_only"],
                 "gt_in_envelope_fixed_only": a["gt_in_envelope_fixed_only"],
+                "candidates_by_arm": a["candidates_by_arm"],
                 "matching_fields": a["matching_fields"],
             })
         })
@@ -569,6 +597,8 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
             "hits": v["recall_fixed_only"]["hits"]
         },
         "non_trivial_gt_arms": v["non_trivial_gt_arms"],
+        "arms_with_both_connectivity_arms": v["arms_with_both_connectivity_arms"],
+        "arms_missing_a_connectivity_arm": v["arms_missing_a_connectivity_arm"],
         "field_contributions": v["field_contributions"],
         "ambiguity_pairs": v["ambiguity_pairs"],
         "topology_pairs": v["topology_pairs"],

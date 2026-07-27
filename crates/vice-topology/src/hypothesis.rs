@@ -119,10 +119,6 @@ pub struct AmbiguityFlags {
     pub event_persistence: f64,
     /// True when this candidate exists only because of a fixed probe.
     pub level_from_fixed_probe_only: bool,
-    /// True when a candidate with the same signature exists under the OTHER
-    /// connectivity arm. Filled by the envelope, which is the only place
-    /// that can see both.
-    pub both_connectivity_arms_agree: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -180,7 +176,6 @@ pub fn from_events(labelling: Labelling, ctx: &CandidateContext<'_>) -> Topology
             residual_critical_cells: residual_critical_cells(&labelling),
             event_persistence: persistence,
             level_from_fixed_probe_only: fixed_only,
-            both_connectivity_arms_agree: false,
         },
         provenance: Provenance {
             palette_id: palette_id.to_string(),

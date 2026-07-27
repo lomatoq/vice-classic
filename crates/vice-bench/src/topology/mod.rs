@@ -184,6 +184,14 @@ pub struct TopologyArm {
     pub gt_four: GtSignature,
     pub gt_eight: GtSignature,
     pub candidates: usize,
+    /// Surviving candidates from each complementary arm, `(fg 4, fg 8)`.
+    ///
+    /// RT45-A1: the recall clause relaxes its success condition by pointing at
+    /// a mechanism — a candidate matching EITHER convention's truth counts,
+    /// "because we keep both arms" — and nothing measured that both arms were
+    /// there. Deleting one from the generator left the gate table, the config
+    /// hash and the structural projection unmoved.
+    pub candidates_by_arm: (usize, usize),
     pub signature_classes: usize,
     /// Whether the envelope contains a candidate matching either GT reading.
     pub gt_in_envelope: bool,
@@ -569,6 +577,7 @@ fn measure_arm(
         gt_four,
         gt_eight,
         candidates: proposal.envelope.hypotheses.len(),
+        candidates_by_arm: proposal.envelope.candidates_by_arm(),
         signature_classes: proposal.envelope.signature_classes().len(),
         gt_in_envelope: !matching.is_empty(),
         gt_in_envelope_events_only: events_only,

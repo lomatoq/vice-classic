@@ -122,6 +122,28 @@ pub struct Envelope {
 }
 
 impl Envelope {
+    /// How many surviving candidates came from each complementary-connectivity
+    /// arm, as `(foreground 4, foreground 8)`.
+    ///
+    /// This is the measurement RT45-A1 asked for, and it is not decoration.
+    /// The recall clause relaxes its success condition by reference to a
+    /// mechanism — "§5.3 gives two admissible conventions, so a candidate
+    /// matching EITHER truth counts" — and that relaxation is only justified
+    /// while the envelope actually carries both. Nothing measured it: the red
+    /// team deleted one arm from the generator, and the gate table, the
+    /// config hash and the structural projection were all unmoved.
+    ///
+    /// A metric that weakens its own success condition by pointing at a
+    /// mechanism has to measure that the mechanism is there.
+    pub fn candidates_by_arm(&self) -> (usize, usize) {
+        let four = self
+            .hypotheses
+            .iter()
+            .filter(|h| h.provenance.foreground_connectivity == "4")
+            .count();
+        (four, self.hypotheses.len() - four)
+    }
+
     /// Distinct (components, holes) readings the envelope still carries.
     pub fn signature_classes(&self) -> BTreeSet<(u32, u32)> {
         self.hypotheses
@@ -203,15 +225,9 @@ pub fn prune(mut proposed: Vec<TopologyHypothesis>, cfg: &EnvelopeConfig) -> Env
         match seen.get(&h.signature.digest).copied() {
             Some(i) => {
                 duplicates_removed += 1;
-                // The duplicate is the SAME labelling under the same
-                // convention. Its provenance is not lost: the survivor
-                // records that another arm reached it, which is the
-                // `both_connectivity_arms_agree` flag.
-                if kept[i].provenance.foreground_connectivity
-                    != h.provenance.foreground_connectivity
-                {
-                    kept[i].ambiguity.both_connectivity_arms_agree = true;
-                }
+                // The duplicate is the SAME labelling under the SAME
+                // convention — the digest includes the convention, so a
+                // cross-arm collision cannot occur (M45-N7).
                 if !kept[i].ambiguity.level_from_fixed_probe_only {
                     // already event-driven, nothing to learn
                 } else if !h.ambiguity.level_from_fixed_probe_only {
@@ -510,11 +526,19 @@ mod tests {
         assert!(whys.contains(&"NoVisibleInterface"));
     }
 
-    /// The same labelling reached by two arms is ONE candidate, and the fact
-    /// that both arms reached it is kept on the survivor rather than thrown
-    /// away with the duplicate.
+    /// A labelling proposed twice under the SAME convention collapses to one
+    /// candidate.
+    ///
+    /// The previous version of this test asserted that a cross-arm duplicate
+    /// keeps a `both_connectivity_arms_agree` flag — and reached that branch
+    /// by overwriting the digest and the convention by hand. M45-N7: the
+    /// branch is unreachable on the production path, because the digest
+    /// includes the convention, so the test was proving a property of a state
+    /// `propose` cannot build (meta-rule M-2). The flag is gone; what the two
+    /// arms contribute is counted by `candidates_by_arm`, which is asserted
+    /// below on candidates the generator actually produced.
     #[test]
-    fn an_exact_duplicate_collapses_but_its_provenance_survives() {
+    fn an_exact_duplicate_collapses_and_both_arms_are_counted() {
         let (w, h) = (6usize, 6usize);
         let alpha = vec![0.6f64; w * h];
         let [four, eight] = ComplementaryConnectivity::arms();
@@ -530,7 +554,7 @@ mod tests {
                 conn: four,
             },
         );
-        let mut b = candidate(
+        let b = candidate(
             square(w, h, 1, 4),
             &Spec {
                 w,
@@ -542,18 +566,29 @@ mod tests {
                 conn: eight,
             },
         );
-        // Same labelling; the digest includes the convention, so force the
-        // collision the way the generator does: a well-composed labelling
-        // reads the same under both arms.
-        b.signature.digest = a.signature.digest.clone();
-        b.provenance.foreground_connectivity = "8";
-        let e = prune(vec![a, b], &ENVELOPE_CONFIG_V1);
+        // Two candidates under DIFFERENT arms are two candidates: the digest
+        // carries the convention, so there is no collision and nothing to
+        // deduplicate. That is the fact M45-N7 established, asserted here
+        // rather than worked around.
+        assert_ne!(
+            a.signature.digest, b.signature.digest,
+            "the digest must separate the two conventions, or a cross-arm duplicate would              silently erase one arm"
+        );
+        let both = prune(vec![a.clone(), b.clone()], &ENVELOPE_CONFIG_V1);
+        assert_eq!(both.hypotheses.len(), 2);
+        assert_eq!(both.pruning.duplicates_removed, 0);
+        assert_eq!(
+            both.candidates_by_arm(),
+            (1, 1),
+            "both complementary arms must be counted, because the recall clause relaxes its              success condition by pointing at them"
+        );
+
+        // A genuine duplicate - same labelling, same convention - still
+        // collapses, which is what the tier exists for.
+        let e = prune(vec![a.clone(), a], &ENVELOPE_CONFIG_V1);
         assert_eq!(e.hypotheses.len(), 1);
         assert_eq!(e.pruning.duplicates_removed, 1);
-        assert!(
-            e.hypotheses[0].ambiguity.both_connectivity_arms_agree,
-            "the survivor must record that the other arm reached it too"
-        );
+        assert_eq!(e.candidates_by_arm(), (1, 0));
     }
 
     /// Tier 3 respects the quotas even when they exceed the budget, and says

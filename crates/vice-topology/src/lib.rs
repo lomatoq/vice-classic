@@ -213,7 +213,7 @@ pub fn propose(observations: &[CoverageObservation<'_>], cfg: &TopologyConfig) -
                         }
                         let sig = signature(&labelling, conn);
                         if let Some(i) = by_digest.get(&sig.digest).copied() {
-                            merge_provenance(&mut candidates[i], conn, &origins);
+                            merge_provenance(&mut candidates[i], &origins);
                             continue;
                         }
                         let h_new = hypothesis::from_events(
@@ -255,22 +255,19 @@ pub fn propose(observations: &[CoverageObservation<'_>], cfg: &TopologyConfig) -
 
 /// A labelling reached a second way keeps BOTH ways on the survivor.
 ///
+/// It cannot be reached under the OTHER connectivity arm, and that is by
+/// construction rather than by accident: the signature digest includes the
+/// foreground convention, so the same pixels under 4- and under 8-connectivity
+/// are two different candidates. M45-N7 found the flag that claimed otherwise
+/// set on zero candidates over the whole corpus; it is gone, and what the
+/// clause-1 relaxation actually needs — that the envelope carries BOTH arms —
+/// is counted in [`Envelope::candidates_by_arm`] instead.
+///
 /// Without this the "no magic-threshold-only" measurement would undercount:
 /// a candidate first reached through the fixed probe and then through an
 /// event would still be marked as fixed-only, and the ablation would report
 /// a loss that does not exist.
-fn merge_provenance(
-    h: &mut TopologyHypothesis,
-    conn: ComplementaryConnectivity,
-    origins: &[LevelOrigin],
-) {
-    let arm = match conn.foreground() {
-        vice_ir::PixelConnectivity::Four => "4",
-        vice_ir::PixelConnectivity::Eight => "8",
-    };
-    if h.provenance.foreground_connectivity != arm {
-        h.ambiguity.both_connectivity_arms_agree = true;
-    }
+fn merge_provenance(h: &mut TopologyHypothesis, origins: &[LevelOrigin]) {
     let event_driven = origins.iter().any(|o| o.is_event_driven());
     if event_driven && h.ambiguity.level_from_fixed_probe_only {
         h.ambiguity.level_from_fixed_probe_only = false;
