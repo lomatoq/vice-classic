@@ -398,8 +398,14 @@ impl OracleReport {
             super::design::ArmOutcome::Measured(d) => !d.terms().is_empty(),
             super::design::ArmOutcome::NotYetApplicable(r) => !r.reason.is_empty(),
         });
-        let effect_count_intact = self.factorial.len()
-            == self.config.backends.len() * CEILING_METRICS.len()
+        // `!is_empty()` is not decoration. Without it a report containing NO
+        // factorial at all satisfies clause 1 by having nothing to check -
+        // `all()` over an empty set is true and `0 == 0 * 3` holds - which is
+        // meta-rule M-2 in the one place this file exists to defend against
+        // it. The clause is about deltas being commensurable, and a report
+        // that publishes no effects has not demonstrated that.
+        let effect_count_intact = !self.factorial.is_empty()
+            && self.factorial.len() == self.config.backends.len() * CEILING_METRICS.len()
             && self.factorial.iter().all(|f| f.effects().len() == 3);
         let st = &self.mechanism_selftest;
         let mechanism_live = st.all_key_components_refuse_a_mismatch
@@ -636,6 +642,17 @@ mod tests {
         let mut short = report().clone();
         short.factorial.pop();
         assert!(!row(&short));
+
+        // (c2) and the empty case, which is the one that would otherwise
+        // pass by having nothing to check: `all()` over an empty set is
+        // true and `0 == 0 * 3` holds. A report that publishes no effects
+        // has not demonstrated the clause.
+        let mut none = report().clone();
+        none.factorial.clear();
+        assert!(
+            !row(&none),
+            "a report with no factorial at all must not satisfy the clause"
+        );
 
         // (d) the ladder published under a factorial name: if the main
         // effect equalled the sequential difference the harness would be
