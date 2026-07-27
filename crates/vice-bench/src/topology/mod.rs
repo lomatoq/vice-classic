@@ -48,6 +48,7 @@
 //! still counted — as a NAMED excluded population with its size, which is
 //! the form condition C2 asked of the §1.6 clause.
 
+pub mod independent;
 pub mod report;
 
 use serde::Serialize;
@@ -343,20 +344,29 @@ pub fn exact_ink_coverage(scene: &GtScene, t: &ViewTransform) -> Result<Vec<f64>
 /// The GT digital topology of a scene at one view, under one convention.
 ///
 /// Majority rule: a pixel is ink when at least half its area is ink.
+///
+/// ## Nothing in this function calls `vice-topology` (RT45-A2)
+///
+/// It used to call `vice_topology::threshold` and `vice_topology::signature` —
+/// the same functions that sign the candidates — so only the AREA INTEGRATOR
+/// was independent. The red team put the convention error §5.3 forbids by name
+/// into `signature` and watched it cancel between the two sides: three clauses
+/// MET, 489 tests green, **0 of 132 arms changed their GT signature**.
+///
+/// The majority rule is two lines and is written here; the three numbers come
+/// from [`independent`], which counts components by flood fill and DERIVES
+/// holes from a bit-quad Euler characteristic — the opposite direction from
+/// production, which counts holes and derives Euler. A convention error can no
+/// longer cancel, and `the_independent_chain_agrees_with_the_production_signature`
+/// is the witness that says so on a diagonal ring.
 pub fn gt_signature(
     scene: &GtScene,
     t: &ViewTransform,
     conn: ComplementaryConnectivity,
 ) -> Result<GtSignature, String> {
     let ink = exact_ink_coverage(scene, t)?;
-    let l = vice_topology::threshold(
-        &ink,
-        t.width_px as usize,
-        t.height_px as usize,
-        0.5,
-        vice_topology::SaddleResolution::Thresholded,
-    );
-    let s = vice_topology::signature(&l, conn);
+    let inside: Vec<bool> = ink.iter().map(|v| *v >= 0.5).collect();
+    let s = independent::signature_of(&inside, t.width_px as usize, t.height_px as usize, conn);
     Ok(GtSignature {
         components: s.components,
         holes: s.holes,
