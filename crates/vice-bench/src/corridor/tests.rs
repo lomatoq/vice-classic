@@ -18,7 +18,6 @@
 //! number still agrees with the constant the code uses.
 
 use super::*;
-use crate::gt::grammar::procedural_groups;
 use std::sync::OnceLock;
 use vice_evidence::formation::{filters_within_margin, transition_width_px, KERNEL_PROFILES_V1};
 
@@ -32,7 +31,12 @@ fn run_once() -> &'static CorridorRun {
 #[test]
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_kernel_profile_table_matches_the_corpus() {
-    let groups = procedural_groups(1);
+    // The LEGAL population, and nothing else: development groups,
+    // development-legal profiles. The previous version walked
+    // `procedural_groups(1)` unfiltered and rendered five SEALED-AUDIT
+    // families (REVIEW_M4 M4-N1).
+    let groups = frozen_calibration_groups().unwrap();
+    let legal = frozen_calibration_profiles();
     let mut rows = Vec::new();
     for k in KERNEL_PROFILES_V1 {
         let psf = match k.filter {
@@ -46,22 +50,17 @@ fn the_kernel_profile_table_matches_the_corpus() {
         // estimator would then be wrong on exactly the images it will see
         // (the first draft measured the supersampler alone and recovered
         // the filter on 3 arms out of 7).
-        let engines: &[RasterProfile] = if psf == Psf::Box {
-            &[
-                RasterProfile::ExactClip,
-                RasterProfile::TinySkia,
-                RasterProfile::Raqote,
-                RasterProfile::Supersample,
-            ]
+        let engines: Vec<RasterProfile> = if psf == Psf::Box {
+            legal.clone()
         } else {
-            &[RasterProfile::Supersample]
+            vec![RasterProfile::Supersample]
         };
         // The box row walks EVERY family, because the statistic varies with
         // the shape (corner density, curvature) at least as much as with the
         // engine, and a spread measured on a third of the families would
         // understate it. The other kernels run only on the supersampler,
         // which costs 576 inside-tests per pixel, so they walk every third.
-        let stride = if psf == Psf::Box { 1 } else { 3 };
+        let stride = if psf == Psf::Box { 1 } else { 2 };
         let mut widths = Vec::new();
         let mut unresolved = 0u32;
         for (g, profile, size) in groups
@@ -194,6 +193,13 @@ fn a_run_produces_arms_and_a_report() {
 /// The clean-bucket noise scale of `configs/GATES_V1.toml` `[noise_scales]`,
 /// MEASURED (spec §17.1: "noise scales freeze per dev/formation bucket").
 ///
+/// Measured on the LEGAL population only (`frozen_calibration_groups` /
+/// `frozen_calibration_profiles`): development groups, development-legal
+/// profiles. The held-out `tiny-skia` is therefore absent, and the assertion
+/// below fails if it ever returns — because this constant sets the width of
+/// the corridor whose clause is about generalizing to exactly that engine
+/// (REVIEW_M4 M4-N2).
+///
 /// What the number has to be the scale OF, and this is the part the first
 /// draft got wrong: the dominant observation noise of the clean bucket is
 /// not quantization. It is the disagreement between the analytic coverage
@@ -211,15 +217,24 @@ fn a_run_produces_arms_and_a_report() {
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
     use crate::gt::raster::{rasterize, ViewTransform};
-    use crate::gt::split::SPLIT_POLICY_V1;
-    let groups = all_groups().unwrap();
+    let groups = frozen_calibration_groups().unwrap();
+    // INDEPENDENT engines that are legal here. `tiny-skia` is held out and
+    // is therefore absent: the corridor clause it would contaminate is the
+    // one about generalizing to an engine the calibration never saw
+    // (REVIEW_M4 M4-N2).
+    let engines: Vec<RasterProfile> = frozen_calibration_profiles()
+        .into_iter()
+        .filter(|p| p.is_independent_engine())
+        .collect();
+    assert!(
+        !engines.contains(&RasterProfile::TinySkia),
+        "the held-out engine must not appear in a frozen coefficient"
+    );
+    assert!(!engines.is_empty(), "no independent engine is legal here");
     let mut rows: Vec<(&str, f64, f64, u64)> = Vec::new();
-    for engine in [RasterProfile::TinySkia, RasterProfile::Raqote] {
+    for engine in engines {
         let (mut sum2, mut max, mut n) = (0.0f64, 0.0f64, 0u64);
-        for g in groups.iter().step_by(3) {
-            if SPLIT_POLICY_V1.split_of_group(g) != Split::Development {
-                continue;
-            }
+        for g in groups.iter() {
             let scene = &g.scenes[0];
             for size in [32u32, 64] {
                 let t = ViewTransform {
@@ -286,7 +301,7 @@ fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
 #[test]
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_semi_transparent_floor_separates_both_ways() {
-    let groups = all_groups().unwrap();
+    let groups = frozen_calibration_groups().unwrap();
     let cells: Vec<DegradationCell> = [
         "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
         "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -298,10 +313,7 @@ fn the_semi_transparent_floor_separates_both_ways() {
     const RATIOS: &[f64] = &[3.0, 5.0, 8.0, 12.0];
     let mut clean: Vec<(f64, Option<(u64, f64)>)> = Vec::new();
     let mut probe: Vec<(f64, Option<(u64, f64)>)> = Vec::new();
-    for g in groups.iter().step_by(3) {
-        if crate::gt::split::SPLIT_POLICY_V1.split_of_group(g) == Split::SealedAudit {
-            continue;
-        }
+    for g in groups.iter() {
         for scene in &g.scenes {
             for cell in &cells {
                 let Ok(f) = render_cell(scene, cell, 1) else {
@@ -396,16 +408,13 @@ fn the_semi_transparent_floor_separates_both_ways() {
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn the_residual_tolerance_separates_right_from_wrong_hypotheses() {
     use vice_evidence::analysis::MAX_RESIDUAL_P95_CODES;
-    let groups = all_groups().unwrap();
+    let groups = frozen_calibration_groups().unwrap();
     let cell = *matrix_v1()
         .iter()
         .find(|c| c.id() == "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00")
         .unwrap();
     let (mut right, mut wrong) = (Vec::new(), Vec::new());
-    for g in groups.iter().step_by(4) {
-        if crate::gt::split::SPLIT_POLICY_V1.split_of_group(g) == Split::SealedAudit {
-            continue;
-        }
+    for g in groups.iter() {
         for scene in &g.scenes {
             let Ok(f) = render_cell(scene, &cell, 1) else {
                 continue;
@@ -464,17 +473,14 @@ fn the_residual_tolerance_separates_right_from_wrong_hypotheses() {
 #[ignore = "corpus-wide measurement: minutes in debug. CI runs these in RELEASE via --ignored (see the module docs and REPRODUCIBILITY_M4)."]
 fn interior_confidence_separates_cores_from_edges() {
     use vice_evidence::interior::{interior_confidence, INTERIOR_CONFIG_V1};
-    let groups = all_groups().unwrap();
+    let groups = frozen_calibration_groups().unwrap();
     let cell = *matrix_v1()
         .iter()
         .find(|c| c.id() == "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00")
         .unwrap();
     let mut core = Vec::new();
     let mut rim = Vec::new();
-    for g in groups.iter().step_by(6) {
-        if crate::gt::split::SPLIT_POLICY_V1.split_of_group(g) == Split::SealedAudit {
-            continue;
-        }
+    for g in groups.iter() {
         let scene = &g.scenes[0];
         let Ok(f) = render_cell(scene, &cell, 1) else {
             continue;

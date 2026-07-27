@@ -163,3 +163,38 @@ fn every_crate_forbids_unsafe_code() {
     }
     assert!(checked >= 4, "only {checked} crates checked");
 }
+
+/// A frozen coefficient may only be measured on the population
+/// `corridor::frozen_calibration_groups` defines.
+///
+/// REVIEW_M4 M4-N1: four of the five corpus-wide measurements filtered the
+/// sealed-audit split and one did not — and the one that did not is the one
+/// that froze a production constant. The fix that matters is not the filter
+/// in that one test; it is that the corpus is now reachable from the
+/// measurement module through ONE function, and this walk over the source
+/// says so. A future measurement that calls `all_groups()` or
+/// `procedural_groups()` directly fails here instead of quietly widening its
+/// population (meta-rule M-1).
+#[test]
+fn frozen_coefficients_are_measured_only_on_the_legal_population() {
+    let path = repo_root().join("crates/vice-bench/src/corridor/tests.rs");
+    let text = std::fs::read_to_string(&path).expect("the measurement module");
+    let code: String = text
+        .lines()
+        .filter(|l| !l.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    for direct in ["all_groups(", "procedural_groups("] {
+        assert!(
+            !code.contains(direct),
+            "{} reaches the corpus through {direct}: a frozen coefficient must come from \
+             corridor::frozen_calibration_groups(), which excludes the sealed audit and the \
+             held-out profile",
+            path.display()
+        );
+    }
+    assert!(
+        code.contains("frozen_calibration_groups()"),
+        "the walk found no legal-population call at all; it would pass on an empty file"
+    );
+}

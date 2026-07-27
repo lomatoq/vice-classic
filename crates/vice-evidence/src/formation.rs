@@ -40,9 +40,13 @@
 //!   coverage value, so a wrong kernel leaves no residual, only a
 //!   differently-shaped alpha field.
 //!
-//! The width statistic and its per-kernel values are measured on the
-//! development split by `vice-bench`
-//! (`the_kernel_profile_table_matches_the_corpus`), not asserted here.
+//! The width statistic and its per-kernel values are measured by
+//! `vice-bench` (`the_kernel_profile_table_matches_the_corpus`) on the
+//! population `corridor::frozen_calibration_groups` defines — development
+//! groups, development-legal profiles — and not asserted here. That
+//! sentence used to say "on the development split" while the measurement
+//! walked every split including the sealed audit; the code now matches the
+//! sentence (REVIEW_M4 M4-N1).
 
 use serde::Serialize;
 use vice_ir::{
@@ -222,21 +226,34 @@ pub struct KernelProfile {
     pub sd_px: f64,
 }
 
-/// Measured on the corpus by
+/// Measured on the LEGAL population by
 /// `vice-bench::corridor::tests::the_kernel_profile_table_matches_the_corpus`,
 /// which prints the table and fails if the code and the corpus disagree.
 ///
-/// The BOX row is measured over EVERY engine that can realize it — the
-/// exact integrator, the supersampler and both external engines — over two
-/// sizes and over every shape family, which is why its spread is the widest
-/// of the four. A table measured on one engine would describe that engine's
-/// antialiasing rather than the kernel: the first draft did exactly that and
-/// recovered the filter on three arms out of seven.
+/// "Legal" is the whole point of this paragraph, and it is a correction:
+/// the first version of this table was measured over `procedural_groups(1)`
+/// with no split filter at all, which rendered five SEALED-AUDIT families
+/// while the project's own seal artifact said "never opened" (REVIEW_M4
+/// M4-N1, FAILURE_LEDGER F-0026). The population is now
+/// `vice-bench::corridor::frozen_calibration_groups()`: development groups
+/// only, and only the profiles the split policy allows there — so the
+/// held-out engine is absent from this table too.
 ///
-/// The honest consequence of the measured spreads: box (0.748 ± 0.131) and
-/// triangle (1.045 ± 0.067) are separated by about two pooled spreads, so a
-/// shape whose statistic lands in the tail IS misclassified, and the
-/// corridor report publishes the recovery rate rather than a claim.
+/// The BOX row is measured over every LEGAL engine that can realize it (the
+/// exact integrator, the supersampler and raqote), over two sizes and every
+/// development family, which is why its spread is the widest of the four. A
+/// table measured on one engine would describe that engine's antialiasing
+/// rather than the kernel: an early draft did exactly that and recovered the
+/// filter on three arms out of seven.
+///
+/// The honest consequence of the measured spreads: box (0.797 ± 0.187) is
+/// still ADMISSIBLE at the triangle's own width (1.020 ± 0.046), so at that
+/// width the estimator returns both kernels rather than choosing, and the
+/// corridor report publishes the recovery rate instead of a claim.
+/// Re-measuring on the legal population WIDENED the box spread
+/// (0.131 → 0.187 px), which makes the estimator LESS confident — the
+/// conservative direction, and a direct consequence of no longer averaging
+/// over families the project promised not to touch.
 ///
 /// The numbers are NEAR the closed forms quoted on [`transition_width_px`]
 /// (box 2/3, Gaussian 2.26σ) and are not equal to them: a real shape has
@@ -245,23 +262,23 @@ pub struct KernelProfile {
 pub const KERNEL_PROFILES_V1: &[KernelProfile] = &[
     KernelProfile {
         filter: PixelFilter::Box,
-        width_px: 0.748,
-        sd_px: 0.131,
+        width_px: 0.797,
+        sd_px: 0.187,
     },
     KernelProfile {
         filter: PixelFilter::Triangle,
-        width_px: 1.045,
-        sd_px: 0.067,
+        width_px: 1.020,
+        sd_px: 0.046,
     },
     KernelProfile {
         filter: PixelFilter::Gaussian { sigma_px: 0.5 },
-        width_px: 1.218,
-        sd_px: 0.049,
+        width_px: 1.197,
+        sd_px: 0.039,
     },
     KernelProfile {
         filter: PixelFilter::Gaussian { sigma_px: 1.0 },
-        width_px: 2.388,
-        sd_px: 0.030,
+        width_px: 2.370,
+        sd_px: 0.040,
     },
 ];
 
@@ -418,23 +435,42 @@ mod tests {
     /// and where it does not, the estimator has to say so. Both directions.
     #[test]
     fn the_kernel_table_separates_what_it_can_and_admits_what_it_cannot() {
-        // Each kernel's own measured width picks it, and picks it alone.
-        let picked = filters_within_margin(0.748, 2.0);
-        assert_eq!(picked, vec![PixelFilter::Box], "{picked:?}");
-        assert_eq!(
-            filters_within_margin(2.388, 2.0),
-            vec![PixelFilter::Gaussian { sigma_px: 1.0 }]
-        );
-        // Halfway between the triangle and the narrow Gaussian the
-        // statistic CANNOT choose, and the estimator returns both instead of
-        // pretending. That case exists — it is not a hypothetical.
-        let ambiguous = filters_within_margin(1.125, 2.0);
+        // Three of the four kernels are picked ALONE at their own measured
+        // width.
+        for (width, want) in [
+            (0.797, PixelFilter::Box),
+            (1.197, PixelFilter::Gaussian { sigma_px: 0.5 }),
+            (2.370, PixelFilter::Gaussian { sigma_px: 1.0 }),
+        ] {
+            assert_eq!(
+                filters_within_margin(width, 2.0),
+                vec![want],
+                "{want:?} at its own width"
+            );
+        }
+        // The FOURTH is not, and that is a result of re-measuring on the
+        // legal population rather than a defect: the box row's spread grew
+        // from 0.131 to 0.187 px when the sealed-audit families left it, and
+        // at the triangle's own width the box hypothesis is still admissible.
+        // The estimator RETURNS BOTH instead of choosing, which is what §5.4
+        // asks for and what the corridor report's recovery rate then
+        // reflects.
+        let at_triangle = filters_within_margin(1.020, 2.0);
         assert!(
-            ambiguous.contains(&PixelFilter::Triangle)
-                && ambiguous.contains(&PixelFilter::Gaussian { sigma_px: 0.5 }),
-            "{ambiguous:?}"
+            at_triangle.contains(&PixelFilter::Triangle),
+            "{at_triangle:?}"
         );
-        assert!(!ambiguous.contains(&PixelFilter::Box));
+        assert!(
+            at_triangle.contains(&PixelFilter::Box),
+            "the wider box spread must be admitted, not hidden: {at_triangle:?}"
+        );
+        // And between the triangle and the narrow Gaussian the statistic
+        // cannot choose at all: three kernels stay admissible.
+        let ambiguous = filters_within_margin(1.108, 2.0);
+        assert!(ambiguous.len() >= 3, "{ambiguous:?}");
+        assert!(ambiguous.contains(&PixelFilter::Gaussian { sigma_px: 0.5 }));
+        // The wide Gaussian is never confused with anything.
+        assert!(!ambiguous.contains(&PixelFilter::Gaussian { sigma_px: 1.0 }));
     }
 
     /// Abramowitz–Stegun 7.1.26; test-only, to state the closed forms above.

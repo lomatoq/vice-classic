@@ -112,6 +112,50 @@ const TEST_SCOPE_CELLS: &[&str] = &[
 /// Alpha levels at which the §1.6 probe multiplies a corpus render.
 pub const SEMI_TRANSPARENT_PROBE_ALPHAS: &[f64] = &[0.35, 0.5, 0.75];
 
+/// The ONLY population a FROZEN M4 coefficient may be measured on.
+///
+/// One rule, applied to every corpus-wide measurement, because the previous
+/// version had four measurements filtering the audit split and one not —
+/// and the one that did not is the one that froze a production constant
+/// (REVIEW_M4 M4-N1, FAILURE_LEDGER F-0026). Two clauses:
+///
+/// - **the sealed audit is never touched.** §27.1: scoring it is what OPENS
+///   it, `docs/gt/AUDIT_SEAL.json` says `"status": "sealed"` and
+///   `audit-status` prints "never opened: nothing may be scored against
+///   it". A frozen coefficient measured there makes that record false and
+///   the next milestone inherits the falsehood;
+/// - **the held-out rasterizer is never seen.** The split policy keeps
+///   `tiny-skia` out of `development` entirely, and the §28 M4 clause is
+///   about generalizing to an engine the calibration did NOT see. A
+///   coefficient that sets the corridor's width may not be measured with
+///   it (REVIEW_M4 M4-N2, F-0027).
+///
+/// So: development groups, development-legal profiles, and nothing else.
+/// `corridor::tests` reaches the corpus through here and nowhere else,
+/// which `hygiene.rs::frozen_coefficients_are_measured_only_on_the_legal_population`
+/// checks by walking the source rather than by convention.
+pub fn frozen_calibration_groups() -> Result<Vec<crate::gt::GtSourceGroup>, String> {
+    let policy = &SPLIT_POLICY_V1;
+    Ok(all_groups()?
+        .into_iter()
+        .filter(|g| policy.split_of_group(g) == Split::Development)
+        .collect())
+}
+
+/// Rasterizer profiles a frozen coefficient may be measured with.
+///
+/// The split policy's own predicate, asked for the split
+/// [`frozen_calibration_groups`] returns — so the held-out engine is
+/// excluded by the same frozen rule that excludes it from development
+/// renders, not by a second list that could drift from it.
+pub fn frozen_calibration_profiles() -> Vec<RasterProfile> {
+    RasterProfile::ALL
+        .iter()
+        .copied()
+        .filter(|p| SPLIT_POLICY_V1.profile_allowed(Split::Development, p.as_str()))
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CorridorScope {

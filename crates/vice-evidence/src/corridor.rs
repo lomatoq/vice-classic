@@ -32,7 +32,7 @@
 //! |---|---|
 //! | quantization | the 8-bit cell the tensor carries, divided by the mixture conditioning, as a uniform distribution (`h/√3`) |
 //! | model mismatch | the LOCAL residual of the mixture, in alpha units |
-//! | formation disagreement | the frozen clean-bucket coverage noise of `configs/GATES_V1.toml`, in the COVERAGE domain and therefore not divided by anything |
+//! | formation disagreement | the frozen clean-bucket coverage noise of `configs/GATES_V1.toml`, in the COVERAGE domain and therefore not divided by anything, and measured WITHOUT the held-out engine |
 //!
 //! The conditioning appears in the first term exactly as §10 asks: a
 //! low-contrast pair divides by a smaller separation, so its corridor is
@@ -80,8 +80,19 @@ use crate::mixture::Flat2Evidence;
 ///
 /// Frozen in `configs/GATES_V1.toml` `[noise_scales]`, measured by
 /// `vice-bench::corridor::tests::the_clean_bucket_noise_scale_is_measured_on_the_development_split`
-/// on the development split: 9.54 codes against `tiny-skia`, 24.84 against
-/// `raqote`, 18.81 pooled.
+/// on the population `corridor::frozen_calibration_groups` defines:
+/// development groups, and only the profiles the split policy allows there.
+///
+/// **25.57 codes, from `raqote` alone, over 11481 edge pixels.** The first
+/// version of this constant was 18.8, pooled with `tiny-skia` (9.54) — and
+/// `tiny-skia` is the HELD-OUT engine, which the frozen split policy keeps
+/// out of development and which the §28 M4 clause exists to generalize TO
+/// (REVIEW_M4 M4-N2, FAILURE_LEDGER F-0027). Calibrating on it made the
+/// clause a test of memory rather than of generalization.
+///
+/// The correction makes the corridor WIDER, not narrower: 18.8 was a
+/// stricter number than the legal procedure yields, so the published
+/// coverage was never bought with width.
 ///
 /// What it is the scale OF, because getting that wrong is what made the
 /// first corridor two to three times too narrow (FAILURE_LEDGER F-0023):
@@ -96,11 +107,12 @@ use crate::mixture::Flat2Evidence;
 /// divided by the mixture conditioning: an engine that puts 0.07 of extra
 /// coverage in a pixel has moved alpha by 0.07 whatever the two paints are.
 ///
-/// It is POOLED over the independent engines on purpose. At inference time
-/// nothing says which engine drew the image, so the corridor has to hold for
-/// the coarse one; that makes it conservative for the fine one, and the
-/// per-engine numbers are published so a reader can see by how much.
-pub const CLEAN_BUCKET_SIGMA_CODES: f64 = 18.8;
+/// It comes from the coarsest engine the calibration is allowed to see. At
+/// inference time nothing says which engine drew the image, so the corridor
+/// has to hold for the coarse one; that makes it conservative for a finer
+/// one, and the per-engine numbers are published so a reader can see by how
+/// much.
+pub const CLEAN_BUCKET_SIGMA_CODES: f64 = 25.57;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct CorridorConfig {

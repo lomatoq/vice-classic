@@ -31,10 +31,10 @@
   "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
   "fixture_set_hash": "df68029239840ab3b312937719eb66d1645f6588744af718662d3678c987d3a9",
   "scenes": 63,
-  "arms_measured": 1132,
-  "arms_refused": 380,
-  "clean_arms": 191,
-  "inverse_crime_arms": 941,
+  "arms_measured": 1162,
+  "arms_refused": 350,
+  "clean_arms": 197,
+  "inverse_crime_arms": 965,
   "warnings": [
     "INVERSE CRIME: the reference backend is the production forward model (vice-render). The residual bounds the system against itself and is not evidence about accuracy (spec 27.1).",
     "INVERSE CRIME: model and observation come from the SAME rasterizer implementation, so this residual isolates serialization and says nothing about the renderer.",
@@ -66,40 +66,40 @@
       "backend_id": "canonical-roundtrip+exact-clip",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
       "observation_profile": "exact-clip",
-      "arms": 30,
+      "arms": 32,
       "inverse_crime": {
         "status": "contaminated",
         "reasons": [
           "shared_implementation"
         ]
       },
-      "max_abs_code": 5.0,
-      "worst_scene_id": "proc/annulus/002#a",
-      "edge_mean_abs_code_mean": 0.03048245614035088,
-      "edge_mean_abs_code_max": 0.9144736842105263,
-      "identical_pixels_frac_min": 0.8671875,
+      "max_abs_code": 0.0,
+      "worst_scene_id": "adv/ambiguous/bridge-or-gap#bridged",
+      "edge_mean_abs_code_mean": 0.0,
+      "edge_mean_abs_code_max": 0.0,
+      "identical_pixels_frac_min": 1.0,
       "all_serialization_identical": true,
-      "formation_matches_gt": 14
+      "formation_matches_gt": 15
     },
     {
       "arm": "PF10",
       "backend_id": "canonical-roundtrip+exact-clip",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "observation_profile": "exact-clip",
-      "arms": 28,
+      "arms": 32,
       "inverse_crime": {
         "status": "contaminated",
         "reasons": [
           "shared_implementation"
         ]
       },
-      "max_abs_code": 20.0,
-      "worst_scene_id": "proc/annulus/002#a",
-      "edge_mean_abs_code_mean": 0.13980263157894737,
-      "edge_mean_abs_code_max": 3.914473684210526,
-      "identical_pixels_frac_min": 0.86328125,
+      "max_abs_code": 41.0,
+      "worst_scene_id": "proc/polygon/002#a",
+      "edge_mean_abs_code_mean": 0.5111328125,
+      "edge_mean_abs_code_max": 10.19375,
+      "identical_pixels_frac_min": 0.921875,
       "all_serialization_identical": true,
-      "formation_matches_gt": 16
+      "formation_matches_gt": 18
     },
     {
       "arm": "PF10",
@@ -119,57 +119,57 @@
       "edge_mean_abs_code_max": 0.0,
       "identical_pixels_frac_min": 1.0,
       "all_serialization_identical": true,
-      "formation_matches_gt": 18
+      "formation_matches_gt": 16
     },
     {
       "arm": "PF10",
       "backend_id": "canonical-roundtrip+exact-clip",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "observation_profile": "exact-clip",
-      "arms": 29,
+      "arms": 32,
       "inverse_crime": {
         "status": "contaminated",
         "reasons": [
           "shared_implementation"
         ]
       },
-      "max_abs_code": 0.0,
-      "worst_scene_id": "adv/sliver#a",
-      "edge_mean_abs_code_mean": 0.0,
-      "edge_mean_abs_code_max": 0.0,
-      "identical_pixels_frac_min": 1.0,
+      "max_abs_code": 20.0,
+      "worst_scene_id": "proc/annulus/002#a",
+      "edge_mean_abs_code_mean": 0.12232730263157894,
+      "edge_mean_abs_code_max": 3.914473684210526,
+      "identical_pixels_frac_min": 0.86328125,
       "all_serialization_identical": true,
-      "formation_matches_gt": 13
+      "formation_matches_gt": 14
     },
     {
       "arm": "PF10",
       "backend_id": "canonical-roundtrip+exact-clip",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "observation_profile": "raqote",
-      "arms": 35,
+      "arms": 39,
       "inverse_crime": {
         "status": "clean"
       },
       "max_abs_code": 86.0,
       "worst_scene_id": "adv/ambiguous/bridge-or-gap#bridged",
-      "edge_mean_abs_code_mean": 12.335971257518931,
+      "edge_mean_abs_code_mean": 13.078985606162961,
       "edge_mean_abs_code_max": 25.16450674019611,
-      "identical_pixels_frac_min": 0.859375,
+      "identical_pixels_frac_min": 0.8603515625,
       "all_serialization_identical": true,
-      "formation_matches_gt": 19
+      "formation_matches_gt": 20
     },
     {
       "arm": "PF10",
       "backend_id": "canonical-roundtrip+exact-clip",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "observation_profile": "tiny-skia",
-      "arms": 30,
+      "arms": 32,
       "inverse_crime": {
         "status": "clean"
       },
-      "max_abs_code": 48.0,
-      "worst_scene_id": "proc/l_shape/000#a",
-      "edge_mean_abs_code_mean": 5.57531217469077,
+      "max_abs_code": 50.0,
+      "worst_scene_id": "proc/l_shape/002#a",
+      "edge_mean_abs_code_mean": 5.883281327988283,
       "edge_mean_abs_code_max": 15.424019607843144,
       "identical_pixels_frac_min": 0.86328125,
       "all_serialization_identical": true,
@@ -180,40 +180,40 @@
       "backend_id": "canonical-roundtrip+vice-render",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
       "observation_profile": "exact-clip",
-      "arms": 30,
+      "arms": 32,
       "inverse_crime": {
         "status": "contaminated",
         "reasons": [
           "backend_is_production_renderer"
         ]
       },
-      "max_abs_code": 5.0,
-      "worst_scene_id": "proc/annulus/002#a",
-      "edge_mean_abs_code_mean": 0.03048245614035088,
-      "edge_mean_abs_code_max": 0.9144736842105263,
-      "identical_pixels_frac_min": 0.8671875,
+      "max_abs_code": 0.0,
+      "worst_scene_id": "adv/ambiguous/bridge-or-gap#bridged",
+      "edge_mean_abs_code_mean": 0.0,
+      "edge_mean_abs_code_max": 0.0,
+      "identical_pixels_frac_min": 1.0,
       "all_serialization_identical": true,
-      "formation_matches_gt": 14
+      "formation_matches_gt": 15
     },
     {
       "arm": "PF10",
       "backend_id": "canonical-roundtrip+vice-render",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "observation_profile": "exact-clip",
-      "arms": 28,
+      "arms": 32,
       "inverse_crime": {
         "status": "contaminated",
         "reasons": [
           "backend_is_production_renderer"
         ]
       },
-      "max_abs_code": 20.0,
-      "worst_scene_id": "proc/annulus/002#a",
-      "edge_mean_abs_code_mean": 0.13980263157894737,
-      "edge_mean_abs_code_max": 3.914473684210526,
-      "identical_pixels_frac_min": 0.86328125,
+      "max_abs_code": 41.0,
+      "worst_scene_id": "proc/polygon/002#a",
+      "edge_mean_abs_code_mean": 0.5111328125,
+      "edge_mean_abs_code_max": 10.19375,
+      "identical_pixels_frac_min": 0.921875,
       "all_serialization_identical": true,
-      "formation_matches_gt": 16
+      "formation_matches_gt": 18
     },
     {
       "arm": "PF10",
@@ -233,34 +233,34 @@
       "edge_mean_abs_code_max": 0.0,
       "identical_pixels_frac_min": 1.0,
       "all_serialization_identical": true,
-      "formation_matches_gt": 18
+      "formation_matches_gt": 16
     },
     {
       "arm": "PF10",
       "backend_id": "canonical-roundtrip+vice-render",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "observation_profile": "exact-clip",
-      "arms": 29,
+      "arms": 32,
       "inverse_crime": {
         "status": "contaminated",
         "reasons": [
           "backend_is_production_renderer"
         ]
       },
-      "max_abs_code": 0.0,
-      "worst_scene_id": "adv/sliver#a",
-      "edge_mean_abs_code_mean": 0.0,
-      "edge_mean_abs_code_max": 0.0,
-      "identical_pixels_frac_min": 1.0,
+      "max_abs_code": 20.0,
+      "worst_scene_id": "proc/annulus/002#a",
+      "edge_mean_abs_code_mean": 0.12232730263157894,
+      "edge_mean_abs_code_max": 3.914473684210526,
+      "identical_pixels_frac_min": 0.86328125,
       "all_serialization_identical": true,
-      "formation_matches_gt": 13
+      "formation_matches_gt": 14
     },
     {
       "arm": "PF10",
       "backend_id": "canonical-roundtrip+vice-render",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "observation_profile": "raqote",
-      "arms": 35,
+      "arms": 39,
       "inverse_crime": {
         "status": "contaminated",
         "reasons": [
@@ -269,27 +269,27 @@
       },
       "max_abs_code": 86.0,
       "worst_scene_id": "adv/ambiguous/bridge-or-gap#bridged",
-      "edge_mean_abs_code_mean": 12.335971257518931,
+      "edge_mean_abs_code_mean": 13.078985606162961,
       "edge_mean_abs_code_max": 25.16450674019611,
-      "identical_pixels_frac_min": 0.859375,
+      "identical_pixels_frac_min": 0.8603515625,
       "all_serialization_identical": true,
-      "formation_matches_gt": 19
+      "formation_matches_gt": 20
     },
     {
       "arm": "PF10",
       "backend_id": "canonical-roundtrip+vice-render",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "observation_profile": "tiny-skia",
-      "arms": 30,
+      "arms": 32,
       "inverse_crime": {
         "status": "contaminated",
         "reasons": [
           "backend_is_production_renderer"
         ]
       },
-      "max_abs_code": 48.0,
-      "worst_scene_id": "proc/l_shape/000#a",
-      "edge_mean_abs_code_mean": 5.57531217469077,
+      "max_abs_code": 50.0,
+      "worst_scene_id": "proc/l_shape/002#a",
+      "edge_mean_abs_code_mean": 5.883281327988283,
       "edge_mean_abs_code_max": 15.424019607843144,
       "identical_pixels_frac_min": 0.86328125,
       "all_serialization_identical": true,
@@ -570,10 +570,86 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
+      "group_id": "adv/ambiguous/bridge-or-gap",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "04e15fc7b553dd9d773c4b3cdc6c834153ae0ce5817c6fc5f5c028267fa12030",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "051f9b839e574d18a5025adfe3fcf5ffe8b28a522052a74296ac2ab73ed72747",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 88,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
       "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
+      "group_id": "adv/ambiguous/bridge-or-gap",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "04e15fc7b553dd9d773c4b3cdc6c834153ae0ce5817c6fc5f5c028267fa12030",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "6bd6649af5e68b86e59439bd6dfdf72f52c209cbe545553ecd64e4618f9d4045",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 88,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
       "group_id": "adv/ambiguous/bridge-or-gap",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -1017,8 +1093,84 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
+      "group_id": "adv/ambiguous/bridge-or-gap",
+      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "c28e70b553b1da2f4b84369d2e1e89a9609898f57a4542d2da7d51f85662b08a",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "e206dc7339456ee02ea961f9c6d189bcf53fc171a1ab681209740a10e1f3266f",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 88,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
+      "group_id": "adv/ambiguous/bridge-or-gap",
+      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "c28e70b553b1da2f4b84369d2e1e89a9609898f57a4542d2da7d51f85662b08a",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "59c765e094e3870a421bdc2af2d7ebdb4e281fc27447c8d772df37a635b7e1c1",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 88,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
       "formation": "srgb/box",
       "formation_matches_gt": true,
       "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
@@ -1245,10 +1397,86 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "adv/ambiguous/bridge-or-gap#split",
+      "group_id": "adv/ambiguous/bridge-or-gap",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "2cd5fe76dce7fb841ac1a64041c1c1800c9b5f9ea0f891e72f90c21a165b640c",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "d275d500f6989a231bd4e23883bce980ebad29c124d15755d923beb6f4ff8c60",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 88,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
       "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/bridge-or-gap#split",
+      "group_id": "adv/ambiguous/bridge-or-gap",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "2cd5fe76dce7fb841ac1a64041c1c1800c9b5f9ea0f891e72f90c21a165b640c",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "64c6c61e4dcc519dd1107a52ea70a630f580d2021014d5a5cf8e30c5808c1cd2",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 88,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "adv/ambiguous/bridge-or-gap#split",
       "group_id": "adv/ambiguous/bridge-or-gap",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -1692,8 +1920,84 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/bridge-or-gap#split",
+      "group_id": "adv/ambiguous/bridge-or-gap",
+      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "5b05fbef90f8a4e1f3eccfb1a06c3280cc9d3bdd2e52b0ff70b793cc4047f0ea",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "a4da40b4be22083213175f5387eeddeb16baecb1e2447702f445a0434bd31b87",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 88,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/bridge-or-gap#split",
+      "group_id": "adv/ambiguous/bridge-or-gap",
+      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "5b05fbef90f8a4e1f3eccfb1a06c3280cc9d3bdd2e52b0ff70b793cc4047f0ea",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "b5a0e44adee27412b068c2d6c8d07eaaa072419d674a7aca8380afbdff7a017f",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 88,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
       "formation": "srgb/box",
       "formation_matches_gt": true,
       "scene_id": "adv/ambiguous/bridge-or-gap#split",
@@ -2066,8 +2370,81 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "lin/box",
+      "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/hole-or-not#holed",
+      "group_id": "adv/ambiguous/hole-or-not",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "raqote",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "20e547e4958810ddced5f08ddb1dea6f8fb1c00839d44317dc6ea2bafcbbf4b6",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "b56e0887e5e44c0bc391d9986b13726f67d2c873c150df4b12b31a2b5a823dff",
+      "inverse_crime": {
+        "status": "clean"
+      },
+      "metrics": {
+        "max_abs_code": 52.0,
+        "edge_mean_abs_code": 17.024154411764716,
+        "frame_mean_abs_code": 1.3300120634191184,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.921875,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
+      "formation": "lin/box",
+      "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/hole-or-not#holed",
+      "group_id": "adv/ambiguous/hole-or-not",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "raqote",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "20e547e4958810ddced5f08ddb1dea6f8fb1c00839d44317dc6ea2bafcbbf4b6",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "44a41e032c10eedfa09205b5363480780865daa3e602394151613e59ae5a3577",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 52.0,
+        "edge_mean_abs_code": 17.024154411764716,
+        "frame_mean_abs_code": 1.3300120634191184,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.921875,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
       "formation": "lin/box",
       "formation_matches_gt": true,
       "scene_id": "adv/ambiguous/hole-or-not#holed",
@@ -2370,10 +2747,86 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "adv/ambiguous/hole-or-not#holed",
+      "group_id": "adv/ambiguous/hole-or-not",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "b94cae75a11eec0c79d31a8e3474fcf9b56ad85dc5cc810845d1e3768d9b4d62",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "0ce271b5cf833ef6acc62c584f1e8553fb0edf9f92450f89d7ef3c5b4fc88266",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
       "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/hole-or-not#holed",
+      "group_id": "adv/ambiguous/hole-or-not",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "b94cae75a11eec0c79d31a8e3474fcf9b56ad85dc5cc810845d1e3768d9b4d62",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "f4e33a904a9770f51e9521db7f61868c7a3147b40251a74bbf42db85004fa794",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "adv/ambiguous/hole-or-not#holed",
       "group_id": "adv/ambiguous/hole-or-not",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
@@ -2969,10 +3422,86 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "adv/ambiguous/hole-or-not#solid",
+      "group_id": "adv/ambiguous/hole-or-not",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "1d76469bd027a2c50d766c360c00aeb7d15fb6e3fdc235ed482d3f7e25a9fa44",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "3aa1d03b1dc5027a63ad052b3da1ca667423bc4e9a5153c7f773f31f70196900",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 76,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
       "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/hole-or-not#solid",
+      "group_id": "adv/ambiguous/hole-or-not",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "1d76469bd027a2c50d766c360c00aeb7d15fb6e3fdc235ed482d3f7e25a9fa44",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "3ba2986043c9668f4ff7d56fde74afc1e67c7cba0ce85cc77e3f8fbec4a2a966",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 76,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "adv/ambiguous/hole-or-not#solid",
       "group_id": "adv/ambiguous/hole-or-not",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
@@ -3191,10 +3720,83 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "adv/ambiguous/one-face-or-two#split",
+      "group_id": "adv/ambiguous/one-face-or-two",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "raqote",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "c91daaf741d65ce6234c1180e99f0f03cce9c9e1b6521291bbf770b28d8f96d2",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "67f680ff8f57b848d3395220cdd7348329f2491a289510c930c10bd35448d5d1",
+      "inverse_crime": {
+        "status": "clean"
+      },
+      "metrics": {
+        "max_abs_code": 39.0,
+        "edge_mean_abs_code": 22.63074448529412,
+        "frame_mean_abs_code": 1.4144215303308825,
+        "edge_pixels": 64,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.9375,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
       "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/one-face-or-two#split",
+      "group_id": "adv/ambiguous/one-face-or-two",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "raqote",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "c91daaf741d65ce6234c1180e99f0f03cce9c9e1b6521291bbf770b28d8f96d2",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "dd4d62cd8441eedcaf7b44a404123bbd0b299481f6a85f8f88c7f2073e995713",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 39.0,
+        "edge_mean_abs_code": 22.63074448529412,
+        "frame_mean_abs_code": 1.4144215303308825,
+        "edge_pixels": 64,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.9375,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "adv/ambiguous/one-face-or-two#split",
       "group_id": "adv/ambiguous/one-face-or-two",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
@@ -3717,10 +4319,83 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "adv/ambiguous/one-face-or-two#merged",
+      "group_id": "adv/ambiguous/one-face-or-two",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "raqote",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "23f907ea98aab639d0079c12f84a14470ecc00831f87d63ef91d734657b24811",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "8a9d68a7e28422214e4441b6d810c623d89505d86528d322813a022c47062e2d",
+      "inverse_crime": {
+        "status": "clean"
+      },
+      "metrics": {
+        "max_abs_code": 39.0,
+        "edge_mean_abs_code": 22.61933210784314,
+        "frame_mean_abs_code": 1.4137082567401962,
+        "edge_pixels": 64,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.9375,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
       "formation_matches_gt": true,
+      "scene_id": "adv/ambiguous/one-face-or-two#merged",
+      "group_id": "adv/ambiguous/one-face-or-two",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "raqote",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "23f907ea98aab639d0079c12f84a14470ecc00831f87d63ef91d734657b24811",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "abea6cbac42af8de17b701b0c46bec4108b082c054e3c5de121ee21e8851468c",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 39.0,
+        "edge_mean_abs_code": 22.61933210784314,
+        "frame_mean_abs_code": 1.4137082567401962,
+        "edge_pixels": 64,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.9375,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "adv/ambiguous/one-face-or-two#merged",
       "group_id": "adv/ambiguous/one-face-or-two",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
@@ -12725,8 +13400,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/annulus/002#a",
       "group_id": "proc/annulus/002",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -12751,12 +13426,12 @@
         ]
       },
       "metrics": {
-        "max_abs_code": 20.0,
-        "edge_mean_abs_code": 3.914473684210526,
-        "frame_mean_abs_code": 0.5810546875,
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
         "edge_pixels": 152,
         "total_pixels": 1024,
-        "identical_pixels_frac": 0.86328125,
+        "identical_pixels_frac": 1.0,
         "serialization_digest_identical": true
       }
     },
@@ -12801,8 +13476,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/annulus/002#a",
       "group_id": "proc/annulus/002",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -12827,12 +13502,12 @@
         ]
       },
       "metrics": {
-        "max_abs_code": 20.0,
-        "edge_mean_abs_code": 3.914473684210526,
-        "frame_mean_abs_code": 0.5810546875,
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
         "edge_pixels": 152,
         "total_pixels": 1024,
-        "identical_pixels_frac": 0.86328125,
+        "identical_pixels_frac": 1.0,
         "serialization_digest_identical": true
       }
     },
@@ -13020,8 +13695,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/annulus/002#a",
       "group_id": "proc/annulus/002",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
@@ -13043,12 +13718,12 @@
         "status": "clean"
       },
       "metrics": {
-        "max_abs_code": 60.0,
-        "edge_mean_abs_code": 8.416118421052632,
-        "frame_mean_abs_code": 1.249267578125,
+        "max_abs_code": 43.0,
+        "edge_mean_abs_code": 7.139802631578948,
+        "frame_mean_abs_code": 1.059814453125,
         "edge_pixels": 152,
         "total_pixels": 1024,
-        "identical_pixels_frac": 0.859375,
+        "identical_pixels_frac": 0.8603515625,
         "serialization_digest_identical": true
       }
     },
@@ -13093,8 +13768,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/annulus/002#a",
       "group_id": "proc/annulus/002",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
@@ -13119,12 +13794,12 @@
         ]
       },
       "metrics": {
-        "max_abs_code": 60.0,
-        "edge_mean_abs_code": 8.416118421052632,
-        "frame_mean_abs_code": 1.249267578125,
+        "max_abs_code": 43.0,
+        "edge_mean_abs_code": 7.139802631578948,
+        "frame_mean_abs_code": 1.059814453125,
         "edge_pixels": 152,
         "total_pixels": 1024,
-        "identical_pixels_frac": 0.859375,
+        "identical_pixels_frac": 0.8603515625,
         "serialization_digest_identical": true
       }
     },
@@ -13245,8 +13920,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": true,
+      "formation": "lin/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/annulus/002#a",
       "group_id": "proc/annulus/002",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -13271,12 +13946,12 @@
         ]
       },
       "metrics": {
-        "max_abs_code": 0.0,
-        "edge_mean_abs_code": 0.0,
-        "frame_mean_abs_code": 0.0,
+        "max_abs_code": 20.0,
+        "edge_mean_abs_code": 3.914473684210526,
+        "frame_mean_abs_code": 0.5810546875,
         "edge_pixels": 152,
         "total_pixels": 1024,
-        "identical_pixels_frac": 1.0,
+        "identical_pixels_frac": 0.86328125,
         "serialization_digest_identical": true
       }
     },
@@ -13321,8 +13996,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": true,
+      "formation": "lin/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/annulus/002#a",
       "group_id": "proc/annulus/002",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -13347,12 +14022,12 @@
         ]
       },
       "metrics": {
-        "max_abs_code": 0.0,
-        "edge_mean_abs_code": 0.0,
-        "frame_mean_abs_code": 0.0,
+        "max_abs_code": 20.0,
+        "edge_mean_abs_code": 3.914473684210526,
+        "frame_mean_abs_code": 0.5810546875,
         "edge_pixels": 152,
         "total_pixels": 1024,
-        "identical_pixels_frac": 1.0,
+        "identical_pixels_frac": 0.86328125,
         "serialization_digest_identical": true
       }
     },
@@ -13397,8 +14072,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/annulus/002#a",
       "group_id": "proc/annulus/002",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
@@ -13423,12 +14098,12 @@
         ]
       },
       "metrics": {
-        "max_abs_code": 5.0,
-        "edge_mean_abs_code": 0.9144736842105263,
-        "frame_mean_abs_code": 0.1357421875,
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
         "edge_pixels": 152,
         "total_pixels": 1024,
-        "identical_pixels_frac": 0.8671875,
+        "identical_pixels_frac": 1.0,
         "serialization_digest_identical": true
       }
     },
@@ -13473,8 +14148,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/annulus/002#a",
       "group_id": "proc/annulus/002",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
@@ -13499,12 +14174,12 @@
         ]
       },
       "metrics": {
-        "max_abs_code": 5.0,
-        "edge_mean_abs_code": 0.9144736842105263,
-        "frame_mean_abs_code": 0.1357421875,
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
         "edge_pixels": 152,
         "total_pixels": 1024,
-        "identical_pixels_frac": 0.8671875,
+        "identical_pixels_frac": 1.0,
         "serialization_digest_identical": true
       }
     },
@@ -14297,8 +14972,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/annulus/003#a",
       "group_id": "proc/annulus/003",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
@@ -14373,8 +15048,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/annulus/003#a",
       "group_id": "proc/annulus/003",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
@@ -14449,8 +15124,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/arc_disk/000#a",
       "group_id": "proc/arc_disk/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -14525,8 +15200,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/arc_disk/000#a",
       "group_id": "proc/arc_disk/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -15045,8 +15720,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": true,
+      "formation": "lin/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/arc_disk/000#a",
       "group_id": "proc/arc_disk/000",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -15121,8 +15796,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": true,
+      "formation": "lin/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/arc_disk/000#a",
       "group_id": "proc/arc_disk/000",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -18499,8 +19174,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/bezier_blob/001#a",
       "group_id": "proc/bezier_blob/001",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -18575,8 +19250,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/bezier_blob/001#a",
       "group_id": "proc/bezier_blob/001",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -19095,8 +19770,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": true,
+      "formation": "lin/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/bezier_blob/001#a",
       "group_id": "proc/bezier_blob/001",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -19171,8 +19846,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": true,
+      "formation": "lin/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/bezier_blob/001#a",
       "group_id": "proc/bezier_blob/001",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -19470,6 +20145,41 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "proc/bezier_blob/002#a",
+      "group_id": "proc/bezier_blob/002",
+      "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "tiny-skia",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "d0e6939251e229075d983cd3d7470830408f3fffbdcf57f47e6e5c3d9288be69",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "047714459a634d399b3ea928aa6ddb279a5a38c15f6f2f70896313d2900c4057",
+      "inverse_crime": {
+        "status": "clean"
+      },
+      "metrics": {
+        "max_abs_code": 31.0,
+        "edge_mean_abs_code": 6.051470588235294,
+        "frame_mean_abs_code": 0.40185546875,
+        "edge_pixels": 68,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.9375,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
@@ -19504,6 +20214,44 @@
         "edge_pixels": 68,
         "total_pixels": 1024,
         "identical_pixels_frac": 0.9423828125,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "proc/bezier_blob/002#a",
+      "group_id": "proc/bezier_blob/002",
+      "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "tiny-skia",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "d0e6939251e229075d983cd3d7470830408f3fffbdcf57f47e6e5c3d9288be69",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "ed8ba8d7a145c6ff851d06e1bee4d4428b28b062f527367bc3d362de372c45cc",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 31.0,
+        "edge_mean_abs_code": 6.051470588235294,
+        "frame_mean_abs_code": 0.40185546875,
+        "edge_pixels": 68,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.9375,
         "serialization_digest_identical": true
       }
     },
@@ -23899,8 +24647,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/l_shape/000#a",
       "group_id": "proc/l_shape/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -23975,8 +24723,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/l_shape/000#a",
       "group_id": "proc/l_shape/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -24343,8 +25091,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/l_shape/000#a",
       "group_id": "proc/l_shape/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
@@ -24419,8 +25167,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/l_shape/000#a",
       "group_id": "proc/l_shape/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
@@ -24495,8 +25243,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": false,
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/l_shape/000#a",
       "group_id": "proc/l_shape/000",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -24571,8 +25319,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": false,
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/l_shape/000#a",
       "group_id": "proc/l_shape/000",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -25770,6 +26518,41 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "proc/l_shape/002#a",
+      "group_id": "proc/l_shape/002",
+      "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "tiny-skia",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "7721e03662db3500cb37c101a7726ad58b4d07762388532ebdad13a0dc8d06fe",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "aba5faf53b6a929d426d52914c6495a7cf038125c86883552c01c12b229b1f9f",
+      "inverse_crime": {
+        "status": "clean"
+      },
+      "metrics": {
+        "max_abs_code": 50.0,
+        "edge_mean_abs_code": 14.954166666666667,
+        "frame_mean_abs_code": 0.876220703125,
+        "edge_pixels": 60,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.94140625,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
@@ -25801,6 +26584,44 @@
         "max_abs_code": 37.0,
         "edge_mean_abs_code": 10.504166666666666,
         "frame_mean_abs_code": 0.615478515625,
+        "edge_pixels": 60,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.94140625,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "proc/l_shape/002#a",
+      "group_id": "proc/l_shape/002",
+      "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "tiny-skia",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "7721e03662db3500cb37c101a7726ad58b4d07762388532ebdad13a0dc8d06fe",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "71dd06d834e6b87c1072ac74230f02184b11408c57d80f0c4cab98e0a6a8ed4b",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 50.0,
+        "edge_mean_abs_code": 14.954166666666667,
+        "frame_mean_abs_code": 0.876220703125,
         "edge_pixels": 60,
         "total_pixels": 1024,
         "identical_pixels_frac": 0.94140625,
@@ -28548,8 +29369,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/polygon/000#a",
       "group_id": "proc/polygon/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -28624,8 +29445,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/polygon/000#a",
       "group_id": "proc/polygon/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -28992,8 +29813,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/polygon/000#a",
       "group_id": "proc/polygon/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
@@ -29068,8 +29889,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": false,
+      "formation": "lin/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/polygon/000#a",
       "group_id": "proc/polygon/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
@@ -29144,8 +29965,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": true,
+      "formation": "lin/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/polygon/000#a",
       "group_id": "proc/polygon/000",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -29220,8 +30041,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "srgb/box",
-      "formation_matches_gt": true,
+      "formation": "lin/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/polygon/000#a",
       "group_id": "proc/polygon/000",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -30346,6 +31167,44 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "proc/polygon/002#a",
+      "group_id": "proc/polygon/002",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "b7cbe356844ac7c37d133de549ae8d0c9feb16c6680f75228a92c67d65dc3598",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "9b0d503219c8498a30c778c20aed2bbf291f7b1314c6021cea57b17c5aab15e8",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 41.0,
+        "edge_mean_abs_code": 10.19375,
+        "frame_mean_abs_code": 0.79638671875,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.9248046875,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
@@ -30380,6 +31239,44 @@
         "edge_pixels": 80,
         "total_pixels": 1024,
         "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "proc/polygon/002#a",
+      "group_id": "proc/polygon/002",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "b7cbe356844ac7c37d133de549ae8d0c9feb16c6680f75228a92c67d65dc3598",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "e658172ab6f6146ce0faa06dd3bf971156e5cd31fe9f4933a3a30e0a8931b38a",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 41.0,
+        "edge_mean_abs_code": 10.19375,
+        "frame_mean_abs_code": 0.79638671875,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.9248046875,
         "serialization_digest_identical": true
       }
     },
@@ -33720,8 +34617,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/000#a",
       "group_id": "proc/star/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -33796,8 +34693,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/000#a",
       "group_id": "proc/star/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
@@ -34164,8 +35061,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/000#a",
       "group_id": "proc/star/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
@@ -34240,8 +35137,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/000#a",
       "group_id": "proc/star/000",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
@@ -34316,8 +35213,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": false,
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/star/000#a",
       "group_id": "proc/star/000",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -34392,8 +35289,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": false,
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
       "scene_id": "proc/star/000#a",
       "group_id": "proc/star/000",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
@@ -34915,8 +35812,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/001#a",
       "group_id": "proc/star/001",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
@@ -34988,8 +35885,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/001#a",
       "group_id": "proc/star/001",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
@@ -36265,8 +37162,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/003#a",
       "group_id": "proc/star/003",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
@@ -36338,8 +37235,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/003#a",
       "group_id": "proc/star/003",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
@@ -36414,8 +37311,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/003#a",
       "group_id": "proc/star/003",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
@@ -36490,8 +37387,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/003#a",
       "group_id": "proc/star/003",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
@@ -36718,8 +37615,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/003#a",
       "group_id": "proc/star/003",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
@@ -36794,8 +37691,8 @@
     {
       "arm": "PF10",
       "formation_source": "estimated",
-      "formation": "lin/box",
-      "formation_matches_gt": true,
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
       "scene_id": "proc/star/003#a",
       "group_id": "proc/star/003",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
@@ -37014,8 +37911,81 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "lin/box",
+      "formation_matches_gt": true,
+      "scene_id": "proc/thin_bridge/000#a",
+      "group_id": "proc/thin_bridge/000",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "raqote",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "f9634f7ef20befd686f58fca591eea2ae4c64853f2b5c234ade43bd5f5db27ae",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "ce048a9e67d611a3bb700a3e9f654547b45b2fa92b120187e034b1d377cd92c3",
+      "inverse_crime": {
+        "status": "clean"
+      },
+      "metrics": {
+        "max_abs_code": 59.0,
+        "edge_mean_abs_code": 17.323529411764703,
+        "frame_mean_abs_code": 1.3534007352941173,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.921875,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
+      "formation": "lin/box",
+      "formation_matches_gt": true,
+      "scene_id": "proc/thin_bridge/000#a",
+      "group_id": "proc/thin_bridge/000",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "raqote",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "f9634f7ef20befd686f58fca591eea2ae4c64853f2b5c234ade43bd5f5db27ae",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "a38797f521d19ed94203428c6066660c45855b9ae4255675e026ce7630fc0298",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 59.0,
+        "edge_mean_abs_code": 17.323529411764703,
+        "frame_mean_abs_code": 1.3534007352941173,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.921875,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
       "formation": "lin/box",
       "formation_matches_gt": true,
       "scene_id": "proc/thin_bridge/000#a",
@@ -38066,6 +39036,44 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "proc/thin_bridge/002#a",
+      "group_id": "proc/thin_bridge/002",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "4903686be2f68bc7bcb3814feae951f92a1f102ffcc9d0e879eb0feee5eb66f1",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "ed5c174c96872ed16384e9d750bc07869e0dcd1ab59f420a753e744572f3d7df",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 24.0,
+        "edge_mean_abs_code": 6.1625,
+        "frame_mean_abs_code": 0.4814453125,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.921875,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
       "formation": "lin/box",
@@ -38100,6 +39108,44 @@
         "edge_pixels": 80,
         "total_pixels": 1024,
         "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": false,
+      "scene_id": "proc/thin_bridge/002#a",
+      "group_id": "proc/thin_bridge/002",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "4903686be2f68bc7bcb3814feae951f92a1f102ffcc9d0e879eb0feee5eb66f1",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "a72763cdf0a353556d63c0fc6f89b0fffcdf9286aaf44dad9f4a5c781c1af22a",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 24.0,
+        "edge_mean_abs_code": 6.1625,
+        "frame_mean_abs_code": 0.4814453125,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 0.921875,
         "serialization_digest_identical": true
       }
     },
@@ -38437,8 +39483,84 @@
       }
     },
     {
+      "arm": "PF10",
+      "formation_source": "estimated",
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
+      "scene_id": "proc/thin_bridge/002#a",
+      "group_id": "proc/thin_bridge/002",
+      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+exact-clip",
+      "backend_rasterizer": "exact-clip",
+      "key": {
+        "backend_id": "canonical-roundtrip+exact-clip",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "e456f34d3a297d8f3a0b8a9e0cda5dd4f62f7d467d830fa62da1819f04a482ab",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "e89dcee6c383cc1921e28254c3a6e14a5701a0eb18dcbd806e5773dbabac7e44",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "shared_implementation"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
       "arm": "PF11",
       "formation_source": "ground_truth",
+      "formation": "srgb/box",
+      "formation_matches_gt": true,
+      "scene_id": "proc/thin_bridge/002#a",
+      "group_id": "proc/thin_bridge/002",
+      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "observation_profile": "exact-clip",
+      "backend_id": "canonical-roundtrip+vice-render",
+      "backend_rasterizer": "vice-render",
+      "key": {
+        "backend_id": "canonical-roundtrip+vice-render",
+        "config_hash": "529c9be70ffbd3ca613e3a73c7c4ec7368b680d2033439b75f0f6d2d02ba25b9",
+        "candidate_budget": {
+          "kind": "exhaustive",
+          "formation_family": 8
+        },
+        "fixture_hash": "e456f34d3a297d8f3a0b8a9e0cda5dd4f62f7d467d830fa62da1819f04a482ab",
+        "intervention_schema_version": "vice-classic/oracle-intervention/v1"
+      },
+      "key_fingerprint": "b928c0e5e5801928500c5eb9cd56662cdbeaa208787ef27e32b76f43c432a6fb",
+      "inverse_crime": {
+        "status": "contaminated",
+        "reasons": [
+          "backend_is_production_renderer"
+        ]
+      },
+      "metrics": {
+        "max_abs_code": 0.0,
+        "edge_mean_abs_code": 0.0,
+        "frame_mean_abs_code": 0.0,
+        "edge_pixels": 80,
+        "total_pixels": 1024,
+        "identical_pixels_frac": 1.0,
+        "serialization_digest_identical": true
+      }
+    },
+    {
+      "arm": "PF10",
+      "formation_source": "estimated",
       "formation": "srgb/box",
       "formation_matches_gt": true,
       "scene_id": "proc/thin_bridge/002#a",
@@ -43142,7 +44264,7 @@
   "factorial": [
     {
       "metric": "max_abs_code",
-      "key_fingerprint": "541a5cc7a432bbe2e5b25759d3eb6a7d20f286917eae5d5f600c6af1a38eea42",
+      "key_fingerprint": "f0b6c69727020cc812cc91d7be7dfb5c3295e3f9cf384c3e2187222b4d13d5b8",
       "present_arms": [
         "PF10",
         "PF11"
@@ -43183,7 +44305,7 @@
     },
     {
       "metric": "edge_mean_abs_code",
-      "key_fingerprint": "541a5cc7a432bbe2e5b25759d3eb6a7d20f286917eae5d5f600c6af1a38eea42",
+      "key_fingerprint": "f0b6c69727020cc812cc91d7be7dfb5c3295e3f9cf384c3e2187222b4d13d5b8",
       "present_arms": [
         "PF10",
         "PF11"
@@ -43224,7 +44346,7 @@
     },
     {
       "metric": "identical_pixels_frac",
-      "key_fingerprint": "541a5cc7a432bbe2e5b25759d3eb6a7d20f286917eae5d5f600c6af1a38eea42",
+      "key_fingerprint": "f0b6c69727020cc812cc91d7be7dfb5c3295e3f9cf384c3e2187222b4d13d5b8",
       "present_arms": [
         "PF10",
         "PF11"
@@ -43265,7 +44387,7 @@
     },
     {
       "metric": "max_abs_code",
-      "key_fingerprint": "d4aeddf6982f27dbd2af52da9c8148cf1eca37457d5769f515e9db3fda6f1864",
+      "key_fingerprint": "530febb514a1dfa65ad77bd8fe80d6d7f1387772fd009520cc0b3ff7f37c726e",
       "present_arms": [
         "PF10",
         "PF11"
@@ -43306,7 +44428,7 @@
     },
     {
       "metric": "edge_mean_abs_code",
-      "key_fingerprint": "d4aeddf6982f27dbd2af52da9c8148cf1eca37457d5769f515e9db3fda6f1864",
+      "key_fingerprint": "530febb514a1dfa65ad77bd8fe80d6d7f1387772fd009520cc0b3ff7f37c726e",
       "present_arms": [
         "PF10",
         "PF11"
@@ -43347,7 +44469,7 @@
     },
     {
       "metric": "identical_pixels_frac",
-      "key_fingerprint": "d4aeddf6982f27dbd2af52da9c8148cf1eca37457d5769f515e9db3fda6f1864",
+      "key_fingerprint": "530febb514a1dfa65ad77bd8fe80d6d7f1387772fd009520cc0b3ff7f37c726e",
       "present_arms": [
         "PF10",
         "PF11"
@@ -43520,18 +44642,6 @@
   "refused": [
     {
       "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#bridged is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#bridged is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
       "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#bridged is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
@@ -43543,30 +44653,6 @@
       "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#bridged is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
-      "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
-      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#bridged is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
-      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#bridged is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/bridge-or-gap#split",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#split is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/bridge-or-gap#split",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#split is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
       "scene_id": "adv/ambiguous/bridge-or-gap#split",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
@@ -43575,18 +44661,6 @@
     {
       "scene_id": "adv/ambiguous/bridge-or-gap#split",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#split is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/bridge-or-gap#split",
-      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#split is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/bridge-or-gap#split",
-      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
       "reason": "the ESTIMATED formation for scene adv/ambiguous/bridge-or-gap#split is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
@@ -43594,13 +44668,13 @@
       "scene_id": "adv/ambiguous/hole-or-not#holed",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is srgb/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "adv/ambiguous/hole-or-not#holed",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is srgb/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "adv/ambiguous/hole-or-not#holed",
@@ -43616,37 +44690,13 @@
     },
     {
       "scene_id": "adv/ambiguous/hole-or-not#holed",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is srgb/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/hole-or-not#holed",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is srgb/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/hole-or-not#holed",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is srgb/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/hole-or-not#holed",
-      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is srgb/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/hole-or-not#holed",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
       "backend_id": "canonical-roundtrip+exact-clip",
       "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "adv/ambiguous/hole-or-not#holed",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
       "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#holed is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
@@ -43654,13 +44704,13 @@
       "scene_id": "adv/ambiguous/hole-or-not#solid",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#solid is srgb/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#solid is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "adv/ambiguous/hole-or-not#solid",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#solid is srgb/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#solid is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "adv/ambiguous/hole-or-not#solid",
@@ -43678,23 +44728,11 @@
       "scene_id": "adv/ambiguous/hole-or-not#solid",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#solid is srgb/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/hole-or-not#solid",
-      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#solid is srgb/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/hole-or-not#solid",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
-      "backend_id": "canonical-roundtrip+exact-clip",
       "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#solid is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "adv/ambiguous/hole-or-not#solid",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
       "reason": "the ESTIMATED formation for scene adv/ambiguous/hole-or-not#solid is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
@@ -43721,18 +44759,6 @@
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
       "reason": "the ESTIMATED formation for scene adv/ambiguous/one-face-or-two#split is srgb/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/one-face-or-two#split",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/one-face-or-two#split is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/one-face-or-two#split",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/one-face-or-two#split is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "adv/ambiguous/one-face-or-two#split",
@@ -43781,18 +44807,6 @@
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
       "reason": "the ESTIMATED formation for scene adv/ambiguous/one-face-or-two#merged is srgb/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/one-face-or-two#merged",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/one-face-or-two#merged is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "adv/ambiguous/one-face-or-two#merged",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene adv/ambiguous/one-face-or-two#merged is lin/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "adv/ambiguous/one-face-or-two#merged",
@@ -44038,13 +45052,13 @@
       "scene_id": "proc/arc_disk/002#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/arc_disk/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/arc_disk/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/arc_disk/002#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/arc_disk/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/arc_disk/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/arc_disk/002#a",
@@ -44120,18 +45134,6 @@
     },
     {
       "scene_id": "proc/bezier_blob/002#a",
-      "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/bezier_blob/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/bezier_blob/002#a",
-      "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/bezier_blob/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/bezier_blob/002#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
       "reason": "the ESTIMATED formation for scene proc/bezier_blob/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
@@ -44158,13 +45160,13 @@
       "scene_id": "proc/bezier_blob/002#a",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/bezier_blob/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/bezier_blob/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/bezier_blob/002#a",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/bezier_blob/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/bezier_blob/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/bezier_blob/002#a",
@@ -44264,18 +45266,6 @@
     },
     {
       "scene_id": "proc/l_shape/002#a",
-      "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/l_shape/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/l_shape/002#a",
-      "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/l_shape/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/l_shape/002#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
       "reason": "the formation estimator did not deliver a formation for scene proc/l_shape/002#a under cell s32_praqote_box_lin_none_dx0.00dy0.00_c1.00: it returned {\"outcome\":\"unsupported\",\"kind\":\"palette\",\"detail\":\"the image shows one uniform face and no exterior: there is no boundary to observe\"}. The arm is refused rather than filled with the ground truth, which would make PF10 a copy of PF11"
@@ -44314,13 +45304,13 @@
       "scene_id": "proc/l_shape/002#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
       "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/l_shape/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/l_shape/002#a is srgb/gauss0.50/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/l_shape/002#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
       "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/l_shape/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/l_shape/002#a is srgb/gauss0.50/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/l_shape/003#a",
@@ -44660,18 +45650,6 @@
     },
     {
       "scene_id": "proc/polygon/002#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/polygon/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/polygon/002#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/polygon/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/polygon/002#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
       "reason": "the formation estimator did not deliver a formation for scene proc/polygon/002#a under cell s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00: it returned {\"outcome\":\"ambiguous\",\"mixture_classes\":[\"opaque:325e6e-fafaf6\"],\"note\":\"a flat intermediate-alpha region thinner than the kernel can resolve: a thin opaque shape at partial coverage and a semi-transparent fill produce the same bytes, so spec 1.6 keeps both readings rather than choosing\"}. The arm is refused rather than filled with the ground truth, which would make PF10 a copy of PF11"
@@ -44986,13 +45964,13 @@
       "scene_id": "proc/star/002#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/star/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/star/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/star/002#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/star/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/star/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/star/002#a",
@@ -45010,13 +45988,13 @@
       "scene_id": "proc/star/002#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/star/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/star/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/star/002#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/star/002#a is lin/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
+      "reason": "the ESTIMATED formation for scene proc/star/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/star/002#a",
@@ -45080,18 +46058,6 @@
     },
     {
       "scene_id": "proc/thin_bridge/000#a",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/thin_bridge/000#a is srgb/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/thin_bridge/000#a",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/thin_bridge/000#a is srgb/triangle/u8/transparent, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/thin_bridge/000#a",
       "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
       "reason": "the ESTIMATED formation for scene proc/thin_bridge/000#a is lin/triangle/u8/transparent, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
@@ -45152,18 +46118,6 @@
     },
     {
       "scene_id": "proc/thin_bridge/002#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/thin_bridge/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/thin_bridge/002#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/thin_bridge/002#a is lin/gauss0.50/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/thin_bridge/002#a",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "backend_id": "canonical-roundtrip+exact-clip",
       "reason": "the ESTIMATED formation for scene proc/thin_bridge/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
@@ -45185,18 +46139,6 @@
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
       "backend_id": "canonical-roundtrip+vice-render",
       "reason": "the formation estimator did not deliver a formation for scene proc/thin_bridge/002#a under cell s32_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00: it returned {\"outcome\":\"ambiguous\",\"mixture_classes\":[\"opaque:86469e-fafaf6\"],\"note\":\"a flat intermediate-alpha region thinner than the kernel can resolve: a thin opaque shape at partial coverage and a semi-transparent fill produce the same bytes, so spec 1.6 keeps both readings rather than choosing\"}. The arm is refused rather than filled with the ground truth, which would make PF10 a copy of PF11"
-    },
-    {
-      "scene_id": "proc/thin_bridge/002#a",
-      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+exact-clip",
-      "reason": "the ESTIMATED formation for scene proc/thin_bridge/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+exact-clip integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
-    },
-    {
-      "scene_id": "proc/thin_bridge/002#a",
-      "cell_id": "s32_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "backend_id": "canonical-roundtrip+vice-render",
-      "reason": "the ESTIMATED formation for scene proc/thin_bridge/002#a is srgb/triangle/u8/opaque, and backend canonical-roundtrip+vice-render integrates a unit box only. Refused rather than substituted: an estimate the backend cannot realize is an estimation error, and hiding it behind the ground truth would make the arm measure something else"
     },
     {
       "scene_id": "proc/thin_bridge/002#a",
@@ -45800,8 +46742,8 @@
     }
   ],
   "assembly_refusals": [],
-  "factorial_common_fixtures": 376,
-  "factorial_dropped_fixtures": 380,
+  "factorial_common_fixtures": 406,
+  "factorial_dropped_fixtures": 350,
   "mechanism_selftest": {
     "note": "SYNTHETIC. These values measure nothing about the corpus; they exist so the gate rows below are not green merely because no delta was produced.",
     "synthetic_arm_values": [
