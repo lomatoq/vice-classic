@@ -230,7 +230,7 @@ gate_min_classes_per_retaining_pair = 2
 # `gates/mod.rs` land next, and the freeze is the commit after that - the same
 # three-step C178/C179/C180 used for [topology].
 [topology_controls]
-status = "placeholder"
+status = "frozen"
 set_by_milestone = "M4.5"
 
 # Radius of the knockout disk, as a fraction of min(width, height).
