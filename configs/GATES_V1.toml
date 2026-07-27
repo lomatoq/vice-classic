@@ -168,7 +168,7 @@ degraded_bucket_sigma_codes = 0.0
 # and the check arrive next, the freeze arrives after. That is the same three
 # step shape M4 used for the clean-bucket noise scale (C134/C135/C136).
 [topology]
-status = "placeholder"
+status = "frozen"
 set_by_milestone = "M4.5"
 
 # Restoration operators of §11.1. Fixed counts and fixed steps: no convergence
