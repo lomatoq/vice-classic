@@ -241,26 +241,27 @@ pub fn over_opaque_layer(
     for beta in alphas {
         // The composite: the arm's ink at constant beta over the layer.
         let mut bytes = vec![0u8; rgba8.len()];
-        // The two-colour scene it equals: a single opaque face F' over the
-        // same layer, with the SAME coverage field.
-        let mut two_colour = vec![0u8; rgba8.len()];
+        // The face of the two-colour scene this equals: `beta*F + (1-beta)*B`,
+        // authored as a u8 the way any other face is.
         let face = [
             over(ink[0], layer[0], *beta, blend),
             over(ink[1], layer[1], *beta, blend),
             over(ink[2], layer[2], *beta, blend),
         ];
+        // The two-colour scene is compared byte by byte as it is produced,
+        // not materialized: the claim is about the DIFFERENCE, and building
+        // a second image to throw away would allocate one per probe for
+        // nothing.
         let mut max_diff = 0u64;
         for (i, px) in rgba8.chunks_exact(4).enumerate() {
             let coverage = f64::from(px[3]) / 255.0;
             for c in 0..3 {
-                let a = over(px[c], layer[c], coverage * beta, blend);
-                let b = over(face[c], layer[c], coverage, blend);
-                bytes[i * 4 + c] = a;
-                two_colour[i * 4 + c] = b;
-                max_diff = max_diff.max(u64::from(a.abs_diff(b)));
+                let composite = over(px[c], layer[c], coverage * beta, blend);
+                let authored = over(face[c], layer[c], coverage, blend);
+                bytes[i * 4 + c] = composite;
+                max_diff = max_diff.max(u64::from(composite.abs_diff(authored)));
             }
             bytes[i * 4 + 3] = 255;
-            two_colour[i * 4 + 3] = 255;
         }
         let img = CanonicalImage::from_straight_srgb8(
             width_px,
