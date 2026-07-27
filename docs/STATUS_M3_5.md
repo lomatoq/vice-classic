@@ -7,7 +7,7 @@ Spec: `VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`
 Автор: coding-агент (Claude Code), single-milestone run по §34.
 Стартовая точка: HEAD `1e6ef13` (M3 принят: `docs/REVIEW_M3.md` addendum,
 VERDICT ACCEPT).
-Коммиты milestone: **C090–C104**.
+Коммиты milestone: **C090–C106**.
 
 > **Этот отчёт — author report. Он сам по себе НЕ делает M3.5 green.**
 > §32 правило 29 и §34: milestone требует **ОДНОГО независимого cold
@@ -256,7 +256,11 @@ debug/release само по себе является находкой — F-000
 регрессию. Release-профиль не затронут заметно.
 
 `#![forbid(unsafe_code)]` во всех четырёх crates. Никаких env-флагов
-поведения. Новых crates не создано. Продакшн-модулей >800 LOC нет: максимум
+поведения (`std::env` в новом коде не встречается вовсе). Новых crates не
+создано; **новых зависимостей нет** — `Cargo.toml` и `Cargo.lock` не менялись
+с `1e6ef13`, поэтому THIRD_PARTY_NOTICES не требует записи, и это проверено,
+а не выведено из молчания. PORTING_MANIFEST: **0 units и в M3.5** (C105).
+`todo!`/`unimplemented!`/placeholder-типов для M4+ в новом коде нет. Продакшн-модулей >800 LOC нет: максимум
 **789** (`gt/degradation.rs`); `gates.rs` вырос до 896 при расширении
 предиката и **разбит** (C102) на `gates/mod.rs` 447 + `gates/changeset.rs`
 478.
