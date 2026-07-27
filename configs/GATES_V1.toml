@@ -208,3 +208,32 @@ gate_min_recall_shape_families = 5
 gate_min_non_trivial_gt_arms = 5
 gate_min_topology_pairs = 2
 gate_min_classes_per_retaining_pair = 2
+
+# --- Numbers that decide whether a gate CONTROL is alive (§27.7) -------------
+# REVIEW_M4_5 condition 4 (reopened by addendum 2) / REDTEAM RT45-A12.
+#
+# The section above registers the population THRESHOLDS of the gate rows. It
+# did not register the numbers that decide whether a row's CONTROL measures
+# anything, and that turned out to be the same kind of number. The knockout
+# disk radius was the literal `0.3` inside `measure_arm`: `0.3 -> 0.0001`
+# empties the unrelated field, the knockout falls to 0 of 100, the conjunct
+# `knockout < real` is satisfied TRIVIALLY, and the clause stays MET with its
+# only control switched off. One commit, no gate file touched, exit 0.
+#
+# The GT majority level is here for a stronger reason than the radius. It does
+# not tune a control - it defines the TRUTH the whole clause is scored against.
+# Moving it re-labels every fixture at once, and §27.7's second sentence exists
+# precisely so that a feature commit cannot move it beside the code it judges.
+#
+# Placeholder in this commit: §27.7 forbids changing the gate file and
+# production code together, so the keys land first, their claims in
+# `gates/mod.rs` land next, and the freeze is the commit after that - the same
+# three-step C178/C179/C180 used for [topology].
+[topology_controls]
+status = "placeholder"
+set_by_milestone = "M4.5"
+
+# Radius of the knockout disk, as a fraction of min(width, height).
+gate_knockout_disk_radius_fraction = 0.3
+# Coverage level at which exact ink becomes inside/outside for the ground truth.
+gate_gt_majority_level = 0.5
