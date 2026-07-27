@@ -90,6 +90,18 @@ jobs:
           fi
           echo "commits to check:"
           echo "$COMMITS"
+          # Gate paths that ALREADY EXISTED at the base of the push. The
+          # exemption is about existence, and a commit's own parent is not
+          # the right place to ask: deleting the gate file in one commit and
+          # re-adding it with the code in the next is legal per commit and
+          # moves the frozen value anyway (REVIEW_M3_5 M35-N6).
+          EXISTING=""
+          for G in configs/GATES_V1.toml; do
+            if [ -n "$BEFORE" ] && git cat-file -e "${BEFORE}:${G}" 2>/dev/null; then
+              EXISTING="$EXISTING --existing-gate $G"
+            fi
+          done
+          echo "gate paths existing at the push base: ${EXISTING:-(none)}"
           FAIL=0
           for C in $COMMITS; do
             if git cat-file -e "${C}^^{commit}" 2>/dev/null; then
@@ -97,7 +109,7 @@ jobs:
             else
               DIFF=$(git show --name-status --format= "$C")
             fi
-            if ! printf '%s\n' "$DIFF" | cargo run --quiet --release --bin gt-corpus -- gates-check --stdin; then
+            if ! printf '%s\n' "$DIFF" | cargo run --quiet --release --bin gt-corpus -- gates-check --stdin $EXISTING; then
               echo "offending commit: $C"
               FAIL=1
             fi

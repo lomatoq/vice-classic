@@ -25,7 +25,10 @@
 
 pub mod changeset;
 
-pub use changeset::{same_commit_violation, ChangeKind, ChangedPath, FEATURE_PATH_PREFIXES};
+pub use changeset::{
+    same_commit_violation, same_commit_violation_with_base, ChangeKind, ChangedPath,
+    UnrecognizedForm, FEATURE_PATH_PREFIXES,
+};
 
 use std::collections::BTreeMap;
 use std::path::Path;

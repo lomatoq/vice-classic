@@ -117,6 +117,29 @@ fn unquote_path(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// An input the parser does not recognize.
+///
+/// The parser used to fall back to "the whole line is a path" for anything
+/// it could not read, which is a SILENT PASS: REVIEW_M3_5 M35-N6 fed it
+/// NUL-separated output (`--name-status -z`) and got "no gate/feature
+/// co-change in 1 path(s)" and exit 0. A predicate whose failure mode is
+/// approval is worse than no predicate, so an unrecognized form is a typed
+/// refusal and the caller exits non-zero.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum UnrecognizedForm {
+    #[error(
+        "the change set contains a NUL byte, so it is NUL-separated output (git --name-status -z) \
+         and not the line-oriented form this predicate parses. Refusing rather than reading it as \
+         one long path: spec 27.7 is a rule whose failure mode must not be approval"
+    )]
+    NulSeparated,
+    #[error(
+        "status {status:?} names two paths but the line has {columns} column(s): this is not a \
+         form git emits, and guessing at it would be guessing at whether a gate moved"
+    )]
+    TruncatedRename { status: String, columns: usize },
+}
+
 /// One entry of a change set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChangedPath {
@@ -162,10 +185,13 @@ impl ChangedPath {
     /// Both paths of a rename or copy are reported, and BOTH as `Other`:
     /// only a literal `A` exempts, and moving a gate file is not creating
     /// one.
-    pub fn parse(line: &str) -> Vec<ChangedPath> {
+    pub fn parse(line: &str) -> Result<Vec<ChangedPath>, UnrecognizedForm> {
+        if line.contains('\0') {
+            return Err(UnrecognizedForm::NulSeparated);
+        }
         let line = line.trim_end_matches(['\r', '\n']);
         if line.trim().is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         // git separates the columns with TAB. Fall back to whitespace so a
         // hand-written `--changed "M path"` still works, but only when there
@@ -177,16 +203,24 @@ impl ChangedPath {
         };
         cols.retain(|c| !c.trim().is_empty());
         if cols.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         if cols.len() == 1 {
-            // A bare path with no status column: the conservative reading.
-            return vec![ChangedPath::modified(unquote_path(cols[0].trim()))];
+            // A bare path with no status column: the conservative reading,
+            // and a DECLARED form (a hand-written `--changed`), not a
+            // fallback for anything unparsed.
+            return Ok(vec![ChangedPath::modified(unquote_path(cols[0].trim()))]);
         }
         let status = cols[0].trim();
         let kind = ChangeKind::from_status(status);
-        if is_two_path_status(status) && cols.len() >= 3 {
-            return vec![
+        if is_two_path_status(status) {
+            if cols.len() < 3 {
+                return Err(UnrecognizedForm::TruncatedRename {
+                    status: status.to_string(),
+                    columns: cols.len(),
+                });
+            }
+            return Ok(vec![
                 ChangedPath {
                     path: unquote_path(cols[1].trim()),
                     kind: ChangeKind::Other,
@@ -195,12 +229,12 @@ impl ChangedPath {
                     path: unquote_path(cols[2].trim()),
                     kind: ChangeKind::Other,
                 },
-            ];
+            ]);
         }
-        vec![ChangedPath {
+        Ok(vec![ChangedPath {
             path: unquote_path(cols[1].trim()),
             kind,
-        }]
+        }])
     }
 }
 
@@ -211,11 +245,39 @@ impl ChangedPath {
 /// be tested without git, and used by `gt-corpus gates-check` against
 /// `git diff --name-status` over the whole pushed range.
 pub fn same_commit_violation(changed: &[ChangedPath]) -> Option<(String, String)> {
+    same_commit_violation_with_base(changed, &[])
+}
+
+/// The §27.7 rule, with the gate paths that ALREADY EXISTED at the base of
+/// the push.
+///
+/// The exemption is "a gate that does not exist cannot be weakened", and
+/// judging it against the commit's own parent is not the same question:
+/// REVIEW_M3_5 M35-N6 showed a two-commit sequence — delete the gate file in
+/// one commit, re-add it with the code in the next — where every commit is
+/// individually legal and the frozen value changes anyway. A path that
+/// existed at the base of the push is an EXISTING gate for every commit of
+/// that push, whatever its own parent says.
+pub fn same_commit_violation_with_base(
+    changed: &[ChangedPath],
+    existing_at_base: &[String],
+) -> Option<(String, String)> {
+    let existing: Vec<String> = existing_at_base
+        .iter()
+        .map(|p| p.replace(char::from(92u8), "/"))
+        .collect();
     let norm: Vec<ChangedPath> = changed
         .iter()
-        .map(|c| ChangedPath {
-            path: c.path.replace('\\', "/"),
-            kind: c.kind,
+        .map(|c| {
+            let path = c.path.replace(char::from(92u8), "/");
+            let kind = if c.kind == ChangeKind::Added && existing.contains(&path) {
+                // Created in THIS commit, but the path was already a gate at
+                // the base of the push: the exemption does not apply.
+                ChangeKind::Other
+            } else {
+                c.kind
+            };
+            ChangedPath { path, kind }
         })
         .collect();
     // Only an EXISTING gate can be weakened; creating one is the exemption.
@@ -266,7 +328,7 @@ mod tests {
     fn every_name_status_output_form_is_parsed() {
         // 1. Two columns, one path, for every status git spells that way.
         for st in ["A", "D", "M", "T", "U", "X", "B"] {
-            let got = ChangedPath::parse(&format!("{st}\tconfigs/GATES_V1.toml"));
+            let got = ChangedPath::parse(&format!("{st}\tconfigs/GATES_V1.toml")).unwrap();
             assert_eq!(got.len(), 1, "{st}");
             assert_eq!(got[0].path, "configs/GATES_V1.toml", "{st}");
             assert_eq!(
@@ -284,7 +346,8 @@ mod tests {
         for st in ["R100", "R087", "C75", "C100"] {
             let got = ChangedPath::parse(&format!(
                 "{st}\tconfigs/GATES_V1.toml\tconfigs/GATES_V2.toml"
-            ));
+            ))
+            .unwrap();
             assert_eq!(got.len(), 2, "{st} names two paths");
             assert_eq!(got[0].path, "configs/GATES_V1.toml");
             assert_eq!(got[1].path, "configs/GATES_V2.toml");
@@ -296,14 +359,14 @@ mod tests {
         }
 
         // 3. Multi-letter merge statuses do not exempt and do not eat the path.
-        let got = ChangedPath::parse("MM\tcrates/vice-bench/src/lib.rs");
+        let got = ChangedPath::parse("MM\tcrates/vice-bench/src/lib.rs").unwrap();
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].path, "crates/vice-bench/src/lib.rs");
         assert_eq!(got[0].kind, ChangeKind::Other);
 
         // 4. Quoted paths: git C-quotes anything with non-ASCII bytes, and a
         // quoted path must still match its prefix.
-        let got = ChangedPath::parse("M\t\"crates/vice-bench/src/\\303\\251.rs\"");
+        let got = ChangedPath::parse("M\t\"crates/vice-bench/src/\\303\\251.rs\"").unwrap();
         assert_eq!(got.len(), 1);
         assert!(
             got[0].path.starts_with("crates/"),
@@ -311,24 +374,35 @@ mod tests {
             got[0].path
         );
         assert!(got[0].path.ends_with("é.rs"), "{:?}", got[0].path);
-        let got = ChangedPath::parse("R100\t\"a/\\303\\251.rs\"\t\"b/\\303\\251.rs\"");
+        let got = ChangedPath::parse("R100\t\"a/\\303\\251.rs\"\t\"b/\\303\\251.rs\"").unwrap();
         assert_eq!(got.len(), 2);
         assert!(got[0].path.starts_with("a/") && got[1].path.starts_with("b/"));
 
         // 5. A bare path, which only a hand-written `--changed` produces.
-        let got = ChangedPath::parse("configs/GATES_V1.toml");
+        let got = ChangedPath::parse("configs/GATES_V1.toml").unwrap();
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].kind, ChangeKind::Other);
         assert_eq!(got[0].path, "configs/GATES_V1.toml");
-        let got = ChangedPath::parse("A  configs/GATES_V1.toml");
+        let got = ChangedPath::parse("A  configs/GATES_V1.toml").unwrap();
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].path, "configs/GATES_V1.toml");
         assert_eq!(got[0].kind, ChangeKind::Added);
 
         // 6. Blank input yields nothing.
         for blank in ["", "   ", "\t", "\r\n"] {
-            assert!(ChangedPath::parse(blank).is_empty(), "{blank:?}");
+            assert!(ChangedPath::parse(blank).unwrap().is_empty(), "{blank:?}");
         }
+
+        // 7. An UNRECOGNIZED form is refused, not read as a path. This is
+        // the half that used to be a silent pass (M35-N6).
+        assert_eq!(
+            ChangedPath::parse("M\0configs/GATES_V1.toml\0"),
+            Err(UnrecognizedForm::NulSeparated)
+        );
+        assert!(matches!(
+            ChangedPath::parse("R100\tconfigs/GATES_V1.toml"),
+            Err(UnrecognizedForm::TruncatedRename { .. })
+        ));
     }
 
     /// The rule ITSELF, over the whole class: renaming or copying an
@@ -338,7 +412,10 @@ mod tests {
     #[test]
     fn renaming_or_copying_a_gate_file_with_code_is_a_violation() {
         let parse_all = |lines: &[&str]| -> Vec<ChangedPath> {
-            lines.iter().flat_map(|l| ChangedPath::parse(l)).collect()
+            lines
+                .iter()
+                .flat_map(|l| ChangedPath::parse(l).expect("a declared form"))
+                .collect()
         };
 
         // The reviewer's exact repro, which used to exit 0.
@@ -383,6 +460,37 @@ mod tests {
             "A\tcrates/vice-bench/src/gates.rs",
         ]))
         .is_none());
+    }
+
+    /// The two-commit bypass of REVIEW_M3_5 M35-N6: delete the gate file in
+    /// one commit, re-add it with the code in the next. Every commit is
+    /// individually legal against its own parent, and the frozen value
+    /// changes anyway. Judged against the BASE OF THE PUSH it is a
+    /// violation, and judged without a base it is still the named exemption
+    /// - which is why the base has to be passed rather than inferred.
+    #[test]
+    fn re_adding_a_gate_that_existed_at_the_push_base_is_not_a_creation() {
+        let readded = [
+            ChangedPath::added("configs/GATES_V1.toml"),
+            ChangedPath::modified("crates/vice-bench/src/lib.rs"),
+        ];
+        // Without a base: the commit looks like the C072 exemption.
+        assert!(same_commit_violation(&readded).is_none());
+        // With the base: the gate existed before the push, so re-adding it
+        // beside code is the change §27.7 forbids.
+        let base = vec!["configs/GATES_V1.toml".to_string()];
+        let (gate, feature) = same_commit_violation_with_base(&readded, &base)
+            .expect("re-adding an existing gate with code is a violation");
+        assert_eq!(gate, "configs/GATES_V1.toml");
+        assert!(feature.starts_with("crates/"));
+        // Control: a gate path that did NOT exist at the base keeps the
+        // exemption, so a genuinely new gate can still be created with its
+        // loader.
+        assert!(same_commit_violation_with_base(&readded, &[]).is_none());
+        assert!(
+            same_commit_violation_with_base(&readded, &["configs/OTHER.toml".to_string()])
+                .is_none()
+        );
     }
 
     /// The change set that actually shipped in M3: C072 created the gate

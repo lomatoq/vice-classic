@@ -15,8 +15,9 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use vice_bench::artifact;
 use vice_bench::corridor::{self, CorridorScope};
-use vice_bench::gates::{same_commit_violation, ChangedPath, GatesFile};
+use vice_bench::gates::{same_commit_violation_with_base, ChangedPath, GatesFile};
 use vice_bench::gt::corpus::{build_manifest, fast_cell_filter, test_cell_filter, CorpusManifest};
 use vice_bench::gt::split::{AuditSeal, SPLIT_POLICY_V1};
 use vice_bench::oracle::{self, OracleScope};
@@ -169,6 +170,16 @@ enum Cmd {
     GatesCheck {
         #[arg(long = "changed")]
         changed: Vec<String>,
+        /// Gate paths that ALREADY EXISTED at the base of the push.
+        ///
+        /// The exemption "a gate that does not exist cannot be weakened" is
+        /// about existence, and a commit's own parent is not the right place
+        /// to ask: deleting the gate file in one commit and re-adding it
+        /// with the code in the next is legal per commit and changes the
+        /// frozen value anyway (REVIEW_M3_5 M35-N6). CI passes the gate
+        /// paths that exist at `github.event.before`.
+        #[arg(long = "existing-gate")]
+        existing_gate: Vec<String>,
         /// Read `git diff --name-status` lines from stdin as well. This is
         /// what CI uses, so the check can cover the whole pushed range
         /// rather than one commit.
@@ -644,21 +655,18 @@ fn real_main() -> i32 {
                     return 2;
                 }
             };
-            let here = serde_json::json!({
-                "os": std::env::consts::OS,
-                "arch": std::env::consts::ARCH,
-            });
-            let recorded_platform = recorded.get("platform").cloned().unwrap_or_default();
-            let same_platform = recorded_platform == here;
-            if !same_platform && !structural {
-                eprintln!(
-                    "error: this corridor report records metrics for platform \
-                     {recorded_platform}, and this is {here}. The metrics are libm-derived \
-                     floats and therefore TIER A (spec 5.5, ADR-0008). Re-run on the recording \
-                     platform, or pass --structural to compare the platform-independent \
-                     projection."
-                );
-                return 2;
+            // The platform refusal is CHEAP and comes first: rebuilding for
+            // minutes before refusing turns a typed refusal into a wait
+            // (REVIEW_M3 M3-D2).
+            if recorded.get("platform") != Some(&artifact::platform_here()) && !structural {
+                return artifact::check(
+                    "corridor report",
+                    &recorded,
+                    &recorded,
+                    false,
+                    corridor::report::structural_projection,
+                )
+                .exit_code();
             }
             let scope = match recorded["config"]["scope"].as_str() {
                 Some("full") => CorridorScope::Full,
@@ -678,22 +686,14 @@ fn real_main() -> i32 {
             let rebuilt: serde_json::Value =
                 serde_json::from_str(&corridor::report::build(&run).canonical_json())
                     .expect("round trip");
-            let (a, b, mode) = if structural && !same_platform {
-                (
-                    corridor::report::structural_projection(&recorded),
-                    corridor::report::structural_projection(&rebuilt),
-                    "STRUCTURALLY across platforms (metrics NOT compared - they are Tier A)",
-                )
-            } else {
-                (recorded, rebuilt, "with every metric compared")
-            };
-            if a == b {
-                println!("corridor report reproduced {mode}");
-                0
-            } else {
-                eprintln!("corridor report did NOT reproduce {mode}");
-                1
-            }
+            artifact::check(
+                "corridor report",
+                &recorded,
+                &rebuilt,
+                structural,
+                corridor::report::structural_projection,
+            )
+            .exit_code()
         }
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {
@@ -706,21 +706,15 @@ fn real_main() -> i32 {
             // The platform refusal is CHEAP and therefore comes first: the
             // corpus `verify` used to rebuild for minutes before refusing
             // (REVIEW_M3 M3-D2), which turns a typed refusal into a wait.
-            let here = serde_json::json!({
-                "os": std::env::consts::OS,
-                "arch": std::env::consts::ARCH,
-            });
-            let recorded_platform = recorded.get("platform").cloned().unwrap_or_default();
-            let same_platform = recorded_platform == here;
-            if !same_platform && !structural {
-                eprintln!(
-                    "error: this oracle report records metrics for platform \
-                     {recorded_platform}, and this is {here}. The metrics are libm-derived \
-                     floats and therefore TIER A (spec 5.5, ADR-0008). Re-run on the recording \
-                     platform, or pass --structural to compare the platform-independent \
-                     projection."
-                );
-                return 2;
+            if recorded.get("platform") != Some(&artifact::platform_here()) && !structural {
+                return artifact::check(
+                    "oracle report",
+                    &recorded,
+                    &recorded,
+                    false,
+                    oracle::report::structural_projection,
+                )
+                .exit_code();
             }
             let scope = match recorded["config"]["scope"].as_str() {
                 Some("full") => OracleScope::Full,
@@ -740,24 +734,20 @@ fn real_main() -> i32 {
             let rebuilt: serde_json::Value =
                 serde_json::from_str(&oracle::report::build(&run).canonical_json())
                     .expect("round trip");
-            let (a, b, mode) = if structural && !same_platform {
-                (
-                    oracle::report::structural_projection(&recorded),
-                    oracle::report::structural_projection(&rebuilt),
-                    "STRUCTURALLY across platforms (metrics NOT compared - they are Tier A)",
-                )
-            } else {
-                (recorded, rebuilt, "with every metric compared")
-            };
-            if a == b {
-                println!("oracle report reproduced {mode}");
-                0
-            } else {
-                eprintln!("oracle report did NOT reproduce {mode}");
-                1
-            }
+            artifact::check(
+                "oracle report",
+                &recorded,
+                &rebuilt,
+                structural,
+                oracle::report::structural_projection,
+            )
+            .exit_code()
         }
-        Cmd::GatesCheck { changed, stdin } => {
+        Cmd::GatesCheck {
+            changed,
+            stdin,
+            existing_gate,
+        } => {
             let mut lines: Vec<String> = changed;
             if stdin {
                 let mut buf = String::new();
@@ -765,11 +755,28 @@ fn real_main() -> i32 {
                     eprintln!("error: read stdin: {e}");
                     return 2;
                 }
+                // Split on lines only AFTER the NUL check: the whole point
+                // of the refusal is that `--name-status -z` has no lines.
+                if buf.contains(' ') {
+                    eprintln!(
+                        "error: {}",
+                        vice_bench::gates::UnrecognizedForm::NulSeparated
+                    );
+                    return 2;
+                }
                 lines.extend(buf.lines().map(|l| l.to_string()));
             }
-            let parsed: Vec<ChangedPath> =
-                lines.iter().flat_map(|l| ChangedPath::parse(l)).collect();
-            match same_commit_violation(&parsed) {
+            let mut parsed: Vec<ChangedPath> = Vec::new();
+            for l in &lines {
+                match ChangedPath::parse(l) {
+                    Ok(v) => parsed.extend(v),
+                    Err(e) => {
+                        eprintln!("error: {e}");
+                        return 2;
+                    }
+                }
+            }
+            match same_commit_violation_with_base(&parsed, &existing_gate) {
                 None => {
                     println!("no gate/feature co-change in {} path(s)", parsed.len());
                     0
