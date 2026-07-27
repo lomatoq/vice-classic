@@ -21,7 +21,11 @@ use super::{ArmKey, ArmRow, CorridorRun, RefusedArm, ScoredSample, SemiTranspare
 use crate::gt::corpus::Platform;
 use vice_evidence::corridor::COVERAGE_LEVELS;
 
-pub const CORRIDOR_REPORT_SCHEMA: &str = "vice-classic/m4-corridor-report/v1";
+/// v2 adds the over-opaque-layer population (REVIEW_M4 M4-N5). The shape of
+/// an artifact changed, so its schema does: a reader that pinned v1 must not
+/// silently accept a v2 document, even inside a milestone whose artifacts
+/// nothing outside this tree consumes yet.
+pub const CORRIDOR_REPORT_SCHEMA: &str = "vice-classic/m4-corridor-report/v2";
 
 /// Provisional clean-AA targets of §13.1. NOT frozen gates: §13.1 states
 /// them as provisional, `configs/GATES_V1.toml` `[boundary_accuracy]` is a
@@ -194,10 +198,15 @@ pub struct CorridorReport {
     pub step_invariance: Vec<(f64, f64)>,
     pub formation_recovery: FormationRecovery,
     pub semi_transparent: SemiTransparentSummary,
+    /// The OTHER §1.6 subclass — constant alpha over an opaque layer — named
+    /// and counted rather than left implicit (REVIEW_M4 M4-N5). Not part of
+    /// any gate row, and [`super::probes_1_6`] says why at length.
+    pub over_opaque_layer: super::probes_1_6::OverOpaqueLayerSummary,
     pub targets: Vec<(String, f64, f64, bool)>,
     pub arms: Vec<ArmRow>,
     pub refused: Vec<RefusedArm>,
     pub probes: Vec<SemiTransparentProbe>,
+    pub over_opaque_layer_probes: Vec<super::probes_1_6::OpaqueLayerProbe>,
     pub warnings: Vec<String>,
 }
 
@@ -364,6 +373,8 @@ pub fn build(run: &CorridorRun) -> CorridorReport {
         clean_arms: run.arms.len() as u64,
     };
 
+    let over_opaque_layer = super::probes_1_6::summarize(&run.over_opaque_layer);
+
     let targets = vec![
         (
             "held_out coverage@95 >= target".to_string(),
@@ -434,10 +445,12 @@ pub fn build(run: &CorridorRun) -> CorridorReport {
         step_invariance: run.step_invariance.clone(),
         formation_recovery,
         semi_transparent,
+        over_opaque_layer,
         targets,
         arms: run.arms.clone(),
         refused: run.refused.clone(),
         probes: run.probes.clone(),
+        over_opaque_layer_probes: run.over_opaque_layer.clone(),
         warnings,
     }
 }
@@ -490,6 +503,7 @@ impl CorridorReport {
         // corpus is NOT, which is the half that stops "reject everything"
         // from passing.
         let s = &self.semi_transparent;
+        let o = &self.over_opaque_layer;
         // §1.6 exactly: such an input is `unsupported` OR stays in a
         // competing model, and what it must NOT do is pass as an ordinary
         // two-colour coverage problem. So the condition is that NO
@@ -546,18 +560,42 @@ impl CorridorReport {
                 "semi-transparent interiors rejected",
                 semi_row,
                 format!(
-                    "{} of {} constant-alpha probes on a RESOLVED interior rejected under spec \
-                     1.6 ({} delivered as an ordinary two-colour reading); {} further probes sit \
-                     on shapes with no resolved interior, where a thinner opaque shape explains \
-                     the same bytes and the harness claims nothing ({} of those were rejected \
-                     anyway); and {} of {} clean corpus arms were rejected for this reason",
-                    s.rejected_where_observable,
+                    "SCOPE of this row: constant alpha over a TRANSPARENT exterior, on a shape \
+                     whose interior is RESOLVED, which is {} of {} probes. There, {} were \
+                     rejected under spec 1.6 and {} were delivered as an ordinary two-colour \
+                     reading. The other {} probes sit on shapes with no resolved interior, where \
+                     a thinner opaque shape explains the same bytes: {} of those were rejected \
+                     anyway and {} were delivered as two-colour, and the harness claims neither \
+                     as a result. {} of {} clean corpus arms were rejected for this reason. \
+                     SEPARATELY, and outside this row, {} probes put the same ink at constant \
+                     alpha over an OPAQUE layer, the subclass spec 1.6 names literally: {} came \
+                     back as two-colour and {} as something else. That is neither a pass nor a \
+                     failure: on the {} probes whose arm has ONE ink, the composite was compared \
+                     with the two-colour scene of face beta*F+(1-beta)*B and {} are identical, \
+                     {} are within one code and the largest difference is {} code(s), which is \
+                     spec 1.5 information loss, measured — and {} of those were rejected under \
+                     1.6, i.e. the detector does not fire on inputs that ARE two-colour. The \
+                     remaining {} probes sit on multi-ink arms, where the equivalent authoring \
+                     has more than two faces and the harness constructs none, so it claims \
+                     nothing about them",
                     s.probes_observable,
+                    s.probes,
+                    s.rejected_where_observable,
                     s.delivered_as_two_colour_where_observable,
                     s.probes_unobservable,
                     s.rejected - s.rejected_where_observable,
+                    s.delivered_as_two_colour - s.delivered_as_two_colour_where_observable,
                     s.clean_arms_rejected,
-                    s.clean_arms
+                    s.clean_arms,
+                    o.probes,
+                    o.delivered_as_two_colour,
+                    o.other_outcomes,
+                    o.single_ink_probes,
+                    o.single_ink_byte_identical,
+                    o.single_ink_within_one_code,
+                    o.single_ink_max_byte_difference,
+                    o.single_ink_rejected_as_semi_transparent,
+                    o.multi_ink_probes
                 ),
             ),
         ]
@@ -612,6 +650,24 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
             })
         })
         .collect();
+    // The over-opaque-layer probes travel as OUTCOMES only. The byte
+    // difference is an integer, but it is computed through sRGB transfer
+    // functions, so it is a function of libm and F-0022 keeps it out.
+    let layer: Vec<serde_json::Value> = v["over_opaque_layer_probes"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|p| {
+            serde_json::json!({
+                "scene_id": p["scene_id"],
+                "cell_id": p["cell_id"],
+                "alpha": p["alpha"],
+                "outcome": p["outcome"],
+                "rejected_as_semi_transparent": p["rejected_as_semi_transparent"],
+            })
+        })
+        .collect();
     serde_json::json!({
         "schema": v["schema"],
         "milestone": v["milestone"],
@@ -625,6 +681,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "held_out_profiles": v["held_out_profiles"],
         "arms": arms,
         "probes": probes,
+        "over_opaque_layer_probes": layer,
         "refused": v["refused"],
     })
 }

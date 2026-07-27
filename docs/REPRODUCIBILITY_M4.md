@@ -81,6 +81,7 @@ inverse crime, типизированные отказы и `config_hash`; он�
 | покрытие/резкость по 7 осям | `buckets` | условная калибровка §13.1 |
 | held-out растеризатор | `held_out` | tiny-skia, которого split-политика не пускает ни в development, ни в калибровку замороженных коэффициентов |
 | §1.6-пробы | `probes` | каждая — отдельная строка с исходом |
+| §1.6-пробы над непрозрачным слоем | `over_opaque_layer_probes` | вторая подкласс-популяция: исход И расхождение с two-colour сценой, в клаузу НЕ входит |
 | arms oracle | `ceiling_arms` | PF10 и PF11 как отдельные плечи |
 | 6 факториалов × 3 эффекта | `factorial` | каждый — commensurable contrast либо типизированный отказ |
 | гейт-таблицы §28 M4 | вывод команд | ненулевой exit при провале любой клаузы |
@@ -118,6 +119,16 @@ Float-ы округлены до четырёх знаков и сверяютс
 | доставлено как two-colour среди разрешимых | `corridor:semi_transparent.delivered_as_two_colour_where_observable` | 0 |
 | доставлено как two-colour ВСЕГО | `corridor:semi_transparent.delivered_as_two_colour` | 26 |
 | чистых arms отвергнуто по §1.6 | `corridor:semi_transparent.clean_arms_rejected` | 0 |
+| проб «постоянная α НАД НЕПРОЗРАЧНЫМ слоем» | `corridor:over_opaque_layer.probes` | 1191 |
+| из них доставлено как two-colour | `corridor:over_opaque_layer.delivered_as_two_colour` | 790 |
+| прочие исходы (palette / no-hypothesis / ambiguous) | `corridor:over_opaque_layer.other_outcomes` | 391 |
+| отвергнуто по §1.6 | `corridor:over_opaque_layer.rejected_as_semi_transparent` | 10 |
+| проб на arms с ОДНОЙ краской | `corridor:over_opaque_layer.single_ink_probes` | 918 |
+| проб на arms с несколькими красками | `corridor:over_opaque_layer.multi_ink_probes` | 273 |
+| из одночернильных отвергнуто по §1.6 | `corridor:over_opaque_layer.single_ink_rejected_as_semi_transparent` | 0 |
+| побайтово совпало с two-colour сценой | `corridor:over_opaque_layer.single_ink_byte_identical` | 143 |
+| совпало в пределах одного кода | `corridor:over_opaque_layer.single_ink_within_one_code` | 918 |
+| макс. расхождение с two-colour сценой, кодов | `corridor:over_opaque_layer.single_ink_max_byte_difference` | 1 |
 | supported arms | `corridor:formation_recovery.supported_arms` | 342 |
 | из них с неверным exterior | `corridor:formation_recovery.exterior_wrong` | 0 |
 | arms oracle | `oracle:arms_measured` | 1162 |

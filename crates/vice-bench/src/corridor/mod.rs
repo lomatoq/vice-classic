@@ -44,12 +44,14 @@
 //! report a distance smaller than the truth — an error in the flattering
 //! direction, which is the one worth engineering against.
 
+pub mod probes_1_6;
 pub mod report;
 pub mod truth;
 
 #[cfg(test)]
 mod tests;
 
+pub use probes_1_6::SemiTransparentProbe;
 pub use truth::{gt_segments, SegmentIndex};
 
 use serde::Serialize;
@@ -278,24 +280,6 @@ pub struct RefusedArm {
     pub reason: String,
 }
 
-/// Result of the §1.6 probe on one arm.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct SemiTransparentProbe {
-    pub scene_id: String,
-    pub cell_id: String,
-    pub alpha: f64,
-    pub outcome: String,
-    pub rejected_as_semi_transparent: bool,
-    pub largest_region_px: Option<u64>,
-    /// True when the UNMODIFIED arm has a resolved interior, which is the
-    /// condition under which scaling its alpha is observable at all: a
-    /// full-coverage plateau scaled by beta becomes a plateau at beta, and
-    /// no opaque geometry can produce one. Without a plateau to scale there
-    /// is nothing to see, and a thinner shape explains the same bytes
-    /// (§1.5 information loss).
-    pub observable: bool,
-}
-
 /// Everything one run measured.
 #[derive(Debug, Clone)]
 pub struct CorridorRun {
@@ -308,6 +292,9 @@ pub struct CorridorRun {
     pub samples: Vec<(ArmKey, ScoredSample)>,
     pub step_invariance: Vec<(f64, f64)>,
     pub probes: Vec<SemiTransparentProbe>,
+    /// The subclass 1.6 names literally, probed and counted SEPARATELY
+    /// (REVIEW_M4 M4-N5): see [`probes_1_6`].
+    pub over_opaque_layer: Vec<probes_1_6::OpaqueLayerProbe>,
     pub sealed_audit_groups_skipped: u64,
 }
 
@@ -385,6 +372,7 @@ pub fn run(scope: CorridorScope) -> Result<CorridorRun, String> {
     let policy = &SPLIT_POLICY_V1;
 
     let mut arms = Vec::new();
+    let mut over_opaque_layer = Vec::new();
     let mut refused = Vec::new();
     let mut samples = Vec::new();
     let mut probes = Vec::new();
@@ -419,10 +407,11 @@ pub fn run(scope: CorridorScope) -> Result<CorridorRun, String> {
                     continue;
                 }
                 match measure_arm(scene, cell, split, members, &mut step_acc) {
-                    Ok((row, mut s, probe)) => {
+                    Ok((row, mut s, probe, mut layer)) => {
                         arms.push(row);
                         samples.append(&mut s);
                         probes.extend(probe);
+                        over_opaque_layer.append(&mut layer);
                     }
                     Err(reason) => refused.push(RefusedArm {
                         scene_id: scene.id().to_string(),
@@ -448,6 +437,7 @@ pub fn run(scope: CorridorScope) -> Result<CorridorRun, String> {
             .map(|(s, inside, total)| (s, if total > 0.0 { inside / total } else { 0.0 }))
             .collect(),
         probes,
+        over_opaque_layer,
         sealed_audit_groups_skipped: skipped_audit,
     })
 }
@@ -475,6 +465,7 @@ type ArmMeasurement = (
     ArmRow,
     Vec<(ArmKey, ScoredSample)>,
     Vec<SemiTransparentProbe>,
+    Vec<probes_1_6::OpaqueLayerProbe>,
 );
 
 fn measure_arm(
@@ -533,58 +524,41 @@ fn measure_arm(
         max_alpha_error: None,
     };
 
-    // The §1.6 probe: the SAME render with its alpha scaled, i.e. an
-    // authored layer of constant alpha over the same geometry.
-    // A probe is OBSERVABLE when the shape it scales has an interior thick
-    // enough for the plateau to be visible. The criterion is the same
-    // thickness the detector uses, applied to the arm's own ink: a shape
-    // that is everywhere thinner than the kernel has no plateau to scale,
-    // and a thinner opaque shape explains the scaled bytes.
-    let observable = out
-        .chosen
-        .as_ref()
-        .map(|ev| {
-            vice_evidence::formation::resolved_fraction(ev.alpha_field())
-                >= vice_evidence::formation::MIN_RESOLVED_FRACTION
-        })
-        .unwrap_or(false);
-    let mut probes = Vec::new();
-    if truth_exterior == ExteriorModel::Transparent {
-        for a in SEMI_TRANSPARENT_PROBE_ALPHAS {
-            let mut bytes = fixture.rgba8.clone();
-            for px in bytes.chunks_mut(4) {
-                px[3] = (f64::from(px[3]) * a).round() as u8;
-            }
-            let probe_img = CanonicalImage::from_straight_srgb8(
-                fixture.width_px,
-                fixture.height_px,
-                bytes,
-                true,
-                IccAssumption::NoProfileAssumedSrgb,
-            )
-            .map_err(|e| e.to_string())?;
-            let p = vice_evidence::analysis::analyze(&probe_img, &ANALYSIS_CONFIG_V1, None);
-            let (rejected, region) = match &p.outcome {
-                Flat2Outcome::Unsupported(UnsupportedReason::SemiTransparentInterior {
-                    detail,
-                    ..
-                }) => (true, Some(detail.largest_region_px)),
-                _ => (false, None),
-            };
-            probes.push(SemiTransparentProbe {
-                scene_id: scene.id().to_string(),
-                cell_id: cell.id(),
-                alpha: *a,
-                outcome: outcome_name(&p.outcome),
-                rejected_as_semi_transparent: rejected,
-                largest_region_px: region,
+    // §1.6 has TWO subclasses. Both are probed, and the probes live together
+    // in `probes_1_6` because the pair is the point: the same ink at the same
+    // constant alpha is decidable over a transparent exterior and not
+    // decidable over an opaque layer (REVIEW_M4 M4-N5).
+    let (probes, over_layer) = if truth_exterior == ExteriorModel::Transparent {
+        let observable = out
+            .chosen
+            .as_ref()
+            .map(|ev| {
+                vice_evidence::formation::resolved_fraction(ev.alpha_field())
+                    >= vice_evidence::formation::MIN_RESOLVED_FRACTION
+            })
+            .unwrap_or(false);
+        (
+            probes_1_6::scaled_alpha(
+                scene.id(),
+                &cell.id(),
+                &fixture,
+                SEMI_TRANSPARENT_PROBE_ALPHAS,
                 observable,
-            });
-        }
-    }
+            )?,
+            probes_1_6::over_opaque_layer(
+                scene.id(),
+                &cell.id(),
+                &fixture,
+                cell.blend,
+                SEMI_TRANSPARENT_PROBE_ALPHAS,
+            )?,
+        )
+    } else {
+        (Vec::new(), Vec::new())
+    };
 
     let Some(ev) = out.chosen else {
-        return Ok((row, Vec::new(), probes));
+        return Ok((row, Vec::new(), probes, over_layer));
     };
     row.exterior_recovered = Some(exterior_name(ev.formation.exterior));
     row.blend_recovered = Some(blend_name(ev.formation.blend_space));
@@ -651,7 +625,7 @@ fn measure_arm(
 
     let index = SegmentIndex::new(gt_segments(scene, cell));
     if index.is_empty() {
-        return Ok((row, Vec::new(), probes));
+        return Ok((row, Vec::new(), probes, over_layer));
     }
 
     // The sample-step invariance of §13.1: the same arm at three steps.
@@ -772,5 +746,5 @@ fn measure_arm(
     }
     row.median_halfwidth_px = pick(&hws, 0.5);
     row.p95_distance_px = pick(&dists, 0.95);
-    Ok((row, out_samples, probes))
+    Ok((row, out_samples, probes, over_layer))
 }
