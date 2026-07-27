@@ -13,14 +13,25 @@ use crate::gt::corpus::Platform;
 
 pub const TOPOLOGY_REPORT_SCHEMA: &str = "vice-classic/topology-report/v1";
 
-/// Population thresholds of the §28 M4.5 gate rows.
+/// The population thresholds the CODE expects, and the anchor of the claim that
+/// ties them to `configs/GATES_V1.toml`.
 ///
-/// Named constants rather than literals in the conjunction, and registered in
-/// `configs/GATES_V1.toml` under `[topology]`, because they decide whether a
-/// spec clause is green and they live in the file a feature commit edits.
-/// RT45-A5 lowered `MIN_RECALL_ARMS` to 1 and shrank the envelope budget in
-/// ONE commit and `gates-check` returned exit 0: §27.7's second sentence had
-/// nothing to act on. It does now.
+/// These are no longer what the gate rows compare against — that is
+/// [`super::gate::TopologyGateConfig`], loaded from the file (RT45-A10). Their
+/// job now is one half of a ratchet, and the halves are deliberately in
+/// different files:
+///
+/// - change the constant without the file, and the claims check in
+///   `gates/mod.rs` fails because code and file disagree;
+/// - change the file without the constant, and it fails for the same reason;
+/// - change both, and §27.7 refuses the commit, because a gate file and
+///   production code may not move together.
+///
+/// RT45-A5 lowered `MIN_RECALL_ARMS` to 1 and shrank the envelope budget in ONE
+/// commit and `gates-check` returned exit 0: §27.7's second sentence had
+/// nothing to act on. It does now, and RT45-A10's follow-up — that the row read
+/// the constant rather than the file, so the registration was of the SPELLING —
+/// is why the row no longer reads these at all.
 pub const MIN_RECALL_ARMS: u32 = 20;
 /// Breadth in SHAPE FAMILIES, the unit §27.1 keeps splits by (M45-N3).
 pub const MIN_RECALL_SHAPE_FAMILIES: u32 = 5;
