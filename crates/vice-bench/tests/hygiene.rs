@@ -704,8 +704,8 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
 /// make the gate file a list of zeroes.
 #[test]
 fn every_threshold_in_a_gate_row_is_registered_in_the_gate_file() {
-    let src = std::fs::read_to_string(repo_root().join("crates/vice-bench/src/topology/report.rs"))
-        .expect("the report module");
+    let src = std::fs::read_to_string(repo_root().join("crates/vice-bench/src/topology/gate.rs"))
+        .expect("the gate-row module");
     let body = src
         .split_once("pub fn gate_table(")
         .expect("gate_table exists")

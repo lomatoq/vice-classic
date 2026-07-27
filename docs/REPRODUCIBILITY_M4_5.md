@@ -103,6 +103,14 @@ Float-ы округлены до четырёх знаков и сверяютс
 | из скольких | `topology:recall_unrelated_field_non_trivial.arms` | 31 |
 | arms, чья GT-топология НЕ тривиальна | `topology:non_trivial_gt_arms` | 31 |
 | на них recall | `topology:recall_non_trivial.hits` | 31 |
+| ПОЛОЖИТЕЛЬНЫЙ контроль нокаута: попадания на тривиальных | `topology:recall_unrelated_field_trivial.hits` | 69 |
+| из скольких | `topology:recall_unrelated_field_trivial.arms` | 69 |
+| arms, нетривиальные под ОБЕИМИ конвенциями | `topology:non_trivial_gt_arms_both_conventions` | 24 |
+| их shape-семейств | `topology:non_trivial_both_shape_families_count` | 2 |
+| на них recall настоящего конверта | `topology:recall_non_trivial_both_conventions.hits` | 24 |
+| из скольких | `topology:recall_non_trivial_both_conventions.arms` | 24 |
+| на них НОКАУТ | `topology:recall_unrelated_field_non_trivial_both.hits` | 0 |
+| из скольких | `topology:recall_unrelated_field_non_trivial_both.arms` | 24 |
 | arms, несущие ОБА плеча связности | `topology:arms_with_both_connectivity_arms` | 100 |
 | arms, где одно плечо не дало ничего | `topology:arms_missing_a_connectivity_arm` | 0 |
 | ambiguity-пар в корпусе всего | `topology:ambiguity_pairs` | 3 |
@@ -164,6 +172,14 @@ Float-ы округлены до четырёх знаков и сверяютс
 | row T1d | 18 | `topology:recall_unrelated_field_non_trivial.arms` |
 | row T1d | 19 | `topology:sealed_audit_groups_skipped` |
 | row T1d | 20 | `topology:arms_refused` |
+| row T1d | 21 | `topology:non_trivial_gt_arms_both_conventions` |
+| row T1d | 22 | `topology:non_trivial_both_shape_families_count` |
+| row T1d | 23 | `topology:recall_non_trivial_both_conventions.hits` |
+| row T1d | 24 | `topology:recall_non_trivial_both_conventions.arms` |
+| row T1d | 25 | `topology:recall_unrelated_field_non_trivial_both.hits` |
+| row T1d | 26 | `topology:recall_unrelated_field_non_trivial_both.arms` |
+| row T1d | 27 | `topology:recall_unrelated_field_trivial.hits` |
+| row T1d | 28 | `topology:recall_unrelated_field_trivial.arms` |
 | row T2d | 1 | `topology:topology_pairs_carrying_the_row` |
 | row T2d | 2 | `topology:topology_pairs` |
 | row T2d | 3 | `topology:ambiguity_pairs` |

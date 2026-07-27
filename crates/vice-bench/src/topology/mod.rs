@@ -49,6 +49,7 @@
 //! the form condition C2 asked of the §1.6 clause.
 
 pub mod ambiguity;
+pub mod gate;
 pub mod independent;
 pub mod report;
 
@@ -69,6 +70,25 @@ use crate::gt::GtScene;
 use crate::hashing::sha256_hex;
 
 pub const TOPOLOGY_RUN_SCHEMA: &str = "vice-classic/topology-recall/v1";
+
+/// Radius of the knockout disk, as a fraction of `min(width, height)`.
+///
+/// RT45-A12: this was the literal `0.3` in the middle of `measure_arm`, and it
+/// decides whether the §28 M4.5 clause-1 control measures anything. Setting it
+/// to `0.0001` empties the unrelated field, takes the knockout to 0 of 100 and
+/// left the clause MET — a number that can switch a gate control off is a gate
+/// number, and §27.7 wants gate numbers in the frozen file where a feature
+/// commit cannot move them alongside the code they judge.
+pub const KNOCKOUT_DISK_RADIUS_FRACTION: f64 = 0.3;
+
+/// The coverage level at which exact ink becomes inside/outside for the ground
+/// truth (§5.3 majority rule).
+///
+/// Registered for the same reason and a stronger one: this constant does not
+/// tune a control, it defines the TRUTH the whole clause is scored against.
+/// Moving it re-labels every fixture at once, and it must not be movable in the
+/// same commit as the code that is being scored.
+pub const GT_MAJORITY_LEVEL: f64 = 0.5;
 
 /// Cells the recall run covers.
 ///
@@ -372,7 +392,7 @@ pub(crate) fn gt_signature(
     conn: ComplementaryConnectivity,
 ) -> Result<GtSignature, String> {
     let ink = exact_ink_coverage(scene, t)?;
-    let inside: Vec<bool> = ink.iter().map(|v| *v >= 0.5).collect();
+    let inside: Vec<bool> = ink.iter().map(|v| *v >= GT_MAJORITY_LEVEL).collect();
     let s = independent::signature_of(&inside, t.width_px as usize, t.height_px as usize, conn);
     Ok(GtSignature {
         components: s.components,
@@ -580,12 +600,12 @@ fn measure_arm(
         .any(|c| !c.ambiguity.level_from_fixed_probe_only);
 
     // The KNOCKOUT: the same generator on a field that is not this scene.
-    // A centred disk of radius 0.3 min(w, h) — no palette, no formation and
-    // no pixel of the render enters it.
+    // A centred disk of radius KNOCKOUT_DISK_RADIUS_FRACTION·min(w, h) — no
+    // palette, no formation and no pixel of the render enters it.
     let (kw, kh) = (ev.width_px() as usize, ev.height_px() as usize);
     let unrelated: Vec<f64> = {
         let (cx, cy) = (kw as f64 / 2.0, kh as f64 / 2.0);
-        let r = 0.3 * (kw.min(kh) as f64);
+        let r = KNOCKOUT_DISK_RADIUS_FRACTION * (kw.min(kh) as f64);
         (0..kw * kh)
             .map(|i| {
                 let (x, y) = ((i % kw) as f64 + 0.5, (i / kw) as f64 + 0.5);

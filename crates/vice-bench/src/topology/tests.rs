@@ -169,9 +169,20 @@ fn each_gate_row_can_fail() {
         a.candidates_by_arm = (2, 2);
         a.identifiability = "identifiable";
         a.outcome = "supported/box".into();
-        a.gt_four = GtSignature {
-            components: 1,
-            holes: 1,
+        // Every fourth arm has TRIVIAL ground truth. Without them the
+        // knockout's positive control would be measured over an empty
+        // population, and a control that is empty is the defect RT45-A12
+        // found rather than a test of it.
+        a.gt_four = if rep.arms.len().is_multiple_of(4) {
+            GtSignature {
+                components: 1,
+                holes: 0,
+            }
+        } else {
+            GtSignature {
+                components: 1,
+                holes: 1,
+            }
         };
         a.gt_eight = a.gt_four;
         a.gt_in_envelope = true;
@@ -213,6 +224,27 @@ fn each_gate_row_can_fail() {
             arms: n,
             hits: un,
             fraction: un as f64 / n as f64,
+        };
+        // The knockout's POSITIVE control, rebuilt the way `build` computes it:
+        // over arms that are a plain disk under BOTH conventions, which is
+        // where a centred disk is supposed to win.
+        let plain = |g: GtSignature| g.components == 1 && g.holes == 0;
+        let triv: Vec<&&TopologyArm> = pop
+            .iter()
+            .filter(|a| plain(a.gt_four) && plain(a.gt_eight))
+            .collect();
+        let tun = triv
+            .iter()
+            .filter(|a| a.gt_in_envelope_unrelated_field)
+            .count() as u64;
+        r.recall_unrelated_field_trivial = report::Recall {
+            arms: triv.len() as u64,
+            hits: tun,
+            fraction: if triv.is_empty() {
+                0.0
+            } else {
+                tun as f64 / triv.len() as f64
+            },
         };
         r.arms_missing_a_connectivity_arm = pop
             .iter()
@@ -290,6 +322,36 @@ fn each_gate_row_can_fail() {
     assert!(
         !knockout_ties.gate_table()[0].1,
         "if an unrelated field scored the same as the real one, row 1 would not be a measurement          and must say so"
+    );
+
+    // Row 1 fails when the knockout stops being a knockout — THE OTHER
+    // DIRECTION, and the one nobody checked (RT45-A12).
+    //
+    // `recall_unrelated_field.hits < recall_all.hits` is satisfied by a
+    // knockout that has been switched off. Shrinking the disk radius from 0.3
+    // to 0.0001 empties the unrelated field: it matches nothing, the conjunct
+    // above reads 0 < 40, and the clause stayed MET with its only control
+    // measuring nothing. A control knocked out only where it FAILS is half a
+    // control, and half a control is what an empty one looks like from the
+    // outside.
+    //
+    // The emulation is exact — an empty field matches no arm — and it is
+    // deliberately applied to EVERY arm, so it also cannot be dismissed as a
+    // sub-population artefact (meta-rule M-2).
+    let mut knockout_empty = base.clone();
+    for a in &mut knockout_empty.arms {
+        a.gt_in_envelope_unrelated_field = false;
+    }
+    let knockout_empty = rebuilt(&knockout_empty);
+    assert!(
+        knockout_empty.recall_unrelated_field.hits < knockout_empty.recall_all.hits,
+        "the OLD conjunct is still satisfied by the emptied knockout - which is the point: it \
+         cannot be the thing that catches this"
+    );
+    assert!(
+        !knockout_empty.gate_table()[0].1,
+        "an emptied knockout left row 1 green: the clause would be citing a control that measures \
+         nothing (RT45-A12)"
     );
 
     // Row 1 fails when an arm loses a connectivity arm: the clause relaxes its
