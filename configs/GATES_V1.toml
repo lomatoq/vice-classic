@@ -100,8 +100,31 @@ bits_per_anchor = 0.0
 bits_per_segment_family = 0.0
 bits_per_relation = 0.0
 
+# --- Observation noise (§17.1; measured in M4) -------------------------------
+# MEASURED, not chosen, on the development split by
+# `vice-bench::corridor::tests::the_clean_bucket_noise_scale_is_measured_on_the_development_split`:
+# the RMS disagreement about COVERAGE between the analytic family the M4
+# formation hypotheses predict and the antialiasing an independent engine
+# actually performed, over edge pixels. 9.54 codes against tiny-skia, 24.84
+# against raqote, 18.81 pooled; pooled is what is frozen, because at
+# inference time nothing says which engine drew the image.
+#
+# It is in the COVERAGE domain, so unlike quantization it is NOT divided by
+# the mixture conditioning. Getting that wrong is what made the first
+# corridor two to three times too narrow (FAILURE_LEDGER F-0023).
+#
+# Consumer: `vice_evidence::corridor::CLEAN_BUCKET_SIGMA_CODES`, cross-checked
+# by `gates::tests::every_frozen_value_agrees_with_the_code_that_uses_it`.
 [noise_scales]
-status = "placeholder"
+status = "frozen"
 set_by_milestone = "M4"
-clean_bucket_sigma_codes = 0.0
+clean_bucket_sigma_codes = 18.8
+
+# The degraded bucket of §17.1 is a robust mixture with a codec/outlier
+# component, and no measurement supports it yet: JPEG/WebP arrive with M9
+# (§27.2, §28 M9). Declared as a placeholder with its owner rather than
+# invented, which is the same rule the M3 tables followed.
+[noise_scales_degraded]
+status = "placeholder"
+set_by_milestone = "M9"
 degraded_bucket_sigma_codes = 0.0
