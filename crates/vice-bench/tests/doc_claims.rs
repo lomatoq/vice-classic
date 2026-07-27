@@ -89,17 +89,72 @@ const CLAUSE_ROWS: &[(&str, &[&str])] = &[
 /// POSITIONAL tier: the i-th number of the row must EQUAL the i-th declared
 /// key, not merely appear somewhere in the artifacts.
 ///
-/// M45-N11 and RT45-A4 are the same attack from two cold contexts: 78 declared
-/// values include many small integers, so a false measurement can almost
-/// always be assembled out of somebody else's numbers. Swapping `31` for `56`
-/// in the row that reports spec clause 1 left all four tests green, and so did
+/// M45-N11 and RT45-A4 are the same attack from two cold contexts: the declared
+/// values include many small integers, so a false measurement can almost always
+/// be assembled out of somebody else's numbers. Swapping `31` for `56` in the
+/// row that reports spec clause 1 left all four tests green, and so did
 /// rewriting "recall 100 of 100" as "recall 56 of 132 ... budget lost 2".
 ///
-/// The specification lives in `docs/REPRODUCIBILITY_M4_5.md`, where every
-/// other declared quantity lives, and the test reads it rather than carrying a
-/// second copy that could drift from it.
-const POSITIONAL_ROWS: &[(&str, &[&str])] =
-    &[("docs/STATUS_M4_5.md", &["| T1d ", "| T2d ", "| T3d "])];
+/// RT45-A11 is that the fix covered the WRONG ROWS. `T1d/T2d/T3d` were listed
+/// here by hand and bound; `T1/T2/T3` — the rows that say "клауза спеки" in so
+/// many words — stayed under membership, and the attack went through them in
+/// silence. A hand-list of row ids is the same shape of defect as a hand-list of
+/// function names (M-1), and it failed the same way.
+///
+/// So the set is DERIVED, from what a row says about itself. A row belongs to
+/// the positional tier when it reports one of the three §28 M4.5 clauses BY
+/// NAME, and the three names come from the spec rather than from this file's
+/// opinion. Any future row reporting a clause is covered the day it is written,
+/// in any document under check.
+const SPEC_CLAUSE_NAMES: &[&str] = &[
+    "GT-equivalent topology present in envelope",
+    "Ambiguous fixtures retain alternatives",
+    "No magic-threshold-only architecture",
+];
+
+/// Documents whose gate tables are under the positional tier.
+///
+/// `STATUS_M4` is deliberately absent and it is not an oversight: it is signed,
+/// it may only receive an addendum, and its rows cannot be rewritten into the
+/// positional form. It stays under membership, which is what `CLAUSE_ROWS`
+/// says.
+const POSITIONAL_DOCS: &[&str] = &["docs/STATUS_M4_5.md"];
+
+/// A gate table is a markdown table with this header. Both the milestone table
+/// and the delta table carry it, so the derivation does not have to know that
+/// there are two.
+const GATE_TABLE_HEADER: &[&str] = &["", "#", "Gate", "Статус", "Evidence", ""];
+
+/// Every gate-table row that reports a spec clause, as (document, row prefix).
+///
+/// Derived, never listed. The non-vacuity assertions in the test are what stop
+/// this from silently returning nothing.
+fn spec_clause_rows() -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    for doc in POSITIONAL_DOCS {
+        let Ok(text) = std::fs::read_to_string(repo_root().join(doc)) else {
+            continue;
+        };
+        let mut in_gate_table = false;
+        for line in text.lines() {
+            let Some(cells) = table_cells(line) else {
+                in_gate_table = false;
+                continue;
+            };
+            if cells == GATE_TABLE_HEADER {
+                in_gate_table = true;
+                continue;
+            }
+            if !in_gate_table || cells.len() < 5 {
+                continue;
+            }
+            if SPEC_CLAUSE_NAMES.iter().any(|n| cells[2].contains(n)) {
+                out.push((*doc, format!("| {} ", cells[1])));
+            }
+        }
+    }
+    out
+}
 
 /// Artifact file names, by the prefix a declared key uses.
 fn artifact_file(kind: &str) -> Option<&'static str> {
@@ -465,12 +520,26 @@ fn the_delta_clause_rows_equal_their_declared_keys_position_by_position() {
         "only {} positional bindings declared; the specification table is not being read",
         spec.len()
     );
+    let rows_under_check = spec_clause_rows();
+    assert!(
+        rows_under_check.len() >= 6,
+        "only {} spec-clause rows derived ({rows_under_check:?}); the derivation is not reading          the gate tables and this test would check nothing",
+        rows_under_check.len()
+    );
+    for name in SPEC_CLAUSE_NAMES {
+        assert!(
+            rows_under_check.len() >= 2,
+            "clause {name:?} must be reported by at least the milestone row and the delta row"
+        );
+    }
     let mut checked = 0;
-    for (doc, prefixes) in POSITIONAL_ROWS {
+    for (doc, prefix) in &rows_under_check {
+        let doc: &str = doc;
+        let prefix: &str = prefix;
         let Ok(text) = std::fs::read_to_string(repo_root().join(doc)) else {
             continue;
         };
-        for prefix in *prefixes {
+        {
             let rows: Vec<&str> = text.lines().filter(|l| l.starts_with(prefix)).collect();
             assert_eq!(
                 rows.len(),

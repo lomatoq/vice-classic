@@ -152,6 +152,26 @@ Float-ы округлены до четырёх знаков и сверяютс
 
 | строка | позиция | ключ |
 |---|---|---|
+| row T1 | 1 | `topology:identifiable_supported_arms` |
+| row T1 | 2 | `topology:arms_measured` |
+| row T1 | 3 | `topology:recall_source_groups` |
+| row T1 | 4 | `topology:opaque_exterior_arms_excluded` |
+| row T1 | 5 | `topology:recall_all.hits` |
+| row T1 | 6 | `topology:recall_all.arms` |
+| row T1 | 7 | `topology:recall_non_trivial.arms` |
+| row T1 | 8 | `topology:recall_non_trivial.hits` |
+| row T1 | 9 | `topology:pruning.arms_where_budget_pruning_lost_the_last_gt_candidate` |
+| row T1 | 10 | `topology:sealed_audit_groups_skipped` |
+| row T1 | 11 | `topology:arms_refused` |
+| row T2 | 1 | `topology:topology_pairs` |
+| row T2 | 2 | `topology:ambiguity_pairs` |
+| row T2 | 3 | `topology:ambiguity.1.collapse_max_code_diff` |
+| row T2 | 4 | `topology:ambiguity.0.collapse_max_code_diff` |
+| row T3 | 1 | `topology:recall_events_only.hits` |
+| row T3 | 2 | `topology:recall_fixed_only.hits` |
+| row T3 | 3 | `topology:saddle_alternatives_total` |
+| row T3 | 4 | `topology:tie_batches_max` |
+| row T3 | 5 | `topology:largest_batch_pixels` |
 | row T1d | 1 | `topology:identifiable_supported_arms` |
 | row T1d | 2 | `topology:arms_measured` |
 | row T1d | 3 | `topology:recall_shape_families` |
