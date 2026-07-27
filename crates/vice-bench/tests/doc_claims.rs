@@ -66,10 +66,31 @@ const DECLARING_DOCS: &[&str] = &["docs/REPRODUCIBILITY_M4.md", "docs/REPRODUCIB
 
 /// The gate tables whose CLAUSE rows may quote only declared numbers, with
 /// the row prefixes that identify them.
+///
+/// MEMBERSHIP tier: every numeric token must be one of the declared values.
+/// It catches the historical F-0028 shape — a number left over from an older
+/// run — and it is what `STATUS_M4` is held to, because a signed document may
+/// only receive an addendum and its rows cannot be rewritten into the
+/// positional form below.
 const CLAUSE_ROWS: &[(&str, &[&str])] = &[
     ("docs/STATUS_M4.md", &["| G7 ", "| G8 ", "| G9 ", "| G10 "]),
     ("docs/STATUS_M4_5.md", &["| T1 ", "| T2 ", "| T3 "]),
 ];
+
+/// POSITIONAL tier: the i-th number of the row must EQUAL the i-th declared
+/// key, not merely appear somewhere in the artifacts.
+///
+/// M45-N11 and RT45-A4 are the same attack from two cold contexts: 78 declared
+/// values include many small integers, so a false measurement can almost
+/// always be assembled out of somebody else's numbers. Swapping `31` for `56`
+/// in the row that reports spec clause 1 left all four tests green, and so did
+/// rewriting "recall 100 of 100" as "recall 56 of 132 ... budget lost 2".
+///
+/// The specification lives in `docs/REPRODUCIBILITY_M4_5.md`, where every
+/// other declared quantity lives, and the test reads it rather than carrying a
+/// second copy that could drift from it.
+const POSITIONAL_ROWS: &[(&str, &[&str])] =
+    &[("docs/STATUS_M4_5.md", &["| T1d ", "| T2d ", "| T3d "])];
 
 /// Artifact file names, by the prefix a declared key uses.
 fn artifact_file(kind: &str) -> Option<&'static str> {
@@ -144,6 +165,7 @@ struct Claim {
 fn declared_claims() -> Vec<Claim> {
     let mut out = Vec::new();
     let mut key_bearing = 0usize;
+    let mut positional = 0usize;
     for doc in DECLARING_DOCS {
         let path = repo_root().join(doc);
         let Ok(text) = std::fs::read_to_string(&path) else {
@@ -152,11 +174,25 @@ fn declared_claims() -> Vec<Claim> {
             continue;
         };
         for (i, line) in text.lines().enumerate() {
+            let cells = table_cells(line);
+            // A positional-specification row (`| row T1d | 3 | key |`) also
+            // carries a key, in a different column, and is resolved by
+            // `positional_spec` instead. Recognised BEFORE the key-bearing
+            // count, so the two mechanisms do not each expect to own the
+            // other's rows.
+            if cells
+                .as_ref()
+                .and_then(|c| c.get(1))
+                .is_some_and(|c| c.starts_with("row "))
+            {
+                positional += 1;
+                continue;
+            }
             let carries_key = KEY_PREFIXES.iter().any(|k| line.contains(k));
             if carries_key {
                 key_bearing += 1;
             }
-            let Some(cells) = table_cells(line) else {
+            let Some(cells) = cells else {
                 assert!(
                     !carries_key,
                     "{doc}:{} carries an artifact key but is not a table row",
@@ -177,6 +213,10 @@ fn declared_claims() -> Vec<Claim> {
             }
         }
     }
+    assert!(
+        positional >= 20,
+        "only {positional} positional-specification rows seen; if the positional table stops          being recognised its rows fall back into the membership count and both mechanisms go          quiet"
+    );
     assert_eq!(
         key_bearing,
         out.len(),
@@ -335,6 +375,143 @@ fn the_row_split_honours_the_markdown_escape() {
         "the naive split must still see seven cells, or this row no longer reproduces the defect"
     );
     assert!(table_cells("prose | with a bar").is_none());
+}
+
+/// Numeric tokens of a clause row's evidence column, in order.
+fn row_numbers(row: &str) -> Vec<(String, f64)> {
+    let cells = table_cells(row).expect("a clause row is a table row");
+    let evidence = cells.get(4).cloned().unwrap_or_default();
+    let mut out = Vec::new();
+    for word in evidence.split(|c: char| c.is_whitespace() || c == '/' || c == '(' || c == ')') {
+        let token = word.trim_matches(|c: char| !c.is_ascii_digit());
+        if token.is_empty()
+            || word
+                .chars()
+                .any(|c| c.is_alphabetic() || c == '§' || c == '@')
+        {
+            continue;
+        }
+        if let Ok(v) = token.parse::<f64>() {
+            out.push((token.to_string(), v));
+        }
+    }
+    out
+}
+
+/// The positional row specification declared in `REPRODUCIBILITY_M4_5.md`.
+///
+/// Rows of the form `| T1d | 3 | topology:recall_all.hits |`: row prefix,
+/// 1-based position, artifact key.
+fn positional_spec() -> Vec<(String, usize, Claim)> {
+    let path = repo_root().join("docs/REPRODUCIBILITY_M4_5.md");
+    let text = std::fs::read_to_string(&path).expect("REPRODUCIBILITY_M4_5");
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        let Some(cells) = table_cells(line) else {
+            continue;
+        };
+        if cells.len() < 5 {
+            continue;
+        }
+        let Some(row) = cells[1].strip_prefix("row ") else {
+            continue;
+        };
+        let Ok(pos) = cells[2].parse::<usize>() else {
+            continue;
+        };
+        let Some(key) = cells[3].strip_prefix('`').and_then(|k| k.strip_suffix('`')) else {
+            continue;
+        };
+        let Some((kind, keypath)) = key.split_once(':') else {
+            continue;
+        };
+        let artifact = artifact_file(kind)
+            .unwrap_or_else(|| panic!("REPRODUCIBILITY_M4_5:{}: unknown artifact {kind:?}", i + 1));
+        out.push((
+            format!("| {row} "),
+            pos,
+            Claim {
+                artifact,
+                path: keypath.to_string(),
+                value: f64::NAN,
+                doc: "docs/REPRODUCIBILITY_M4_5.md",
+                line: i + 1,
+            },
+        ));
+    }
+    out
+}
+
+/// The i-th number of a clause row EQUALS the i-th declared key.
+///
+/// Membership was not enough and both cold contexts proved it the same way:
+/// with 78 declared values, most of them small integers, a wrong measurement
+/// can be assembled out of other people's numbers. This binds each position to
+/// a key, so the row reports what the artifact says or it fails.
+#[test]
+fn the_delta_clause_rows_equal_their_declared_keys_position_by_position() {
+    let spec = positional_spec();
+    assert!(
+        spec.len() >= 20,
+        "only {} positional bindings declared; the specification table is not being read",
+        spec.len()
+    );
+    let mut checked = 0;
+    for (doc, prefixes) in POSITIONAL_ROWS {
+        let Ok(text) = std::fs::read_to_string(repo_root().join(doc)) else {
+            continue;
+        };
+        for prefix in *prefixes {
+            let rows: Vec<&str> = text.lines().filter(|l| l.starts_with(prefix)).collect();
+            assert_eq!(
+                rows.len(),
+                1,
+                "{doc}: positional row {prefix:?} found {} times",
+                rows.len()
+            );
+            let numbers = row_numbers(rows[0]);
+            let mut keys: Vec<&(String, usize, Claim)> =
+                spec.iter().filter(|(r, _, _)| r == prefix).collect();
+            keys.sort_by_key(|(_, p, _)| *p);
+            assert!(
+                !keys.is_empty(),
+                "{doc}: row {prefix:?} has no positional specification in REPRODUCIBILITY_M4_5"
+            );
+            assert_eq!(
+                numbers.len(),
+                keys.len(),
+                "{doc}: row {prefix:?} carries {} numbers and {} are declared. Positional \
+                 checking means EVERY number in the row is bound to a key: an unbound one is a \
+                 number nobody checks.\nnumbers: {:?}",
+                numbers.len(),
+                keys.len(),
+                numbers.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>()
+            );
+            for (i, ((token, value), (_, pos, claim))) in numbers.iter().zip(&keys).enumerate() {
+                assert_eq!(*pos, i + 1, "positions must be 1..n without gaps");
+                let got = resolve_claim(claim).unwrap_or_else(|| {
+                    panic!(
+                        "REPRODUCIBILITY_M4_5:{} binds {} to {}:{}, which the artifact does not \
+                         carry",
+                        claim.line, prefix, claim.artifact, claim.path
+                    )
+                });
+                let scale = 10f64.powi(token.split('.').nth(1).map_or(0, |f| f.len()) as i32);
+                assert!(
+                    ((got * scale).round() / scale - value).abs() < 1e-9,
+                    "{doc} row {prefix:?} position {}: the row says {token}, but {}:{} is {got}. \
+                     This is the check membership could not make: the number is bound to the key \
+                     it claims to report (M45-N11, RT45-A4)",
+                    i + 1,
+                    claim.artifact,
+                    claim.path
+                );
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked >= 20, "only {checked} positional numbers checked");
+    println!("{checked} clause-row numbers equal their declared keys position by position");
 }
 
 /// The §28 clause rows of every gate table may quote only DECLARED numbers.
