@@ -305,13 +305,17 @@ pub struct AmbiguityRow {
     /// The corpus's OWN frozen identifiability label for the two renders at
     /// the collapse cell.
     ///
-    /// This is the only thing allowed to excuse a pair whose readings are
-    /// not both retained, and it is not this milestone's judgement: the
-    /// label comes from the M3 rule that compares the distinguishing
-    /// feature's size in render px with the FROZEN
-    /// `[identifiability] observability_floor_px`. §1.5 says in terms that a
-    /// feature which leaves no trace is not recoverable, and requiring an
-    /// envelope to carry one would be requiring invention.
+    /// DIAGNOSTIC ONLY. It is printed beside the excuse and it is NOT the
+    /// excuse: the predicate reads `collapse_max_code_diff` against the frozen
+    /// `identifiability.quantization_floor_codes`, and this label is not read
+    /// at all. The previous version of this comment said the opposite in two
+    /// places (M45-N4), and the two labels of a pair can differ from each
+    /// other (`information_lost` and `equivalent_family` on `hole-or-not`), so
+    /// a reader who believed the comment would think the excuse rested on a
+    /// value that does not even agree with itself across the pair.
+    ///
+    /// A doc comment that names the deciding instrument is a claim about the
+    /// code and is checked like a number, not like prose.
     pub identifiability_at_collapse_a: &'static str,
     pub identifiability_at_collapse_b: &'static str,
     /// Premultiplied max code difference between the two renders at the
@@ -728,15 +732,22 @@ fn measure_ambiguity_pairs() -> Result<(Vec<AmbiguityRow>, u64), String> {
         }
         let (a, b) = (&g.scenes[0], &g.scenes[1]);
         let sep = view_for(&pair.separate_cell);
-        let [four, _] = ComplementaryConnectivity::arms();
+        let [four, eight] = ComplementaryConnectivity::arms();
+        // Both conventions, not one. `matches_gt` counts a candidate as a hit
+        // if it matches EITHER admissible reading, so a pair may only be
+        // EXCLUDED from the clause when it is the same topology under BOTH
+        // (M45-N13). An excluding predicate coarser than the including one
+        // decides the excluded set with the blunter instrument.
         let sig_a = gt_signature(a, &sep, four)?;
         let sig_b = gt_signature(b, &sep, four)?;
-        let is_topology_pair = sig_a != sig_b;
+        let sig_a8 = gt_signature(a, &sep, eight)?;
+        let sig_b8 = gt_signature(b, &sep, eight)?;
+        let is_topology_pair = sig_a != sig_b || sig_a8 != sig_b8;
 
-        // The two renders at the collapse cell, and the corpus's own frozen
-        // identifiability label for each. Rendered here rather than taken on
-        // trust: the label is the only thing allowed to excuse a pair whose
-        // alternatives are not both retained.
+        // The two renders at the collapse cell. `collapse_max_code_diff` is
+        // what the excuse is measured with; the identifiability labels are
+        // recorded beside it as diagnostics and are NOT read by the predicate
+        // (M45-N4).
         let ra = render_cell(a, &pair.collapse_cell, 2)?;
         let rb = render_cell(b, &pair.collapse_cell, 2)?;
         let ident_a = ra.identifiability.as_str();

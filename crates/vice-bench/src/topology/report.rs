@@ -166,6 +166,18 @@ pub struct TopologyReport {
     /// quote both numbers as measurements rather than one as a constant.
     pub ambiguity_pairs: u64,
     pub topology_pairs: u64,
+    /// Topology pairs that actually CARRY clause 2 — both readings retained
+    /// from both renders — as opposed to being excused.
+    ///
+    /// The conjunct `topology_pairs >= 2` was written with the comment "or the
+    /// row would be a statement about one fixture" and did not prevent exactly
+    /// that, because it counts pairs BEFORE the excuse is applied (M45-N4).
+    /// The number after the excuse is published here, the row prints it, and
+    /// STATUS records that clause 2 stands on n = 1. Raising the conjunct to
+    /// this number would turn the row red on a corpus that has only two
+    /// topology pairs to begin with; naming the weakness is the honest move,
+    /// inflating the corpus to hide it is not.
+    pub topology_pairs_carrying_the_row: u64,
     pub arms: Vec<TopologyArm>,
     pub refused: Vec<super::RefusedArm>,
     pub warnings: Vec<String>,
@@ -349,6 +361,15 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
             .unwrap_or(0),
         saddle_alternatives_total: run.arms.iter().map(|a| a.saddle_alternatives as u64).sum(),
         ambiguity_pairs: run.ambiguity.len() as u64,
+        topology_pairs_carrying_the_row: run
+            .ambiguity
+            .iter()
+            .filter(|p| {
+                p.is_topology_pair
+                    && p.both_retained_from_a == Some(true)
+                    && p.both_retained_from_b == Some(true)
+            })
+            .count() as u64,
         ambiguity: run.ambiguity.clone(),
         topology_pairs,
         arms: run.arms.clone(),
@@ -419,11 +440,12 @@ impl TopologyReport {
         let both = |p: &AmbiguityRow| {
             p.both_retained_from_a == Some(true) && p.both_retained_from_b == Some(true)
         };
-        // A pair whose alternatives are not both retained is excused ONLY by
-        // the corpus's own frozen identifiability label: 1.5 says a feature
-        // that leaves no trace is not recoverable, and an envelope carrying
-        // one would be inventing it. The excuse cannot cover the row,
-        // because at least one pair must retain both readings without it.
+        // MEASURED against a FROZEN constant, and the comment says which one
+        // because M45-N4 found this paragraph naming a different instrument
+        // from the one the line below uses. The excuse is the render
+        // difference against `identifiability.quantization_floor_codes`; the
+        // corpus's identifiability labels are printed beside it and are not
+        // read here at all.
         // MEASURED against a FROZEN constant, not chosen: two renders that
         // differ by less than one 8-bit code carry no evidence of the
         // distinction between them, and an envelope that produced the
@@ -529,7 +551,10 @@ impl TopologyReport {
                 "ambiguous fixtures retain alternatives",
                 ambiguity_row,
                 format!(
-                    "{} of the {} intentionally ambiguous pairs are TOPOLOGY pairs, i.e. their \
+                    "This row stands on {} pair(s): that is how many TOPOLOGY pairs retain \
+                     both readings WITHOUT the excuse, and it is stated here rather than left to \
+                     be inferred from the sentence after it. {} of the {} intentionally \
+                     ambiguous pairs are TOPOLOGY pairs, i.e. their \
                      two scenes have different ink topologies where they are distinguishable; the \
                      rest are ambiguities about paint or partition and are excluded by name. On \
                      each of them the envelope built from EITHER scene's render at the collapse \
@@ -542,6 +567,7 @@ impl TopologyReport {
                      WITHOUT it, and a pair that does retain both must carry more than one \
                      topological class. Per pair, with the corpus's own identifiability labels \
                      printed beside the measured difference: {}",
+                    self.topology_pairs_carrying_the_row,
                     self.topology_pairs,
                     self.ambiguity.len(),
                     pairs.iter().filter(|p| both(p)).count(),
@@ -714,6 +740,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "field_contributions": v["field_contributions"],
         "ambiguity_pairs": v["ambiguity_pairs"],
         "topology_pairs": v["topology_pairs"],
+        "topology_pairs_carrying_the_row": v["topology_pairs_carrying_the_row"],
         "arms": arms,
         "ambiguity": ambiguity,
         "refused": v["refused"],
