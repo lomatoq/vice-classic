@@ -9,6 +9,12 @@
 //!   including the full-bleed reading that does NOT assume the border is
 //!   the background, and bounded colour intervals for shapes with no
 //!   reliable interior core;
+//! - [`formation`]: the minimal GLOBAL formation family of §10.1/§16.2 —
+//!   blend space x coverage filter x 8-bit quantization x exterior — and
+//!   what identifies each of its members;
+//! - [`mixture`]: the premultiplied Flat2 mixture of §10/§22, the evidence
+//!   §10 asks to be kept beside it, and the §1.6 detection of an interior
+//!   fill with a true constant `0 < alpha < 1`;
 //! - [`support`]: the mechanism that keeps evidence from becoming a second
 //!   pixel likelihood (§10.2).
 //!
@@ -25,11 +31,21 @@
 
 #![forbid(unsafe_code)]
 
+pub mod formation;
 pub mod interior;
+pub mod mixture;
 pub mod palette;
 pub mod support;
 
+pub use formation::{
+    blend_space_is_identifiable, enumerate as enumerate_formations, filter_penalty, for_palette,
+    formation_id, transition_width_px, FAMILY_SIZE, KERNEL_PROFILES_V1,
+};
 pub use interior::{interior_confidence, InteriorConfidence, InteriorConfig, INTERIOR_CONFIG_V1};
+pub use mixture::{
+    infer_mixture, Flat2Evidence, MixtureConfig, MixtureRefusal, SemiTransparentInterior,
+    MIXTURE_CONFIG_V1,
+};
 pub use palette::{
     conditioning, oracle_override, propose_flat2, BackgroundHypothesis, ColorHypothesis,
     Flat2Hypothesis, Flat2Kind, Flat2Proposals, PaletteConfig, PaletteRefusal, PALETTE_CONFIG_V1,
