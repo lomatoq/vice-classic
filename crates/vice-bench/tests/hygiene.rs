@@ -90,8 +90,18 @@ fn no_production_module_is_over_the_size_rule() {
 /// `std::env::consts` is a compile-time constant and is not an environment
 /// variable — the distinction REVIEW_M3_5 M35-N8 asked to be stated rather
 /// than blurred.
+///
+/// REVIEW_M4 M4-N10: the pattern matched `std::env::var` and `env::var(`, and
+/// `use std::env;` followed by `env::var_os(` matched neither. Nothing in the
+/// tree calls it, so nothing was hidden — but a surface check that a rename
+/// walks around is not a surface check. Every reading form is listed now, and
+/// the list is asserted to be reached by an actual call rather than trusted.
 #[test]
 fn only_the_recorded_modules_read_an_environment_variable() {
+    /// Every way to read the environment in std. `var`/`var_os` are the
+    /// readers; `vars`/`vars_os` enumerate, which reads all of them at once
+    /// and is therefore the same question.
+    const READS: &[&str] = &["env::var(", "env::var_os(", "env::vars(", "env::vars_os("];
     const DECLARED: &[&str] = &[
         // Records the environment into the report (M0).
         "vice-bench/src/envinfo.rs",
@@ -104,7 +114,7 @@ fn only_the_recorded_modules_read_an_environment_variable() {
         .iter()
         .filter(|(p, _)| {
             let text = std::fs::read_to_string(p).unwrap_or_default();
-            text.contains("std::env::var") || text.contains("env::var(")
+            READS.iter().any(|r| text.contains(r))
         })
         .map(|(p, _)| {
             p.display()
@@ -122,6 +132,23 @@ fn only_the_recorded_modules_read_an_environment_variable() {
     assert_eq!(
         found, declared,
         "the environment-reading surface changed; every entry is reviewed, not assumed"
+    );
+
+    // The pattern list is not vacuous: each form must be one this tree could
+    // actually contain, and at least one declared module must be reached
+    // through the plain reader. Without this the whole test passes on a
+    // pattern list of typos.
+    let declared_text: String = DECLARED
+        .iter()
+        .map(|m| std::fs::read_to_string(repo_root().join("crates").join(m)).unwrap_or_default())
+        .collect();
+    assert!(
+        READS.iter().any(|r| declared_text.contains(r)),
+        "no declared module matches any pattern, so the search proves nothing"
+    );
+    assert!(
+        READS.iter().all(|r| r.starts_with("env::")),
+        "a pattern that does not name the module path would match unrelated code"
     );
 }
 
