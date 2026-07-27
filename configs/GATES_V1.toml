@@ -115,8 +115,17 @@ bits_per_relation = 0.0
 #
 # Consumer: `vice_evidence::corridor::CLEAN_BUCKET_SIGMA_CODES`, cross-checked
 # by `gates::tests::every_frozen_value_agrees_with_the_code_that_uses_it`.
+#
+# UN-FROZEN by M4 delta (REVIEW_M4 blocker 2 / M4-N2). The value 18.8 was
+# measured with the HELD-OUT rasterizer `tiny-skia` in the pool, which the
+# frozen `[split] held_out_profiles` in this same file forbids, and the §28 M4
+# clause it feeds is precisely the one about generalizing to an engine the
+# calibration never saw. A number whose procedure is illegal is not a gate, so
+# the section returns to `placeholder` until the re-measurement lands and is
+# re-frozen by its own reviewed commit. This is the only direction in which a
+# frozen value may move without a measurement behind it: out of the gate.
 [noise_scales]
-status = "frozen"
+status = "placeholder"
 set_by_milestone = "M4"
 clean_bucket_sigma_codes = 18.8
 
