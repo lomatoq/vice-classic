@@ -164,3 +164,65 @@ fn the_committed_report_verifies_or_refuses_by_platform() {
         assert_eq!(code, Some(0), "{stdout}{stderr}");
     }
 }
+
+/// F-0022, made reproducible on ONE platform.
+///
+/// The defect was that `--structural` compared values which are functions of
+/// libm, so the projection was platform-independent in its doc comment only.
+/// CI found it; nothing local did, because everything local ran on the
+/// recording platform - which is precisely the blind spot F-0020 also lived
+/// in.
+///
+/// So the other platform is SIMULATED here: a report whose platform differs
+/// and whose scene-digest-derived hashes all differ, exactly as a different
+/// libm would produce, must still reproduce structurally. And the control in
+/// the other direction: a difference in COMPOSITION must still be caught, or
+/// the projection would have been fixed by making it blind.
+#[test]
+fn a_report_from_a_simulated_other_platform_reproduces_structurally() {
+    let (dir, path) = write_report("test");
+    let text = std::fs::read_to_string(&path).unwrap();
+    let mut v: serde_json::Value = serde_json::from_str(&text).unwrap();
+
+    v["platform"]["os"] = serde_json::json!("elsewhere");
+    // Every hash that is a sha256 over a scene digest: a different libm
+    // moves all of them at once, so the simulation moves all of them.
+    v["fixture_set_hash"] = serde_json::json!("f".repeat(64));
+    for arm in v["ceiling_arms"].as_array_mut().unwrap() {
+        arm["key_fingerprint"] = serde_json::json!("e".repeat(64));
+    }
+    for f in v["factorial"].as_array_mut().unwrap() {
+        f["key_fingerprint"] = serde_json::json!("d".repeat(64));
+    }
+    let foreign = dir.path().join("other-platform.json");
+    std::fs::write(&foreign, serde_json::to_string_pretty(&v).unwrap()).unwrap();
+
+    let (code, stdout, stderr) = run(&[
+        "oracle-check",
+        "--report",
+        foreign.to_str().unwrap(),
+        "--structural",
+    ]);
+    assert_eq!(
+        code,
+        Some(0),
+        "a simulated foreign platform must reproduce structurally.\n{stdout}\n{stderr}"
+    );
+
+    // Control: composition still has to be compared. A renamed scene is not
+    // float noise, and the structural mode must say so.
+    v["ceiling_arms"][0]["scene_id"] = serde_json::json!("proc/not-a-scene/999#z");
+    let broken = dir.path().join("other-platform-broken.json");
+    std::fs::write(&broken, serde_json::to_string_pretty(&v).unwrap()).unwrap();
+    let (code, _, stderr) = run(&[
+        "oracle-check",
+        "--report",
+        broken.to_str().unwrap(),
+        "--structural",
+    ]);
+    assert_eq!(
+        code,
+        Some(1),
+        "the structural mode must still catch composition: {stderr}"
+    );
+}

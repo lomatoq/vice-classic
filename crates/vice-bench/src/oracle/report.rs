@@ -467,9 +467,38 @@ impl OracleReport {
     }
 }
 
-/// The platform-INDEPENDENT projection of an oracle report: arm identities,
-/// refusal reasons, contamination status and the gate booleans - everything
-/// except the float metrics, which are Tier A (§5.5, F-0020).
+/// One effect or geometry delta, with every platform-dependent value gone.
+///
+/// A `CausalDelta` carries a `value` (a float) and a `key_fingerprint` (a
+/// hash over a scene digest); both are dropped. Its ARMS and COEFFICIENTS
+/// survive, because "which arms this contrast is over" is a fact about the
+/// experimental design and not about libm.
+fn outcome_projection(e: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "outcome": e["outcome"],
+        "what": e["detail"]["what"],
+        "missing": e["detail"]["missing"],
+        "owner_milestone": e["detail"]["owner_milestone"],
+        "reason": e["detail"]["reason"],
+        "label": e["detail"]["label"],
+        "terms": e["detail"]["terms"],
+        "inverse_crime": e["detail"]["inverse_crime"],
+    })
+}
+
+/// The platform-INDEPENDENT projection of an oracle report: composition, arm
+/// identities, contamination status, refusal reasons and the design of every
+/// contrast — and nothing that is a function of a float.
+///
+/// "A function of a float" is wider than "a float", and the first version of
+/// this projection got that wrong (F-0022). `fixture_set_hash` is a sha256
+/// over SCENE DIGESTS, and a scene digest is the canonical form of geometry
+/// built with `sin`/`cos`; `key_fingerprint` contains that same hash. Both
+/// are hex strings and neither looks like a number, but both change with the
+/// platform, so a projection carrying them is not platform-independent no
+/// matter what its doc comment says. `config_hash` is kept, because its
+/// inputs — schema, scope, backend ids, cell ids, metric names — contain no
+/// float at all.
 pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
     let arms: Vec<serde_json::Value> = v["ceiling_arms"]
         .as_array()
@@ -483,9 +512,37 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
                 "cell_id": a["cell_id"],
                 "backend_id": a["backend_id"],
                 "observation_profile": a["observation_profile"],
-                "key_fingerprint": a["key_fingerprint"],
+                "backend_rasterizer": a["backend_rasterizer"],
                 "inverse_crime": a["inverse_crime"],
                 "serialization_digest_identical": a["metrics"]["serialization_digest_identical"],
+            })
+        })
+        .collect();
+    let factorial: Vec<serde_json::Value> = v["factorial"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "metric": f["metric"],
+                "present_arms": f["present_arms"],
+                "partition_main_effect": outcome_projection(&f["partition_main_effect"]),
+                "formation_main_effect": outcome_projection(&f["formation_main_effect"]),
+                "interaction": outcome_projection(&f["interaction"]),
+            })
+        })
+        .collect();
+    let geometry: Vec<serde_json::Value> = v["geometry_deltas"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|g| {
+            serde_json::json!({
+                "name": g["name"],
+                "isolates": g["isolates"],
+                "outcome": outcome_projection(&g["outcome"]),
             })
         })
         .collect();
@@ -508,8 +565,11 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "schema": v["schema"],
         "milestone": v["milestone"],
         "config": v["config"],
+        // Kept: its inputs are schema, scope, backend ids, cell ids and
+        // metric names - not one float among them.
         "config_hash": v["config_hash"],
-        "fixture_set_hash": v["fixture_set_hash"],
+        // NOT kept: `fixture_set_hash` and every `key_fingerprint`. They are
+        // hashes OVER SCENE DIGESTS, hence functions of libm (F-0022).
         "scenes": v["scenes"],
         "arms_measured": v["arms_measured"],
         "arms_refused": v["arms_refused"],
@@ -518,8 +578,8 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "warnings": v["warnings"],
         "pf_arms": v["pf_arms"],
         "g_arms": v["g_arms"],
-        "factorial": v["factorial"],
-        "geometry_deltas": v["geometry_deltas"],
+        "factorial": factorial,
+        "geometry_deltas": geometry,
         "refused": v["refused"],
         "ceiling": ceiling,
         "ceiling_arms": arms,
@@ -711,7 +771,13 @@ mod tests {
         // dropping them would drop the identity of the columns.
         for arm in p["ceiling_arms"].as_array().unwrap() {
             assert!(arm.get("metrics").is_none());
-            assert!(arm.get("key_fingerprint").is_some());
+            // The fingerprint is DROPPED: it is a hash over a scene digest,
+            // hence a function of libm (F-0022). Identity across platforms
+            // is the (scene, cell, backend) triple, which is text.
+            assert!(arm.get("key_fingerprint").is_none());
+            assert!(arm.get("scene_id").is_some());
+            assert!(arm.get("cell_id").is_some());
+            assert!(arm.get("backend_id").is_some());
             assert!(arm.get("inverse_crime").is_some());
         }
         for agg in p["ceiling"].as_array().unwrap() {
@@ -735,6 +801,52 @@ mod tests {
         fewer.ceiling_arms.pop();
         let v2: serde_json::Value = serde_json::from_str(&fewer.canonical_json()).unwrap();
         assert_ne!(structural_projection(&v2), p);
+    }
+
+    /// F-0022: "a function of a float" is wider than "a float".
+    ///
+    /// The first projection kept `fixture_set_hash` and every
+    /// `key_fingerprint`. Both are hex strings and neither looks like a
+    /// number, but both are sha256 OVER SCENE DIGESTS, and a scene digest is
+    /// the canonical form of geometry built with `sin`/`cos`. So the
+    /// "platform-independent projection" changed with the platform, and CI
+    /// found it on the first cross-platform run - while the corpus's own
+    /// structural step, which drops scene digests, passed beside it.
+    ///
+    /// The walk enumerates the derived values from the report ITSELF rather
+    /// than listing field names, so a hash added later is covered without
+    /// anyone having to remember it.
+    #[test]
+    fn the_projection_carries_no_value_that_is_a_function_of_a_float() {
+        let r = report();
+        let v: serde_json::Value = serde_json::from_str(&r.canonical_json()).unwrap();
+        let text = serde_json::to_string(&structural_projection(&v)).unwrap();
+
+        let mut derived: std::collections::BTreeSet<String> = Default::default();
+        derived.insert(r.fixture_set_hash.clone());
+        for a in &r.ceiling_arms {
+            derived.insert(a.key_fingerprint.clone());
+        }
+        for f in &r.factorial {
+            derived.insert(f.key_fingerprint.clone());
+        }
+        assert!(
+            derived.len() > 2,
+            "the walk found nothing to check and would pass on any projection"
+        );
+        for h in &derived {
+            assert!(
+                !text.contains(h.as_str()),
+                "the projection carries {h}, which is a hash over scene digests"
+            );
+        }
+        // Control in the other direction: a hash whose inputs contain no
+        // float MUST survive, or the projection loses the identity of what
+        // it is comparing.
+        assert!(
+            text.contains(&r.config_hash),
+            "config_hash has no float input and must stay comparable across platforms"
+        );
     }
 
     #[test]
