@@ -211,10 +211,15 @@ pub enum SupportError {
 /// downstream crate can implement it, and therefore no downstream crate can
 /// state a support that no computation produced.
 ///
-/// The seal is the difference between this trait and
-/// `oracle::key::KeyedMeasurement`, which REVIEW_M4 M4-N7 records as still
-/// implementable by a caller who wants to declare a key rather than derive
-/// one. Same defect class, closed here, open there; M12 owns the port.
+/// The same seal is on `vice-bench::oracle::key::KeyedMeasurement`, which
+/// carries the same defect class for compatibility KEYS: a public trait is an
+/// optional argument with extra steps, because an outside implementation can
+/// declare whatever it likes. REVIEW_M4 M4-N7 found that one open, and C142
+/// closed it four commits into the same delta — while this comment went on
+/// saying it was open, which made it a new instance of F-0028 inside the
+/// paragraph that explains the class. It was corrected in M4.5 (REVIEW_M4
+/// addendum M4-N13); `doc_claims` cannot catch this, because prose is not a
+/// number.
 pub trait ObservationSource: sealed::Sealed {
     /// The pixels the computation actually read.
     fn observation_support(&self) -> ObservationSupport;
