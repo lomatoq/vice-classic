@@ -14,9 +14,28 @@
 //! A comment saying "do not add this to the render likelihood" is a request.
 //! The mechanism here is three things instead:
 //!
-//! 1. **Every surrogate number carries the pixels it came from.** A
+//! 1. **Every surrogate number DERIVES the pixels it came from.** A
 //!    [`SurrogateScore`] is a value, a [`SurrogateRole`] and an
-//!    [`ObservationSupport`]. There is no constructor without a support.
+//!    [`ObservationSupport`], and the only public constructor,
+//!    [`SurrogateScore::over`], takes the COMPUTATION and reads the support
+//!    off it. A support cannot be presented beside a value.
+//!
+//!    That is a correction. The first version took the support as a third
+//!    independent argument and [`ObservationSupport::of_indices`] dropped
+//!    out-of-range indices silently, so REVIEW_M4 (M4-N4) added two
+//!    whole-image quantities under a support covering zero pixels and the
+//!    combiner below allowed it. Both halves are closed: the constructor
+//!    derives, and an index outside the image is a typed refusal.
+//!
+//!    It is worth naming what the defect WAS, because it is not new: a
+//!    number and its provenance as two independent parameters is the shape
+//!    of M35-N3, which this milestone removed from `oracle::key` under
+//!    condition B1 and left standing here, one module away. The general
+//!    rule is in the ledger (F-0028).
+//!
+//!    [`ObservationSource`] is SEALED, so the derivation cannot be reopened
+//!    by implementing the trait either — a caller who wants a support has to
+//!    have run a computation in this crate that produced one.
 //! 2. **Addition is defined only on DISJOINT supports.** The only combiner
 //!    is [`SurrogateScore::add_disjoint`], and it returns
 //!    [`DoubleCounted`] — naming §10.2 and the number of shared pixels —
@@ -58,18 +77,25 @@ impl ObservationSupport {
     /// The whole image.
     pub fn whole_image(image_sha256: &str, pixels: usize) -> ObservationSupport {
         ObservationSupport::of_indices(image_sha256, pixels, 0..pixels)
+            .expect("0..pixels is in range by construction")
     }
 
+    /// An explicit subset.
+    ///
+    /// An index outside the image is REFUSED, not dropped. Dropping it was
+    /// the second half of REVIEW_M4 M4-N4: a caller could hand in indices
+    /// that all missed and receive a support covering nothing, which then
+    /// combined with anything because it overlapped nothing.
     pub fn of_indices(
         image_sha256: &str,
         pixels: usize,
         indices: impl IntoIterator<Item = usize>,
-    ) -> ObservationSupport {
+    ) -> Result<ObservationSupport, SupportError> {
         let mut bits = vec![0u64; pixels.div_ceil(64)];
         let mut covered = 0u64;
         for i in indices {
             if i >= pixels {
-                continue;
+                return Err(SupportError::OutOfRange { index: i, pixels });
             }
             let (w, b) = (i / 64, i % 64);
             if bits[w] & (1u64 << b) == 0 {
@@ -77,12 +103,12 @@ impl ObservationSupport {
                 covered += 1;
             }
         }
-        ObservationSupport {
+        Ok(ObservationSupport {
             image_sha256: image_sha256.to_string(),
             pixels,
             bits,
             covered,
-        }
+        })
     }
 
     pub fn image_sha256(&self) -> &str {
@@ -171,6 +197,36 @@ impl SurrogateRole {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum SupportError {
+    #[error(
+        "pixel index {index} is outside an image of {pixels} pixels: refusing to build a support          that silently omits it"
+    )]
+    OutOfRange { index: usize, pixels: usize },
+}
+
+/// A computation in this crate that read pixels.
+///
+/// The trait exists so that [`SurrogateScore::over`] can DERIVE a support
+/// rather than accept one. It is SEALED: the supertrait is private, so no
+/// downstream crate can implement it, and therefore no downstream crate can
+/// state a support that no computation produced.
+///
+/// The seal is the difference between this trait and
+/// `oracle::key::KeyedMeasurement`, which REVIEW_M4 M4-N7 records as still
+/// implementable by a caller who wants to declare a key rather than derive
+/// one. Same defect class, closed here, open there; M12 owns the port.
+pub trait ObservationSource: sealed::Sealed {
+    /// The pixels the computation actually read.
+    fn observation_support(&self) -> ObservationSupport;
+}
+
+pub(crate) mod sealed {
+    /// Private supertrait. Implementing [`super::ObservationSource`] requires
+    /// naming this, which is impossible outside `vice-evidence`.
+    pub trait Sealed {}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum DoubleCounted {
     #[error(
         "refusing to combine two surrogate scores that share {shared} of {pixels} observed \
@@ -197,7 +253,30 @@ pub struct SurrogateScore {
 }
 
 impl SurrogateScore {
-    pub fn new(role: SurrogateRole, value: f64, support: ObservationSupport) -> SurrogateScore {
+    /// The only public constructor: the support is read off the computation
+    /// the number came from, so the two cannot disagree.
+    pub fn over<S: ObservationSource>(
+        role: SurrogateRole,
+        value: f64,
+        source: &S,
+    ) -> SurrogateScore {
+        SurrogateScore {
+            role,
+            value,
+            support: source.observation_support(),
+        }
+    }
+
+    /// Crate-internal, for the one place where the support IS what is being
+    /// built: `infer_mixture` derives it from the tensor it has just read,
+    /// and the `Flat2Evidence` that would implement [`ObservationSource`]
+    /// does not exist yet at that point. Tests of the combiner itself also
+    /// use it, because their subject is the support algebra.
+    pub(crate) fn with_support(
+        role: SurrogateRole,
+        value: f64,
+        support: ObservationSupport,
+    ) -> SurrogateScore {
         SurrogateScore {
             role,
             value,
@@ -290,12 +369,12 @@ mod tests {
     /// refused and the refusal counts the shared pixels.
     #[test]
     fn two_scores_over_the_same_image_cannot_be_added() {
-        let a = SurrogateScore::new(
+        let a = SurrogateScore::with_support(
             SurrogateRole::Pruning,
             1.0,
             ObservationSupport::whole_image("img", 100),
         );
-        let b = SurrogateScore::new(
+        let b = SurrogateScore::with_support(
             SurrogateRole::Pruning,
             2.0,
             ObservationSupport::whole_image("img", 100),
@@ -309,15 +388,15 @@ mod tests {
         }
         // Even ONE shared pixel is refused: the rule is about counting a
         // pixel twice, not about counting most of them twice.
-        let left = SurrogateScore::new(
+        let left = SurrogateScore::with_support(
             SurrogateRole::Pruning,
             1.0,
-            ObservationSupport::of_indices("img", 100, 0..51),
+            ObservationSupport::of_indices("img", 100, 0..51).unwrap(),
         );
-        let right = SurrogateScore::new(
+        let right = SurrogateScore::with_support(
             SurrogateRole::Pruning,
             1.0,
-            ObservationSupport::of_indices("img", 100, 50..100),
+            ObservationSupport::of_indices("img", 100, 50..100).unwrap(),
         );
         assert!(matches!(
             left.add_disjoint(&right),
@@ -330,15 +409,15 @@ mod tests {
     /// the union is the support of the result.
     #[test]
     fn disjoint_supports_do_combine_and_carry_the_union() {
-        let left = SurrogateScore::new(
+        let left = SurrogateScore::with_support(
             SurrogateRole::ProposalCost,
             1.5,
-            ObservationSupport::of_indices("img", 100, 0..50),
+            ObservationSupport::of_indices("img", 100, 0..50).unwrap(),
         );
-        let right = SurrogateScore::new(
+        let right = SurrogateScore::with_support(
             SurrogateRole::ProposalCost,
             2.5,
-            ObservationSupport::of_indices("img", 100, 50..100),
+            ObservationSupport::of_indices("img", 100, 50..100).unwrap(),
         );
         let sum = left
             .add_disjoint(&right)
@@ -354,15 +433,15 @@ mod tests {
     /// support would stop meaning anything.
     #[test]
     fn scores_over_different_images_are_refused_rather_than_treated_as_disjoint() {
-        let a = SurrogateScore::new(
+        let a = SurrogateScore::with_support(
             SurrogateRole::Diagnostic,
             1.0,
-            ObservationSupport::of_indices("A", 10, 0..5),
+            ObservationSupport::of_indices("A", 10, 0..5).unwrap(),
         );
-        let b = SurrogateScore::new(
+        let b = SurrogateScore::with_support(
             SurrogateRole::Diagnostic,
             1.0,
-            ObservationSupport::of_indices("B", 10, 5..10),
+            ObservationSupport::of_indices("B", 10, 5..10).unwrap(),
         );
         assert!(matches!(
             a.add_disjoint(&b),
@@ -372,15 +451,15 @@ mod tests {
 
     #[test]
     fn roles_do_not_mix() {
-        let a = SurrogateScore::new(
+        let a = SurrogateScore::with_support(
             SurrogateRole::Pruning,
             1.0,
-            ObservationSupport::of_indices("img", 10, 0..5),
+            ObservationSupport::of_indices("img", 10, 0..5).unwrap(),
         );
-        let b = SurrogateScore::new(
+        let b = SurrogateScore::with_support(
             SurrogateRole::TrustRegion,
             1.0,
-            ObservationSupport::of_indices("img", 10, 5..10),
+            ObservationSupport::of_indices("img", 10, 5..10).unwrap(),
         );
         assert!(matches!(
             a.add_disjoint(&b),
@@ -391,25 +470,45 @@ mod tests {
     /// The support is a set, and the digest is a function of that set.
     #[test]
     fn the_support_is_a_set_and_its_digest_follows_it() {
-        let s = ObservationSupport::of_indices("img", 10, [3usize, 3, 7, 99]);
-        assert_eq!(
-            s.covered(),
-            2,
-            "duplicates and out-of-range are not members"
-        );
+        let s = ObservationSupport::of_indices("img", 10, [3usize, 3, 7]).unwrap();
+        assert_eq!(s.covered(), 2, "a repeated index is not a second member");
         assert!(s.contains(3) && s.contains(7) && !s.contains(4));
-        let same = ObservationSupport::of_indices("img", 10, [7usize, 3]);
+        let same = ObservationSupport::of_indices("img", 10, [7usize, 3]).unwrap();
         assert_eq!(s.digest(), same.digest(), "order must not matter");
-        let other = ObservationSupport::of_indices("img", 10, [3usize, 8]);
+        let other = ObservationSupport::of_indices("img", 10, [3usize, 8]).unwrap();
         assert_ne!(s.digest(), other.digest());
         assert_eq!(s.summary().covered, 2);
+    }
+
+    /// REVIEW_M4 M4-N4, second half. The reviewer built a support out of
+    /// indices that were all out of range, got a support over zero pixels,
+    /// and added two whole-image numbers under it because zero pixels
+    /// overlap nothing. An out-of-range index is a typed refusal now.
+    #[test]
+    fn an_index_outside_the_image_is_refused_rather_than_dropped() {
+        let e = ObservationSupport::of_indices("img", 10, [3usize, 99]).unwrap_err();
+        assert!(matches!(
+            e,
+            SupportError::OutOfRange {
+                index: 99,
+                pixels: 10
+            }
+        ));
+        // The refusal is specific, not a constructor that rejects everything.
+        assert_eq!(
+            ObservationSupport::of_indices("img", 10, [3usize, 9])
+                .unwrap()
+                .covered(),
+            2
+        );
+        assert_eq!(ObservationSupport::whole_image("img", 10).covered(), 10);
     }
 
     /// Every published surrogate carries the sentence that says what it is
     /// not, so a reader of an artifact does not have to know §10.2 already.
     #[test]
     fn a_published_surrogate_says_it_is_not_a_likelihood() {
-        let s = SurrogateScore::new(
+        let s = SurrogateScore::with_support(
             SurrogateRole::Diagnostic,
             0.25,
             ObservationSupport::whole_image("img", 4),

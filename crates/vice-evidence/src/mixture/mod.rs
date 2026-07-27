@@ -44,7 +44,9 @@ use vice_ir::{GlobalFormationHypothesis, PixelFilter};
 
 use crate::formation::{check_agreement, formation_id, FormationMismatch};
 use crate::palette::{BackgroundHypothesis, Flat2Hypothesis};
-use crate::support::{ObservationSupport, SurrogateRole, SurrogateScore};
+use crate::support::{
+    sealed, ObservationSource, ObservationSupport, SurrogateRole, SurrogateScore,
+};
 
 /// Coefficients of the mixture stage.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -160,6 +162,18 @@ pub struct Flat2Evidence {
     /// Fit quality as a SURROGATE (§10.2): it orders and prunes hypotheses
     /// and it is not in the units of the final posterior.
     pub fit: SurrogateScore,
+}
+
+impl sealed::Sealed for Flat2Evidence {}
+
+/// The mixture evidence IS a computation over pixels, so it can hand its
+/// support to [`SurrogateScore::over`]. Being the only public way to obtain
+/// one is the point: a number about this image and the pixels it was read
+/// from arrive together or not at all (REVIEW_M4 M4-N4).
+impl ObservationSource for Flat2Evidence {
+    fn observation_support(&self) -> ObservationSupport {
+        self.support.clone()
+    }
 }
 
 impl Flat2Evidence {
@@ -313,7 +327,7 @@ pub fn infer_mixture(
     // spatially correlated (§17.1, measured in M3: a formation mismatch
     // overcounts independent evidence ninefold) and a number that looked
     // like a likelihood would invite exactly the sum §10.2 forbids.
-    let fit = SurrogateScore::new(
+    let fit = SurrogateScore::with_support(
         SurrogateRole::HypothesisGeneration,
         indicators.p95_abs_codes,
         support.clone(),
@@ -759,6 +773,15 @@ mod tests {
         )
         .unwrap();
         assert!(e1.fit.add_disjoint(&e2.fit).is_err());
+        // And the same holds for a score a CALLER derives: `over` reads the
+        // support off the evidence, so two numbers about one image still
+        // share every pixel and still refuse to combine. There is no public
+        // constructor that would let a caller state a smaller support and
+        // slip past the check (REVIEW_M4 M4-N4).
+        let mine = SurrogateScore::over(SurrogateRole::Pruning, 1.0, &e1);
+        let other = SurrogateScore::over(SurrogateRole::Pruning, 2.0, &e1);
+        assert_eq!(mine.support().digest(), e1.support.digest());
+        assert!(mine.add_disjoint(&other).is_err());
         assert_eq!(e1.fit.role(), SurrogateRole::HypothesisGeneration);
         assert!(residual_penalty(&e1) >= 0.0);
         assert_eq!(

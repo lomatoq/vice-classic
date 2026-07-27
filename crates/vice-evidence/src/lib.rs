@@ -79,5 +79,6 @@ pub use palette::{
     Flat2Hypothesis, Flat2Kind, Flat2Proposals, PaletteConfig, PaletteRefusal, PALETTE_CONFIG_V1,
 };
 pub use support::{
-    DoubleCounted, ObservationSupport, SurrogateRole, SurrogateScore, NOT_A_LIKELIHOOD,
+    DoubleCounted, ObservationSource, ObservationSupport, SupportError, SurrogateRole,
+    SurrogateScore, NOT_A_LIKELIHOOD,
 };
