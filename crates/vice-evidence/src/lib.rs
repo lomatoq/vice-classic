@@ -15,6 +15,14 @@
 //! - [`mixture`]: the premultiplied Flat2 mixture of §10/§22, the evidence
 //!   §10 asks to be kept beside it, and the §1.6 detection of an interior
 //!   fill with a true constant `0 < alpha < 1`;
+//! - [`boundary`]: the subpixel boundary observations of §13 —
+//!   `BoundarySample` with its physical `ds` weight, normal, calibrated
+//!   halfwidth and correlation length — with a malformed chain refused
+//!   rather than repaired and a critical 2x2 reported rather than decided
+//!   in silence;
+//! - [`corridor`]: the calibrated normal interval of §13.1, derived from
+//!   the quantization cell, the local residual and the frozen clean-bucket
+//!   noise scale;
 //! - [`support`]: the mechanism that keeps evidence from becoming a second
 //!   pixel likelihood (§10.2).
 //!
@@ -31,12 +39,22 @@
 
 #![forbid(unsafe_code)]
 
+pub mod boundary;
+pub mod corridor;
 pub mod formation;
 pub mod interior;
 pub mod mixture;
 pub mod palette;
 pub mod support;
 
+pub use boundary::{
+    observe_boundaries, BoundaryChain, BoundaryConfig, BoundaryObservation, BoundaryRefusal,
+    BoundarySample, ChainStatus, BOUNDARY_CONFIG_V1,
+};
+pub use corridor::{
+    corridor_at, sample_confidence, AlphaSigma, Corridor, CorridorConfig, CLEAN_BUCKET_SIGMA_CODES,
+    CORRIDOR_CONFIG_V1, COVERAGE_LEVELS,
+};
 pub use formation::{
     blend_space_is_identifiable, enumerate as enumerate_formations, filter_penalty, for_palette,
     formation_id, transition_width_px, FAMILY_SIZE, KERNEL_PROFILES_V1,
