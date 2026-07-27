@@ -31,6 +31,8 @@ vice-geom = { path = "../vice-geom" }
 vice-image = { path = "../vice-image" }
 vice-ir = { path = "../vice-ir" }
 vice-render = { path = "../vice-render" }
+# M4.5: the topology envelope whose candidate recall this crate measures.
+vice-topology = { path = "../vice-topology" }
 
 [dev-dependencies]
 tempfile = "3"

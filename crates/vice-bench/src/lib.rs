@@ -31,4 +31,5 @@ pub mod reliability;
 pub mod report;
 pub mod runner;
 pub mod scorecard;
+pub mod topology;
 pub mod universe;

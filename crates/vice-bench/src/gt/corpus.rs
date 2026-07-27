@@ -251,6 +251,83 @@ pub fn test_cell_filter(c: &DegradationCell) -> bool {
     c.size_px == 16
 }
 
+/// The platform-INDEPENDENT projection of a manifest.
+///
+/// Lives here in M4.5 rather than in the binary, where it used to sit alone
+/// while the corridor, oracle and topology projections all lived beside the
+/// reports they project. One shape, four copies, three of them in one place
+/// is how the fourth drifts.
+///
+/// The part of a manifest that does NOT depend on libm: identity,
+/// composition, splits, cell list, identifiability labels and inverse-crime
+/// flags. Everything float-valued - render digests, scene digests, measured
+/// truth - is dropped, because those are Tier A.
+pub fn structural_projection(m: &serde_json::Value) -> serde_json::Value {
+    let renders: Vec<serde_json::Value> = m["renders"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "group_id": r["group_id"],
+                "scene_id": r["scene_id"],
+                "cell_id": r["cell_id"],
+                "split": r["split"],
+                "identifiability": r["identifiability"],
+                "inverse_crime": r["inverse_crime"],
+                "width_px": r["width_px"],
+                "height_px": r["height_px"],
+            })
+        })
+        .collect();
+    let groups: Vec<serde_json::Value> = m["groups"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|g| {
+            let scenes: Vec<serde_json::Value> = g["scenes"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .map(|sc| {
+                    serde_json::json!({
+                        "id": sc["id"],
+                        "authored_truth_construction": sc["authored_truth_construction"],
+                        "visible_faces": sc["partition_truth"]["visible_faces"],
+                        "holes": sc["partition_truth"]["holes"],
+                        "components": sc["partition_truth"]["components"],
+                        "exterior_model": sc["partition_truth"]["exterior_model"],
+                    })
+                })
+                .collect();
+            serde_json::json!({
+                "id": g["id"],
+                "origin": g["origin"],
+                "shape_family": g["shape_family"],
+                "provenance": g["provenance"],
+                "split": g["split"],
+                "intentionally_ambiguous": g["intentionally_ambiguous"],
+                "equivalence_class": g["equivalence_class"],
+                "scenes": scenes,
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "schema": m["schema"],
+        "procedural_variants_per_family": m["procedural_variants_per_family"],
+        "split_policy_version": m["split_policy_version"],
+        "cells": m["cells"],
+        "groups": groups,
+        "renders": renders,
+        "split_summary": m["split_summary"],
+        "identifiability_counts": m["identifiability_counts"],
+        "renders_by_profile": m["renders_by_profile"],
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

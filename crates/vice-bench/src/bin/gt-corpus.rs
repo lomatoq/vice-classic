@@ -23,6 +23,10 @@ use vice_bench::gt::split::{AuditSeal, SPLIT_POLICY_V1};
 use vice_bench::oracle::{self, OracleScope};
 use vice_bench::prereg::Preregistration;
 use vice_bench::scorecard;
+use vice_bench::topology::TopologyScope;
+
+#[path = "gt-corpus/topology_cmd.rs"]
+mod topology_cmd;
 
 #[derive(Parser)]
 #[command(
@@ -65,6 +69,23 @@ impl From<CorridorScopeArg> for CorridorScope {
         match v {
             CorridorScopeArg::Full => CorridorScope::Full,
             CorridorScopeArg::Test => CorridorScope::Test,
+        }
+    }
+}
+
+/// How much of the corpus the topology recall run covers. Part of its
+/// config hash, so a cheap run is not comparable with a full one.
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+enum TopologyScopeArg {
+    Full,
+    Test,
+}
+
+impl From<TopologyScopeArg> for TopologyScope {
+    fn from(v: TopologyScopeArg) -> TopologyScope {
+        match v {
+            TopologyScopeArg::Full => TopologyScope::Full,
+            TopologyScopeArg::Test => TopologyScope::Test,
         }
     }
 }
@@ -160,6 +181,21 @@ enum Cmd {
         #[arg(long)]
         structural: bool,
     },
+    /// Run the M4.5 topology candidate-recall harness and write its report.
+    Topology {
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, value_enum, default_value_t = TopologyScopeArg::Full)]
+        scope: TopologyScopeArg,
+    },
+    /// Re-run the topology harness at the report's own scope and compare.
+    /// Tier A, exactly like the corridor and oracle reports.
+    TopologyCheck {
+        #[arg(long)]
+        report: PathBuf,
+        #[arg(long)]
+        structural: bool,
+    },
     /// Enforce §27.7: an EXISTING gate file and production code may not
     /// change together. Pass `git diff --name-status` lines (status letter
     /// and path) via `--changed`, or a whole diff on stdin with `--stdin`.
@@ -190,76 +226,6 @@ enum Cmd {
 
 fn main() {
     std::process::exit(real_main());
-}
-
-/// The part of a manifest that does NOT depend on libm: identity,
-/// composition, splits, cell list, identifiability labels and inverse-crime
-/// flags. Everything float-valued - render digests, scene digests, measured
-/// truth - is dropped, because those are Tier A.
-fn structural_projection(m: &serde_json::Value) -> serde_json::Value {
-    let renders: Vec<serde_json::Value> = m["renders"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .map(|r| {
-            serde_json::json!({
-                "group_id": r["group_id"],
-                "scene_id": r["scene_id"],
-                "cell_id": r["cell_id"],
-                "split": r["split"],
-                "identifiability": r["identifiability"],
-                "inverse_crime": r["inverse_crime"],
-                "width_px": r["width_px"],
-                "height_px": r["height_px"],
-            })
-        })
-        .collect();
-    let groups: Vec<serde_json::Value> = m["groups"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .map(|g| {
-            let scenes: Vec<serde_json::Value> = g["scenes"]
-                .as_array()
-                .cloned()
-                .unwrap_or_default()
-                .iter()
-                .map(|sc| {
-                    serde_json::json!({
-                        "id": sc["id"],
-                        "authored_truth_construction": sc["authored_truth_construction"],
-                        "visible_faces": sc["partition_truth"]["visible_faces"],
-                        "holes": sc["partition_truth"]["holes"],
-                        "components": sc["partition_truth"]["components"],
-                        "exterior_model": sc["partition_truth"]["exterior_model"],
-                    })
-                })
-                .collect();
-            serde_json::json!({
-                "id": g["id"],
-                "origin": g["origin"],
-                "shape_family": g["shape_family"],
-                "provenance": g["provenance"],
-                "split": g["split"],
-                "intentionally_ambiguous": g["intentionally_ambiguous"],
-                "equivalence_class": g["equivalence_class"],
-                "scenes": scenes,
-            })
-        })
-        .collect();
-    serde_json::json!({
-        "schema": m["schema"],
-        "procedural_variants_per_family": m["procedural_variants_per_family"],
-        "split_policy_version": m["split_policy_version"],
-        "cells": m["cells"],
-        "groups": groups,
-        "renders": renders,
-        "split_summary": m["split_summary"],
-        "identifiability_counts": m["identifiability_counts"],
-        "renders_by_profile": m["renders_by_profile"],
-    })
 }
 
 fn read_manifest(p: &PathBuf) -> Result<serde_json::Value, String> {
@@ -364,8 +330,8 @@ fn real_main() -> i32 {
             let rebuilt_json: serde_json::Value =
                 serde_json::from_str(&rebuilt.canonical_json()).expect("round trip");
             if structural && !same_platform {
-                let a = structural_projection(&recorded);
-                let b = structural_projection(&rebuilt_json);
+                let a = vice_bench::gt::corpus::structural_projection(&recorded);
+                let b = vice_bench::gt::corpus::structural_projection(&rebuilt_json);
                 if a == b {
                     println!(
                         "corpus reproduced STRUCTURALLY across platforms ({} renders): \
@@ -695,6 +661,8 @@ fn real_main() -> i32 {
             )
             .exit_code()
         }
+        Cmd::Topology { out, scope } => topology_cmd::run(&out, scope.into()),
+        Cmd::TopologyCheck { report, structural } => topology_cmd::check(&report, structural),
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {
                 Ok(v) => v,

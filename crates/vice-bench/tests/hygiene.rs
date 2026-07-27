@@ -337,6 +337,7 @@ fn the_wide_corpus_population_is_unreachable_from_the_measurements() {
         // run time; they report, they do not freeze anything.
         "vice-bench/src/corridor/mod.rs",
         "vice-bench/src/oracle/mod.rs",
+        "vice-bench/src/topology/mod.rs",
         // In-crate unit tests of corpus machinery itself, which are about
         // the corpus rather than about a frozen coefficient.
         "vice-bench/src/correlation.rs",

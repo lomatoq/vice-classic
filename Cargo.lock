@@ -839,6 +839,7 @@ dependencies = [
  "vice-image",
  "vice-ir",
  "vice-render",
+ "vice-topology",
 ]
 
 [[package]]
