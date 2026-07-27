@@ -109,6 +109,24 @@ pub struct TopologyReport {
     /// count alone would overstate how wide the population is; this is the
     /// number a gate row may honestly quote about breadth.
     pub recall_source_groups: u64,
+    /// SHAPE FAMILIES the recall population spans — the unit §27.1 keeps
+    /// splits by and §27.4 calls the trial unit.
+    ///
+    /// Published beside `recall_source_groups` and cited by the gate row in
+    /// preference to it: 18 group ids are 8 families, and `proc/annulus/{000,
+    /// 001,003}` are three variants of one family that `split.rs` explains are
+    /// not independent (M45-N3).
+    pub recall_shape_families: u64,
+    /// Renders the corpus labels `identifiable` that the M4 evidence stage
+    /// refused before the topology stage ran, and the families they came from.
+    ///
+    /// The exclusion's COMPOSITION, not its size. The excluding predicate is
+    /// the same pipeline whose output the clause checks, so difficulty
+    /// correlates with refusal and the size alone is not disclosure.
+    pub identifiable_arms_refused_before_topology: u64,
+    /// Shape families present among the refused arms and ABSENT from the
+    /// recall population entirely.
+    pub families_absent_from_recall_population: Vec<String>,
     pub recall_all: Recall,
     pub recall_events_only: Recall,
     pub recall_fixed_only: Recall,
@@ -209,6 +227,18 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
         })
         .collect();
 
+    let families: std::collections::BTreeSet<&str> =
+        pop.iter().map(|a| a.shape_family.as_str()).collect();
+    let refused_families: std::collections::BTreeSet<&str> = run
+        .refused
+        .iter()
+        .map(|r| r.shape_family.as_str())
+        .collect();
+    let absent: Vec<String> = refused_families
+        .difference(&families)
+        .map(|f| (*f).to_string())
+        .collect();
+
     let mut warnings = Vec::new();
     if pop.is_empty() {
         warnings.push("the recall population is empty; every recall row below is vacuous".into());
@@ -242,6 +272,13 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
             .map(|a| a.group_id.as_str())
             .collect::<std::collections::BTreeSet<_>>()
             .len() as u64,
+        recall_shape_families: families.len() as u64,
+        identifiable_arms_refused_before_topology: run
+            .refused
+            .iter()
+            .filter(|r| r.identifiability == "identifiable")
+            .count() as u64,
+        families_absent_from_recall_population: absent,
         recall_all: recall(&pop, |a| a.gt_in_envelope),
         recall_events_only: recall(&pop, |a| a.gt_in_envelope_events_only),
         recall_fixed_only: recall(&pop, |a| a.gt_in_envelope_fixed_only),
@@ -325,8 +362,13 @@ impl TopologyReport {
         let r = &self.recall_all;
         let nt = &self.recall_non_trivial;
         let groups = self.recall_source_groups as usize;
+        // Breadth counted in SHAPE FAMILIES, which is the unit §27.1 keeps
+        // splits by. The threshold used to be on group ids, three of which can
+        // be one family — a gate row citing dependent trials as independent
+        // (M45-N3).
+        let families = self.recall_shape_families as usize;
         let recall_row = r.arms >= 20
-            && groups >= 5
+            && families >= 5
             && self.non_trivial_gt_arms >= 5
             && r.hits == r.arms
             // The relaxation this clause grants itself — a candidate matching
@@ -415,9 +457,13 @@ impl TopologyReport {
                 format!(
                     "SCOPE of this row: identifiable renders of TRANSPARENT-exterior scenes that \
                      the M4 evidence stage supports, which is {} of {} measured arms over {} \
-                     source groups; {} arms of opaque-exterior scenes are excluded because the \
-                     ink region of a full-bleed scene is whichever face is not the background, \
-                     and that is a palette question this milestone does not answer. There, the GT \
+                     SHAPE FAMILIES ({} group ids; §27.1 keeps splits by family, so the family \
+                     count is the honest breadth); {} arms of opaque-exterior scenes are excluded \
+                     because the ink region of a full-bleed scene is whichever face is not the \
+                     background, and that is a palette question this milestone does not answer. \
+                     Of the refused arms, {} are renders the corpus labels IDENTIFIABLE that the \
+                     M4 evidence stage rejected before topology ran, and the families they take \
+                     with them are absent from the population entirely: {:?}. There, the GT \
                      digital topology (majority-rule digitization of the exact ink coverage, \
                      under either admissible connectivity convention) is present in the envelope \
                      on {}/{} arms = {:.4}; on the {} arms whose GT is NOT a plain disk it is \
@@ -428,8 +474,11 @@ impl TopologyReport {
                      reading on {} more. {} audit groups skipped, {} arms refused",
                     self.identifiable_supported_arms,
                     self.arms_measured,
+                    families,
                     groups,
                     self.opaque_exterior_arms_excluded,
+                    self.identifiable_arms_refused_before_topology,
+                    self.families_absent_from_recall_population,
                     r.hits,
                     r.arms,
                     r.fraction,
@@ -557,6 +606,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
             serde_json::json!({
                 "scene_id": a["scene_id"],
                 "group_id": a["group_id"],
+                "shape_family": a["shape_family"],
                 "cell_id": a["cell_id"],
                 "split": a["split"],
                 "profile": a["profile"],
@@ -608,6 +658,9 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "opaque_exterior_arms_excluded": v["opaque_exterior_arms_excluded"],
         "identifiable_supported_arms": v["identifiable_supported_arms"],
         "recall_source_groups": v["recall_source_groups"],
+        "recall_shape_families": v["recall_shape_families"],
+        "identifiable_arms_refused_before_topology": v["identifiable_arms_refused_before_topology"],
+        "families_absent_from_recall_population": v["families_absent_from_recall_population"],
         "recall_all": {"arms": v["recall_all"]["arms"], "hits": v["recall_all"]["hits"]},
         "recall_events_only": {
             "arms": v["recall_events_only"]["arms"],

@@ -173,6 +173,12 @@ pub struct GtSignature {
 pub struct TopologyArm {
     pub scene_id: String,
     pub group_id: String,
+    /// §27.1 keeps splits by SHAPE FAMILY, and §27.4 makes the source-scene
+    /// family the unit of a reliability trial. `group_id` is finer than that —
+    /// `proc/annulus/{000,001,003}` are three variants of ONE family — so a
+    /// breadth number counted in groups cites dependent trials as independent
+    /// (M45-N3, RT45-A8).
+    pub shape_family: String,
     pub cell_id: String,
     pub split: &'static str,
     pub profile: &'static str,
@@ -237,7 +243,23 @@ pub struct TopologyArm {
 pub struct RefusedArm {
     pub scene_id: String,
     pub cell_id: String,
+    /// The corpus's identifiability label for the render that was refused.
+    ///
+    /// Without it the artifact publishes the SIZE of the exclusion and not its
+    /// COMPOSITION, and the composition is what matters here: the excluding
+    /// predicate is the M4 evidence stage, i.e. the same pipeline whose output
+    /// the clause checks, so difficulty correlates with refusal (M45-N3).
+    /// 44 of the 52 refusals turned out to be `identifiable` renders, and the
+    /// families they belong to are exactly the multi-component ones.
+    pub identifiability: &'static str,
+    pub shape_family: String,
     pub reason: String,
+}
+
+/// Why one arm did not reach the topology stage, with what it excluded.
+struct ArmRefusal {
+    identifiability: &'static str,
+    reason: String,
 }
 
 /// One ambiguity pair, measured at the cell where the two scenes collapse.
@@ -461,13 +483,15 @@ pub fn run(scope: TopologyScope) -> Result<TopologyRun, String> {
                 if !policy.profile_allowed(split, cell.profile.as_str()) {
                     continue;
                 }
-                match measure_arm(scene, cell, split, members) {
+                match measure_arm(scene, cell, split, members, &group.shape_family) {
                     Ok(Some(row)) => arms.push(row),
                     Ok(None) => opaque_arms += 1,
-                    Err(reason) => refused.push(RefusedArm {
+                    Err(detail) => refused.push(RefusedArm {
                         scene_id: scene.id().to_string(),
                         cell_id: cell.id(),
-                        reason,
+                        identifiability: detail.identifiability,
+                        shape_family: group.shape_family.clone(),
+                        reason: detail.reason,
                     }),
                 }
             }
@@ -498,12 +522,16 @@ fn measure_arm(
     cell: &DegradationCell,
     split: Split,
     members: usize,
-) -> Result<Option<TopologyArm>, String> {
+    shape_family: &str,
+) -> Result<Option<TopologyArm>, ArmRefusal> {
     let truth_exterior = scene.scene().scene().formation.exterior;
     if truth_exterior != ExteriorModel::Transparent {
         return Ok(None);
     }
-    let fixture = render_cell(scene, cell, members)?;
+    let fixture = render_cell(scene, cell, members).map_err(|reason| ArmRefusal {
+        identifiability: "not_rendered",
+        reason,
+    })?;
     let identifiability = fixture.identifiability;
     let img = CanonicalImage::from_straight_srgb8(
         fixture.width_px,
@@ -512,7 +540,10 @@ fn measure_arm(
         true,
         IccAssumption::NoProfileAssumedSrgb,
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| ArmRefusal {
+        identifiability: identifiability.as_str(),
+        reason: e.to_string(),
+    })?;
 
     let out = analyze_full(&img, &ANALYSIS_CONFIG_V1, None);
     let outcome = match &out.report.outcome {
@@ -521,18 +552,25 @@ fn measure_arm(
         Flat2Outcome::Unsupported(_) => "unsupported",
     };
     let Some(ev) = out.chosen else {
-        return Err(format!(
-            "the evidence stage returned {outcome} for {} at {}, so there is no coverage field to \
-             take a topology of",
-            scene.id(),
-            cell.id()
-        ));
+        return Err(ArmRefusal {
+            identifiability: identifiability.as_str(),
+            reason: format!(
+                "the evidence stage returned {outcome} for {} at {}, so there is no coverage \
+                 field to take a topology of",
+                scene.id(),
+                cell.id()
+            ),
+        });
     };
 
     let t = view_for(cell);
     let [four, eight] = ComplementaryConnectivity::arms();
-    let gt_four = gt_signature(scene, &t, four)?;
-    let gt_eight = gt_signature(scene, &t, eight)?;
+    let refuse = |reason: String| ArmRefusal {
+        identifiability: identifiability.as_str(),
+        reason,
+    };
+    let gt_four = gt_signature(scene, &t, four).map_err(refuse)?;
+    let gt_eight = gt_signature(scene, &t, eight).map_err(refuse)?;
 
     let palette_id = out
         .report
@@ -594,6 +632,7 @@ fn measure_arm(
     Ok(Some(TopologyArm {
         scene_id: scene.id().to_string(),
         group_id: scene.group_id().to_string(),
+        shape_family: shape_family.to_string(),
         cell_id: cell.id(),
         split: split.as_str(),
         profile: cell.profile.as_str(),

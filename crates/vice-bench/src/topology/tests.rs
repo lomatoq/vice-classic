@@ -165,6 +165,8 @@ fn each_gate_row_can_fail() {
         let mut a = rep.arms[0].clone();
         a.scene_id = format!("{}#{}", a.scene_id, rep.arms.len());
         a.group_id = format!("g{}", rep.arms.len() % 9);
+        a.shape_family = format!("family/{}", rep.arms.len() % 7);
+        a.candidates_by_arm = (2, 2);
         a.identifiability = "identifiable";
         a.outcome = "supported/box".into();
         a.gt_four = GtSignature {
@@ -197,6 +199,15 @@ fn each_gate_row_can_fail() {
         let fx = pop.iter().filter(|a| a.gt_in_envelope_fixed_only).count() as u64;
         let n = pop.len() as u64;
         r.identifiable_supported_arms = n;
+        r.recall_shape_families = pop
+            .iter()
+            .map(|a| a.shape_family.as_str())
+            .collect::<std::collections::BTreeSet<_>>()
+            .len() as u64;
+        r.arms_missing_a_connectivity_arm = pop
+            .iter()
+            .filter(|a| a.candidates_by_arm.0 == 0 || a.candidates_by_arm.1 == 0)
+            .count() as u64;
         r.recall_source_groups = pop
             .iter()
             .map(|a| a.group_id.as_str())
