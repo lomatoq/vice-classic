@@ -4,13 +4,22 @@
 Единственный source of truth: `VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`
 (SHA-256 `652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1`).
 
-**Текущее состояние: M2 (certified partition renderer), автор остановлен
-на gate.** M0 и M1 приняты независимыми review
-([REVIEW_M0](docs/REVIEW_M0.md), [REVIEW_M1](docs/REVIEW_M1.md)). M2
-прошёл два cold review и red-team pass, получил замечания и блокеры
-([REVIEW_M2_A](docs/REVIEW_M2_A.md), [REVIEW_M2_B](docs/REVIEW_M2_B.md),
-[REDTEAM_M2](docs/REDTEAM_M2.md)); их закрытие и текущий статус —
-[docs/STATUS_M2.md](docs/STATUS_M2.md). **M3 не начат и не разрешён.**
+**Текущее состояние: M4 (Flat2 palette + minimal formation + premult
+evidence), автор остановлен на gate; идёт review.**
+
+Приняты независимыми review: M0, M1 ([REVIEW_M0](docs/REVIEW_M0.md),
+[REVIEW_M1](docs/REVIEW_M1.md)); M2 — двумя review плюс отдельный
+red-team pass: A дал REJECT и затем ACCEPT в двух addendum-ах, B дал
+ACCEPT ([REVIEW_M2_A](docs/REVIEW_M2_A.md),
+[REVIEW_M2_B](docs/REVIEW_M2_B.md), [REDTEAM_M2](docs/REDTEAM_M2.md)); M3 — ACCEPT в addendum-е после REJECT
+([REVIEW_M3](docs/REVIEW_M3.md)); M3.5 — ACCEPT
+([REVIEW_M3_5](docs/REVIEW_M3_5.md)).
+
+M4 получил от независимого cold review **REJECT** с тремя блокерами
+([docs/REVIEW_M4.md](docs/REVIEW_M4.md)). Блокеры и условия закрыты
+дельтой; что именно сделано — [docs/STATUS_M4.md](docs/STATUS_M4.md) §8.
+Дельта ждёт повторного review, и до его подписи **M4.5 не начат и не
+разрешён**.
 
 ## Что здесь есть
 
@@ -29,17 +38,32 @@
   вложения/ориентации loops, premultiplied compositing, ROI с dependency
   closure, типизированный числовой домен, seal revalidation skeleton,
   independent differential court.
+- `crates/vice-image` (M4) — canonical decode и premultiplied observation
+  tensor как ФУНКЦИЯ гипотезы blend space; квантовый интервал едет вместе
+  с тензором как граница.
+- `crates/vice-evidence` (M4) — interior confidence, несколько
+  Flat2-гипотез палитры/exterior, минимальное global formation family,
+  premultiplied mixture, §1.6-детектор, boundary observations и corridor.
+  Ничто из этого не является вторым pixel likelihood, и это выражено
+  типом, а не комментарием.
+- `crates/vice-cli` (M4) — `vicec evidence`: исполняемый путь милестоуна.
+  `vicec vectorize` НЕ объявлен, потому что за ним пока нет ни топологии,
+  ни фиттера.
 - `tests/fixtures/smoke/` — фиксированный smoke corpus (5 PNG, побайтово
   воспроизводится `gen-smoke`-ом, зафиксирован `SMOKE_MANIFEST.toml`).
 - `configs/baselines.toml` — явные команды baseline-ов, лимиты ресурсов.
 - Provenance: `SOURCE_PINS.toml`, `PORTING_MANIFEST.toml` (ноль
   перенесённых блоков), `THIRD_PARTY_NOTICES.md`.
+- `docs/gt/` (M3, M3.5, M4) — GT-корпус, его manifest и seal, oracle- и
+  corridor-артефакты. Оба M4-артефакта — Tier A: несут свою платформу и
+  отказываются сравниваться с чужой.
 - Governance: `REQUIREMENTS_TRACEABILITY.md`, `FAILURE_LEDGER.md`,
   `docs/ADR/`.
 
-Чего здесь осознанно НЕТ: evidence, topology envelope, fitter, optimizer,
-GT-корпус/scorecard, SVG-экспорт, UI/WASM/AI — они появляются только в
-своих milestones.
+Чего здесь осознанно НЕТ: topology envelope, fitter, optimizer,
+SVG-экспорт, UI/WASM/AI — они появляются только в своих milestones. M4
+производит ГИПОТЕЗЫ и наблюдения, а не доставку: ни одной сцены он не
+доставляет и ни одного confidence-числа не производит.
 
 ## Быстрые команды
 
