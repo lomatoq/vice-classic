@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/vice-bench",
+    "crates/vice-cli",
     "crates/vice-evidence",
     "crates/vice-geom",
     "crates/vice-image",

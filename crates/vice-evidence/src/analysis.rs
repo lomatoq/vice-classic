@@ -448,6 +448,15 @@ pub fn analyze_full(
             })
             .map(|(_, s)| s.formation.clone())
             .collect();
+        let tied = {
+            // Deduplicated: the label-swapped readings of §9.2 are in the
+            // same class and carry the same formation id, and listing a
+            // formation twice would suggest two different ties.
+            let mut t = tied;
+            t.sort();
+            t.dedup();
+            t
+        };
         Flat2Outcome::Supported {
             evidence_id: chosen.id.clone(),
             mixture_class: class,

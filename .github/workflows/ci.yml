@@ -46,6 +46,11 @@ jobs:
             --out runs/ci-selftest \
             --corpus tests/fixtures/smoke \
             --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml
+      # §4.1: the milestone ends in a working CLI path, run on a committed
+      # fixture rather than described.
+      - name: M4 evidence CLI on a committed fixture
+        run: |
+          cargo run --release --bin vicec -- evidence             tests/fixtures/smoke/circle_64.png --out runs/ci-evidence
       - name: Environment manifest (whole and normative projection)
         run: |
           cargo run --release --bin baseline-runner -- env

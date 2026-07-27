@@ -1,0 +1,114 @@
+//! The M4 executable path, exercised as a binary.
+//!
+//! §4.1: a milestone ends in a working CLI path, not in types. What these
+//! tests check is that the path RUNS on a committed fixture and that the two
+//! things a reader of the output must be able to trust are true of it: the
+//! §1.4 outcomes are distinguishable by exit code, and an oracle override
+//! marks the run non-production in the artifact rather than in the operator's
+//! memory.
+
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("repo root")
+}
+
+fn vicec() -> Command {
+    Command::new(env!("CARGO_BIN_EXE_vicec"))
+}
+
+#[test]
+fn the_evidence_path_runs_on_a_committed_fixture_and_writes_its_report() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = vicec()
+        .arg("evidence")
+        .arg(repo_root().join("tests/fixtures/smoke/circle_64.png"))
+        .arg("--out")
+        .arg(dir.path())
+        .output()
+        .expect("vicec runs");
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    println!("{text}");
+    assert_eq!(out.status.code(), Some(0), "{text}");
+    assert!(text.contains("outcome: SUPPORTED"));
+    let json = std::fs::read_to_string(dir.path().join("evidence.json")).expect("report written");
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["schema"], "vice-classic/m4-flat2-evidence/v1");
+    assert_eq!(v["production"], true);
+    assert_eq!(v["outcome"]["outcome"], "supported");
+    // The report carries the decode facts §8.1 asks for.
+    assert_eq!(v["image"]["width_px"], 64);
+    assert!(v["image"]["source_sha256"].as_str().unwrap().len() == 64);
+    assert_eq!(v["image"]["icc_assumption"], "no_profile_assumed_srgb");
+    // And the corridor of the chosen hypothesis.
+    assert!(v["boundary"]["median_halfwidth_px"].as_f64().unwrap() > 0.0);
+}
+
+/// §30: an oracle override marks the run NON-PRODUCTION, in the artifact and
+/// on stderr. Both, because a warning only a file carries is a warning
+/// nobody reads, and a warning only the terminal carries does not survive
+/// being copied.
+#[test]
+fn an_oracle_override_marks_the_run_non_production() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = vicec()
+        .arg("evidence")
+        .arg(repo_root().join("tests/fixtures/smoke/circle_64.png"))
+        .arg("--out")
+        .arg(dir.path())
+        .arg("--fg")
+        .arg("0,0,0")
+        .arg("--bg")
+        .arg("255,255,255")
+        .output()
+        .expect("vicec runs");
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    assert!(stdout.contains("NON-PRODUCTION"), "{stdout}");
+    assert!(stderr.contains("NOT a production result"), "{stderr}");
+    let json = std::fs::read_to_string(dir.path().join("evidence.json")).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["production"], false);
+    assert_eq!(v["hypotheses"][0], "H0/oracle-override");
+}
+
+/// A malformed override is a typed refusal, not a guess at the other half of
+/// the hypothesis (§9.2).
+#[test]
+fn half_an_override_is_refused_rather_than_completed() {
+    for args in [
+        vec!["--bg", "0,0,0"],
+        vec!["--exterior", "opaque"],
+        vec!["--fg", "0,0"],
+        vec!["--fg", "0,0,999"],
+    ] {
+        let mut c = vicec();
+        c.arg("evidence")
+            .arg(repo_root().join("tests/fixtures/smoke/circle_64.png"));
+        for a in &args {
+            c.arg(a);
+        }
+        let out = c.output().expect("vicec runs");
+        assert_eq!(out.status.code(), Some(2), "{args:?}");
+    }
+}
+
+/// An input that is not a PNG is a FAILURE (exit 2) and not a verdict about
+/// the model: §1.4 keeps `Failed` apart from `Unsupported`.
+#[test]
+fn a_broken_input_is_a_failure_not_an_unsupported_verdict() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("not-a.png");
+    std::fs::write(&path, b"this is not a png").unwrap();
+    let out = vicec()
+        .arg("evidence")
+        .arg(&path)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("decode"));
+}

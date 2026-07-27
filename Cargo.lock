@@ -842,6 +842,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vice-cli"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "serde_json",
+ "tempfile",
+ "vice-evidence",
+ "vice-image",
+ "vice-ir",
+]
+
+[[package]]
 name = "vice-evidence"
 version = "0.0.1"
 dependencies = [

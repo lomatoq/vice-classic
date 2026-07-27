@@ -1,0 +1,23 @@
+[package]
+name = "vice-cli"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "vice-classic M4: the evidence command-line path (vicec)"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "vicec"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+vice-evidence = { path = "../vice-evidence" }
+vice-image = { path = "../vice-image" }
+vice-ir = { path = "../vice-ir" }
+
+[dev-dependencies]
+tempfile = "3"
