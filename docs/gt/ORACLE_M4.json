@@ -1,5 +1,5 @@
 {
-  "schema": "vice-classic/m4-oracle/v1",
+  "schema": "vice-classic/m4-oracle/v2",
   "milestone": "M4",
   "platform": {
     "os": "windows",
@@ -46744,6 +46744,11 @@
   "assembly_refusals": [],
   "factorial_common_fixtures": 406,
   "factorial_dropped_fixtures": 350,
+  "formation_arms": {
+    "estimated": 406,
+    "ground_truth": 756,
+    "formation_matches": 204
+  },
   "mechanism_selftest": {
     "note": "SYNTHETIC. These values measure nothing about the corpus; they exist so the gate rows below are not green merely because no delta was produced.",
     "synthetic_arm_values": [

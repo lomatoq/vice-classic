@@ -169,3 +169,97 @@ fn a_wrong_declaration_would_be_caught() {
         "a level the report does not publish must not resolve"
     );
 }
+
+/// The four §28 M4 clause rows of `STATUS_M4` may quote only DECLARED numbers.
+///
+/// The declared table closed the class for numbers a document chooses to
+/// declare. It does not stop a document from quoting a number that is in no
+/// table at all — and that is what had happened to the gate table of
+/// `STATUS_M4`: after the corridor was recalibrated (F-0027), rows G7, G9 and
+/// G10 still carried the previous run's figures, so the section that reports
+/// the four spec clauses reported them with numbers no artifact held. Three
+/// more instances of F-0028, found by looking, which is how this class keeps
+/// being found.
+///
+/// So those four rows are held to a stronger rule than the rest of the prose:
+/// every numeric token in their Evidence column must be one of the values
+/// this test resolved out of a committed artifact moments earlier.
+///
+/// Deliberately narrow, and the boundary is worth stating. A token containing
+/// a letter, `§` or `@` is an identifier (`PF10`, `M4.5`, `§1.6`,
+/// `coverage@95`), not a measurement, and is skipped; and the rule covers
+/// four rows, not the document. A number elsewhere in `STATUS_M4` is still a
+/// copy nobody checks. What becomes impossible is the specific thing that
+/// happened twice: the rows that PRESENT the gate verdict drifting from the
+/// run that produced it.
+#[test]
+fn the_status_clause_rows_quote_only_declared_numbers() {
+    let text = std::fs::read_to_string(repo_root().join("docs/STATUS_M4.md")).expect("STATUS_M4");
+    let corridor = artifact("CORRIDOR_M4.json");
+    let oracle = artifact("ORACLE_M4.json");
+    let declared: Vec<f64> = declared_claims()
+        .iter()
+        .map(|c| {
+            let root = if c.artifact.starts_with("CORRIDOR") {
+                &corridor
+            } else {
+                &oracle
+            };
+            resolve(root, &c.path).unwrap_or(f64::NAN)
+        })
+        .collect();
+    assert!(
+        declared.len() >= 12 && declared.iter().all(|v| v.is_finite()),
+        "the declared table did not resolve, so this test would compare against nothing"
+    );
+
+    let rows: Vec<&str> = text
+        .lines()
+        .filter(|l| {
+            ["| G7 ", "| G8 ", "| G9 ", "| G10 "]
+                .iter()
+                .any(|p| l.starts_with(p))
+        })
+        .collect();
+    assert_eq!(
+        rows.len(),
+        4,
+        "the four clause rows were not found; the gate table changed shape and this test would \
+         silently check nothing"
+    );
+
+    let mut checked = 0;
+    for row in rows {
+        let evidence = row.split('|').nth(4).unwrap_or_default();
+        for word in evidence.split(|c: char| c.is_whitespace() || c == '/' || c == '(' || c == ')')
+        {
+            let token = word.trim_matches(|c: char| !c.is_ascii_digit());
+            if token.is_empty()
+                || word
+                    .chars()
+                    .any(|c| c.is_alphabetic() || c == '§' || c == '@')
+            {
+                continue;
+            }
+            let Ok(value) = token.parse::<f64>() else {
+                continue;
+            };
+            let scale = 10f64.powi(token.split('.').nth(1).map_or(0, |f| f.len()) as i32);
+            assert!(
+                declared
+                    .iter()
+                    .any(|d| ((d * scale).round() / scale - value).abs() < 1e-9),
+                "STATUS_M4 clause row quotes {token}, which is not one of the {} declared \
+                 measurements: it is either stale (F-0028) or it needs a row in the declared \
+                 table of REPRODUCIBILITY_M4.\nrow: {row}",
+                declared.len()
+            );
+            checked += 1;
+        }
+    }
+    assert!(
+        checked >= 12,
+        "only {checked} numbers scanned across the four clause rows; the scan is not reaching them"
+    );
+    println!("{checked} numbers in the STATUS clause rows are declared measurements");
+}

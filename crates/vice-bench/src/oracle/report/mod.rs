@@ -35,7 +35,12 @@ pub use selftest::{KeyComponentCheck, MechanismSelftest};
 /// formation source), what its key says (an exhaustive search budget where
 /// M3.5 had none) and what the report carries, so an M3.5 artifact and an M4
 /// artifact are not the same document and must not share a name.
-pub const ORACLE_SCHEMA: &str = "vice-classic/m4-oracle/v1";
+///
+/// v2 publishes `formation_arms` (REVIEW_M4 M4-N3, FAILURE_LEDGER F-0028):
+/// the gate row used to compute those three counts inside its own `format!`,
+/// where nothing could be compared with them. The shape of the artifact
+/// changed, so its schema does.
+pub const ORACLE_SCHEMA: &str = "vice-classic/m4-oracle/v2";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct OracleReport {
@@ -72,8 +77,30 @@ pub struct OracleReport {
     /// intersection and the difference is published rather than averaged in.
     pub factorial_common_fixtures: u64,
     pub factorial_dropped_fixtures: u64,
+    /// The three counts the "formation factorial updated" gate row quotes.
+    ///
+    /// They are published rather than only printed because REVIEW_M4 M4-N3
+    /// (F-0028) was about numbers a document quotes having no source to be
+    /// checked against: a count computed inside a `format!` cannot be
+    /// compared with anything. The gate row reads THESE fields now, so the
+    /// row, the artifact and `STATUS_M4` carry one number and
+    /// `tests/doc_claims.rs` resolves it.
+    pub formation_arms: FormationArms,
     pub mechanism_selftest: MechanismSelftest,
     pub not_yet_produced: Vec<&'static str>,
+}
+
+/// Arm counts by formation source, for PF10 against PF11.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct FormationArms {
+    /// Arms whose formation was ESTIMATED from the observation: PF10.
+    pub estimated: u64,
+    /// Arms given the ground-truth formation: PF11.
+    pub ground_truth: u64,
+    /// Estimated arms whose recovered formation equals the cell's own. NOT a
+    /// gate: the factorial is about the contrast, and this is the diagnostic
+    /// that says how often the estimator was simply right.
+    pub formation_matches: u64,
 }
 
 /// How each metric is reduced over the arms of one factorial arm: the
@@ -263,6 +290,25 @@ pub fn build(run: &OracleRun) -> OracleReport {
         assembly_refusals,
         factorial_common_fixtures: common_fixtures,
         factorial_dropped_fixtures: dropped_fixtures,
+        formation_arms: FormationArms {
+            estimated: run
+                .arms
+                .iter()
+                .filter(|a| a.formation_source == FormationSource::Estimated)
+                .count() as u64,
+            ground_truth: run
+                .arms
+                .iter()
+                .filter(|a| a.formation_source == FormationSource::GroundTruth)
+                .count() as u64,
+            formation_matches: run
+                .arms
+                .iter()
+                .filter(|a| {
+                    a.formation_source == FormationSource::Estimated && a.formation_matches_gt
+                })
+                .count() as u64,
+        },
         g_arms: GArm::ALL
             .iter()
             .map(|a| {
@@ -416,6 +462,10 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "assembly_refusals": v["assembly_refusals"],
         "factorial_common_fixtures": v["factorial_common_fixtures"],
         "factorial_dropped_fixtures": v["factorial_dropped_fixtures"],
+        // Counts of arms by formation source and how often the estimator hit
+        // the cell own formation. Integers over arm PROPERTIES, none of them
+        // a function of libm, so they belong in the structural projection.
+        "formation_arms": v["formation_arms"],
         "ceiling": ceiling,
         "ceiling_arms": arms,
     })

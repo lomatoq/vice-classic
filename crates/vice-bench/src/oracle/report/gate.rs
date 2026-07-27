@@ -9,7 +9,7 @@ use super::{derived_warnings, OracleReport};
 use crate::gt::raster::RasterProfile;
 use crate::oracle::ceiling::CEILING_METRICS;
 use crate::oracle::crime::InverseCrime;
-use crate::oracle::design::{ArmOutcome, FormationSource};
+use crate::oracle::design::ArmOutcome;
 
 impl OracleReport {
     /// The §28 M3.5 clauses plus the §28 M4 factorial clause, as booleans
@@ -99,16 +99,9 @@ impl OracleReport {
         // typed refusals owned by M4.5, and all three effects still refuse
         // because a contrast over half a factorial is the order-dependent
         // difference §27.6 abolished.
-        let estimated: Vec<&crate::oracle::ceiling::CeilingArm> = self
-            .ceiling_arms
-            .iter()
-            .filter(|a| a.formation_source == FormationSource::Estimated)
-            .collect();
-        let ground_truth = self
-            .ceiling_arms
-            .iter()
-            .filter(|a| a.formation_source == FormationSource::GroundTruth)
-            .count();
+        // The counts come from the published field, so the row and the
+        // artifact cannot disagree (F-0028).
+        let fa = &self.formation_arms;
         let pf10_measured = self
             .pf_arms
             .iter()
@@ -130,8 +123,8 @@ impl OracleReport {
         let factorial_row = pf10_measured
             && pf01_refused
             && effects_still_refuse
-            && !estimated.is_empty()
-            && ground_truth > 0
+            && fa.estimated > 0
+            && fa.ground_truth > 0
             && self.factorial_common_fixtures > 0
             && self
                 .factorial
@@ -172,9 +165,9 @@ impl OracleReport {
                 factorial_row,
                 format!(
                     "PF10 (GT partition + ESTIMATED formation) measured on {} arms against {} ground-truth ones; the estimator recovered the cell own formation on {}; {} arms refused rather than filled with the truth; the factorial runs over the {} (scene, cell) pairs BOTH sources produced and drops {}; PF00/PF01 stay typed refusals owned by M4.5 (auto partition), so all three effects still refuse - half a factorial is the sequential difference 27.6 abolished",
-                    estimated.len(),
-                    ground_truth,
-                    estimated.iter().filter(|a| a.formation_matches_gt).count(),
+                    fa.estimated,
+                    fa.ground_truth,
+                    fa.formation_matches,
                     self.arms_refused,
                     self.factorial_common_fixtures,
                     self.factorial_dropped_fixtures

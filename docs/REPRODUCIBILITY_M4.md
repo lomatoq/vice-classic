@@ -115,6 +115,7 @@ Float-ы округлены до четырёх знаков и сверяютс
 | контроль резкости (held-out) | `corridor:held_out.margin_survival` | 0 |
 | §1.6-проб всего | `corridor:semi_transparent.probes` | 1242 |
 | из них разрешимых | `corridor:semi_transparent.probes_observable` | 849 |
+| из них неразрешимых | `corridor:semi_transparent.probes_unobservable` | 393 |
 | отвергнуто среди разрешимых | `corridor:semi_transparent.rejected_where_observable` | 841 |
 | доставлено как two-colour среди разрешимых | `corridor:semi_transparent.delivered_as_two_colour_where_observable` | 0 |
 | доставлено как two-colour ВСЕГО | `corridor:semi_transparent.delivered_as_two_colour` | 26 |
@@ -131,8 +132,13 @@ Float-ы округлены до четырёх знаков и сверяютс
 | макс. расхождение с two-colour сценой, кодов | `corridor:over_opaque_layer.single_ink_max_byte_difference` | 1 |
 | supported arms | `corridor:formation_recovery.supported_arms` | 342 |
 | из них с неверным exterior | `corridor:formation_recovery.exterior_wrong` | 0 |
+| max \|α̂ − true coverage\| | `corridor:formation_recovery.max_alpha_error` | 0.009 |
+| arms, сверенных с точным интегратором | `corridor:formation_recovery.alpha_error_arms` | 143 |
 | arms oracle | `oracle:arms_measured` | 1162 |
 | отказов oracle | `oracle:arms_refused` | 350 |
+| arms PF10 (формация ОЦЕНЕНА) | `oracle:formation_arms.estimated` | 406 |
+| arms PF11 (формация — истина) | `oracle:formation_arms.ground_truth` | 756 |
+| из PF10 формация совпала с истиной | `oracle:formation_arms.formation_matches` | 204 |
 | общих (scene, cell) пар факториала | `oracle:factorial_common_fixtures` | 406 |
 | отброшено факториалом | `oracle:factorial_dropped_fixtures` | 350 |
 
