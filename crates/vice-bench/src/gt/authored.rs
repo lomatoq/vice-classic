@@ -224,7 +224,7 @@ fn parse_svg(file: &str, text: &str) -> Result<Vec<AuthoredPath>, AuthoredError>
 }
 
 /// Turn one accepted file into a source group.
-pub fn load_authored(file_name: &str, text: &str) -> Result<GtSourceGroup, AuthoredError> {
+pub(crate) fn load_authored(file_name: &str, text: &str) -> Result<GtSourceGroup, AuthoredError> {
     let paths = parse_svg(file_name, text)?;
     let mut b = SceneBuilder::new(
         AUTHORING_CANVAS_PX,
@@ -344,7 +344,7 @@ pub const AUTHORED_FILES: &[(&str, &str)] = &[
 ];
 
 /// Load every committed authored file.
-pub fn authored_groups() -> Result<Vec<GtSourceGroup>, AuthoredError> {
+pub(crate) fn authored_groups() -> Result<Vec<GtSourceGroup>, AuthoredError> {
     AUTHORED_FILES
         .iter()
         .map(|(name, text)| load_authored(name, text))

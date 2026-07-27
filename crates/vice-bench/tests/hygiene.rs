@@ -234,74 +234,220 @@ fn strip_comments(text: &str) -> String {
         .join("\n")
 }
 
-/// The WIDE corpus population, by function name.
+/// Types whose VALUES are corpus fixtures.
 ///
-/// The CALL and DECLARATION patterns are built from these at run time rather
-/// than written out, so this file does not contain the very literals it
-/// searches for and does not have to exempt itself. An exemption is where
-/// the next hole goes.
-const WIDE_POPULATION_FNS: &[&str] = &["all_groups", "procedural_groups"];
+/// Not function names. M45-N1 and RT45-A3 are the same finding about the same
+/// mistake: the previous version of this file sealed two NAMES
+/// (`all_groups`, `procedural_groups`) and called the class closed, while
+/// `authored_groups()` and `all_adversarial_groups()` — two of the three
+/// summands of `all_groups()` — stayed public. An integration test reached 12
+/// corpus groups through them, TWO of them sealed audit
+/// (`authored/leaf`, `authored/bracket`), compiled, passed, and left this file
+/// green.
+///
+/// A name list can only ever close the names on it. What closes the class is
+/// the TYPE: any function that hands out a `GtSourceGroup` hands out a corpus
+/// fixture, whatever it is called, and `AmbiguityPair` is on the list because
+/// it carries one in a field.
+const CORPUS_BEARING_TYPES: &[&str] = &["GtSourceGroup", "AmbiguityPair"];
 
-fn call_patterns() -> Vec<String> {
-    WIDE_POPULATION_FNS
-        .iter()
-        .map(|n| format!("{n}("))
-        .collect()
+/// The only fully-public function allowed to return one, as `module::name`.
+///
+/// One entry. §27.1 says scoring the sealed audit is what opens it, and this
+/// is the single door through which a frozen coefficient may see the corpus:
+/// development groups, development-legal profiles, nothing else.
+const PUBLIC_CORPUS_DOORS: &[&str] = &["corridor/mod.rs::frozen_calibration_groups"];
+
+/// One declaration of a function whose return type mentions a corpus type.
+struct CorpusFn {
+    module: String,
+    name: String,
+    fully_public: bool,
+}
+
+/// Every function in the workspace whose RETURN type mentions a corpus type.
+///
+/// Signatures are read across line breaks (rustfmt wraps them), and only the
+/// text AFTER `->` is examined — `split_of_group(&self, g: &GtSourceGroup)`
+/// takes a fixture and returns a `Split`, and counting it would make the
+/// declared set meaningless.
+fn corpus_returning_fns() -> Vec<CorpusFn> {
+    let mut out = Vec::new();
+    for (path, _) in production_modules() {
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        // Only the PRODUCTION half of each file. A `fn corpus()` helper inside
+        // `#[cfg(test)] mod tests` is not API surface, and deriving a
+        // call-site pattern from its name would send the second echelon
+        // hunting for the word `corpus(` across the workspace — which is
+        // exactly the false positive this scan produced on its first run.
+        //
+        // The cut is at an INLINE `#[cfg(test)] mod tests {`, not at every
+        // `#[cfg(test)]`: `corridor/mod.rs` declares `#[cfg(test)] mod tests;`
+        // near the top, and cutting there discarded the whole file including
+        // the one legal public door — which the non-vacuity assertion below
+        // caught immediately, and which is the reason that assertion exists.
+        let all: Vec<&str> = text.lines().collect();
+        let cut = all
+            .iter()
+            .position(|l| l.trim() == "#[cfg(test)]")
+            .filter(|i| {
+                all.get(i + 1)
+                    .is_some_and(|n| n.contains("mod ") && n.contains('{'))
+            })
+            .unwrap_or(all.len());
+        let lines: Vec<&str> = all[..cut].to_vec();
+        for (i, line) in lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") {
+                continue;
+            }
+            let Some(after_fn) = fn_name_at(trimmed) else {
+                continue;
+            };
+            // The signature runs until the line that opens the body (or the
+            // `where` clause). Ten lines is far more than rustfmt ever needs
+            // and the window stops at the brace anyway.
+            let mut sig = String::new();
+            for l in lines.iter().skip(i).take(10) {
+                sig.push_str(l);
+                sig.push(' ');
+                if l.contains('{') || l.trim_end().ends_with(';') {
+                    break;
+                }
+            }
+            let Some((_, ret)) = sig.split_once("->") else {
+                continue;
+            };
+            // Stop at the body brace so a fixture mentioned in the first line
+            // of an implementation is not read as a return type.
+            let ret = ret.split('{').next().unwrap_or_default();
+            if !CORPUS_BEARING_TYPES.iter().any(|t| ret.contains(t)) {
+                continue;
+            }
+            out.push(CorpusFn {
+                module: rel(&path),
+                name: after_fn.to_string(),
+                // `pub(crate)` and `pub(super)` are NOT fully public: the
+                // distinguishing text is the parenthesis right after `pub`.
+                fully_public: trimmed.starts_with("pub fn ")
+                    || trimmed.starts_with("pub async fn "),
+            });
+        }
+    }
+    out
+}
+
+/// The identifier after `fn`, for a line that declares one.
+fn fn_name_at(trimmed: &str) -> Option<&str> {
+    let idx = trimmed.find("fn ")?;
+    // `fn` must start the line or follow a visibility / qualifier word, so
+    // that `.filter(|f| f.name ...)` inside a body is not read as one.
+    let before = trimmed[..idx].trim_end();
+    let is_decl = before.is_empty()
+        || before.ends_with("pub")
+        || before.ends_with(')')
+        || before.ends_with("const")
+        || before.ends_with("unsafe")
+        || before.ends_with("async")
+        || before.ends_with("extern");
+    if !is_decl {
+        return None;
+    }
+    let rest = &trimmed[idx + 3..];
+    let end = rest.find(|c: char| !c.is_alphanumeric() && c != '_')?;
+    let name = &rest[..end];
+    (!name.is_empty()).then_some(name)
 }
 
 /// A frozen coefficient may only be measured on the population
-/// `corridor::frozen_calibration_groups` defines — and the wide population
-/// must be UNREACHABLE from where the measurements live, not merely unused.
+/// `corridor::frozen_calibration_groups` defines — and every OTHER way to
+/// obtain a corpus fixture must be unreachable from outside the crate.
 ///
-/// REVIEW_M4 M4-N1 found four of five corpus-wide measurements filtering the
-/// sealed-audit split and one not — the one that froze a production constant.
-/// The answer then was one legal population plus a walk over the source of
-/// `corridor/tests.rs` looking for two literals. The REVIEW_M4 addendum
-/// (M4-N11, condition D1) walked around that walk in a single line:
+/// This is condition 1 of REVIEW_M4_5, and it replaces a check that looked for
+/// two literal call sites. The history is worth keeping because it is the same
+/// lesson twice:
 ///
-/// ```text
-/// use crate::gt::corpus::all_groups as every_group;   // no literal to find
-/// ```
+/// - REVIEW_M4 M4-N1: the split filter was on four corpus measurements and not
+///   the fifth. Answer: one legal population, plus a text scan for
+///   `all_groups(` / `procedural_groups(`;
+/// - REVIEW_M4 addendum M4-N11: the scan was walked around with
+///   `use ... as ...`. Answer: `pub(crate)` on those two names, plus the scan
+///   as second echelon;
+/// - REVIEW_M4_5 M45-N1 / REDTEAM RT45-A3: the seal was on two NAMES, and
+///   `authored_groups()` / `all_adversarial_groups()` were still public. An
+///   integration test reached two SEALED-AUDIT groups and nothing failed.
 ///
-/// 104 renders became 286, the sealed audit was back inside the frozen kernel
-/// table, and nothing failed. So the seal is now the compiler, and this test
-/// is the SECOND ECHELON over the class rather than the first line over one
-/// file. Four clauses:
-///
-/// 1. `all_groups` and `procedural_groups` are declared `pub(crate)`. Widening
-///    either back to `pub` fails here — which is the only way the compiler's
-///    seal could be undone;
-/// 2. the measurements live in `tests/frozen_calibration.rs`, a separate
-///    crate, and reach the corpus through `frozen_calibration_groups()`;
-/// 3. NO integration test anywhere in the workspace names the wide
-///    population. It could not compile if it did; asserting it is what makes
-///    the intent survive a future `pub`;
-/// 4. inside `vice-bench` the SET of modules that call the wide population is
-///    declared, exactly as the environment-reading surface is. A new in-crate
-///    caller is a failure a reviewer looks at, not a line nobody notices
-///    (meta-rule M-1: a surface, not a place).
+/// So the check is no longer over names at all. It enumerates every function
+/// in the workspace whose RETURN TYPE hands out a corpus fixture and asserts
+/// the set of FULLY PUBLIC ones equals one declared door. A new public
+/// accessor — under any name, in any module — fails here, which is what
+/// "surface, not place" was supposed to mean the first two times.
 #[test]
-fn the_wide_corpus_population_is_unreachable_from_the_measurements() {
-    // 1. The seal itself.
-    for (module, name) in [
-        ("vice-bench/src/gt/corpus.rs", "all_groups"),
-        ("vice-bench/src/gt/grammar.rs", "procedural_groups"),
-    ] {
-        assert!(
-            WIDE_POPULATION_FNS.contains(&name),
-            "{name} is sealed here but is not in the population list, so clause 3 would not              search for it"
-        );
-        let decl = format!("pub(crate) fn {name}(");
-        let text = std::fs::read_to_string(repo_root().join("crates").join(module)).expect(module);
-        assert!(
-            text.contains(&decl),
-            "{module} no longer declares `{decl}`. That declaration IS condition D1: widened to \
-             `pub`, an integration test can name the wide population again and the seal is back \
-             to being a habit"
-        );
-    }
+fn every_public_path_to_a_corpus_fixture_is_the_declared_one() {
+    let fns = corpus_returning_fns();
 
-    // 2. The measurements exist, outside the crate, on the legal population.
+    // Non-vacuity, in both directions. The scan must find the private
+    // machinery too, or a parser that matched nothing would pass; and it must
+    // find at least one of each visibility, or "all of them are sealed" could
+    // be true of an empty set.
+    assert!(
+        fns.len() >= 6,
+        "the signature scan found only {} corpus-returning functions; it is not parsing \
+         declarations and every assertion below would be vacuous: {:?}",
+        fns.len(),
+        fns.iter().map(|f| &f.name).collect::<Vec<_>>()
+    );
+    assert!(
+        fns.iter().any(|f| !f.fully_public),
+        "the scan sees no sealed corpus function at all, so it cannot distinguish sealed from \
+         public"
+    );
+    assert!(
+        fns.iter().any(|f| f.fully_public),
+        "the scan sees no public corpus function at all; the declared door would be compared \
+         against an empty set and the equality below would prove nothing"
+    );
+
+    let mut public: Vec<String> = fns
+        .iter()
+        .filter(|f| f.fully_public)
+        .map(|f| {
+            format!(
+                "{}::{}",
+                f.module.trim_start_matches("vice-bench/src/"),
+                f.name
+            )
+        })
+        .collect();
+    public.sort();
+    public.dedup();
+    let mut declared: Vec<String> = PUBLIC_CORPUS_DOORS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    declared.sort();
+
+    assert_eq!(
+        public,
+        declared,
+        "the set of FULLY PUBLIC functions handing out a corpus fixture changed. Every entry is \
+         a door through which an integration test can reach the sealed audit (M45-N1), so every \
+         entry is reviewed rather than assumed. Sealed ones seen: {:?}",
+        fns.iter()
+            .filter(|f| !f.fully_public)
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+    );
+}
+
+/// Second echelon, and named as such: the call-site scan that used to be the
+/// first line of defence.
+///
+/// It models a habit — "somebody writes `all_groups()` out of muscle memory" —
+/// and habits are worth catching. It is NOT the proof; the proof is the
+/// visibility enumeration above, which the compiler enforces.
+#[test]
+fn the_measurements_reach_the_corpus_through_the_legal_population() {
     let tests = integration_tests();
     let frozen = tests
         .iter()
@@ -313,10 +459,22 @@ fn the_wide_corpus_population_is_unreachable_from_the_measurements() {
          an empty file"
     );
 
-    // 3. No integration test names the wide population.
-    let calls = call_patterns();
+    // No integration test names any of the sealed accessors. It could not
+    // compile if it did; asserting it is what makes the intent survive a
+    // future widening, and the names are derived from the scan rather than
+    // written out, so this file does not have to exempt itself.
+    let sealed: Vec<String> = corpus_returning_fns()
+        .into_iter()
+        .filter(|f| !f.fully_public)
+        .map(|f| format!("{}(", f.name))
+        .collect();
+    assert!(
+        sealed.len() >= 4,
+        "only {} sealed accessors derived; the second echelon would be searching for nothing",
+        sealed.len()
+    );
     for (path, code) in &tests {
-        for direct in &calls {
+        for direct in &sealed {
             assert!(
                 !code.contains(direct.as_str()),
                 "{path} reaches the corpus through {direct}: a frozen coefficient must come from \
@@ -326,38 +484,41 @@ fn the_wide_corpus_population_is_unreachable_from_the_measurements() {
         }
     }
 
-    // 4. The in-crate surface is declared, not assumed.
+    // And the in-crate surface is declared, not assumed.
     const DECLARED: &[&str] = &[
-        // Declares and assembles the whole corpus; the manifest IS the wide
-        // population.
+        // Declares and assembles the whole corpus.
         "vice-bench/src/gt/corpus.rs",
-        // Declares `procedural_groups`.
         "vice-bench/src/gt/grammar.rs",
+        "vice-bench/src/gt/authored.rs",
+        "vice-bench/src/gt/adversarial.rs",
+        // Builds one procedural variant; reachable only from `grammar`.
+        "vice-bench/src/gt/recipes.rs",
         // Harness runs that walk the corpus and skip the sealed audit at
         // run time; they report, they do not freeze anything.
         "vice-bench/src/corridor/mod.rs",
         "vice-bench/src/oracle/mod.rs",
         "vice-bench/src/topology/mod.rs",
-        // In-crate unit tests of corpus machinery itself, which are about
-        // the corpus rather than about a frozen coefficient.
+        // In-crate unit tests of corpus machinery itself.
         "vice-bench/src/correlation.rs",
         "vice-bench/src/gt/raster.rs",
         "vice-bench/src/gt/split.rs",
+        "vice-bench/src/topology/tests.rs",
     ];
     let mut found: Vec<String> = production_modules()
         .iter()
         .filter(|(p, _)| {
             let code = strip_comments(&std::fs::read_to_string(p).unwrap_or_default());
-            calls.iter().any(|d| code.contains(d.as_str()))
+            sealed.iter().any(|d| code.contains(d.as_str()))
         })
         .map(|(p, _)| rel(p))
         .collect();
     found.sort();
+    found.dedup();
     let mut declared: Vec<String> = DECLARED.iter().map(|s| (*s).to_string()).collect();
     declared.sort();
     assert_eq!(
         found, declared,
-        "the set of modules that can see the WIDE corpus population changed; every entry is \
-         reviewed, not assumed"
+        "the set of modules that can see a corpus fixture changed; every entry is reviewed, not \
+         assumed"
     );
 }

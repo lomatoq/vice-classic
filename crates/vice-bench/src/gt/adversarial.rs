@@ -273,7 +273,7 @@ fn split_or_merged(id: &str, group: &str, sep: Option<f64>) -> GtScene {
 }
 
 /// The intentionally ambiguous pairs of the corpus.
-pub fn ambiguity_pairs() -> Vec<AmbiguityPair> {
+pub(crate) fn ambiguity_pairs() -> Vec<AmbiguityPair> {
     let c = canvas();
     vec![
         // 1. Hole present vs absent, at a size where the hole falls below
@@ -352,7 +352,7 @@ pub fn ambiguity_pairs() -> Vec<AmbiguityPair> {
 }
 
 /// Adversarial groups: geometry aimed at the measurement apparatus.
-pub fn adversarial_groups() -> Vec<GtSourceGroup> {
+pub(crate) fn adversarial_groups() -> Vec<GtSourceGroup> {
     let c = canvas();
     let mut out = Vec::new();
 
@@ -476,7 +476,7 @@ fn single_group(
 }
 
 /// Every adversarial source group, ambiguity pairs included.
-pub fn all_adversarial_groups() -> Vec<GtSourceGroup> {
+pub(crate) fn all_adversarial_groups() -> Vec<GtSourceGroup> {
     let mut out: Vec<GtSourceGroup> = ambiguity_pairs().into_iter().map(|p| p.group).collect();
     out.extend(adversarial_groups());
     out
