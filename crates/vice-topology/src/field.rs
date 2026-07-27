@@ -270,8 +270,12 @@ fn detail_preserving(f: &[f64], w: usize, h: usize) -> Vec<f64> {
                 hi = hi.max(*v);
             }
             let i = y as usize * w + x as usize;
-            if c > hi || c < lo {
-                // A strict local extremum: a ridge or a dip. Keep it.
+            if c >= hi || c <= lo {
+                // A local extremum, and NON-STRICTLY so on purpose: a
+                // one-pixel bridge is a RIDGE, whose centre equals its two
+                // neighbours along the ridge rather than exceeding them. The
+                // strict test kept a lone spike and lost every bridge, which
+                // is the exact structure this field exists to preserve.
                 out[i] = c;
                 continue;
             }
@@ -292,19 +296,16 @@ fn denoised(f: &[f64], w: usize, h: usize) -> Vec<f64> {
     let mut tmp = vec![0.0f64; f.len()];
     for y in 0..h as isize {
         for x in 0..w as isize {
-            tmp[y as usize * w + x as usize] = (at(f, w, h, x - 1, y)
-                + 2.0 * at(f, w, h, x, y)
-                + at(f, w, h, x + 1, y))
-                / 4.0;
+            tmp[y as usize * w + x as usize] =
+                (at(f, w, h, x - 1, y) + 2.0 * at(f, w, h, x, y) + at(f, w, h, x + 1, y)) / 4.0;
         }
     }
     let mut out = vec![0.0f64; f.len()];
     for y in 0..h as isize {
         for x in 0..w as isize {
-            out[y as usize * w + x as usize] = (at(&tmp, w, h, x, y - 1)
-                + 2.0 * at(&tmp, w, h, x, y)
-                + at(&tmp, w, h, x, y + 1))
-                / 4.0;
+            out[y as usize * w + x as usize] =
+                (at(&tmp, w, h, x, y - 1) + 2.0 * at(&tmp, w, h, x, y) + at(&tmp, w, h, x, y + 1))
+                    / 4.0;
         }
     }
     out
@@ -377,6 +378,23 @@ pub fn deconvolution_kernel(
     }
 }
 
+/// The kernel a formation hypothesis PREDICTS with, in the forward
+/// direction.
+///
+/// `None` for `Box`, and that is not an omission: a box PSF of one pixel is
+/// the pixel integration itself, so on the pixel grid the operator is the
+/// identity and a caller that convolves with it is doing arithmetic for
+/// nothing. Unlike [`deconvolution_kernel`] this does not ask whether the
+/// filter is IDENTIFIABLE, because predicting forward under a hypothesis is
+/// what a hypothesis is for; only inverting needs the image to determine the
+/// kernel.
+pub fn forward_kernel(filter: PixelFilter) -> Option<SeparableKernel> {
+    match filter {
+        PixelFilter::Box => None,
+        other => deconvolution_kernel(other, true).ok(),
+    }
+}
+
 /// Bounded (Landweber) deconvolution: `u <- clamp[0,1]( u + b (f - K u) )`.
 ///
 /// BOUNDED in both senses §11.1 needs. The iteration count is fixed, so the
@@ -411,7 +429,13 @@ mod tests {
             .collect()
     }
 
-    fn obs<'a>(a: &'a [f64], w: usize, h: usize, f: PixelFilter, ident: bool) -> CoverageObservation<'a> {
+    fn obs<'a>(
+        a: &'a [f64],
+        w: usize,
+        h: usize,
+        f: PixelFilter,
+        ident: bool,
+    ) -> CoverageObservation<'a> {
         CoverageObservation {
             palette_id: "p".into(),
             formation_id: "f".into(),
@@ -480,16 +504,37 @@ mod tests {
         let dp = detail_preserving(&a, w, h);
         let dn = denoised(&a, w, h);
         assert!(
-            mid(&dp) > 0.5,
-            "the conservative field must keep the neck above the level: {}",
+            (mid(&dp) - 1.0).abs() < 1e-12,
+            "the conservative field must keep the neck exactly: {}",
             mid(&dp)
         );
         assert!(
-            mid(&dn) < 0.5,
-            "the plain denoiser must lose it, or the contrast between the two fields is not \
-             measurable: {}",
-            mid(&dn)
+            mid(&dn) < mid(&dp),
+            "the plain denoiser must thin it, or the contrast between the two fields is not              measurable: {} against {}",
+            mid(&dn),
+            mid(&dp)
         );
+        // And the difference is TOPOLOGICAL, which is the only kind that
+        // matters here: at a level where both blobs are solidly inside, the
+        // conservative field still reads ONE component and the denoised one
+        // reads two.
+        let arm = vice_ir::ComplementaryConnectivity::arms()[0];
+        let one = crate::cubical::threshold(
+            &dp,
+            w,
+            h,
+            0.75,
+            crate::cubical::SaddleResolution::Thresholded,
+        );
+        let two = crate::cubical::threshold(
+            &dn,
+            w,
+            h,
+            0.75,
+            crate::cubical::SaddleResolution::Thresholded,
+        );
+        assert_eq!(crate::cubical::signature(&one, arm).components, 1);
+        assert_eq!(crate::cubical::signature(&two, arm).components, 2);
     }
 
     /// Deconvolution is refused BY NAME in each of its two conditions, and
@@ -551,7 +596,11 @@ mod tests {
         let y = build_fields(&o2, &FIELD_CONFIG_V1);
         assert_eq!(x.fields, y.fields);
         for (p, q) in x.fields.iter().zip(&y.fields) {
-            assert!(p.values.iter().zip(&q.values).all(|(a, b)| a.to_bits() == b.to_bits()));
+            assert!(p
+                .values
+                .iter()
+                .zip(&q.values)
+                .all(|(a, b)| a.to_bits() == b.to_bits()));
         }
     }
 }

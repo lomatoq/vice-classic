@@ -68,10 +68,7 @@ const DECLARING_DOCS: &[&str] = &["docs/REPRODUCIBILITY_M4.md", "docs/REPRODUCIB
 /// the row prefixes that identify them.
 const CLAUSE_ROWS: &[(&str, &[&str])] = &[
     ("docs/STATUS_M4.md", &["| G7 ", "| G8 ", "| G9 ", "| G10 "]),
-    (
-        "docs/STATUS_M4_5.md",
-        &["| T1 ", "| T2 ", "| T3 "],
-    ),
+    ("docs/STATUS_M4_5.md", &["| T1 ", "| T2 ", "| T3 "]),
 ];
 
 /// Artifact file names, by the prefix a declared key uses.

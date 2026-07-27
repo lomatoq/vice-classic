@@ -195,10 +195,7 @@ fn the_kernel_profile_table_matches_the_corpus() {
     // estimator quietly becomes more confident.
     assert_eq!(
         filters_within_margin(triangle, 2.0),
-        vec![
-            vice_ir::PixelFilter::Box,
-            vice_ir::PixelFilter::Triangle
-        ],
+        vec![vice_ir::PixelFilter::Box, vice_ir::PixelFilter::Triangle],
         "at the triangle's own width exactly box and triangle are admissible"
     );
 }

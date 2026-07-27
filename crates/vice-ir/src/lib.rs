@@ -42,6 +42,11 @@ pub use canonical::{
     SCENE_SCHEMA,
 };
 pub use color::{BlendSpace, LinearRgb, LinearRgba, PremulRgba};
+// Re-exported at the root in M4.5, which is the first consumer outside this
+// crate: the topology stage takes the complementary pair as a TYPE (§5.3) so
+// that a non-complementary convention stays unrepresentable across the crate
+// boundary too, not only inside this one.
+pub use connectivity::{ComplementaryConnectivity, PixelConnectivity};
 pub use curve::{ChainNode, CurveChain, JoinKind, Segment};
 pub use graph::{
     Boundary, BoundaryId, Face, FaceId, GraphVertex, HalfEdge, HalfEdgeId, Paint, PlanarGraph,
