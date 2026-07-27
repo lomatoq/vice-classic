@@ -558,6 +558,21 @@ mod tests {
                 "gate_min_classes_per_retaining_pair",
                 GateExpectation::num(f64::from(topo::MIN_CLASSES_PER_RETAINING_PAIR)),
             ),
+            // --- topology_controls -------------------------------------
+            // Not thresholds of a row but numbers that decide whether a row's
+            // CONTROL measures anything, which RT45-A12 showed is the same kind
+            // of number: `0.3 -> 0.0001` on the knockout radius empties the
+            // control and leaves clause 1 green.
+            (
+                "topology_controls",
+                "gate_knockout_disk_radius_fraction",
+                GateExpectation::num(crate::topology::KNOCKOUT_DISK_RADIUS_FRACTION),
+            ),
+            (
+                "topology_controls",
+                "gate_gt_majority_level",
+                GateExpectation::num(crate::topology::GT_MAJORITY_LEVEL),
+            ),
             // --- split -------------------------------------------------
             (
                 "split",

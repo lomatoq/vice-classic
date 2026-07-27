@@ -18,14 +18,94 @@
 //!   looks exactly like success from the outside.
 
 use super::ambiguity::AmbiguityRow;
-use super::report::{
-    TopologyReport, MIN_CLASSES_PER_RETAINING_PAIR, MIN_NON_TRIVIAL_GT_ARMS, MIN_RECALL_ARMS,
-    MIN_RECALL_SHAPE_FAMILIES, MIN_TOPOLOGY_PAIRS,
-};
+use super::report::TopologyReport;
+use crate::gates::GatesFile;
+
+/// A population threshold of a gate row, LOADED from the frozen gate file.
+///
+/// A newtype with no arithmetic, and the absence is the mechanism (RT45-A10).
+/// The previous version compared against `pub const MIN_RECALL_ARMS: u32 = 20`
+/// and a scan checked that the constant was registered — so the registration
+/// was of the SPELLING. `MIN_RECALL_ARMS / 20`, `MIN_RECALL_ARMS - 16`,
+/// `MIN_RECALL_ARMS.saturating_sub(19)` all keep the registered name in the
+/// line and compare against 1.
+///
+/// There is no `Div`, `Sub`, `Add` or `Mul` impl here, so every one of those is
+/// a type error rather than a value that passes a text check. There is no
+/// public constructor either: the only way to obtain one is
+/// [`TopologyGateConfig::from_gates`], which reads the committed file.
+///
+/// What a newtype cannot stop is arithmetic on the OTHER side —
+/// `t.met_by(measured + 4)`. That is why the spelling is not the acceptance
+/// criterion at all: `each_gate_row_flips_at_exactly_the_registered_threshold`
+/// finds the EFFECTIVE boundary by scanning the measurement until the row
+/// changes, and compares that to the file. It is blind to how the comparison is
+/// written, on either side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Threshold(u64);
+
+impl Threshold {
+    /// True when the measurement meets the threshold.
+    pub fn met_by(self, measured: u64) -> bool {
+        measured >= self.0
+    }
+
+    /// For printing beside the row. Deliberately not `impl From<Threshold> for
+    /// u64`: a conversion invites arithmetic at the call site, and the whole
+    /// point of the type is that there is none.
+    pub fn registered_value(self) -> u64 {
+        self.0
+    }
+}
+
+/// The population thresholds of the §28 M4.5 rows, as the gate file has them.
+///
+/// Condition 7 asked for the numbers to be registered and C179/C180 registered
+/// them. RT45-A10 is that registering a CONSTANT and computing from a constant
+/// are different things: the row read `MIN_RECALL_ARMS` and the registration
+/// checked `MIN_RECALL_ARMS`, but nothing tied the value the row COMPARED
+/// AGAINST to the value in the file. It does now — the row compares against
+/// this struct, and this struct has exactly one source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TopologyGateConfig {
+    pub min_recall_arms: Threshold,
+    pub min_recall_shape_families: Threshold,
+    pub min_non_trivial_gt_arms: Threshold,
+    pub min_topology_pairs: Threshold,
+    pub min_classes_per_retaining_pair: Threshold,
+}
+
+impl TopologyGateConfig {
+    /// Read the five thresholds out of the frozen `[topology]` section.
+    ///
+    /// `gate_value` refuses a placeholder section, so a gate row cannot be
+    /// computed from a number that is not frozen yet.
+    pub fn from_gates(g: &GatesFile) -> Result<TopologyGateConfig, String> {
+        let t = |key: &str| -> Result<Threshold, String> {
+            let v = g
+                .gate_value("topology", key)
+                .map_err(|e| format!("gate topology.{key}: {e}"))?;
+            let n = v
+                .as_integer()
+                .ok_or_else(|| format!("gate topology.{key} is not an integer: {v}"))?;
+            u64::try_from(n)
+                .map(Threshold)
+                .map_err(|_| format!("gate topology.{key} is negative: {n}"))
+        };
+        Ok(TopologyGateConfig {
+            min_recall_arms: t("gate_min_recall_arms")?,
+            min_recall_shape_families: t("gate_min_recall_shape_families")?,
+            min_non_trivial_gt_arms: t("gate_min_non_trivial_gt_arms")?,
+            min_topology_pairs: t("gate_min_topology_pairs")?,
+            min_classes_per_retaining_pair: t("gate_min_classes_per_retaining_pair")?,
+        })
+    }
+}
 
 impl TopologyReport {
-    /// The three §28 M4.5 clauses, as booleans over this report's own data.
-    pub fn gate_table(&self) -> Vec<(&'static str, bool, String)> {
+    /// The three §28 M4.5 clauses, as booleans over this report's own data and
+    /// the thresholds the frozen gate file carries.
+    pub fn gate_table(&self, cfg: &TopologyGateConfig) -> Vec<(&'static str, bool, String)> {
         // Clause 1: the GT-equivalent topology is PRESENT IN THE ENVELOPE on
         // identifiable supported fixtures. Recall, not accuracy of choice.
         //
@@ -42,9 +122,11 @@ impl TopologyReport {
         // be one family — a gate row citing dependent trials as independent
         // (M45-N3).
         let families = self.recall_shape_families as usize;
-        let recall_row = r.arms >= u64::from(MIN_RECALL_ARMS)
-            && families >= MIN_RECALL_SHAPE_FAMILIES as usize
-            && self.non_trivial_gt_arms >= u64::from(MIN_NON_TRIVIAL_GT_ARMS)
+        let recall_row = cfg.min_recall_arms.met_by(r.arms)
+            && cfg.min_recall_shape_families.met_by(families as u64)
+            && cfg
+                .min_non_trivial_gt_arms
+                .met_by(self.non_trivial_gt_arms)
             && r.hits == r.arms
             // The relaxation this clause grants itself — a candidate matching
             // EITHER convention's truth counts — is only justified while the
@@ -105,12 +187,15 @@ impl TopologyReport {
         let excused = |p: &AmbiguityRow| {
             p.collapse_max_code_diff < crate::gt::degradation::QUANTIZATION_FLOOR_CODES
         };
-        let ambiguity_row = pairs.len() >= MIN_TOPOLOGY_PAIRS as usize
+        let ambiguity_row = cfg.min_topology_pairs.met_by(pairs.len() as u64)
             && pairs.iter().any(|p| both(p))
             && pairs.iter().all(|p| both(p) || excused(p))
             && pairs.iter().filter(|p| both(p)).all(|p| {
-                p.classes_from_a.len() >= MIN_CLASSES_PER_RETAINING_PAIR as usize
-                    && p.classes_from_b.len() >= MIN_CLASSES_PER_RETAINING_PAIR as usize
+                cfg.min_classes_per_retaining_pair
+                    .met_by(p.classes_from_a.len() as u64)
+                    && cfg
+                        .min_classes_per_retaining_pair
+                        .met_by(p.classes_from_b.len() as u64)
             });
 
         // Clause 3: NO magic-threshold-only architecture, made executable as

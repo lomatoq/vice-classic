@@ -8,10 +8,26 @@
 use std::path::Path;
 
 use vice_bench::artifact;
+use vice_bench::gates::GatesFile;
+use vice_bench::topology::gate::TopologyGateConfig;
 use vice_bench::topology::{self, TopologyScope};
 
+/// The gate-row thresholds, read from the frozen file rather than from a
+/// constant next to the row (RT45-A10).
+fn gate_config(gates: &Path) -> Result<TopologyGateConfig, String> {
+    let g = GatesFile::load(gates).map_err(|e| format!("load {}: {e}", gates.display()))?;
+    TopologyGateConfig::from_gates(&g)
+}
+
 /// Run the M4.5 recall harness and write its report (§11.3, §28 M4.5).
-pub fn run(out: &Path, scope: TopologyScope) -> i32 {
+pub fn run(out: &Path, scope: TopologyScope, gates: &Path) -> i32 {
+    let cfg = match gate_config(gates) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
     let run = match topology::run(scope) {
         Ok(r) => r,
         Err(e) => {
@@ -57,7 +73,7 @@ pub fn run(out: &Path, scope: TopologyScope) -> i32 {
     }
     let mut all_ok = true;
     println!("M4.5 gate table (all three clauses of the spec):");
-    for (name, ok, why) in report.gate_table() {
+    for (name, ok, why) in report.gate_table(&cfg) {
         println!("  [{}] {name}: {why}", if ok { "MET" } else { "NOT MET" });
         all_ok &= ok;
     }
