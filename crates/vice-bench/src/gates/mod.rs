@@ -182,6 +182,15 @@ mod tests {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../configs/GATES_V1.toml")
     }
 
+    /// Every section is one of the two kinds, and each kind is populated.
+    ///
+    /// Written as a property of the CLASS rather than as a list of section
+    /// names: a milestone that MEASURES a placeholder is supposed to freeze
+    /// it (M4 froze `noise_scales`), and a test that names the placeholders
+    /// one by one turns that intended transition into a failure — which is
+    /// meta-rule M-1 in the file whose whole subject is frozen values. What
+    /// must stay true is the structure: nothing is half-declared, every
+    /// placeholder names its owner, and both kinds still exist.
     #[test]
     fn the_committed_gates_file_loads_and_separates_frozen_from_placeholder() {
         let g = GatesFile::load(&gates_path()).expect("committed gates file must load");
@@ -189,17 +198,38 @@ mod tests {
         assert_eq!(g.sha256.len(), 64);
         let frozen = g.frozen_sections();
         let placeholders = g.placeholder_sections();
-        assert!(frozen.contains(&"reliability"));
-        assert!(frozen.contains(&"identifiability"));
-        assert!(frozen.contains(&"corpus_instruments"));
-        assert!(frozen.contains(&"split"));
-        assert!(frozen.contains(&"likelihood"));
-        assert!(
-            placeholders.contains(&"boundary_accuracy")
-                && placeholders.contains(&"geometry_code_table")
-                && placeholders.contains(&"noise_scales"),
-            "the tables M3 cannot set must be declared as placeholders, not invented"
+        assert_eq!(
+            frozen.len() + placeholders.len(),
+            g.doc.sections.len(),
+            "a section is frozen or a placeholder; there is no third state"
         );
+        assert!(frozen.len() >= 5, "frozen sections: {frozen:?}");
+        assert!(
+            !placeholders.is_empty(),
+            "the tables no measurement supports yet must be DECLARED, not invented"
+        );
+        for p in &placeholders {
+            let s = &g.doc.sections[*p];
+            assert!(
+                s.set_by_milestone.as_deref().is_some_and(|m| !m.is_empty()),
+                "placeholder {p} names no owner"
+            );
+            assert!(
+                g.gate_value(p, "any").is_err(),
+                "a placeholder must not be readable as a gate"
+            );
+        }
+        // The frozen sections M3 established are still frozen: a later
+        // milestone may ADD to this set, never remove from it.
+        for s in [
+            "reliability",
+            "identifiability",
+            "corpus_instruments",
+            "split",
+            "likelihood",
+        ] {
+            assert!(frozen.contains(&s), "{s} stopped being frozen");
+        }
     }
 
     /// A placeholder is not a threshold. Reading one as a gate is refused,
