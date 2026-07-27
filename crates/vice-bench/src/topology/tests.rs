@@ -155,6 +155,11 @@ fn each_gate_row_can_fail() {
         let fx = pop.iter().filter(|a| a.gt_in_envelope_fixed_only).count() as u64;
         let n = pop.len() as u64;
         r.identifiable_supported_arms = n;
+        r.recall_source_groups = pop
+            .iter()
+            .map(|a| a.group_id.as_str())
+            .collect::<std::collections::BTreeSet<_>>()
+            .len() as u64;
         r.recall_all = report::Recall {
             arms: n,
             hits,

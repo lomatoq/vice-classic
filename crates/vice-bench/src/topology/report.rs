@@ -92,6 +92,11 @@ pub struct TopologyReport {
     pub opaque_exterior_arms_excluded: u64,
     /// The recall population: identifiable, supported, transparent exterior.
     pub identifiable_supported_arms: u64,
+    /// Independent SOURCE GROUPS the recall population spans. §27.4 makes
+    /// the source-scene family the unit of a reliability trial, so the arm
+    /// count alone would overstate how wide the population is; this is the
+    /// number a gate row may honestly quote about breadth.
+    pub recall_source_groups: u64,
     pub recall_all: Recall,
     pub recall_events_only: Recall,
     pub recall_fixed_only: Recall,
@@ -108,6 +113,10 @@ pub struct TopologyReport {
     pub largest_batch_pixels: u32,
     pub saddle_alternatives_total: u64,
     pub ambiguity: Vec<AmbiguityRow>,
+    /// Intentionally ambiguous pairs the corpus carries, of which
+    /// `topology_pairs` are about topology. Published so a gate row can
+    /// quote both numbers as measurements rather than one as a constant.
+    pub ambiguity_pairs: u64,
     pub topology_pairs: u64,
     pub arms: Vec<TopologyArm>,
     pub refused: Vec<super::RefusedArm>,
@@ -206,6 +215,11 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
         sealed_audit_groups_skipped: run.sealed_audit_groups_skipped,
         opaque_exterior_arms_excluded: run.opaque_exterior_arms,
         identifiable_supported_arms: pop.len() as u64,
+        recall_source_groups: pop
+            .iter()
+            .map(|a| a.group_id.as_str())
+            .collect::<std::collections::BTreeSet<_>>()
+            .len() as u64,
         recall_all: recall(&pop, |a| a.gt_in_envelope),
         recall_events_only: recall(&pop, |a| a.gt_in_envelope_events_only),
         recall_fixed_only: recall(&pop, |a| a.gt_in_envelope_fixed_only),
@@ -250,6 +264,7 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
             .max()
             .unwrap_or(0),
         saddle_alternatives_total: run.arms.iter().map(|a| a.saddle_alternatives as u64).sum(),
+        ambiguity_pairs: run.ambiguity.len() as u64,
         ambiguity: run.ambiguity.clone(),
         topology_pairs,
         arms: run.arms.clone(),
@@ -275,14 +290,9 @@ impl TopologyReport {
         // missing (§36 stop condition).
         let r = &self.recall_all;
         let nt = &self.recall_non_trivial;
-        let groups: std::collections::BTreeSet<&str> = self
-            .arms
-            .iter()
-            .filter(|a| is_recall_population(a))
-            .map(|a| a.group_id.as_str())
-            .collect();
+        let groups = self.recall_source_groups as usize;
         let recall_row = r.arms >= 20
-            && groups.len() >= 5
+            && groups >= 5
             && self.non_trivial_gt_arms >= 5
             && r.hits == r.arms
             && nt.hits == nt.arms
@@ -371,7 +381,7 @@ impl TopologyReport {
                      arms. {} audit groups skipped, {} arms refused",
                     self.identifiable_supported_arms,
                     self.arms_measured,
-                    groups.len(),
+                    groups,
                     self.opaque_exterior_arms_excluded,
                     r.hits,
                     r.arms,
@@ -544,6 +554,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "sealed_audit_groups_skipped": v["sealed_audit_groups_skipped"],
         "opaque_exterior_arms_excluded": v["opaque_exterior_arms_excluded"],
         "identifiable_supported_arms": v["identifiable_supported_arms"],
+        "recall_source_groups": v["recall_source_groups"],
         "recall_all": {"arms": v["recall_all"]["arms"], "hits": v["recall_all"]["hits"]},
         "recall_events_only": {
             "arms": v["recall_events_only"]["arms"],
@@ -555,6 +566,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         },
         "non_trivial_gt_arms": v["non_trivial_gt_arms"],
         "field_contributions": v["field_contributions"],
+        "ambiguity_pairs": v["ambiguity_pairs"],
         "topology_pairs": v["topology_pairs"],
         "arms": arms,
         "ambiguity": ambiguity,

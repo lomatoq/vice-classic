@@ -89,13 +89,17 @@ Float-ы округлены до четырёх знаков и сверяютс
 | sealed-audit групп ПРОПУЩЕНО | `topology:sealed_audit_groups_skipped` | 22 |
 | arms с НЕПРОЗРАЧНЫМ exterior-ом, исключены по имени | `topology:opaque_exterior_arms_excluded` | 38 |
 | recall-популяция (identifiable + supported) | `topology:identifiable_supported_arms` | 100 |
+| независимых source groups в ней | `topology:recall_source_groups` | 18 |
 | GT-топология в конверте | `topology:recall_all.hits` | 100 |
 | из скольких | `topology:recall_all.arms` | 100 |
 | то же без единой фиксированной пробы | `topology:recall_events_only.hits` | 100 |
 | то же ТОЛЬКО по фиксированным пробам | `topology:recall_fixed_only.hits` | 100 |
 | arms, чья GT-топология НЕ тривиальна | `topology:non_trivial_gt_arms` | 31 |
 | на них recall | `topology:recall_non_trivial.hits` | 31 |
-| топологических ambiguity-пар | `topology:topology_pairs` | 2 |
+| ambiguity-пар в корпусе всего | `topology:ambiguity_pairs` | 3 |
+| из них ТОПОЛОГИЧЕСКИХ | `topology:topology_pairs` | 2 |
+| расхождение рендеров пары hole-or-not на collapse-ячейке, кодов | `topology:ambiguity.0.collapse_max_code_diff` | 0 |
+| то же для bridge-or-gap, кодов | `topology:ambiguity.1.collapse_max_code_diff` | 1 |
 | saddle-альтернатив порождено | `topology:saddle_alternatives_total` | 596 |
 | наибольшая партия равнозначных пикселей | `topology:largest_batch_pixels` | 14821 |
 | уровней с ничьёй | `topology:tie_batches_max` | 377 |
