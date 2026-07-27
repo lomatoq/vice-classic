@@ -661,9 +661,18 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
             })
         })
         .collect();
-    // The over-opaque-layer probes travel as OUTCOMES only. The byte
-    // difference is an integer, but it is computed through sRGB transfer
-    // functions, so it is a function of libm and F-0022 keeps it out.
+    // The over-opaque-layer probes travel like their siblings above: which
+    // arm was probed, at which alpha, whether its ink is single, and the
+    // CATEGORICAL result. `max_byte_difference` stays behind.
+    //
+    // The line F-0022 draws is by ORIGIN, and it is worth stating where it
+    // falls here rather than leaving it to look arbitrary. Everything in this
+    // projection descends from corpus render bytes; what it excludes is
+    // MEASURED QUANTITIES, because those differ by the last ulp between
+    // platforms and a projection full of them would be the cross-platform
+    // comparison ADR-0008 §8 forbids. These probes add one such quantity —
+    // a byte difference computed through the sRGB transfer function, hence
+    // through `powf` — and it is the one field left out.
     let layer: Vec<serde_json::Value> = v["over_opaque_layer_probes"]
         .as_array()
         .cloned()
@@ -674,6 +683,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
                 "scene_id": p["scene_id"],
                 "cell_id": p["cell_id"],
                 "alpha": p["alpha"],
+                "single_ink": p["single_ink"],
                 "outcome": p["outcome"],
                 "rejected_as_semi_transparent": p["rejected_as_semi_transparent"],
             })
