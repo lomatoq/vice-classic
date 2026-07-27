@@ -185,9 +185,14 @@ jobs:
       # oracle metrics are libm-derived floats and therefore Tier A (§5.5),
       # this runner is Linux and the artifact is recorded on Windows. Without
       # the flag a cross-platform compare is a typed refusal, never a silent
-      # pass; with it, composition, arm identities, refusal reasons,
-      # contamination status and the compatibility fingerprints are all
-      # compared and the output says the metrics were not.
+      # pass; with it, composition, arm identities, outcomes, refusal reasons
+      # and contamination status are compared and the output says the metrics
+      # were not.
+      #
+      # NOT compared: the compatibility fingerprints. They are hashes over
+      # scene digests, hence functions of libm, and dropping them IS the
+      # F-0022 fix. This comment said the opposite until M4 (condition B3 /
+      # REVIEW_M3_5 M35-N1).
       - name: The committed oracle report reproduces (structural, cross-platform)
         run: |
           cargo run --release --bin gt-corpus -- oracle-check \
