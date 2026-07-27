@@ -7,7 +7,7 @@ Spec: `VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`
 Автор: coding-агент (Claude Code), single-milestone run по §34.
 Стартовая точка: HEAD `1e6ef13` (M3 принят: `docs/REVIEW_M3.md` addendum,
 VERDICT ACCEPT).
-Коммиты milestone: **C090–C106**.
+Коммиты milestone: **C090–C110**.
 
 > **Этот отчёт — author report. Он сам по себе НЕ делает M3.5 green.**
 > §32 правило 29 и §34: milestone требует **ОДНОГО независимого cold
@@ -292,6 +292,23 @@ debug/release само по себе является находкой — F-000
 тесты бинаря для обеих новых команд; порядок дешёвой проверки против дорогой
 пересборки (измеряет wall clock); четвёртый метод против замкнутой формы с
 доказательством, что судья умеет осуждать.
+
+**CI, прогон 26 на `29d6412` — все четыре job-а `success`:**
+
+```text
+checks                fmt / clippy / test (debug) / test (release)          success
+clean-checkout-smoke  смоук-корпус M0, verify-corpus, selftest, env         success
+gt-corpus             §27.7 покоммитно; burn policy; две сборки корпуса;
+                      структурная сверка манифеста; scorecard;
+                      M3.5 oracle harness + gate table;
+                      структурная сверка oracle-артефакта                    success
+tier-a-digests        windows: ПОЛНАЯ сверка 1086 render-digest-ов и
+                      ПОЛНАЯ сверка 504 oracle-метрик                        success
+```
+
+Последний job — закрытие A7.2, и его успех означает больше, чем «CI зелёный»:
+Tier A-артефакты воспроизводятся побитово не только на машине автора, но и на
+чужом windows-раннере той же пары `(os, arch)`.
 
 **Цена, названная числом.** Шаг `cargo test --workspace` (debug) в CI:
 232 с в M3 → **531 с** сейчас. Почти вся дельта — property четвёртого метода:
