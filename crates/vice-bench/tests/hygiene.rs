@@ -191,37 +191,172 @@ fn every_crate_forbids_unsafe_code() {
     assert!(checked >= 4, "only {checked} crates checked");
 }
 
-/// A frozen coefficient may only be measured on the population
-/// `corridor::frozen_calibration_groups` defines.
-///
-/// REVIEW_M4 M4-N1: four of the five corpus-wide measurements filtered the
-/// sealed-audit split and one did not — and the one that did not is the one
-/// that froze a production constant. The fix that matters is not the filter
-/// in that one test; it is that the corpus is now reachable from the
-/// measurement module through ONE function, and this walk over the source
-/// says so. A future measurement that calls `all_groups()` or
-/// `procedural_groups()` directly fails here instead of quietly widening its
-/// population (meta-rule M-1).
-#[test]
-fn frozen_coefficients_are_measured_only_on_the_legal_population() {
-    let path = repo_root().join("crates/vice-bench/src/corridor/tests.rs");
-    let text = std::fs::read_to_string(&path).expect("the measurement module");
-    let code: String = text
-        .lines()
+/// Integration-test files of the whole workspace, as (crate-relative path,
+/// source) pairs with comment lines stripped.
+fn integration_tests() -> Vec<(String, String)> {
+    let mut crates: Vec<PathBuf> = std::fs::read_dir(repo_root().join("crates"))
+        .expect("crates dir")
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .collect();
+    crates.sort();
+    let mut out = Vec::new();
+    for c in &crates {
+        let dir = c.join("tests");
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok().map(|e| e.path())).collect();
+        paths.sort();
+        for p in paths {
+            if p.extension().is_some_and(|e| e == "rs") {
+                let text = std::fs::read_to_string(&p).expect("read");
+                out.push((rel(&p), strip_comments(&text)));
+            }
+        }
+    }
+    out
+}
+
+fn rel(p: &Path) -> String {
+    p.display()
+        .to_string()
+        .replace(char::from(92u8), "/")
+        .rsplit("crates/")
+        .next()
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn strip_comments(text: &str) -> String {
+    text.lines()
         .filter(|l| !l.trim_start().starts_with("//"))
         .collect::<Vec<_>>()
-        .join("\n");
-    for direct in ["all_groups(", "procedural_groups("] {
+        .join("\n")
+}
+
+/// The WIDE corpus population, by function name.
+///
+/// The CALL and DECLARATION patterns are built from these at run time rather
+/// than written out, so this file does not contain the very literals it
+/// searches for and does not have to exempt itself. An exemption is where
+/// the next hole goes.
+const WIDE_POPULATION_FNS: &[&str] = &["all_groups", "procedural_groups"];
+
+fn call_patterns() -> Vec<String> {
+    WIDE_POPULATION_FNS
+        .iter()
+        .map(|n| format!("{n}("))
+        .collect()
+}
+
+/// A frozen coefficient may only be measured on the population
+/// `corridor::frozen_calibration_groups` defines — and the wide population
+/// must be UNREACHABLE from where the measurements live, not merely unused.
+///
+/// REVIEW_M4 M4-N1 found four of five corpus-wide measurements filtering the
+/// sealed-audit split and one not — the one that froze a production constant.
+/// The answer then was one legal population plus a walk over the source of
+/// `corridor/tests.rs` looking for two literals. The REVIEW_M4 addendum
+/// (M4-N11, condition D1) walked around that walk in a single line:
+///
+/// ```text
+/// use crate::gt::corpus::all_groups as every_group;   // no literal to find
+/// ```
+///
+/// 104 renders became 286, the sealed audit was back inside the frozen kernel
+/// table, and nothing failed. So the seal is now the compiler, and this test
+/// is the SECOND ECHELON over the class rather than the first line over one
+/// file. Four clauses:
+///
+/// 1. `all_groups` and `procedural_groups` are declared `pub(crate)`. Widening
+///    either back to `pub` fails here — which is the only way the compiler's
+///    seal could be undone;
+/// 2. the measurements live in `tests/frozen_calibration.rs`, a separate
+///    crate, and reach the corpus through `frozen_calibration_groups()`;
+/// 3. NO integration test anywhere in the workspace names the wide
+///    population. It could not compile if it did; asserting it is what makes
+///    the intent survive a future `pub`;
+/// 4. inside `vice-bench` the SET of modules that call the wide population is
+///    declared, exactly as the environment-reading surface is. A new in-crate
+///    caller is a failure a reviewer looks at, not a line nobody notices
+///    (meta-rule M-1: a surface, not a place).
+#[test]
+fn the_wide_corpus_population_is_unreachable_from_the_measurements() {
+    // 1. The seal itself.
+    for (module, name) in [
+        ("vice-bench/src/gt/corpus.rs", "all_groups"),
+        ("vice-bench/src/gt/grammar.rs", "procedural_groups"),
+    ] {
         assert!(
-            !code.contains(direct),
-            "{} reaches the corpus through {direct}: a frozen coefficient must come from \
-             corridor::frozen_calibration_groups(), which excludes the sealed audit and the \
-             held-out profile",
-            path.display()
+            WIDE_POPULATION_FNS.contains(&name),
+            "{name} is sealed here but is not in the population list, so clause 3 would not              search for it"
+        );
+        let decl = format!("pub(crate) fn {name}(");
+        let text = std::fs::read_to_string(repo_root().join("crates").join(module)).expect(module);
+        assert!(
+            text.contains(&decl),
+            "{module} no longer declares `{decl}`. That declaration IS condition D1: widened to \
+             `pub`, an integration test can name the wide population again and the seal is back \
+             to being a habit"
         );
     }
+
+    // 2. The measurements exist, outside the crate, on the legal population.
+    let tests = integration_tests();
+    let frozen = tests
+        .iter()
+        .find(|(p, _)| p == "vice-bench/tests/frozen_calibration.rs")
+        .expect("the frozen-calibration measurements must exist and be OUTSIDE the crate");
     assert!(
-        code.contains("frozen_calibration_groups()"),
-        "the walk found no legal-population call at all; it would pass on an empty file"
+        frozen.1.contains("frozen_calibration_groups()"),
+        "the frozen-calibration file reaches no legal population at all; this test would pass on \
+         an empty file"
+    );
+
+    // 3. No integration test names the wide population.
+    let calls = call_patterns();
+    for (path, code) in &tests {
+        for direct in &calls {
+            assert!(
+                !code.contains(direct.as_str()),
+                "{path} reaches the corpus through {direct}: a frozen coefficient must come from \
+                 corridor::frozen_calibration_groups(), which excludes the sealed audit and the \
+                 held-out profile"
+            );
+        }
+    }
+
+    // 4. The in-crate surface is declared, not assumed.
+    const DECLARED: &[&str] = &[
+        // Declares and assembles the whole corpus; the manifest IS the wide
+        // population.
+        "vice-bench/src/gt/corpus.rs",
+        // Declares `procedural_groups`.
+        "vice-bench/src/gt/grammar.rs",
+        // Harness runs that walk the corpus and skip the sealed audit at
+        // run time; they report, they do not freeze anything.
+        "vice-bench/src/corridor/mod.rs",
+        "vice-bench/src/oracle/mod.rs",
+        // In-crate unit tests of corpus machinery itself, which are about
+        // the corpus rather than about a frozen coefficient.
+        "vice-bench/src/correlation.rs",
+        "vice-bench/src/gt/raster.rs",
+        "vice-bench/src/gt/split.rs",
+    ];
+    let mut found: Vec<String> = production_modules()
+        .iter()
+        .filter(|(p, _)| {
+            let code = strip_comments(&std::fs::read_to_string(p).unwrap_or_default());
+            calls.iter().any(|d| code.contains(d.as_str()))
+        })
+        .map(|(p, _)| rel(p))
+        .collect();
+    found.sort();
+    let mut declared: Vec<String> = DECLARED.iter().map(|s| (*s).to_string()).collect();
+    declared.sort();
+    assert_eq!(
+        found, declared,
+        "the set of modules that can see the WIDE corpus population changed; every entry is \
+         reviewed, not assumed"
     );
 }

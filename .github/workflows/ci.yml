@@ -30,7 +30,7 @@ jobs:
       # §1.6 thickness floor, the residual tolerance and the interior
       # weighting.
       - name: M4 calibration measurements (release, --ignored)
-        run: cargo test --release -p vice-bench --lib corridor::tests -- --ignored --nocapture
+        run: cargo test --release -p vice-bench --test frozen_calibration -- --ignored --nocapture
 
   clean-checkout-smoke:
     runs-on: ubuntu-latest

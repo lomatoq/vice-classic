@@ -126,7 +126,7 @@ impl CorpusManifest {
 }
 
 /// Every source group of the corpus, in a deterministic order.
-pub fn all_groups() -> Result<Vec<GtSourceGroup>, String> {
+pub(crate) fn all_groups() -> Result<Vec<GtSourceGroup>, String> {
     let mut groups = procedural_groups(PROCEDURAL_VARIANTS);
     groups.extend(authored_groups().map_err(|e| e.to_string())?);
     groups.extend(all_adversarial_groups());

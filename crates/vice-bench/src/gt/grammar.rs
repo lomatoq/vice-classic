@@ -133,7 +133,7 @@ pub const SHAPE_FAMILIES: &[&str] = &[
 ///
 /// `variants_per_family` structural variants of each family; each variant
 /// is a separate independent group.
-pub fn procedural_groups(variants_per_family: usize) -> Vec<GtSourceGroup> {
+pub(crate) fn procedural_groups(variants_per_family: usize) -> Vec<GtSourceGroup> {
     let mut out = Vec::new();
     for family in SHAPE_FAMILIES {
         for v in 0..variants_per_family {

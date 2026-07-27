@@ -8,6 +8,7 @@ members = [
     "crates/vice-image",
     "crates/vice-ir",
     "crates/vice-render",
+    "crates/vice-topology",
 ]
 # Baseline checkouts are cloned under runs/<out>/checkouts/ at run time; a
 # donor crate without its own [workspace] must not be captured by this one.
@@ -25,6 +26,13 @@ exclude = ["runs", "baselines-work"]
 # in §4.1 as active in M0–M4 and both created here, in the milestone that
 # gives them their first responsibility. vice-cli likewise: the M4
 # executable path (`vicec evidence`).
+# M4.5: vice-topology — the crate §4 lists as "event trees, hypotheses, RAG,
+# planar graph, signatures", created in the milestone that gives it its first
+# executable responsibility (§11, §23, §28 M4.5): scalar fields, cubical
+# max/min-tree critical events, saddle alternatives, topology signatures and
+# the candidate envelope with its three pruning tiers. It carries no API for
+# M5+: the DCEL half of §11.4 is a TYPED REFUSAL over data this crate
+# computes, not an interface waiting to be filled.
 
 [workspace.package]
 edition = "2021"
