@@ -13,6 +13,21 @@ use crate::gt::corpus::Platform;
 
 pub const TOPOLOGY_REPORT_SCHEMA: &str = "vice-classic/topology-report/v1";
 
+/// Population thresholds of the §28 M4.5 gate rows.
+///
+/// Named constants rather than literals in the conjunction, and registered in
+/// `configs/GATES_V1.toml` under `[topology]`, because they decide whether a
+/// spec clause is green and they live in the file a feature commit edits.
+/// RT45-A5 lowered `MIN_RECALL_ARMS` to 1 and shrank the envelope budget in
+/// ONE commit and `gates-check` returned exit 0: §27.7's second sentence had
+/// nothing to act on. It does now.
+pub const MIN_RECALL_ARMS: u32 = 20;
+/// Breadth in SHAPE FAMILIES, the unit §27.1 keeps splits by (M45-N3).
+pub const MIN_RECALL_SHAPE_FAMILIES: u32 = 5;
+pub const MIN_NON_TRIVIAL_GT_ARMS: u32 = 5;
+pub const MIN_TOPOLOGY_PAIRS: u32 = 2;
+pub const MIN_CLASSES_PER_RETAINING_PAIR: u32 = 2;
+
 /// Recall over one population.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct Recall {
@@ -399,9 +414,9 @@ impl TopologyReport {
         // be one family — a gate row citing dependent trials as independent
         // (M45-N3).
         let families = self.recall_shape_families as usize;
-        let recall_row = r.arms >= 20
-            && families >= 5
-            && self.non_trivial_gt_arms >= 5
+        let recall_row = r.arms >= u64::from(MIN_RECALL_ARMS)
+            && families >= MIN_RECALL_SHAPE_FAMILIES as usize
+            && self.non_trivial_gt_arms >= u64::from(MIN_NON_TRIVIAL_GT_ARMS)
             && r.hits == r.arms
             // The relaxation this clause grants itself — a candidate matching
             // EITHER convention's truth counts — is only justified while the
@@ -451,13 +466,13 @@ impl TopologyReport {
         let excused = |p: &AmbiguityRow| {
             p.collapse_max_code_diff < crate::gt::degradation::QUANTIZATION_FLOOR_CODES
         };
-        let ambiguity_row = pairs.len() >= 2
+        let ambiguity_row = pairs.len() >= MIN_TOPOLOGY_PAIRS as usize
             && pairs.iter().any(|p| both(p))
             && pairs.iter().all(|p| both(p) || excused(p))
-            && pairs
-                .iter()
-                .filter(|p| both(p))
-                .all(|p| p.classes_from_a.len() >= 2 && p.classes_from_b.len() >= 2);
+            && pairs.iter().filter(|p| both(p)).all(|p| {
+                p.classes_from_a.len() >= MIN_CLASSES_PER_RETAINING_PAIR as usize
+                    && p.classes_from_b.len() >= MIN_CLASSES_PER_RETAINING_PAIR as usize
+            });
 
         // Clause 3: NO magic-threshold-only architecture, made executable as
         // an ablation over the same generator rather than as a claim.

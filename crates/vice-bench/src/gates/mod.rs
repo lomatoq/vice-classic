@@ -365,6 +365,7 @@ mod tests {
         use crate::gt::degradation as deg;
         use crate::gt::split::SPLIT_POLICY_V1;
         use crate::prereg::Preregistration;
+        use crate::topology::report as topo;
 
         let prereg = Preregistration::v1();
         let admissible: Vec<&str> = ResidualModel::ALL
@@ -444,6 +445,118 @@ mod tests {
                 "identifiability",
                 "quantization_floor_codes",
                 GateExpectation::num(deg::QUANTIZATION_FLOOR_CODES),
+            ),
+            // --- topology envelope and its gate thresholds (M4.5) -----
+            //
+            // Every constant that decides which candidates exist, and every
+            // threshold that decides whether a §28 M4.5 clause is green.
+            // M45-N6 / RT45-A5: without these §27.7 had nothing to act on for
+            // this milestone, and one commit could relax a clause and change
+            // the code that meets it.
+            (
+                "topology",
+                "field_tv_iterations",
+                GateExpectation::num(f64::from(vice_topology::FIELD_CONFIG_V1.tv_iterations)),
+            ),
+            (
+                "topology",
+                "field_tv_step",
+                GateExpectation::num(vice_topology::FIELD_CONFIG_V1.tv_step),
+            ),
+            (
+                "topology",
+                "field_tv_huber_delta",
+                GateExpectation::num(vice_topology::FIELD_CONFIG_V1.tv_huber_delta),
+            ),
+            (
+                "topology",
+                "field_tv_data_weight",
+                GateExpectation::num(vice_topology::FIELD_CONFIG_V1.tv_data_weight),
+            ),
+            (
+                "topology",
+                "field_deconv_iterations",
+                GateExpectation::num(f64::from(vice_topology::FIELD_CONFIG_V1.deconv_iterations)),
+            ),
+            (
+                "topology",
+                "field_deconv_step",
+                GateExpectation::num(vice_topology::FIELD_CONFIG_V1.deconv_step),
+            ),
+            (
+                "topology",
+                "level_max_plateau_levels",
+                GateExpectation::num(vice_topology::LEVEL_CONFIG_V1.max_plateau_levels as f64),
+            ),
+            (
+                "topology",
+                "level_max_event_levels",
+                GateExpectation::num(vice_topology::LEVEL_CONFIG_V1.max_event_levels as f64),
+            ),
+            (
+                "topology",
+                "level_min_event_persistence",
+                GateExpectation::num(vice_topology::LEVEL_CONFIG_V1.min_event_persistence),
+            ),
+            (
+                "topology",
+                "level_fixed_smoke_count",
+                GateExpectation::num(vice_topology::LEVEL_CONFIG_V1.fixed_smoke_levels.len() as f64),
+            ),
+            (
+                "topology",
+                "level_fixed_smoke_first",
+                GateExpectation::num(vice_topology::LEVEL_CONFIG_V1.fixed_smoke_levels[0]),
+            ),
+            (
+                "topology",
+                "envelope_budget",
+                GateExpectation::num(vice_topology::ENVELOPE_CONFIG_V1.budget as f64),
+            ),
+            (
+                "topology",
+                "envelope_per_quota_class",
+                GateExpectation::num(vice_topology::ENVELOPE_CONFIG_V1.per_quota_class as f64),
+            ),
+            (
+                "topology",
+                "envelope_mass_scale",
+                GateExpectation::num(vice_topology::ENVELOPE_CONFIG_V1.mass_scale),
+            ),
+            (
+                "topology",
+                "continuation_halo_px",
+                GateExpectation::num(f64::from(vice_topology::CONTINUATION_CONFIG_V1.halo_px)),
+            ),
+            (
+                "topology",
+                "continuation_max_plans",
+                GateExpectation::num(vice_topology::CONTINUATION_CONFIG_V1.max_plans as f64),
+            ),
+            (
+                "topology",
+                "gate_min_recall_arms",
+                GateExpectation::num(f64::from(topo::MIN_RECALL_ARMS)),
+            ),
+            (
+                "topology",
+                "gate_min_recall_shape_families",
+                GateExpectation::num(f64::from(topo::MIN_RECALL_SHAPE_FAMILIES)),
+            ),
+            (
+                "topology",
+                "gate_min_non_trivial_gt_arms",
+                GateExpectation::num(f64::from(topo::MIN_NON_TRIVIAL_GT_ARMS)),
+            ),
+            (
+                "topology",
+                "gate_min_topology_pairs",
+                GateExpectation::num(f64::from(topo::MIN_TOPOLOGY_PAIRS)),
+            ),
+            (
+                "topology",
+                "gate_min_classes_per_retaining_pair",
+                GateExpectation::num(f64::from(topo::MIN_CLASSES_PER_RETAINING_PAIR)),
             ),
             // --- split -------------------------------------------------
             (

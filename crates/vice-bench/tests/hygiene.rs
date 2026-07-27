@@ -523,3 +523,81 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
          assumed"
     );
 }
+
+/// Every population threshold inside a §28 M4.5 gate row is registered in the
+/// frozen gate file.
+///
+/// Condition 7 / M45-N6 / RT45-A5. `configs/GATES_V1.toml` is the ONLY path in
+/// `GATE_PATHS`, and until this delta it held no topology section — so the
+/// numbers deciding whether a spec clause is green lived in `report.rs`, which
+/// a feature commit edits, and §27.7's second sentence ("a feature PR may not
+/// weaken its own gate") had nothing to act on. The red team built the
+/// consequence: one commit lowering the recall-population threshold to 1 AND
+/// shrinking the envelope budget, `gates-check` exit 0.
+///
+/// The constants are registered, and the registration is enforced by walking
+/// the source of `gate_table` for comparison thresholds. The boundary is
+/// deliberate and worth stating: only `>=` and `<=` literals count. `== 0` and
+/// `> 0` are existence and absence checks — "this population is not empty",
+/// "nothing was lost" — not calibrated numbers, and registering them would
+/// make the gate file a list of zeroes.
+#[test]
+fn every_threshold_in_a_gate_row_is_registered_in_the_gate_file() {
+    let src = std::fs::read_to_string(repo_root().join("crates/vice-bench/src/topology/report.rs"))
+        .expect("the report module");
+    let body = src
+        .split_once("pub fn gate_table(")
+        .expect("gate_table exists")
+        .1;
+    let gates = std::fs::read_to_string(repo_root().join("configs/GATES_V1.toml")).expect("gates");
+    let topology = gates
+        .split_once("[topology]")
+        .expect("the topology section exists")
+        .1;
+
+    let mut comparisons = 0;
+    for (i, _) in body.match_indices(">=").chain(body.match_indices("<=")) {
+        comparisons += 1;
+        let lit: String = body[i + 2..]
+            .trim_start()
+            .chars()
+            .take_while(|c| c.is_ascii_digit() || *c == '.')
+            .collect();
+        // A named constant is the registered form; a bare literal is what
+        // this test is looking for.
+        assert!(
+            lit.is_empty() || lit.starts_with('.'),
+            "the gate row compares against the bare literal {lit} at byte {i}. Every population \
+             threshold of a §28 M4.5 clause must be a named constant registered under [topology] \
+             in configs/GATES_V1.toml, so that §27.7 can stop one commit from relaxing a clause \
+             and changing the code that meets it (M45-N6, RT45-A5)"
+        );
+    }
+    assert!(
+        comparisons >= 5,
+        "only {comparisons} threshold comparisons found in gate_table; the scan is not reaching \
+         the rows and would pass on a renamed function"
+    );
+
+    // And the named constants really are registered, with the values the code
+    // uses. The gates test checks the other direction (a frozen key nothing
+    // reads); this checks that the five thresholds of the two rows are there.
+    for (key, want) in [
+        ("gate_min_recall_arms", 20u32),
+        ("gate_min_recall_shape_families", 5),
+        ("gate_min_non_trivial_gt_arms", 5),
+        ("gate_min_topology_pairs", 2),
+        ("gate_min_classes_per_retaining_pair", 2),
+    ] {
+        let line = topology
+            .lines()
+            .find(|l| l.trim_start().starts_with(key))
+            .unwrap_or_else(|| panic!("{key} is not registered under [topology]"));
+        let got: u32 = line
+            .split('=')
+            .nth(1)
+            .and_then(|v| v.trim().parse().ok())
+            .unwrap_or_else(|| panic!("{key} is not a number: {line}"));
+        assert_eq!(got, want, "{key} in the gate file disagrees with the code");
+    }
+}
