@@ -851,6 +851,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vice-image"
+version = "0.0.1"
+dependencies = [
+ "hex",
+ "png",
+ "serde",
+ "sha2",
+ "thiserror",
+ "vice-ir",
+]
+
+[[package]]
 name = "vice-ir"
 version = "0.0.1"
 dependencies = [

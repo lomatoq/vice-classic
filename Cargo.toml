@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/vice-bench",
     "crates/vice-geom",
+    "crates/vice-image",
     "crates/vice-ir",
     "crates/vice-render",
 ]
@@ -15,8 +16,13 @@ exclude = ["runs", "baselines-work"]
 # M0: vice-bench (baseline runner). M1: vice-geom (conventions, robust
 # predicates), vice-ir (canonical IR, validation, seal skeleton).
 # M2: vice-render (certified partition renderer — its first real
-# responsibility). vice-image / vice-evidence / vice-cli appear only in the
-# milestone that gives them their first responsibility (M3+).
+# responsibility).
+# M4: vice-image (canonical decode + premultiplied observation tensor) and
+# vice-evidence (palette/exterior hypotheses, minimal global formation,
+# premultiplied mixture, uncertainty, boundary observations) — both listed
+# in §4.1 as active in M0–M4 and both created here, in the milestone that
+# gives them their first responsibility. vice-cli likewise: the M4
+# executable path (`vicec evidence`).
 
 [workspace.package]
 edition = "2021"
