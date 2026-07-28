@@ -83,6 +83,19 @@ pub enum GateError {
     Parse { path: String, detail: String },
     #[error("gates file has schema {got:?}, expected {want:?}")]
     WrongSchema { got: String, want: String },
+    #[error(
+        "{path} on disk is not the committed gate file: sha256 {on_disk} against {committed}.          (checked against: {checked_against}). A §28 clause is decided against the gate file the REPOSITORY          carries; a file edited between checkout and measurement is not that file (RT45-A21)"
+    )]
+    NotTheCommittedFile {
+        path: String,
+        on_disk: String,
+        committed: String,
+        checked_against: &'static str,
+    },
+    #[error(
+        "cannot verify {path} against HEAD ({detail}). A threshold that cannot be shown to be          the committed one is not a gate: the instrument refuses rather than passing (RT45-A21)"
+    )]
+    CannotVerifyAgainstHead { path: String, detail: String },
     #[error("section {section:?} has status {status:?}; expected 'frozen' or 'placeholder'")]
     BadStatus { section: String, status: String },
     #[error("section {section:?} is a PLACEHOLDER (set by {milestone}): it is not a threshold and nothing may gate on it")]
@@ -92,6 +105,79 @@ pub enum GateError {
 }
 
 impl GatesFile {
+    /// The gate file as the REPOSITORY has it, compiled into the binary.
+    ///
+    /// RT45-A21: §27.7 protects a file in the repository, and the verdict is
+    /// computed from a file on the RUNNER. One `run: sed -i …` line in a
+    /// workflow, before the step that decides the clause, changed a threshold
+    /// with `gates-check` at exit 0, the workflow guard green and 502 tests
+    /// green. Delta-3 closed substituting the file's NAME and left substituting
+    /// its CONTENT open, and the second door is cheaper than the first.
+    const COMMITTED: &'static str = include_str!("../../../../configs/GATES_V1.toml");
+
+    /// Read a gate file and REFUSE it if it is not the one `HEAD` carries.
+    ///
+    /// TWO comparisons, because they catch different edits and I measured that
+    /// the first alone does not close RT45-A21:
+    ///
+    /// - against `COMMITTED`, a copy taken at COMPILE time. Catches an edit made
+    ///   AFTER the build. It does NOT catch the red team's actual attack, and
+    ///   the reason is worth keeping: their `sed` runs in a workflow step before
+    ///   `cargo run --release`, so the rebuild bakes the edited file into
+    ///   `include_str!` and both sides agree. I planted it and watched it pass.
+    /// - against `git show HEAD:<path>`. This is the one that closes it: HEAD is
+    ///   what §27.7 governs, and no edit to the working tree can move it.
+    ///
+    /// If git cannot be consulted the load is REFUSED rather than allowed. A
+    /// threshold that cannot be shown to be the committed one is not a gate, and
+    /// an instrument that cannot check says so instead of passing.
+    pub fn load_for_a_gate_decision(path: &Path) -> Result<GatesFile, GateError> {
+        let text = std::fs::read_to_string(path).map_err(|e| GateError::Io {
+            path: path.display().to_string(),
+            detail: e.to_string(),
+        })?;
+        let on_disk = crate::hashing::sha256_hex(text.as_bytes());
+
+        let compiled_in = crate::hashing::sha256_hex(Self::COMMITTED.as_bytes());
+        if on_disk != compiled_in {
+            return Err(GateError::NotTheCommittedFile {
+                path: path.display().to_string(),
+                on_disk,
+                committed: compiled_in,
+                checked_against: "the copy compiled into this binary",
+            });
+        }
+
+        let head = std::process::Command::new("git")
+            .args([
+                "show",
+                &format!("HEAD:{}", path.display().to_string().replace('\\', "/")),
+            ])
+            .output();
+        let head = match head {
+            Ok(o) if o.status.success() => o.stdout,
+            other => {
+                return Err(GateError::CannotVerifyAgainstHead {
+                    path: path.display().to_string(),
+                    detail: match other {
+                        Ok(o) => String::from_utf8_lossy(&o.stderr).trim().to_string(),
+                        Err(e) => e.to_string(),
+                    },
+                })
+            }
+        };
+        let head_hash = crate::hashing::sha256_hex(&head);
+        if on_disk != head_hash {
+            return Err(GateError::NotTheCommittedFile {
+                path: path.display().to_string(),
+                on_disk,
+                committed: head_hash,
+                checked_against: "git show HEAD",
+            });
+        }
+        Self::load(path)
+    }
+
     pub fn load(path: &Path) -> Result<GatesFile, GateError> {
         let text = std::fs::read_to_string(path).map_err(|e| GateError::Io {
             path: path.display().to_string(),

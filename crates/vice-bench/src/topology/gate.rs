@@ -75,6 +75,28 @@ pub struct TopologyGateConfig {
     pub min_classes_per_retaining_pair: Threshold,
 }
 
+/// One registered threshold, the quantity the gate row compares it against, and
+/// the same quantity recomputed from the RUN the report was built from.
+///
+/// RT45-A23 is my own F-0042 question applied to my own delta-3 fix: the
+/// aggregate guard was FOUR `assert_eq!`, one per quantity the previous finding
+/// had presented — clause 1's four — and clause 2's two thresholds were covered
+/// by nothing. Padding `classes_from_a` in `ambiguity.rs` made
+/// `gate_min_classes_per_retaining_pair` unfalsifiable with the artifact
+/// byte-identical, §27.7 silent and 502 tests green.
+///
+/// Four asserts is a place where the next finding appends a fifth. This is the
+/// property instead, and [`TopologyGateConfig::sites`] is what makes it one.
+pub struct ThresholdSite {
+    pub name: &'static str,
+    pub threshold: Threshold,
+    /// What the REPORT says the population is.
+    pub reported: fn(&TopologyReport) -> u64,
+    /// What the RUN says it is. A disagreement is a threshold moved where
+    /// neither the artifact nor §27.7 can see it.
+    pub from_run: fn(&TopologyReport) -> u64,
+}
+
 impl TopologyGateConfig {
     /// Read the five thresholds out of the frozen `[topology]` section.
     ///
@@ -100,7 +122,111 @@ impl TopologyGateConfig {
             min_classes_per_retaining_pair: t("gate_min_classes_per_retaining_pair")?,
         })
     }
+
+    /// Every threshold, with both readings of the quantity it gates.
+    ///
+    /// The DESTRUCTURING is the mechanism. A field added to
+    /// `TopologyGateConfig` without a site below does not compile, because the
+    /// pattern is exhaustive — so "every registered threshold is checked
+    /// against its own input" is enforced by the compiler rather than by
+    /// remembering to add a fifth assertion.
+    pub fn sites(&self) -> Vec<ThresholdSite> {
+        let TopologyGateConfig {
+            min_recall_arms,
+            min_recall_shape_families,
+            min_non_trivial_gt_arms,
+            min_topology_pairs,
+            min_classes_per_retaining_pair,
+        } = *self;
+        vec![
+            ThresholdSite {
+                name: "gate_min_recall_arms",
+                threshold: min_recall_arms,
+                reported: |r| r.recall_all.arms,
+                from_run: |r| r.recall_population().len() as u64,
+            },
+            ThresholdSite {
+                name: "gate_min_recall_shape_families",
+                threshold: min_recall_shape_families,
+                reported: |r| r.recall_shape_families,
+                from_run: |r| {
+                    r.recall_population()
+                        .iter()
+                        .map(|a| a.shape_family.as_str())
+                        .collect::<std::collections::BTreeSet<_>>()
+                        .len() as u64
+                },
+            },
+            ThresholdSite {
+                name: "gate_min_non_trivial_gt_arms",
+                threshold: min_non_trivial_gt_arms,
+                reported: |r| r.non_trivial_gt_arms,
+                from_run: |r| {
+                    let plain = |g: super::GtSignature| g.components == 1 && g.holes == 0;
+                    r.recall_population()
+                        .iter()
+                        .filter(|a| !(plain(a.gt_four) && plain(a.gt_eight)))
+                        .count() as u64
+                },
+            },
+            ThresholdSite {
+                name: "gate_min_topology_pairs",
+                threshold: min_topology_pairs,
+                reported: |r| r.ambiguity.iter().filter(|p| p.is_topology_pair).count() as u64,
+                from_run: |r| {
+                    // A pair is a TOPOLOGY pair when its two signatures differ.
+                    // Recomputed from the signatures rather than read off the
+                    // flag, so a flag set by hand disagrees with its own input.
+                    r.ambiguity.iter().filter(|p| p.sig_a != p.sig_b).count() as u64
+                },
+            },
+            ThresholdSite {
+                name: "gate_min_classes_per_retaining_pair",
+                threshold: min_classes_per_retaining_pair,
+                // SUMMED over every published list, not reduced by `min` the
+                // way the row reduces it. The row asks "does the weakest pair
+                // carry enough readings"; the INPUT question is "is every
+                // published reading real", and a sentinel in a non-minimal pair
+                // is invisible to a `min`. I measured that: the first version
+                // of this site used `min` and the padding knock-out did not
+                // fire.
+                reported: |r| {
+                    r.ambiguity
+                        .iter()
+                        .filter(|p| p.is_topology_pair)
+                        .map(|p| (p.classes_from_a.len() + p.classes_from_b.len()) as u64)
+                        .sum()
+                },
+                from_run: |r| {
+                    // WELL-FORMED, DISTINCT readings only. Padding the list with
+                    // sentinels is what RT45-A23 did, and a sentinel is not a
+                    // topology any envelope produced.
+                    let good = |v: &Vec<(u32, u32)>| {
+                        let mut seen: Vec<(u32, u32)> = v
+                            .iter()
+                            .copied()
+                            .filter(|(c, h)| {
+                                *c != 0 && *c < PLAUSIBLE_CLASS_BOUND && *h < PLAUSIBLE_CLASS_BOUND
+                            })
+                            .collect();
+                        seen.sort_unstable();
+                        seen.dedup();
+                        seen.len() as u64
+                    };
+                    r.ambiguity
+                        .iter()
+                        .filter(|p| p.is_topology_pair)
+                        .map(|p| good(&p.classes_from_a) + good(&p.classes_from_b))
+                        .sum()
+                },
+            },
+        ]
+    }
 }
+
+/// A component or hole count above this is not a reading of a 32-512 px render;
+/// it is a sentinel someone pushed into a published list.
+const PLAUSIBLE_CLASS_BOUND: u32 = 100_000;
 
 impl TopologyReport {
     /// The three §28 M4.5 clauses, as booleans over this report's own data and

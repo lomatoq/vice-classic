@@ -607,7 +607,7 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
 fn the_report_aggregates_agree_with_the_run_they_came_from() {
     let mut run = synthetic_run();
     // Two shape families and two non-trivial arms: both BELOW the registered
-    // thresholds of 5, so a floor at 5 is a visible lie rather than a no-op.
+    // thresholds, so a floor at 5 is a visible lie rather than a no-op.
     for (i, a) in run.arms.iter_mut().enumerate() {
         a.shape_family = format!("family/{}", i % 2);
         let non_trivial = i < 2;
@@ -618,49 +618,67 @@ fn the_report_aggregates_agree_with_the_run_they_came_from() {
         a.gt_eight = a.gt_four;
     }
     let rep = report::build(&run);
-
-    let pop: Vec<&TopologyArm> = run
-        .arms
-        .iter()
-        .filter(|a| a.identifiability == "identifiable" && a.outcome.starts_with("supported"))
-        .collect();
     assert!(
-        pop.len() >= 2,
+        rep.recall_population().len() >= 2,
         "the doctored run has no recall population, so this test would compare nothing"
     );
 
-    let families: std::collections::BTreeSet<&str> =
-        pop.iter().map(|a| a.shape_family.as_str()).collect();
+    // EVERY registered threshold, walked from `TopologyGateConfig::sites()`.
+    //
+    // RT45-A23: this used to be four `assert_eq!`, one per quantity the
+    // PREVIOUS finding had presented - clause 1's four - and clause 2's two
+    // thresholds were covered by nothing, so padding `classes_from_a` made
+    // `gate_min_classes_per_retaining_pair` unfalsifiable with the artifact
+    // byte-identical. Four asserts is a place where the next finding appends a
+    // fifth; `sites()` destructures the config, so a threshold with no site does
+    // not compile.
+    let cfg = gate_cfg();
+    let sites = cfg.sites();
     assert_eq!(
-        rep.recall_shape_families,
-        families.len() as u64,
-        "report::build says {} shape families and the run it was built from has {}. An aggregate \
-         that does not agree with its own input is a gate threshold moved where neither the \
-         artifact, the boundary scan nor §27.7 can see it (RT45-A16)",
-        rep.recall_shape_families,
-        families.len()
+        sites.len(),
+        5,
+        "the number of threshold sites changed; every registered threshold must have one"
+    );
+    for site in &sites {
+        let reported = (site.reported)(&rep);
+        let from_input = (site.from_run)(&rep);
+        assert_eq!(
+            reported, from_input,
+            "{}: the gate row compares against {reported}, and the same quantity recomputed from              the run is {from_input}. An aggregate that does not agree with its own input is a              gate threshold moved where neither the artifact, the boundary scan nor §27.7 can              see it (RT45-A16, RT45-A23)",
+            site.name
+        );
+    }
+
+    // And the sites can FAIL. Each is knocked out on the side production would
+    // move it: a padded class list (RT45-A23 verbatim) and a clamped aggregate
+    // (RT45-A16 verbatim). A guard that agrees on healthy data and was never
+    // shown to disagree is a guard nobody has measured.
+    let mut padded = rep.clone();
+    let retaining = padded
+        .ambiguity
+        .iter_mut()
+        .find(|p| p.is_topology_pair)
+        .expect("a topology pair");
+    retaining.classes_from_a.push((u32::MAX, u32::MAX));
+    let site = sites
+        .iter()
+        .find(|s| s.name == "gate_min_classes_per_retaining_pair")
+        .expect("the clause-2 site");
+    assert_ne!(
+        (site.reported)(&padded),
+        (site.from_run)(&padded),
+        "a class list padded with a sentinel was accepted: gate_min_classes_per_retaining_pair          stops being falsifiable and the artifact does not move (RT45-A23)"
     );
 
-    let plain = |g: GtSignature| g.components == 1 && g.holes == 0;
-    let non_trivial = pop
+    let mut clamped = rep.clone();
+    clamped.recall_shape_families = 5;
+    let site = sites
         .iter()
-        .filter(|a| !(plain(a.gt_four) && plain(a.gt_eight)))
-        .count() as u64;
-    assert_eq!(
-        rep.non_trivial_gt_arms, non_trivial,
-        "report::build says {} non-trivial arms and the run has {non_trivial}",
-        rep.non_trivial_gt_arms
-    );
-    assert_eq!(
-        rep.identifiable_supported_arms,
-        pop.len() as u64,
-        "report::build says {} arms in the recall population and the run has {}",
-        rep.identifiable_supported_arms,
-        pop.len()
-    );
-    assert_eq!(
-        rep.recall_all.arms,
-        pop.len() as u64,
-        "recall_all.arms disagrees with the population it is a recall over"
+        .find(|s| s.name == "gate_min_recall_shape_families")
+        .expect("the width site");
+    assert_ne!(
+        (site.reported)(&clamped),
+        (site.from_run)(&clamped),
+        "a clamped width aggregate was accepted (RT45-A16)"
     );
 }

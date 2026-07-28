@@ -23,7 +23,8 @@ use vice_bench::topology::{self, TopologyScope};
 /// `crates/`, the gate file untouched and `gates-check` exit 0.
 fn gate_config() -> Result<TopologyGateConfig, String> {
     let path = Path::new(vice_bench::gates::GATE_PATHS[0]);
-    let g = GatesFile::load(path).map_err(|e| format!("load {}: {e}", path.display()))?;
+    let g = GatesFile::load_for_a_gate_decision(path)
+        .map_err(|e| format!("load {}: {e}", path.display()))?;
     TopologyGateConfig::from_gates(&g)
 }
 

@@ -469,6 +469,19 @@ pub fn build(run: &TopologyRun) -> TopologyReport {
 }
 
 impl TopologyReport {
+    /// The arms a recall clause is computed over, recomputed from the arms the
+    /// report carries rather than read off an aggregate.
+    ///
+    /// The gate's threshold sites use this as the INPUT side, so an aggregate
+    /// that disagrees with the arms it was built from is a finding (RT45-A16,
+    /// RT45-A23).
+    pub fn recall_population(&self) -> Vec<&TopologyArm> {
+        self.arms
+            .iter()
+            .filter(|a| is_recall_population(a))
+            .collect()
+    }
+
     pub fn canonical_json(&self) -> String {
         serde_json::to_string(self).expect("topology report serializes")
     }
