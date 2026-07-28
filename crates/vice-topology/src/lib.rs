@@ -48,6 +48,7 @@
 
 pub mod continuation;
 pub mod cubical;
+pub mod dcel;
 pub mod envelope;
 pub mod events;
 pub mod field;
@@ -65,6 +66,11 @@ pub use continuation::{
 pub use cubical::{
     critical_cells, residual_critical_cells, signature, threshold, Labelling, SaddleResolution,
     TopologySignature,
+};
+pub use dcel::{
+    apply, audit, audit_every_labelling, AuditReport, Boundary, Dcel, Edit, ExhaustiveReport, Face,
+    FaceId, FacePair, HalfEdgeId, InvariantViolation, IsotopyRefusal, Outcome, Roi,
+    TopologyCertificate, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
 };
 pub use envelope::{
     prune, ApproximationRisk, Envelope, EnvelopeConfig, LostMassEstimate, PruningRecord,
