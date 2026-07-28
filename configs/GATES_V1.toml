@@ -289,7 +289,20 @@ gate_min_structural_arms = 20
 # says anything at all. Measured 10.
 gate_min_convention_dependent_groups = 5
 # Transactions that committed. A clause about transactions is satisfiable by
-# running none. Measured 159 of 167 attempted.
+# running none.
+#
+# WAS: "Measured 159 of 167 attempted." That was a PRE-C243 measurement, frozen
+# into this file by C241 whose message says the floors were read "from a run".
+# C243 turned the eight `adv/sliver` arms - thinner than a pixel, digitized to
+# nothing - from audit failures into valid empty arrangements, and their eight
+# transactions from rollbacks into commits. The artifact has said 167 of 167
+# ever since and this comment said 159 (REVIEW_M5_A N8b, REDTEAM_M5 RT5-A4).
+#
+# It matters more here than in a status document: this file's comments are its
+# provenance record, and §27.7 exists to make exactly this file's history
+# reviewable. IS: 167 attempted, 167 committed, of which 159 on arms whose
+# arrangement is non-empty - and 159 is what clause 3 now counts, because a
+# clause may not stand on an arm that contains nothing.
 gate_min_transactions = 50
 # Boundary chains lying wholly outside a committed transaction's region. Zero
 # moved means nothing when zero were there. Measured 127.
@@ -298,3 +311,9 @@ gate_min_unrelated_chain_population = 40
 # which the audit is red; a walk that visited nothing would make clause 4 a
 # report of silence. Measured 28.
 gate_min_resolving_power_probes = 10
+# Slots the mutation walk must perturb. `slots_perturbed > 0` stood as a
+# conjunct in the clause-4 row and was not a gate: a walk that visited ONE slot
+# satisfied it. REDTEAM_M5 RT5-A2 is why this key exists - two of the three
+# numbers that row published were arithmetic, so the only thing it really asked
+# of the audit was one caught slot. Measured 155 160.
+gate_min_slots_perturbed = 40000
