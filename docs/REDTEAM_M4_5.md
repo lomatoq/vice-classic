@@ -1996,3 +1996,402 @@ $ sha256sum /c/Users/nirrt/Downloads/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md
 ---
 
 Red team (adversarial pass, cold agent context, Opus 5)
+
+---
+---
+
+# ADDENDUM 4 — RED TEAM M4.5, дельта-4 (C214–C219)
+
+> Addendum публикуется **дословно**. Подписанный текст и addendum 1–3 выше не изменены ни в одной строке.
+
+## §0. Гигиена и спека, начало
+
+```text
+$ git status --porcelain
+(пусто)
+
+$ git rev-parse HEAD
+78083c077de23ffb15fab35ad7e342d1bb55ab5e
+
+$ git worktree list
+C:/Users/nirrt/Toolset/vice-classic 78083c0 [main]        ← только основное дерево
+
+$ sha256sum /c/Users/nirrt/Downloads/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md
+652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1
+```
+
+**Изоляция.** Клон `…/scratchpad/rt5-4b81e7`, `CARGO_TARGET_DIR = …/scratchpad/tgt-rt5-4b81e7`; перед созданием проверено `ls -d …/rt5-* …/tgt-rt5-*` — пусто. `rt4-9c2e51` не переиспользовался. `git worktree prune` не запускался. Клон и target удалены в конце. Донорские исходники не открывались (D-3).
+
+**База на `78083c0`, измерена в клоне до атак:**
+
+```text
+cargo test --release --workspace                       503 passed, 0 failed
+cargo test --release -p vice-bench --test hygiene       11 passed, 0 failed
+cargo test --release -p vice-bench --test doc_claims      6 passed, 0 failed
+cargo fmt --all --check                                чисто
+cargo clippy --workspace --all-targets -- -D warnings   0 диагностик
+gt-corpus topology-check --report docs/gt/TOPOLOGY_M4_5.json
+  topology report reproduced with every metric compared  EXIT=0
+```
+
+Гейт-файл дельтой-4 не тронут (проверено независимо). `crates/vice-topology/` не тронут ни одним коммитом дельты-4, поэтому измерения детерминизма §11.2 из addendum 2 описывают бит-в-бит тот же код.
+
+---
+
+## §1. Состояние прежних атак
+
+| # | что атаковалось | вердикт на `78083c0` |
+|---|---|---|
+| RT45-A1 | нокаут плеча связности | **ОТБИТА** |
+| RT45-A2 | GT-сигнатура той же функцией | **ОТБИТА** |
+| RT45-A9 | четыре двери к популяции | **ОТБИТА** |
+| RT45-A10 | арифметика над зарегистрированной константой | **ОТБИТА** |
+| RT45-A12 | обнуление нокаут-контроля | **ОТБИТА** |
+| RT45-A13 | конъюнкт по Дирихле | **ОТБИТА** |
+| RT45-A14 | продукт вместо типа | **ОТБИТА** |
+| RT45-A15 | held-out через легальную ручку | **ОТБИТА** |
+| RT45-A16 | кламп в `report::build` | **ОТБИТА** |
+| RT45-A17 | позиционный ярус | **ОТБИТА** |
+| RT45-A18 | подмена ИМЕНИ гейт-файла | **ОТБИТА** |
+| **RT45-A19** | продукт как тип std | **ПО-ПРЕЖНЕМУ ПРОХОДИТ** — но теперь назван честно (см. ниже) |
+| **RT45-A20** | тавтологичный страж D1 | **ОТБИТА** |
+| **RT45-A21** | §27.7 против раннера | **ОТБИТА в предъявленной форме**; класс — RT45-A25 |
+| **RT45-A22** | понижение яруса строки | **ПО-ПРЕЖНЕМУ ПРОХОДИТ** дословно |
+| **RT45-A23** | кламп входа порога клаузы 2 | **ОТБИТА для сентинела**; класс — RT45-A24 |
+
+### RT45-A20 — ОТБИТА
+
+Дословное переименование `RasterProfile::TinySkia => "tinyskia"`:
+
+```text
+no_legal_profile_or_cell_carries_the_held_out_engine ... FAILED
+  the split policy holds out "tiny-skia", which resolves to no RasterProfile variant.
+  A held-out name that names nothing holds nothing out (RT45-A20)
+```
+
+Ключ стража больше не совпадает с ключом механизма: `from_id` и разбиение `RasterProfile::ALL` на легальные + held-out не проходят через `as_str`. Это правильная форма и она работает.
+
+### RT45-A21 — ОТБИТА в предъявленной форме
+
+Дословная атака (`sed` в workflow, без коммита):
+
+```text
+error: load configs/GATES_V1.toml: configs/GATES_V1.toml on disk is not the committed gate file:
+sha256 ea287c58… against 08b30194…  (checked against: git show HEAD).
+EXIT=2
+```
+
+Отдельно подтверждаю сообщение автора, потому что оно существенно и проверяемо: **компайл-таймовая половина мою атаку не ловит**. Я пересобрал бинарь после `sed` (`touch` + `cargo build`, то есть ровно то, что делает `cargo run --release` в CI) — сверка с `include_str!` прошла, и красным стал именно `git show HEAD`. Автор об этом сообщил сам, до меня, и измерение сходится.
+
+### RT45-A23 — ОТБИТА для сентинела
+
+Дословный паддинг `u32::MAX` с усечением удерживающей пары до одного класса:
+
+```text
+the_report_aggregates_agree_with_the_run_they_came_from ... FAILED
+```
+
+`sites()` через исчерпывающую деструктуризацию `TopologyGateConfig` — годная форма: поле без сайта не компилируется. Подтверждаю и вторую половину сообщения автора: сайт, сводивший `min`-ом, паддинг не ловил, суммирование ловит.
+
+### RT45-A9 / A14 / A15 / A16 / A17 / A18 — ОТБИТЫ
+
+```text
+A9/A14 : type `GtSourceGroup` is more private than the item `Rt45Fixtures`
+         type `GtSourceGroup` is more private than the item `rt45_alias`
+         type `GtSourceGroup` is more private than the item `Rt45Basket::groups`
+         type `RenderedFixture` is more private than the item `rt45_render_ty`
+         `GtSourceGroup` doesn't implement `Debug`
+A15    : expected `&LegalProfile`, found `RasterProfile`
+         expected `&LegalCell`, found `&DegradationCell`
+A16    : the_report_aggregates_agree_with_the_run_they_came_from ... FAILED
+A17    : row "| T1 " position 5: the row says 56, but recall_all.hits is 100
+A18    : no_workflow_redirects_the_gate_file ... FAILED (sidecar в configs/)
+A1/A12 : [NOT MET] GT-equivalent topology present in envelope
+A2     : the_independent_chain_agrees_with_the_production_signature ... FAILED
+A10    : clause 1 turns green at 8 arms while the gate file registers 20
+```
+
+### RT45-A19 — ПО-ПРЕЖНЕМУ ПРОХОДИТ, и это единственный случай, где я это не считаю находкой
+
+Три двери дословно, в `gt/corpus.rs` — модуле, который `MAY_CALL` перечисляет:
+
+```text
+(a) renders 63, SEALED-AUDIT groups 22, RGBA bytes 258048
+(b) stacks 63, HELD-OUT tiny-skia stacks 63
+(c) scenes 63, sealed-audit geometry 234292 chars
+
+FMT CLEAN; clippy 0; only_declared_modules_call_the_render_pipeline ... ok
+hygiene 11 passed; cargo test --release --workspace  504 passed / 0 failed
+```
+
+**Но `gt/legal.rs` теперь говорит ровно это, теми же числами:** «ONE `pub fn` in an already-declared module, with no new type, returning `Vec<u8>` … Measured: 22 of 22 sealed-audit groups and 258 048 bytes», и про механизм: «a declared set and therefore reviewable, which is weaker than a compiler error and is said here rather than implied». Ложная строка таблицы чисел исправлена зачёркиванием на месте. Это открытый остаток, названный по самой дешёвой известной цене, — то есть ровно то, чего требует последний абзац F-0048. Регистрирую как ПРОХОДИТ и НЕ как находку: заявление и мир совпали.
+
+### RT45-A22 — ПО-ПРЕЖНЕМУ ПРОХОДИТ ДОСЛОВНО
+
+Условие 28 запрещает ярус `unit-test` строке, несущей число. Моя атака объявляла `membership`, и он не затронут.
+
+```diff
+--- docs/REPRODUCIBILITY_M4_5.md
+-| row T1 | 1..11 | `topology:…` |            (одиннадцать позиционных привязок)
++| row T1 | membership | вся строка под ярусом принадлежности |
+ | row T3d | 8 | `topology:tie_batches_max` |
++| row T99d | 1 | `topology:recall_all.arms` |
+
+--- docs/STATUS_M4_5.md
+-| T1 | **GT-equivalent topology present in envelope** (клауза спеки 1) | PASS | … recall 100 из 100; на 31 arm-е — 31; бюджет потерял ответ на 0 …
++| T1 | **GT-эквивалентная топология присутствует в конверте** (клауза спеки 1) | PASS | … recall  56 из 132; на  8 arm-е —  5; бюджет потерял ответ на 2 …
+ | T3d | **No magic-threshold-only architecture** | PASS | … |
++| T99d | **GT-equivalent topology present in envelope** (сводка популяции) | PASS | популяция 100 arms |
+```
+
+```text
+test the_delta_clause_rows_equal_their_declared_keys_position_by_position ... ok
+test result: ok. 6 passed; 0 failed
+cargo test --release --workspace: 503 passed / 0 failed
+
+$ grep "^| T1 |" docs/STATUS_M4_5.md
+| T1 | **GT-эквивалентная топология присутствует в конверте** (клауза спеки 1) | PASS | … recall  56 из 132 …
+```
+
+**Оговорка о честности замера.** Мой первый прогон упал — но не на защите: декоративный id `T22d` совпал с существующей строкой, объявленной `unit-test`, и тест справедливо сказал «declares two specifications». С неиспользованным id `T99d` атака проходит целиком. Дефект в том, что запрет наложен на ОДИН из трёх ярусов — тот, который я не использовал.
+
+---
+
+## §2. Новые атаки
+
+### RT45-A24 — сайт порога моделирует ПРЕДЪЯВЛЕННЫЙ сентинел, а не свойство — **MAJOR**
+
+**Что заявлено.** `sites()` сверяет каждый зарегистрированный порог с собственным входом; для `gate_min_classes_per_retaining_pair` вход — «WELL-FORMED, DISTINCT readings only», и «a sentinel is not a topology any envelope produced».
+
+**Чем это реализовано.** Литералом:
+
+```rust
+const PLAUSIBLE_CLASS_BOUND: u32 = 100_000;
+…
+.filter(|(c, h)| *c != 0 && *c < PLAUSIBLE_CLASS_BOUND && *h < PLAUSIBLE_CLASS_BOUND)
+```
+
+То есть «правдоподобным» объявлено всё, что меньше ста тысяч. Мой сентинел был `u32::MAX`, и фильтр описывает именно его.
+
+**Процедура воспроизведения.** Тот же паддинг, класс правдоподобный:
+
+```diff
+// crates/vice-bench/src/topology/ambiguity.rs
+                 let (bf, bx) = (wants(&full), wants(&fixed));
++                let mut full = full;
++                while bf && full.len() < 2 {
++                    full.push((3, 1));
++                }
+```
+
+На сегодняшнем корпусе паддинг — no-op (удерживающая пара уже несёт 2 класса), поэтому:
+
+```text
+$ gt-corpus topology-check --report docs/gt/TOPOLOGY_M4_5.json
+  topology report reproduced with every metric compared      EXIT=0   ← артефакт побайтово тот же
+$ cargo test --release -p vice-bench topology::tests           9 passed
+$ cargo test --release -p vice-bench --test hygiene           11 passed
+$ cargo test --release --workspace                           503 passed / 0 failed
+```
+
+**Двусторонняя демонстрация — тот же прогон, удерживающая пара усечена до ОДНОГО настоящего класса:**
+
+```text
+сентинел (u32::MAX, u32::MAX):  the_report_aggregates_agree_with_the_run ... FAILED
+сентинел (3, 1)              :  9 passed;  [MET] ambiguous fixtures retain alternatives
+```
+
+Порог `gate_min_classes_per_retaining_pair = 2` снова неопровержим — при зелёном сайте, который написан именно чтобы это поймать.
+
+**Общее правило класса.** Фильтр правдоподобия — это модель предъявленного дефекта, а не свойство. Свойство здесь выразимо и не требует константы: класс, попавший в `classes_from_*`, обязан присутствовать в конверте, из которого он взят, — то есть вход считается из того же `envelope_classes`, а не из опубликованного списка. Пока сравниваются два чтения ОДНОГО списка, паддинг виден обеим сторонам одинаково.
+
+---
+
+### RT45-A25 — сверка идёт с `HEAD` НА РАННЕРЕ, а раннер двигает HEAD — **MAJOR**
+
+**Что заявлено.** Текст самой ошибки: «A §28 clause is decided against the gate file the **REPOSITORY** carries; a file edited between checkout and measurement is not that file».
+
+**Что сверяется на самом деле.** `git show HEAD:configs/GATES_V1.toml`, выполненный в рабочем каталоге раннера. `HEAD` там — не репозиторий, а локальная ссылка, которую шаг workflow может передвинуть одной командой.
+
+**Процедура воспроизведения.** Две строки `run:`, ни одной в `crates/`, ни одной в `configs/`:
+
+```diff
+--- .github/workflows/ci.yml
++      - name: Prepare gate thresholds
++        run: |
++          sed -i 's/^gate_min_recall_shape_families = 5$/gate_min_recall_shape_families = 1/' configs/GATES_V1.toml
++          git -c user.email=ci@local -c user.name=ci commit -qam 'ci: prepare'
+       - name: M4.5 topology candidate recall and gate table
+```
+
+**Результат.**
+
+```text
+$ git diff --name-status HEAD^ HEAD
+M	.github/workflows/ci.yml                    ← гейт-файл в диффе отсутствует
+
+$ git diff --name-status HEAD^ HEAD | gt-corpus gates-check --stdin --existing-gate configs/GATES_V1.toml
+no gate/feature co-change in 1 path(s)                       EXIT=0
+$ cargo test --release -p vice-bench --test hygiene
+  no_workflow_redirects_the_gate_file ... ok                 11 passed
+$ cargo test --release --workspace                          503 passed / 0 failed
+$ git diff --stat HEAD^ HEAD -- configs/                    (пусто)
+```
+
+И порог после локального коммита действительно живой — тот же приём с заведомо видимым значением:
+
+```text
+(после sed 20 → 1000 и локального коммита)
+  [NOT MET] GT-equivalent topology present in envelope
+  EXIT=1                                        ← отказа загрузки нет, решение принято по правленому файлу
+```
+
+**Честная оценка.** Дельта-4 подняла цену: было одно `sed`, стало `sed` + `git commit`, и тампер остаётся в git-логе раннера. Отказ при недоступном git (`EXIT=2`) — правильное направление, и я его подтвердил. Но свойство, которое утверждает текст ошибки, не выполняется: якорь доверия переехал с «файла на диске» на «HEAD на раннере», а оба принадлежат раннеру. Проверяемая замена: сверять с `origin/<sha>` из события, либо вычислять хеш гейт-файла в отдельном ЗАЩИЩЁННОМ job-е и передавать его как артефакт, либо подписывать.
+
+---
+
+### RT45-A26 — подмена `git` на PATH: **НЕ ПРОВЕРЕНО, публикую как непроверенное**
+
+`std::process::Command::new("git")` резолвится через PATH, а PATH — то же самое, чем workflow распоряжается. Я написал shim и попытался его подложить, и на моей платформе это не измерение: `Command::new("git")` на Windows ищет `git.exe`, безрасширенный shell-скрипт не подхватывается, а `/usr/bin/git` в этом окружении отсутствует. Атака **не воспроизведена**, и я не называю её находкой — только фиксирую, что первая половина сверки (компайл-таймовая) при пересборке не мешает, что я проверил, а вторая опирается на разрешение имени через PATH. Проверять это должен тот, у кого есть ubuntu-раннер.
+
+---
+
+### RT45-A27 — вывод типов сделан ПО ДВУМ ЛИТЕРАЛЬНЫМ МАССИВАМ; новый продуктовый тип выводит конвейер из-под эшелона — **MAJOR**
+
+**Что заявлено.** C217: шесть рукописных пар «модуль — объявление» заменены выводом, «there is no place here for a seventh pair to be appended». Эшелон `only_declared_modules_call_the_render_pipeline` выводит конвейер ПО ТИПУ ВОЗВРАТА, «so a function added to it tomorrow is covered the day it is written».
+
+**Чем это выведено.** Из `CORPUS_BEARING_TYPES` и `CORPUS_PRODUCT_TYPES` — двух литеральных массивов имён — плюс `["GtScene"]`, вписанного в цепочку. Вывод по типу возврата ищет ровно эти имена. Тип, которого в массивах нет, конвейером не считается.
+
+**Процедура воспроизведения.** Новый продуктовый тип, `pub(crate)` как все его соседи, в модуле конвейера; и дверь в `gt/grammar.rs` — модуле, который объявлен как видящий корпус и **не** входит в `MAY_CALL`:
+
+```rust
+// crates/vice-bench/src/gt/raster.rs
+pub(crate) struct RenderPack { pub rgba8: Vec<u8>, pub family: String }
+pub(crate) fn render_pack(scene: &GtScene, cell: &DegradationCell, family: &str)
+    -> Option<RenderPack> { … render_cell(scene, cell, 1) … }
+
+// crates/vice-bench/src/gt/grammar.rs   ← НЕ в MAY_CALL
+pub fn rt45_pixels(cell: &DegradationCell) -> Vec<(String, Vec<u8>)> {
+    all_groups()… .filter_map(|(f, s)| render_pack(s, cell, &f).map(|p| (p.family, p.rgba8))).collect()
+}
+```
+
+**Результат.**
+
+```text
+renders 63, SEALED-AUDIT families 7
+  {"arc_disk","authored/bracket","authored/leaf","dot_cluster","nested_island","shared_edge","thin_bridge"}
+RGBA bytes 258048
+
+FMT CLEAN
+clippy: 0 диагностик
+hygiene.rs: 11 passed; 0 failed
+  the_corpus_types_are_sealed_by_the_compiler ... ok
+  only_declared_modules_call_the_render_pipeline ... ok
+  the_measurements_reach_the_corpus_through_the_legal_population ... ok
+cargo test --release --workspace: 504 passed / 0 failed
+```
+
+Эшелон — единственный оставшийся механизм за пределами типов, и он смотрит на `render_cell(`, `rasterize(`, `render_cell_raster(`. Обёртка над ними, возвращающая незарегистрированный тип, конвейером не является, поэтому вызывающий её модуль в `found` не попадает.
+
+**Оговорка в пользу автора.** Первый вариант этой атаки я поставил в `gt/split.rs` и он покраснел — но по правилу §4.1 о 800 строках, а не по существу; переношу это в §3 как измерение, а не как защиту.
+
+**Общее правило класса.** Это восьмой экземпляр F-0048, и он в том же механизме, который чинил седьмой: шесть пар заменены выводом по двум спискам имён. Вопрос 1 процедуры («есть ли в механизме литерал, перечисляющий предметы?») отвечает «да» дважды. Годная форма выводится из того же места, что и `sites()`: конвейер — это множество функций, ПРИНИМАЮЩИХ `&GtScene`, а `GtScene` уже запечатан компилятором; тогда новая обёртка попадает в конвейер по своему аргументу, а не по имени своего результата.
+
+---
+
+## §3. F-0048, применённый к механизмам самой дельты-4
+
+Автор написал процедуру; применяю её к его новым механизмам, по пяти вопросам.
+
+| механизм | Q1: литерал-перечень? | Q2: следующая находка | Q3: судья | вердикт |
+|---|---|---|---|---|
+| `TopologyGateConfig::sites()` — деструктуризация | нет | изменить критерий | компилятор | **проходит** |
+| …его сайт `min_classes_per_retaining_pair` | **да** — `PLAUSIBLE_CLASS_BOUND` | подкрутить границу | модель автора | **не проходит** (RT45-A24) |
+| `no_legal_profile_or_cell_carries_the_held_out_engine` | нет | — | `from_id` + разбиение `ALL` | **проходит** (Q4 закрыт) |
+| `no_workflow_redirects_the_gate_file` | нет (обход всего репозитория) | — | обход дерева | **проходит** |
+| `load_for_a_gate_decision` | нет | — | **`git` на раннере** | **не проходит по Q3** (RT45-A25) |
+| `the_corpus_types_are_sealed_by_the_compiler` | **да** — два массива + `["GtScene"]` | дописать имя типа | скан по имени | **не проходит** (RT45-A27) |
+| `only_declared_modules_call_the_render_pipeline` | **да** — `MAY_CALL` из 10 модулей | дописать модуль | объявленный перечень | **не проходит**, и **автор это говорит** |
+| ярус: «`unit-test` + число запрещены» | **да** — один ярус из трёх | запретить второй ярус | объявление в проверяемом документе | **не проходит** (RT45-A22) |
+
+Восемь механизмов, четыре не проходят вопрос, который автор сам сформулировал, и по трём из четырёх у меня есть исполнение. Восьмой экземпляр F-0048 существует и находится внутри починки седьмого.
+
+Отдельно и в пользу автора: `MAY_CALL` не проходит Q1/Q2 — и это ЕДИНСТВЕННЫЙ случай в милестоуне, где механизм, не проходящий проверку, объявлен таковым в том же месте, где заявлена его сила, и по самой дешёвой известной цене обхода. Последний абзац F-0048 требует ровно этого, и он исполнен.
+
+---
+
+## §4. Атаки, которые НЕ удались (измерение прочности)
+
+**FA. Прибор CI.** Проверил обе правки исполнением:
+
+```text
+чистая сверка          EXIT=0
+байты разошлись        EXIT=1
+файла нет              EXIT=3
+grep -c -- "--locked" .github/workflows/ci.yml   →  26   (было 0)
+```
+
+Различение `DIFFERENT`/`MISSING` сделано и работает. `--locked` на всех инвокациях.
+
+**FB. Детерминизм генератора корпуса.** 60 независимых процессов `gen-smoke --check` — 0 ненулевых выходов. `crates/vice-topology/` дельтой-4 не тронут, поэтому симметрийные пробы §11.2 из addendum 2 остаются в силе.
+
+**FC. Честность артефакта.** `topology-check` без флага: `reproduced with every metric compared`, exit 0. То же при паддинге RT45-A24 — что и делает его находкой.
+
+**FD. `LegalProfile`/`LegalCell` в обход выведения.** Не удалось: приватные поля, единственный конструктор `LegalCell::at` принимает `&LegalProfile`, публичного конструктора `LegalProfile` нет. Переименование ключа теперь ловится (`from_id` + разбиение).
+
+**FE. Отказ при недоступном git.** Проверил: `EXIT=2`, `CannotVerifyAgainstHead`. Прибор отказывается, а не разрешает, — это то направление, которого требует мета-правило M-4.
+
+**FF. `gt/split.rs` как дверь.** Покраснело — но по правилу 800 строк (`no_production_module_is_over_the_size_rule`), а не по существу. Публикую как измерение: защиты здесь не было, был размер файла.
+
+**FG. §27.6 placeholder arms.** `todo!(`/`unimplemented!(` в продакшене нет.
+
+---
+
+## §5. Что я не смог атаковать
+
+1. **PATH-shim для `git`** (RT45-A26) — не воспроизводится на windows-x86_64; нужен ubuntu-раннер. Публикую как непроверенное.
+2. **CI и кросс-платформенность.** Сеть не использовалась; run 63 не читал. Всё о CI выведено из `ci.yml` и локальных прогонов.
+3. **Правка в git-ОБЪЕКТЕ вместо диска** — частный случай RT45-A25 и им покрыт; отдельной формы, дешевле локального коммита, я не нашёл.
+4. **Свип по бюджету конверта** — по-прежнему не сделан.
+5. **Донорские исходники** — не открывались (D-3).
+6. **Пять замороженных измерений в `--ignored`** — прогнаны выборочно.
+7. **`achievable` внутри `SupportedModelUniverse`** — владелец M6/M7.
+
+---
+
+## §6. RED TEAM VERDICT (addendum 4)
+
+**RED TEAM VERDICT (addendum 4): FAIL**
+
+*(Дельта-4 — сильнейшая из четырёх: RT45-A20 закрыта правильной формой (ключ стража больше не ключ механизма), RT45-A23 закрыта исчерпывающей деструктуризацией, RT45-A21 закрыта в предъявленной форме, прибор CI починен и проверен исполнением, а RT45-A19 переведён из ложного заявления в честно оценённый остаток — единственный механизм милестоуна, который не проходит F-0048 и объявлен таковым там же, где заявлена его сила. Автор дважды опубликовал против себя измерение, которого никто не требовал: что компайл-таймовая сверка его собственную защиту не даёт и что первая версия сайта порогов мой нокаут не ловила.*
+
+*Основание FAIL — четыре MAJOR, каждый срывает заявленное свойство. RT45-A22: условие 28 запрещает ярус `unit-test` строке с числом, а моя атака объявляла `membership` — три правки только в `docs/` возвращают `T1` под ярус принадлежности и публикуют «recall 56 из 132» под `PASS` при шести зелёных тестах и 503 зелёных в workspace. RT45-A24: сайт `min_classes_per_retaining_pair` отличает сентинел по литералу `PLAUSIBLE_CLASS_BOUND`, поэтому паддинг классом `(3, 1)` делает порог неопровержимым при побайтово том же артефакте и одиннадцати зелёных стражах. RT45-A25: текст ошибки утверждает сверку с файлом, который несёт РЕПОЗИТОРИЙ, а сверка идёт с `HEAD` на раннере — две строки `run:` меняют порог, `gates-check` exit 0, `no_workflow_redirects_the_gate_file` зелён. RT45-A27: вывод, заменивший шесть рукописных пар, сделан по двум литеральным массивам имён — новый `pub(crate)` продуктовый тип выводит конвейер из-под эшелона, и `gt/grammar.rs`, которого нет в `MAY_CALL`, отдаёт 258 048 байт по всем семи sealed-audit семействам при 504 зелёных тестах, чистом `fmt` и молчащем clippy.*
+
+*И то, что я обязан сказать отдельно, потому что это измерение, а не мнение: F-0048 — правильная процедура, и восьмой экземпляр, который она обещает найти заранее, находится внутри починки седьмого. Четыре из восьми новых механизмов дельты-4 не проходят вопрос, который автор сам написал.)*
+
+---
+
+## §7. Гигиена, конец
+
+```text
+$ git status --porcelain
+ M docs/REVIEW_M4_5.md
+
+$ git rev-parse HEAD
+78083c077de23ffb15fab35ad7e342d1bb55ab5e        (не двигался)
+
+$ git worktree list
+C:/Users/nirrt/Toolset/vice-classic 78083c0 [main]        ← только основное дерево
+
+$ sha256sum /c/Users/nirrt/Downloads/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md
+652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1
+```
+
+**Рабочее дерево на выходе НЕ чистое, и это не моё.** На входе оно было пустым. `docs/REVIEW_M4_5.md`, +296 строк, начало нового addendum-а холодного рецензента (его §B5 виден в диффе: два клона `rv4-a4-k7q2n`, `rv4-atk-k7q2n`, оба удалены). Я к этому файлу **не прикасался и не откатывал**. HEAD не двигался.
+
+Из основного дерева я ничего не правил, не коммитил и не пушил. Все замеры — в клоне `…/scratchpad/rt5-4b81e7` с `CARGO_TARGET_DIR = …/scratchpad/tgt-rt5-4b81e7`; клон на выходе был на `78083c0` с пустым `git status`, чужих правок в нём не появилось. Клон, target-каталог, shim и промежуточные json удалены. Чужое содержимое общего scratchpad не трогалось. `git worktree prune` не запускался ни разу.
+
+---
+
+Red team (adversarial pass, cold agent context, Opus 5)
