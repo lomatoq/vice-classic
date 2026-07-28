@@ -1013,3 +1013,116 @@ fn every_table_row_has_as_many_cells_as_its_header() {
     );
     println!("{checked} table rows have the cell count their header declares");
 }
+
+/// Every `docs/STATUS_*.md` is either under a tier or in a REVIEWED exception,
+/// and the default is "under a tier".
+///
+/// This is the eighth instance of the F-0048 class, found in my own milestone
+/// and by reading my own mechanism rather than by a reviewer. `CLAUSE_ROWS` and
+/// `POSITIONAL_DOCS` are literals enumerating their subjects, so the answer to
+/// F-0048 Q2 — "what happens at the next finding?" — was *append a line*, and
+/// `docs/STATUS_M5.md` was exactly that line: written, carrying a gate table
+/// with numbers in it, and checked by nothing.
+///
+/// What this test changes is the DEFAULT. The set of status documents comes
+/// from the file system, which is not edited by the commit that writes a gate
+/// row; a document that nobody classified fails here instead of passing in
+/// silence. The exception list below is therefore not a list of subjects but a
+/// list of DECISIONS, each with a reason, and forgetting to add a document is
+/// now a red test rather than a gap.
+///
+/// It is NOT the full closure and is not offered as one. The full closure is
+/// that every gate row of every status document carries a positional binding to
+/// an artifact key, which for M5 needs a `dcel:` key prefix, `DCEL_M5.json` in
+/// the artifact map, a row-kind table in `docs/REPRODUCIBILITY_M5.md`, and the
+/// declaring-document path derived instead of hardcoded. That price is stated
+/// in `docs/STATUS_M5.md` limitation 36 with its owner.
+#[test]
+fn every_status_document_is_classified_or_excepted_with_a_reason() {
+    /// (document, reason it is not under a tier, owner of closing it).
+    const EXCEPTED: &[(&str, &str, &str)] = &[
+        (
+            "docs/STATUS_M0.md",
+            "signed before the mechanism existed; may only receive an addendum",
+            "none",
+        ),
+        (
+            "docs/STATUS_M1.md",
+            "signed before the mechanism existed; may only receive an addendum",
+            "none",
+        ),
+        (
+            "docs/STATUS_M2.md",
+            "signed before the mechanism existed; may only receive an addendum",
+            "none",
+        ),
+        (
+            "docs/STATUS_M3.md",
+            "signed before the mechanism existed; may only receive an addendum",
+            "none",
+        ),
+        (
+            "docs/STATUS_M3_5.md",
+            "signed before the mechanism existed; may only receive an addendum",
+            "none",
+        ),
+        (
+            "docs/STATUS_M5.md",
+            "gate rows carry measured quantities and no positional binding exists for them yet: \
+             the `dcel:` key prefix, DCEL_M5.json in the artifact map and a row-kind table in \
+             REPRODUCIBILITY_M5.md are all missing. Limitation 36",
+            "M6",
+        ),
+    ];
+
+    let mut classified: Vec<String> = CLAUSE_ROWS.iter().map(|(d, _)| (*d).to_string()).collect();
+    classified.extend(POSITIONAL_DOCS.iter().map(|d| (*d).to_string()));
+
+    let dir = repo_root().join("docs");
+    let mut found: Vec<String> = std::fs::read_dir(&dir)
+        .expect("docs dir")
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .filter(|n| n.starts_with("STATUS_") && n.ends_with(".md"))
+        .map(|n| format!("docs/{n}"))
+        .collect();
+    found.sort();
+
+    // The walk must find something. An empty walk is vacuously compliant and
+    // indistinguishable from a passing one (F-0039).
+    assert!(
+        found.len() >= 7,
+        "the walk found only {} status documents; it is not covering docs/",
+        found.len()
+    );
+
+    let unclassified: Vec<&String> = found
+        .iter()
+        .filter(|d| !classified.contains(d) && !EXCEPTED.iter().any(|(e, _, _)| *e == d.as_str()))
+        .collect();
+    assert!(
+        unclassified.is_empty(),
+        "status documents under no tier and in no reviewed exception: {unclassified:?}. A \
+         document that nobody classified is a document nobody checks - put it under a tier, or \
+         except it here with a reason and an owner"
+    );
+
+    // And the exception list may not rot: an entry naming a document that does
+    // not exist is a decision about nothing, which is how a list stops being
+    // read. Checked in the other direction for the same reason.
+    let stale: Vec<&str> = EXCEPTED
+        .iter()
+        .map(|(d, _, _)| *d)
+        .filter(|d| !found.contains(&(*d).to_string()))
+        .collect();
+    assert!(
+        stale.is_empty(),
+        "exceptions for absent documents: {stale:?}"
+    );
+    for (doc, reason, owner) in EXCEPTED {
+        assert!(
+            reason.len() > 30 && !owner.is_empty(),
+            "the exception for {doc} does not say why or who owns it"
+        );
+    }
+}

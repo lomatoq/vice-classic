@@ -1,7 +1,7 @@
 # REQUIREMENTS_TRACEABILITY — vice-classic
 
 Формат (spec v1.3 §32 правило 23): invariant → implementation → tests →
-milestone gate. Покрыты M0…M4.
+milestone gate. Покрыты M0…M5.
 
 ## Перенесённые обязательства (явное отслеживание, REVIEW_M1 M1-N4)
 
@@ -13,6 +13,30 @@ milestone gate. Покрыты M0…M4.
 | D-6 | **Runtime-guard на неразрешимую геометрию**: отвергать типизированно, когда положение пересечения не разрешимо до пикселя в f64 (позиционная ошибка > ~0.25 px). Сегодня в этом режиме аккумулятор возвращает конечное, ограниченное, но бессмысленное число — как и любая f64-реализация (измерено: три независимые реализации дают 0 / +0.278 / −0.517). НЕ сделано: render-путь туда не попадает (`NumericDomain` ≤ 65536), а достаточно чувствительный guard рискует отвергать легитимную far-off-canvas геометрию, которая сегодня считается верно (1e308 принимается с ошибкой 1.8e-15). Основание: собственная находка при построении differential property-теста (C048) | при появлении прямого потребителя аккумулятора (M3) | **ЗАКРЫТО в дельте-4 (C052)**: оказалось тем же пунктом, что D-5 — конвексная/ближне-концевая форма `x_at` устраняет класс; «неразрешимость» была обусловленностью формулы, а не пределом f64 (F-0014) |
 | D-5 | **Колонко-относительная интерполяция промежуточной позиции** в `accumulate_edge` (`x_at`): red team измерил, что перестановка снимает ровно `ulp(M)/2` на всех магнитудах, то есть остаток F-M2-R2 сводим ещё раз. НЕ сделано сознательно: внутри enforced-домена запас ~50× (4.5e-12 против 2.33e-10), а правка сдвинула бы замороженный render digest без выигрыша в домене. Пересмотреть, если домен будет расширен или появится потребитель с бо́льшими координатами. Основание: REDTEAM_M2 addendum F-M2-R10 | при расширении домена / M3+ | **ЗАКРЫТО в дельте-4 (C052)**: перестановка выполнена; ни один замороженный digest не сдвинулся |
 | D-4 | **Типизированный witness сертификации вложения** (`CertifiedMesh`/`EmbeddedScene`): тип, который нельзя получить, не пройдя `verify_embedding`. Ввести ВМЕСТЕ с первым не-рендерящим потребителем `ValidatedScene` (M3 планово вводит: загрузчик GT-корпуса, identifiability-метаданные, scorecard). Основание: REVIEW_M2_A M2-A-N8, REVIEW_M2_B M2-B-N5; обоснование срока — ADR-0010 (критерий §32 п.7 по ADR-0005) | M3 | **ЗАКРЫТО в C062**: ice_render::certified::CertifiedMesh (приватные поля, два конструктора, несёт RenderOptions); mesh-входы рендера принимают только его; первый не-рендерящий потребитель — `gt::GtScene::new` (C064). Заявление СУЖЕНО и проверено: витнес НЕ утверждает замощение окна — B2-сцена сертифицируется, её ловит range check (ADR-0010 addendum M3) |
+
+## M5 — Shared DCEL + safe dual/primal transactions (spec §28 M5, §12, §11.4)
+
+> Шесть из семи инвариантов §12 не имеют режима отказа: их нарушение не
+> ПРЕДСТАВИМО в этой структуре, поэтому колонка «Тесты» у них называет не
+> проверку, а место, где отсутствие проверки является свойством. Седьмой —
+> вычисление, и его разрешающая способность измерена обходом мутаций.
+
+| # | Требование | Реализация | Тесты / проверка | Gate |
+|---|---|---|---|---|
+| M5-1 | §12 «каждый half-edge имеет twin» | `HalfEdgeId::twin` = `id ^ 1`; поля twin нет ни в одной структуре крейта | `every_half_edge_returns_to_itself_along_next`; нарушение непредставимо | STATUS_M5 T1 |
+| M5-2 | §12 «каждая interior boundary имеет двух owners» | `Boundary::owners: FacePair` — пара есть ФОРМА записи | непредставимо; `a_face_pair_with_one_owner_is_not_constructible` проверяет обе стороны | STATUS_M5 T1 |
+| M5-3 | §12 «no dangling cracks» | `FacePair::new` возвращает `None` на равных id и является единственным монетным двором; поля приватны | `a_face_pair_with_one_owner_is_not_constructible` | STATUS_M5 T1 |
+| M5-4 | §12 «face cycles замкнуты и ориентированы» | цикл хранится как `Vec<HalfEdgeId>`, обходимый ПО МОДУЛЮ длины; `next` — позиция + 1 | `every_half_edge_returns_to_itself_along_next`; открытого состояния не существует | STATUS_M5 T1 |
+| M5-5 | §12 «non-adjacent boundaries не пересекаются»; §5.4 robust predicates | сегменты — единичные шаги ЦЕЛОЧИСЛЕННОЙ решётки; ни один комбинаторный вывод не читает f64 | `the_successor_is_a_permutation_on_every_labelling_of_a_small_grid` (4096 разметок x 2 арма) | STATUS_M5 T1, T6 |
+| M5-6 | §5.3 exterior — настоящий `FaceId` | внешнее кольцо фона делает внешнюю грань обычным результатом обычного обхода; `FaceId::EXTERIOR = 0` | `a_disk_assembles_into_two_faces_one_of_which_is_the_exterior`; аудит проверяет, что она фоновая | STATUS_M5 T1 |
+| M5-7 | §12 «Euler/cubical signature сохранён» — ЕДИНСТВЕННЫЙ инвариант-вычисление | `dcel::audit`: тождество `V - B + L = 2C` плюс сверка с независимой цепью | обход мутаций `dcel::walk` — мир, в котором аудит красный; 28 структур, 155 160 слотов, `caught_by_neither = 0` | STATUS_M5 T2, T7 |
+| M5-8 | §5.3 детерминированные ветви неоднозначного седла | спаривание безусловно; конвенция решает состав ГРАНЕЙ | `the_two_conventions_disagree_about_a_critical_2x2`; F-0057 | STATUS_M5 T3 |
+| M5-9 | §11.4 compound transaction: edit, rebuild, certificate, accept-or-rollback | `dcel::transaction::apply` — атомарность через неизменяемость базы | `closing_a_bridge_commits_and_leaves_the_rest_of_the_graph_alone`; ещё пять на откат | STATUS_M5 T4 |
+| M5-10 | §32 правило 14 «no topology winner from the M5 proxy» | у `apply` нет параметра, через который пришла бы цена, граница или счёт | клауза 1 гейта; нокаут `ProxyKnockout::Select` роняет строку | STATUS_M5 T4 |
+| M5-11 | §12 isotopy condition для замены цепи кривой | `certificate::curve_replacement_isotopy` — типизированный отказ, владелец M6; первое из четырёх условий ВЫЧИСЛЯЕТСЯ | `the_isotopy_refusal_names_one_evaluated_condition_and_three_missing`; конструктор падает на пустом `missing` | STATUS_M5 T5 |
+| M5-12 | Область доказательства покрывает область применения (F-0054 / F-9) | три оси: исчерпывающая (4x3, 4x4), размерная (32…512), структурная (пять фикстур на размер) | `audit_every_labelling`; `dcel_props` под `--ignored`; условие 51 | STATUS_M5 T6 |
+| M5-13 | REVIEW_M4_5 условие 51 — структурный регистр по построению | `dcel::fixtures::structural_fixtures` — продакшн-код, вызываемый и тестами, и гейтом (F-0045) | `the_structural_register_is_covered_by_construction`; класс `(1,1)` утверждается, а не наблюдается | STATUS_M5 T6 |
+| M5-14 | §27.7 для порогов M5 | секция `[dcel]` в `configs/GATES_V1.toml`, три отдельных коммита | `every_frozen_value_agrees_with_the_code_that_uses_it`; `Threshold::from_gates` — единственный монетный двор | STATUS_M5 T8 |
 
 ## M4.5 — Cubical event topology envelope (spec §28 M4.5, §11, §23)
 
