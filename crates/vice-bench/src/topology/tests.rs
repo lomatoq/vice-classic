@@ -170,110 +170,31 @@ fn a_hole_is_not_ink() {
     assert_eq!(sig.holes, 1, "the ring must read as a ring: {sig:?}");
 }
 
-/// Rebuild the derived numbers the way `report::build` would.
-fn rebuilt(rep: &report::TopologyReport) -> report::TopologyReport {
-    let mut r = rep.clone();
-    let pop: Vec<&TopologyArm> = r
-        .arms
-        .iter()
-        .filter(|a| a.identifiability == "identifiable" && a.outcome.starts_with("supported"))
-        .collect();
-    let hits = pop.iter().filter(|a| a.gt_in_envelope).count() as u64;
-    let ev = pop.iter().filter(|a| a.gt_in_envelope_events_only).count() as u64;
-    let fx = pop.iter().filter(|a| a.gt_in_envelope_fixed_only).count() as u64;
-    let n = pop.len() as u64;
-    r.identifiable_supported_arms = n;
-    r.recall_shape_families = pop
-        .iter()
-        .map(|a| a.shape_family.as_str())
-        .collect::<std::collections::BTreeSet<_>>()
-        .len() as u64;
-    let un = pop
-        .iter()
-        .filter(|a| a.gt_in_envelope_unrelated_field)
-        .count() as u64;
-    r.recall_unrelated_field = report::Recall {
-        arms: n,
-        hits: un,
-        fraction: un as f64 / n as f64,
-    };
-    // The knockout's POSITIVE control, rebuilt the way `build` computes it:
-    // over arms that are a plain disk under BOTH conventions, which is
-    // where a centred disk is supposed to win.
-    let plain = |g: GtSignature| g.components == 1 && g.holes == 0;
-    let triv: Vec<&&TopologyArm> = pop
-        .iter()
-        .filter(|a| plain(a.gt_four) && plain(a.gt_eight))
-        .collect();
-    let tun = triv
-        .iter()
-        .filter(|a| a.gt_in_envelope_unrelated_field)
-        .count() as u64;
-    r.recall_unrelated_field_trivial = report::Recall {
-        arms: triv.len() as u64,
-        hits: tun,
-        fraction: if triv.is_empty() {
-            0.0
-        } else {
-            tun as f64 / triv.len() as f64
-        },
-    };
-    r.arms_missing_a_connectivity_arm = pop
-        .iter()
-        .filter(|a| a.candidates_by_arm.0 == 0 || a.candidates_by_arm.1 == 0)
-        .count() as u64;
-    r.recall_source_groups = pop
-        .iter()
-        .map(|a| a.group_id.as_str())
-        .collect::<std::collections::BTreeSet<_>>()
-        .len() as u64;
-    r.recall_all = report::Recall {
-        arms: n,
-        hits,
-        fraction: hits as f64 / n as f64,
-    };
-    r.recall_events_only = report::Recall {
-        arms: n,
-        hits: ev,
-        fraction: ev as f64 / n as f64,
-    };
-    r.recall_fixed_only = report::Recall {
-        arms: n,
-        hits: fx,
-        fraction: fx as f64 / n as f64,
-    };
-    let nt: Vec<&&TopologyArm> = pop
-        .iter()
-        .filter(|a| !(a.gt_four.components == 1 && a.gt_four.holes == 0))
-        .collect();
-    r.non_trivial_gt_arms = nt.len() as u64;
-    let nth = nt.iter().filter(|a| a.gt_in_envelope).count() as u64;
-    r.recall_non_trivial = report::Recall {
-        arms: nt.len() as u64,
-        hits: nth,
-        fraction: if nt.is_empty() {
-            0.0
-        } else {
-            nth as f64 / nt.len() as f64
-        },
-    };
-    r
-}
-
-/// A doctored-but-CONSISTENT recall report with a population big enough that
-/// the size controls are not what is being tested.
+/// A doctored-but-CONSISTENT topology RUN with a population big enough that the
+/// size controls are not what is being tested.
 ///
-/// Shared by `each_gate_row_can_fail` and by the effective-boundary scan, so
-/// the two tests cannot disagree about what a healthy report looks like.
-fn synthetic_base() -> report::TopologyReport {
-    let mut rep = report::build(&run_once());
-    // Give the report a population big enough that the size controls are
-    // not the thing being tested.
-    while rep.recall_all.arms < 40 {
-        let mut a = rep.arms[0].clone();
-        a.scene_id = format!("{}#{}", a.scene_id, rep.arms.len());
-        a.group_id = format!("g{}", rep.arms.len() % 9);
-        a.shape_family = format!("family/{}", rep.arms.len() % 7);
+/// It returns a `TopologyRun`, not a `TopologyReport`, and that is the RT45-A16
+/// correction. The previous version doctored a REPORT and re-derived the
+/// aggregates with `rebuilt()` — a second implementation of `report::build`
+/// living in this file. The effective boundary the scan then found was the
+/// boundary of `gate_table` over the REPLICA, so a change to production
+/// aggregation was invisible to it by construction: adding `.max(5)` to
+/// `recall_shape_families` and `non_trivial_gt_arms` in `report::build` is a
+/// no-op on today's corpus, moves no published number, keeps the artifact
+/// byte-identical and §27.7 silent — and drops the effective width threshold
+/// from 5 to 1.
+///
+/// Everything downstream now goes through `report::build`, so the boundary the
+/// scan reports is the boundary the harness has.
+fn synthetic_run() -> crate::topology::TopologyRun {
+    let mut run = run_once();
+    let base = run.arms[0].clone();
+    while run.arms.len() < 40 {
+        let mut a = base.clone();
+        let n = run.arms.len();
+        a.scene_id = format!("{}#{}", a.scene_id, n);
+        a.group_id = format!("g{}", n % 9);
+        a.shape_family = format!("family/{}", n % 7);
         a.candidates_by_arm = (2, 2);
         a.identifiability = "identifiable";
         a.outcome = "supported/box".into();
@@ -281,7 +202,7 @@ fn synthetic_base() -> report::TopologyReport {
         // knockout's positive control would be measured over an empty
         // population, and a control that is empty is the defect RT45-A12
         // found rather than a test of it.
-        a.gt_four = if rep.arms.len().is_multiple_of(4) {
+        a.gt_four = if n.is_multiple_of(4) {
             GtSignature {
                 components: 1,
                 holes: 0,
@@ -295,25 +216,26 @@ fn synthetic_base() -> report::TopologyReport {
         a.gt_eight = a.gt_four;
         a.gt_in_envelope = true;
         a.gt_in_envelope_events_only = true;
-        a.gt_in_envelope_fixed_only = rep.arms.len().is_multiple_of(3);
-        a.gt_in_envelope_unrelated_field = rep.arms.len().is_multiple_of(2);
-        rep.arms.push(a);
-        let pop: Vec<&TopologyArm> = rep.arms.iter().collect();
-        rep.identifiable_supported_arms = pop.len() as u64;
-        rep.recall_all = report::Recall {
-            arms: pop.len() as u64,
-            hits: pop.len() as u64,
-            fraction: 1.0,
-        };
+        a.gt_in_envelope_fixed_only = n.is_multiple_of(3);
+        a.gt_in_envelope_unrelated_field = n.is_multiple_of(2);
+        run.arms.push(a);
     }
-    rebuilt(&rep)
+    run
 }
 
 /// The gate rows are not vacuous: each one FAILS on a report that has been
 /// broken in the specific way the row is about.
 #[test]
 fn each_gate_row_can_fail() {
-    let base = synthetic_base();
+    let run = synthetic_run();
+    let base = report::build(&run);
+    // Every knock-out below mutates the RUN and re-aggregates with
+    // `report::build`, never a replica of it (RT45-A16).
+    let built = |mutate: &dyn Fn(&mut crate::topology::TopologyRun)| {
+        let mut r = run.clone();
+        mutate(&mut r);
+        report::build(&r)
+    };
     let rows = base.gate_table(&gate_cfg());
     assert!(
         rows[0].1,
@@ -332,9 +254,7 @@ fn each_gate_row_can_fail() {
         .expect("the doctored report has a recall population");
 
     // Row 1 fails when one arm loses its answer.
-    let mut miss = base.clone();
-    miss.arms[in_pop].gt_in_envelope = false;
-    let miss = rebuilt(&miss);
+    let miss = built(&|r| r.arms[in_pop].gt_in_envelope = false);
     assert!(
         !miss.gate_table(&gate_cfg())[0].1,
         "a lost answer must fail row 1"
@@ -343,11 +263,11 @@ fn each_gate_row_can_fail() {
     // Row 1 fails when the knockout stops losing: an envelope built from a
     // field unrelated to the scene scoring as well as the real one means the
     // clause is measuring nothing (condition 4).
-    let mut knockout_ties = base.clone();
-    for a in &mut knockout_ties.arms {
-        a.gt_in_envelope_unrelated_field = a.gt_in_envelope;
-    }
-    let knockout_ties = rebuilt(&knockout_ties);
+    let knockout_ties = built(&|r| {
+        for a in &mut r.arms {
+            a.gt_in_envelope_unrelated_field = a.gt_in_envelope;
+        }
+    });
     assert!(
         !knockout_ties.gate_table(&gate_cfg())[0].1,
         "if an unrelated field scored the same as the real one, row 1 would not be a measurement          and must say so"
@@ -367,11 +287,11 @@ fn each_gate_row_can_fail() {
     // The emulation is exact — an empty field matches no arm — and it is
     // deliberately applied to EVERY arm, so it also cannot be dismissed as a
     // sub-population artefact (meta-rule M-2).
-    let mut knockout_empty = base.clone();
-    for a in &mut knockout_empty.arms {
-        a.gt_in_envelope_unrelated_field = false;
-    }
-    let knockout_empty = rebuilt(&knockout_empty);
+    let knockout_empty = built(&|r| {
+        for a in &mut r.arms {
+            a.gt_in_envelope_unrelated_field = false;
+        }
+    });
     assert!(
         knockout_empty.recall_unrelated_field.hits < knockout_empty.recall_all.hits,
         "the OLD conjunct is still satisfied by the emptied knockout - which is the point: it \
@@ -385,21 +305,20 @@ fn each_gate_row_can_fail() {
 
     // Row 1 fails when an arm loses a connectivity arm: the clause relaxes its
     // success condition by pointing at both, so both have to be there.
-    let mut one_arm = base.clone();
-    one_arm.arms[in_pop].candidates_by_arm = (3, 0);
-    let one_arm = rebuilt(&one_arm);
+    let one_arm = built(&|r| r.arms[in_pop].candidates_by_arm = (3, 0));
     assert!(
         !one_arm.gate_table(&gate_cfg())[0].1,
         "an envelope carrying only one complementary arm must fail row 1 (RT45-A1)"
     );
 
     // Row 2 fails when a topology pair collapses.
-    let mut collapsed = base.clone();
-    for p in &mut collapsed.ambiguity {
-        if p.is_topology_pair {
-            p.both_retained_from_a = Some(false);
+    let collapsed = built(&|r| {
+        for p in &mut r.ambiguity {
+            if p.is_topology_pair {
+                p.both_retained_from_a = Some(false);
+            }
         }
-    }
+    });
     assert!(
         !collapsed.gate_table(&gate_cfg())[1].1,
         "a collapsed alternative must fail row 2"
@@ -407,19 +326,17 @@ fn each_gate_row_can_fail() {
 
     // Row 3 fails in BOTH directions: if removing the fixed probes loses an
     // answer, and if the fixed probes alone already recover everything.
-    let mut lost = base.clone();
-    lost.arms[in_pop].gt_in_envelope_events_only = false;
-    let lost = rebuilt(&lost);
+    let lost = built(&|r| r.arms[in_pop].gt_in_envelope_events_only = false);
     assert!(
         !lost.gate_table(&gate_cfg())[2].1,
         "an answer that only a fixed probe finds must fail row 3"
     );
-    let mut threshold_is_enough = base.clone();
-    for p in &mut threshold_is_enough.ambiguity {
-        p.both_retained_fixed_only_from_a = Some(true);
-        p.both_retained_fixed_only_from_b = Some(true);
-    }
-    let threshold_is_enough = rebuilt(&threshold_is_enough);
+    let threshold_is_enough = built(&|r| {
+        for p in &mut r.ambiguity {
+            p.both_retained_fixed_only_from_a = Some(true);
+            p.both_retained_fixed_only_from_b = Some(true);
+        }
+    });
     assert!(
         !threshold_is_enough.gate_table(&gate_cfg())[2].1,
         "if the fixed probe ALONE also retained both readings of an ambiguous pair, then nothing \
@@ -476,7 +393,8 @@ fn the_projection_drops_the_floats_and_keeps_the_topology() {
 #[test]
 fn each_gate_row_flips_at_exactly_the_registered_threshold() {
     let cfg = gate_cfg();
-    let base = synthetic_base();
+    let run = synthetic_run();
+    let base = report::build(&run);
     assert!(
         base.gate_table(&cfg)[0].1 && base.gate_table(&cfg)[2].1,
         "the scan starts from a report that PASSES, or every boundary it finds would be an \
@@ -485,8 +403,9 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
 
     /// The MEASURED value at which row `row` first becomes true.
     ///
-    /// `set(k)` dials one quantity of the report; `measure` reads back what the
-    /// row actually compares. The two are deliberately different: dialling
+    /// `set(k)` dials one quantity of the RUN, `report::build` aggregates it the
+    /// way the harness does, and `measure` reads back what the row actually
+    /// compares. The two are deliberately different: dialling
     /// `arms.len()` is not dialling `recall_all.arms`, because the base report
     /// carries real arms that are outside the recall population, and a scan
     /// that confused the two reported a boundary of 22 for a threshold of 20 —
@@ -495,18 +414,23 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
     /// The row must be false below the flip and true from there on, or the
     /// comparison is not a threshold and "the registered value" has no meaning.
     fn boundary(
-        base: &report::TopologyReport,
+        base: &crate::topology::TopologyRun,
         row: usize,
         cfg: &crate::topology::gate::TopologyGateConfig,
         limit: u64,
-        set: impl Fn(&mut report::TopologyReport, u64),
+        set: impl Fn(&mut crate::topology::TopologyRun, u64),
         measure: impl Fn(&report::TopologyReport) -> u64,
     ) -> u64 {
         let mut first_true = None;
         for k in 0..=limit {
-            let mut r = base.clone();
-            set(&mut r, k);
-            let r = rebuilt(&r);
+            let mut run = base.clone();
+            set(&mut run, k);
+            // PRODUCTION aggregation, not a replica of it. RT45-A16: while this
+            // line was `rebuilt(&r)`, the boundary being measured was the
+            // boundary of `gate_table` over a second implementation of
+            // `report::build` that lives in this file, and a clamp added to the
+            // real one was invisible by construction.
+            let r = report::build(&run);
             let ok = r.gate_table(cfg)[row].1;
             match (ok, first_true) {
                 (true, None) => first_true = Some(measure(&r)),
@@ -529,10 +453,10 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
     // 1. min_recall_arms — shrink the population itself.
     let want = cfg.min_recall_arms.registered_value();
     let got = boundary(
-        &base,
+        &run,
         0,
         &cfg,
-        base.arms.len() as u64,
+        run.arms.len() as u64,
         |r, k| r.arms.truncate(k as usize),
         |r| r.recall_all.arms,
     );
@@ -546,7 +470,7 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
     //    other.
     let want = cfg.min_recall_shape_families.registered_value();
     let got = boundary(
-        &base,
+        &run,
         0,
         &cfg,
         12,
@@ -567,7 +491,7 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
     //    control stays alive and this scan measures its own threshold.
     let want = cfg.min_non_trivial_gt_arms.registered_value();
     let got = boundary(
-        &base,
+        &run,
         0,
         &cfg,
         20,
@@ -591,7 +515,7 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
     );
 
     // 4. min_topology_pairs — duplicate the retaining pair `k` times.
-    let retaining = base
+    let retaining = run
         .ambiguity
         .iter()
         .find(|p| {
@@ -603,7 +527,7 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
         .expect("the corpus has one pair that retains both readings");
     let want = cfg.min_topology_pairs.registered_value();
     let got = boundary(
-        &base,
+        &run,
         1,
         &cfg,
         8,
@@ -627,7 +551,7 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
     let pairs = cfg.min_topology_pairs.registered_value();
     let want = cfg.min_classes_per_retaining_pair.registered_value();
     let got = boundary(
-        &base,
+        &run,
         1,
         &cfg,
         8,
@@ -655,5 +579,88 @@ fn each_gate_row_flips_at_exactly_the_registered_threshold() {
         got, want,
         "clause 2 turns green at {got} retained readings per pair while the gate file registers \
          {want}"
+    );
+}
+
+/// The report's population aggregates AGREE with the run they were built from.
+///
+/// RT45-A16, second half, and it is the half the finding's own prescribed fix
+/// does not reach. Moving `boundary()` onto `report::build` was necessary — it
+/// closes "the acceptance path never touches production aggregation" — but I
+/// measured it and it is not sufficient: with `recall_shape_families` clamped by
+/// `.max(5)` in `report::build`, the scan dials the run down to ONE family, the
+/// report says `5`, the row turns green, `measure` reads `5`, and the boundary
+/// matches the registered `5`. The scan cannot see a lie told by the quantity it
+/// reads back.
+///
+/// So the aggregate is checked against its own input. This IS a second
+/// implementation of the counting, and that is legitimate here for a reason
+/// worth stating, because it is the exact distinction RT45-A16 turns on: a
+/// replica used as an ORACLE tests production, while a replica used as a
+/// SUBSTITUTE — which is what `boundary()` used to do — tests itself.
+///
+/// Measured on a population where a clamp would show: dialled DOWN below every
+/// registered threshold, so a floor cannot hide in a corpus that is already
+/// above it. On today's corpus `.max(5)` is a no-op and moves no published
+/// number, which is precisely why nothing else caught it.
+#[test]
+fn the_report_aggregates_agree_with_the_run_they_came_from() {
+    let mut run = synthetic_run();
+    // Two shape families and two non-trivial arms: both BELOW the registered
+    // thresholds of 5, so a floor at 5 is a visible lie rather than a no-op.
+    for (i, a) in run.arms.iter_mut().enumerate() {
+        a.shape_family = format!("family/{}", i % 2);
+        let non_trivial = i < 2;
+        a.gt_four = GtSignature {
+            components: 1,
+            holes: u32::from(non_trivial),
+        };
+        a.gt_eight = a.gt_four;
+    }
+    let rep = report::build(&run);
+
+    let pop: Vec<&TopologyArm> = run
+        .arms
+        .iter()
+        .filter(|a| a.identifiability == "identifiable" && a.outcome.starts_with("supported"))
+        .collect();
+    assert!(
+        pop.len() >= 2,
+        "the doctored run has no recall population, so this test would compare nothing"
+    );
+
+    let families: std::collections::BTreeSet<&str> =
+        pop.iter().map(|a| a.shape_family.as_str()).collect();
+    assert_eq!(
+        rep.recall_shape_families,
+        families.len() as u64,
+        "report::build says {} shape families and the run it was built from has {}. An aggregate \
+         that does not agree with its own input is a gate threshold moved where neither the \
+         artifact, the boundary scan nor §27.7 can see it (RT45-A16)",
+        rep.recall_shape_families,
+        families.len()
+    );
+
+    let plain = |g: GtSignature| g.components == 1 && g.holes == 0;
+    let non_trivial = pop
+        .iter()
+        .filter(|a| !(plain(a.gt_four) && plain(a.gt_eight)))
+        .count() as u64;
+    assert_eq!(
+        rep.non_trivial_gt_arms, non_trivial,
+        "report::build says {} non-trivial arms and the run has {non_trivial}",
+        rep.non_trivial_gt_arms
+    );
+    assert_eq!(
+        rep.identifiable_supported_arms,
+        pop.len() as u64,
+        "report::build says {} arms in the recall population and the run has {}",
+        rep.identifiable_supported_arms,
+        pop.len()
+    );
+    assert_eq!(
+        rep.recall_all.arms,
+        pop.len() as u64,
+        "recall_all.arms disagrees with the population it is a recall over"
     );
 }
