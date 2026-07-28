@@ -323,3 +323,145 @@ placeholder API for M6+ exists: what is missing is recorded as data with an
 owner.
 
 **STOPPED AFTER M5 — M5.5 NOT STARTED.**
+
+
+---
+
+# Addendum 1 — delta-1 (C249–C253)
+
+The M5 gate was NOT met. Two independent cold reviews returned
+`ACCEPT WITH CONDITIONS` and the red team returned **FAIL** with two blockers.
+This addendum records what changed; the body above is left as it was signed,
+and every correction below names the sentence it corrects.
+
+Three contexts that did not know about each other converged on three defects —
+swapped format arguments, a false "runs in CI" claim, 12 classes against a
+declared 11. Where they converged there is nothing to argue about.
+
+## A1.1 The two blockers
+
+**RT5-A1 — the largest field of the structure was read by no predicate.** A
+ten-line edit rotating every entry of `Parts::face_of_padded_px` above 16 px
+passed 530 tests, four `[MET]` clauses, a byte-identical artifact, `dcel-check`,
+the exhaustive 4×4 sweep and every knockout. `audit()` never touched that field;
+in the whole workspace `face_of_pixel` was read by two assertions on two
+hand-picked pixels of one 9×9 disk.
+
+This is the **eighth level of the F-0048 class and the first about the OUTPUT**:
+exhausting the input domain and exhausting the CHECKED FIELDS of the value are
+independent properties, and the mechanism that made the first compiler-checkable
+was taken for one that makes the second checkable. Enumerating all 65 536
+labellings of a 4×4 gives nothing to a field no predicate reads.
+
+Closed by `dcel::crossing` — the third construction both cold contexts named
+independently, and the one thing REVIEW_M5_A said it had not done. It rebuilds
+the pixel-to-face map by walking each row from the background ring and reading
+the OWNER on each boundary segment it crosses: it never joins two pixels and
+never looks at the stored map. The red team's own edit is now a test and the
+clause-4 knockout.
+
+**RT5-A2 — `caught_by_neither == 0` was a theorem.** A perturbed value is by
+construction not the assembly of its own labelling, so that conjunct could not
+be false and `caught_by_assembly_equality == slots − no_ops` identically. What
+clause 4 really asked of the audit was `caught_by_audit > 0` — one slot — and
+the red team reduced `audit()` to range guards plus a single check, deleting the
+whole seventh §12 invariant, with the gate green and 530 tests passing. F-0035
+is quoted at the top of the file three doors away.
+
+Both identities are gone. The row requires `uncaught_by_audit == 0`: every real
+perturbation of every derived slot rejected by the audit ALONE. **5648 of
+155 160 → 155 160 of 155 160.**
+
+**RT5-A3 — the M5 gate was in no CI step.** Not "CI was not executed": the
+workflow did not contain the steps six places in the tree said it contained, and
+that is checkable by reading. `dcel-check` never calls `gate_table`, so a run
+with four NOT MET clauses passes it. F-7 was reported CLOSED on the ground that
+the knockouts "run in CI"; the ground was false, so **that closure was invalid**.
+Four steps added, and `every_ignore_that_claims_ci_is_named_by_a_workflow_step`
+now derives the claim from the file it is about.
+
+## A1.2 Corrections to the body above
+
+| § | said | is |
+|---|---|---|
+| §2, §3 T6 | 56 transactions with no unrelated chain | **64** |
+| §2 | exhaustive 4×4: 11 classes | **12** — `(0,0)` is contributed by the two empty labellings C243 stopped skipping |
+| §3 T4 | (row wording) | see A1.3 |
+| §3 T7 | 8 empty arrangements "excluded from every clause" | **true of three clauses of four** until delta-1; clause 3 counted their transactions |
+| §4 F-7 | CLOSED FOR M5's OWN MECHANISMS | **invalid closure**, re-claimed in C251 on steps that exist |
+| §4 oblig. 18 | (justification) | see A1.3 |
+| §5 п.29 | "three regions meeting at a point needs three labels" | **false as stated.** Under fg-4 THREE faces are incident at the pinch with two labels — the author's own fixture refutes it. What is impossible is a degree-**three** vertex, by degree parity, and that is the real justification (REVIEW_M5_B N8) |
+| §5 п.35 | 56 | **64** |
+| §1, ADR-0031 §2 | cheapest bypass = "one `pub fn`" | **cheaper**: `walk::with_parts` is `pub(crate)` and already exists, with `pub(crate)` `Parts` fields beside it (REVIEW_M5_A N5) |
+
+## A1.3 Two claims restated, because correcting the number was not enough
+
+**T4 / obligation 18.** The clause-1 row asserted that every
+convention-dependent group comes from the structural register, because
+STATUS_M4_5 limitation 18 says zero of the corpus's 132 arms carry such a class.
+M5's population is 444 corpus arms over different cells, and 7 of the 10 groups
+are corpus groups — the list printed in the same sentence refuted the sentence.
+Honest form, now computed rather than asserted: **the register guarantees the
+population BY CONSTRUCTION, at every size and under both arms; the corpus
+supplies it IN FACT on this cell set, and would not necessarily on another.**
+Carrying a limitation between milestones obliges recomputing its number on the
+new population.
+
+**Clause 3's population is selected by outcome.** `transaction_for` drops **307
+of 474** arms through `_ => return None`, and the doc comment said "the
+population is not selected by what happens to work". Four of `apply`'s six
+refusal reasons cannot fire on this population, `NotTheDeclaredEdit` among them,
+because `kind` is read off the same comparison `apply` redoes — so "167
+attempted, 167 committed, 0 rolled back" is a property of the harness. The
+excluded count and the reachable/unreachable refusal sets are published now, and
+the excluded subclass is exactly what §28 M5 calls **compound** transactions.
+That is F-0058's second instance, in the same milestone.
+
+## A1.4 New limitations
+
+37. **The compound transaction is not attempted.** 307 of 474 arms are excluded
+    because the edit's effect on the signature is not a single `±1`. §28 M5 says
+    "local **compound** topology transactions". **Owner M6**, price: a harness
+    that attempts every arm and classifies the outcome, plus whatever `apply`
+    needs to accept a multi-step signature delta.
+
+38. **`UnrelatedGraphMutation` is unreachable on the production path**, and that
+    is a theorem rather than an accident: a chain wholly outside the ROI depends
+    only on labels step (1) guarantees unchanged. The chain COMPARISON has
+    demonstrated resolving power — `the_chain_comparison_detects_a_distant_change_when_it_is_given_one`
+    is the world in which it moves, and it found on its first run that the
+    comparison was one-directional and blind to a chain that APPEARS. `apply`
+    reaching the branch is still not demonstrated, and the row says so.
+
+39. **The M5 population carries only the `Thresholded` saddle reading.**
+    `Dcel::assemble` takes no `SaddleResolution`; the harness thresholds at the
+    majority level. §32 rule 14 is not violated — M5 does no narrowing, and the
+    exhaustive axis covers every 4×4 labelling including join/split ones — but
+    limitation 31 declared the estimated-evidence narrowing and not this one
+    (REVIEW_M5_A N11). **Owner M6.**
+
+40. **`distinct_classes` counts `(0,0)`,** which is carried by exactly the 8
+    empty arms no clause may stand on. Clause 2 conjoins `distinct_classes >= 3`
+    (REVIEW_M5_A N12). It is not load-bearing at 8 classes; it is wrong in kind.
+    **Owner M6.**
+
+41. **The per-clause knockout run costs ~7 minutes** at full scope, five runs of
+    the corpus. It is `#[ignore]`d and wired into CI; if that becomes the
+    bottleneck the answer is a smaller scope with the floors scaled, not fewer
+    knockouts. **Owner M6.**
+
+## A1.5 What delta-1 did NOT do
+
+- **T11/T12 stay "closed in code, NOT executed".** The four CI steps exist and
+  are checked by a test; no runner has run them. REVIEW_M5_B is explicit that
+  adding the steps is the substantive answer and that these rows stay unexecuted
+  until a real run, and that is what they say.
+- **Limitation 36 (M5 gate rows under positional binding) is still open**, owner
+  M6, and delta-1 raises its price from desirable to obligatory: both reviewers
+  found live instances of exactly the class it predicted, in the gate's own
+  output.
+- **M4-N8, A7.1, F-1/F-3/F-5, F-4, obligation 18, F-6, F-8, limitation 32** are
+  unchanged, with the prices in §4 above, which REVIEW_M5_A explicitly does not
+  contest.
+
+**STOPPED AFTER M5 DELTA-1 — M5.5 NOT STARTED.**

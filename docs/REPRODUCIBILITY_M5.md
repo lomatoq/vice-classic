@@ -29,14 +29,27 @@ cargo test --locked --workspace
 cargo test --locked --release --workspace
 ```
 
-Author's counts on `windows-x86_64`, rustc 1.96.0: **530 passed, 0 failed** in
-each profile, and **11 passed** under `-- --ignored` in release.
+Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-1: **534 passed,
+0 failed** in each profile.
 
-That number was 529 when this file was first written and went stale the moment
-C246 added a test. It is corrected here rather than removed, because it is the
-one number in this document a reviewer can check in a single command — but the
-correction is the point: a count in prose is a COPY (F-0028), and the command
-above is the original.
+**The `--ignored` run, and its EXIT CODE** — which is the thing that matters,
+and which this file got wrong:
+
+```bash
+cargo test --locked --release --workspace -- --ignored
+```
+
+It exited **101** before delta-1. `-- --ignored` un-ignores doctests, and
+`crates/vice-bench/src/gt/legal.rs` carried a fenced `ignore` block that is a
+deliberate illustration of a past defect and cannot compile. This file said
+"11 passed" — true of the passing tests, silent about the return code — so a
+reviewer following the instruction got red (REVIEW_M5_B N5). The fence is a
+plain `text` fence now.
+
+**Reproducibility is a command's exit code, not a number chosen out of its
+output.** The number that was chosen was published by C247, a commit devoted
+entirely to correcting that very number, and it was still the wrong kind of
+statement.
 
 `clippy` on a warm target directory is indistinguishable from not having run it;
 the reviewer's own note on this from M4.5 applies unchanged.
@@ -56,11 +69,29 @@ Exits non-zero when any of the four clauses fails. Author's run: **exit 0, four
 22 sealed-audit groups skipped
 classes [(0,0), (1,0), (1,1), (2,0), (2,1), (3,0), (3,1), (5,0)]
 groups 237, classes in 247 out 247, convention-dependent 10
+  (7 from the CORPUS, 3 from the structural register)
 transactions 167 attempted, 167 committed, 0 rolled back
 unrelated chains 127, moved 0
 audit resolving power: 28 arrangements of 474 arms, 155 160 slots,
-  audit 5648, assembly 155 160, neither 0, no-ops 0
+  caught by audit 155 160, UNCAUGHT 0, no-ops 0
 ```
+
+Two of those lines changed in delta-1, and both changes are the point of it.
+
+The convention-dependent split is **computed from the printed set** rather than
+asserted beside it. The row used to say every such group came from the
+structural register, carrying STATUS_M4_5 limitation 18 (`zero of 132 arms`)
+onto M5's 444-arm population over different cells without recomputing it — and
+the list printed in the same sentence refuted it (REVIEW_M5_B N1).
+
+The last line read `audit 5648, assembly 155 160, neither 0`, and **two of those
+three numbers were arithmetic**: a perturbed value is by construction not the
+assembly of its own labelling, so `caught_by_neither == 0` could not be
+otherwise. What the clause really asked of the audit was ONE caught slot, and
+REDTEAM_M5 RT5-A2 deleted the entire seventh §12 invariant and kept the gate
+green. It now asks that the audit ALONE reject every perturbation — and it does,
+after `dcel::crossing` gave a predicate to `face_of_padded_px`, the largest field
+of the structure, which until delta-1 no predicate read at all (RT5-A1).
 
 Then compare against the committed artifact:
 
@@ -82,7 +113,7 @@ remains open with owner M12.
 cargo test --locked --release -p vice-bench --test dcel_harness -- --ignored --nocapture
 ```
 
-Three tests, each with a positive control in the same body:
+Five tests, each with a positive control in the same body:
 
 - `a_stage_that_picks_a_winner_is_visible_to_clause_one` — production carries
   every topology through; `ProxyKnockout::Select` loses classes;
@@ -98,7 +129,11 @@ cargo test --locked --release -p vice-topology --test dcel_props -- --ignored --
 ```
 
 - `the_audit_is_green_over_every_labelling_of_a_four_by_four` — 131 072
-  arrangements, 11 topological classes, 41 678 labellings with a critical 2×2;
+  arrangements, **12** topological classes, 41 678 labellings with a critical
+  2×2. It said 11 until delta-1: C243 stopped skipping the two empty labellings
+  and the twelfth class, `(0, 0)`, is exactly what they contribute. The test
+  asserts the class SET exactly now, because `>= 8` was a floor and a floor
+  cannot see a count drift upward (REVIEW_M5_A N8c);
 - `the_audit_holds_on_the_structural_register_at_every_declared_size` — the five
   structural fixtures at 32, 64, 128, 256 and 512 px under both convention arms.
 

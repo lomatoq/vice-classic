@@ -134,3 +134,49 @@ them apart.
   `docs/gt/TOPOLOGY_M4_5.json`, and §27.1 forbids moving a signed artifact in a
   feature commit. The executor is `dcel::transaction`, and the gap is recorded
   in `docs/STATUS_M5.md` with an owner and a price.
+
+
+---
+
+## Erratum — delta-1 (C252)
+
+Accepted ADRs receive an erratum rather than a silent edit, and three of these
+were quoted back at me from three independent cold contexts.
+
+1. **"131 070 arrangements"** (§ the three axes) — it is **131 072**, and 4×3 is
+   **8192**, not 8190. C243 stopped skipping the two empty labellings; its
+   commit message recomputed the arrangement counts here and this file was never
+   touched.
+2. **"11 topological classes"** — it is **12**. The twelfth is `(0, 0)`,
+   contributed by exactly the labelling C243 stopped skipping. C243 corrected
+   two of the four numbers it invalidated; this is one of the other two.
+3. **"four modules" / "four files"** (§6) — the `dcel` module tree is **seven**
+   files. STATUS_M5 §1 says seven, so the two documents disagreed about the
+   price of the very decision they jointly justify, and §32 requires that
+   decision to be taken on that price.
+4. **The proof-domain claim of §5 was false when written.** "There is no
+   subclass left for a defect to hide in" was written while
+   `audit_every_labelling` did `if l.count_inside() == 0 { continue }`. F-0058
+   records it; the ledger's Status field said it was "corrected in ADR-0031
+   there", and C243 never touched this file (REVIEW_M5_B N6). It is corrected
+   HERE, which is the first time.
+5. **§6 argues only half of §4.** §4 also names `vice-opt` as "continuous
+   optimizer + **discrete transactions**", and `dcel::transaction` is a discrete
+   transaction. The placement is still defensible — §11.4 is Stage D, §19's
+   compound discrete search arrives at M7, and `vice-opt` does not exist — but
+   an ADR that exists to argue FROM the spec owed the half of §4 that points
+   elsewhere (REVIEW_M5_A N13). The transaction module moves to `vice-opt` when
+   `vice-opt` is created, at the same mechanical price as the DCEL.
+6. **The residual of the one-constructor claim was mispriced.** §2 says the
+   cheapest bypass is "one `pub fn` in `vice-topology` taking pieces". It is
+   cheaper: `walk::with_parts` is `pub(crate)`, already exists, and `Parts`
+   fields are `pub(crate)` beside it, so three lines in any module of the crate
+   build a `Dcel` with no faces at all — and `audit` panicked on that one
+   (REVIEW_M5_A N5). The guard is added; the price is restated at what it is.
+7. **What delta-1 changed in the substance.** §3's measured split — "audit 86 of
+   312, 28 %" — is obsolete. `dcel::crossing` is a third construction of the
+   face map, and the audit now rejects **every** perturbed slot: 312 of 312 on
+   the annulus, 155 160 of 155 160 on the corpus run. The 28 % was the number
+   REDTEAM_M5 RT5-A1 walked through: it was published as an honest weakness and
+   what it said is that `face_of_padded_px`, the largest field, was read by no
+   predicate at all.

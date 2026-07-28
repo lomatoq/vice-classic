@@ -289,12 +289,16 @@ pub fn apply(base: &Dcel, edit: &Edit, cfg: &TxConfig) -> Outcome {
     // PATHS rather than by id, because an edit that merges two faces
     // legitimately renumbers faces, and comparing ids would report the edit
     // itself as collateral damage.
+    // SYMMETRIC. The first version compared base-minus-candidate only, so a
+    // chain that APPEARED outside the region was invisible: flipping one pixel
+    // inside a distant square opens a hole there, leaves the outer chain
+    // untouched, and adds an inner one. The test that gives this conjunct its
+    // falsifying world found that on its first run (RT5-A6's neighbourhood).
     let unrelated_base = unrelated_paths(base, &roi_halo);
     let unrelated_cand = unrelated_paths(&candidate, &roi_halo);
     report.unrelated_chains = unrelated_base.len();
     let moved: Vec<&Vec<(u32, u32)>> = unrelated_base
-        .iter()
-        .filter(|p| !unrelated_cand.contains(*p))
+        .symmetric_difference(&unrelated_cand)
         .collect();
     report.unrelated_chains_that_moved = moved.len();
     if let Some(first) = moved.first() {
@@ -536,6 +540,62 @@ mod tests {
         let restored = back.committed().expect("hole_fill commits");
         assert_eq!(restored.holes(), 0);
         assert_eq!(restored.parts(), base.parts());
+    }
+
+    /// **RT5-A6: the world in which the locality conjunct is false.**
+    ///
+    /// The red team could not build a transaction that `apply` rolls back for
+    /// `UnrelatedGraphMutation`, and neither could I, and the reason is a
+    /// theorem rather than an accident: a boundary chain lying wholly outside
+    /// the ROI depends only on labels of pixels adjacent to it, and step (1)
+    /// guarantees the edit changes none of those. So on the production path
+    /// `UnrelatedGraphMutation` is UNREACHABLE, and §32's "before adding a
+    /// conjunct, exhibit a world where it is false" was unmet — the conjunct
+    /// was published as a measurement on 127 chains with no demonstration that
+    /// it could ever move.
+    ///
+    /// This is that demonstration, and it is honest about what it shows: the
+    /// COMPARISON has resolving power, exercised by changing a pixel far away
+    /// and asking the same function the transaction asks. What it does not show
+    /// is that `apply` can reach the branch, and the clause-3 row says so by
+    /// publishing the reachable and unreachable refusal sets.
+    #[test]
+    fn the_chain_comparison_detects_a_distant_change_when_it_is_given_one() {
+        let base = dumbbell(false);
+        let roi = neck_roi();
+        let halo = roi.grown(TX_CONFIG_V1.halo_px, base.width_px(), base.height_px());
+
+        // POSITIVE CONTROL: the base against itself moves nothing.
+        let before = unrelated_paths(&base, &halo);
+        assert!(
+            !before.is_empty(),
+            "no chain lies outside the region, so the comparison has nothing to compare"
+        );
+        assert_eq!(
+            before,
+            unrelated_paths(&base, &halo),
+            "the comparison must be stable against itself"
+        );
+
+        // The world: a pixel changed OUTSIDE the ROI and its halo, which
+        // `apply` would refuse at step (1) and which the comparison must see.
+        let mut inside = base.labelling().inside().to_vec();
+        let w = base.width_px() as usize;
+        // A pixel inside the distant witness square. Flipping it opens a hole,
+        // so the outer chain is untouched and a NEW chain appears — which is
+        // why the comparison below is symmetric and the first version of it,
+        // base-minus-candidate, saw nothing.
+        inside[12 * w + 3] = !inside[12 * w + 3];
+        let far = Dcel::assemble(
+            Labelling::new(w, base.height_px() as usize, inside),
+            base.connectivity(),
+        );
+        let after = unrelated_paths(&far, &halo);
+        let moved = before.symmetric_difference(&after).count();
+        assert!(
+            moved > 0,
+            "a chain outside the region changed and the comparison did not see it; the conjunct              clause 3 stands on would then be unfalsifiable in both directions"
+        );
     }
 
     /// A no-op is refused. A transaction that certifies "nothing happened"
