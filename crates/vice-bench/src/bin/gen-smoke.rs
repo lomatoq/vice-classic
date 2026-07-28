@@ -46,22 +46,44 @@ fn run() -> i32 {
     let images = build_images();
 
     if cli.check {
-        let mut ok = true;
+        // DIFFERENT and MISSING are DIFFERENT OUTCOMES and no longer share an
+        // exit code. Both cold contexts found the conflation independently: a
+        // step that never produced the images looks exactly like a step whose
+        // images disagree, so "the smoke corpus reproduces" could not be
+        // distinguished from "the smoke corpus was never written". One is a
+        // reproducibility failure; the other is the instrument not having run.
+        let mut differing = 0u32;
+        let mut missing = 0u32;
         for img in &images {
             let p = cli.out.join(img.name);
             match std::fs::read(&p) {
                 Ok(disk) if disk == img.bytes => println!("{}: OK", img.name),
                 Ok(_) => {
                     println!("{}: DIFFERENT", img.name);
-                    ok = false;
+                    differing += 1;
                 }
                 Err(e) => {
                     println!("{}: MISSING ({e})", img.name);
-                    ok = false;
+                    missing += 1;
                 }
             }
         }
-        return if ok { 0 } else { 1 };
+        if missing > 0 {
+            eprintln!(
+                "error: {missing} of {} smoke images are MISSING; this is the instrument not                  having run, not a byte difference (exit 3)",
+                images.len()
+            );
+            return 3;
+        }
+        if differing > 0 {
+            eprintln!(
+                "error: {differing} of {} smoke images DIFFER from the recorded bytes (exit 1)",
+                images.len()
+            );
+            return 1;
+        }
+        println!("{} smoke images reproduce byte for byte", images.len());
+        return 0;
     }
 
     if let Err(e) = std::fs::create_dir_all(&cli.out) {

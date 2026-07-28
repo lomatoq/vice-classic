@@ -17,11 +17,11 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Tests
-        run: cargo test --workspace
+        run: cargo test --locked --workspace
       - name: Tests (release)
-        run: cargo test --release --workspace
+        run: cargo test --locked --release --workspace
       # The corpus-wide calibration measurements: they render and analyse
       # hundreds of images, so they are `#[ignore]`d out of the default path
       # (minutes in debug) and run HERE, in release, on every push. This is
@@ -30,7 +30,7 @@ jobs:
       # §1.6 thickness floor, the residual tolerance and the interior
       # weighting.
       - name: M4 calibration measurements (release, --ignored)
-        run: cargo test --release -p vice-bench --test frozen_calibration -- --ignored --nocapture
+        run: cargo test --locked --release -p vice-bench --test frozen_calibration -- --ignored --nocapture
 
   clean-checkout-smoke:
     runs-on: ubuntu-latest
@@ -42,16 +42,16 @@ jobs:
       - name: Install pinned toolchain
         run: rustup show
       - name: Regenerate the smoke corpus and compare bytes
-        run: cargo run --release --bin gen-smoke -- --out tests/fixtures/smoke --check
+        run: cargo run --locked --release --bin gen-smoke -- --out tests/fixtures/smoke --check
       - name: Verify the smoke corpus against its manifest
         run: |
-          cargo run --release --bin baseline-runner -- verify-corpus \
+          cargo run --locked --release --bin baseline-runner -- verify-corpus \
             --corpus tests/fixtures/smoke \
             --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml \
             --config configs/baselines.toml
       - name: Runner selftest
         run: |
-          cargo run --release --bin baseline-runner -- selftest \
+          cargo run --locked --release --bin baseline-runner -- selftest \
             --out runs/ci-selftest \
             --corpus tests/fixtures/smoke \
             --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml
@@ -59,11 +59,11 @@ jobs:
       # fixture rather than described.
       - name: M4 evidence CLI on a committed fixture
         run: |
-          cargo run --release --bin vicec -- evidence             tests/fixtures/smoke/circle_64.png --out runs/ci-evidence
+          cargo run --locked --release --bin vicec -- evidence             tests/fixtures/smoke/circle_64.png --out runs/ci-evidence
       - name: Environment manifest (whole and normative projection)
         run: |
-          cargo run --release --bin baseline-runner -- env
-          cargo run --release --bin baseline-runner -- env --normative
+          cargo run --locked --release --bin baseline-runner -- env
+          cargo run --locked --release --bin baseline-runner -- env --normative
 
   gt-corpus:
     runs-on: ubuntu-latest
@@ -123,7 +123,7 @@ jobs:
             else
               DIFF=$(git show --name-status --format= "$C")
             fi
-            if ! printf '%s\n' "$DIFF" | cargo run --quiet --release --bin gt-corpus -- gates-check --stdin $EXISTING; then
+            if ! printf '%s\n' "$DIFF" | cargo run --locked --quiet --release --bin gt-corpus -- gates-check --stdin $EXISTING; then
               echo "offending commit: $C"
               FAIL=1
             fi
@@ -134,7 +134,7 @@ jobs:
       # is a typed burn violation and fails the build.
       - name: Sealed-audit burn policy (§27.1)
         run: |
-          cargo run --release --bin gt-corpus -- audit-status \
+          cargo run --locked --release --bin gt-corpus -- audit-status \
             --seal docs/gt/AUDIT_SEAL.json \
             --manifest docs/gt/CORPUS_MANIFEST.json \
             --gates configs/GATES_V1.toml
@@ -145,9 +145,9 @@ jobs:
       # nobody waits for is a check nobody runs.
       - name: GT corpus rebuilds deterministically (test scope)
         run: |
-          cargo run --release --bin gt-corpus -- build \
+          cargo run --locked --release --bin gt-corpus -- build \
             --out runs/ci-corpus/manifest-a.json --scope test
-          cargo run --release --bin gt-corpus -- build \
+          cargo run --locked --release --bin gt-corpus -- build \
             --out runs/ci-corpus/manifest-b.json --scope test
           diff runs/ci-corpus/manifest-a.json runs/ci-corpus/manifest-b.json
       # The COMMITTED artifact, verified (REVIEW_M3 M3-N7). Until now CI
@@ -166,10 +166,10 @@ jobs:
       # is a typed refusal, never a silent pass.
       - name: The committed corpus manifest reproduces (structural, cross-platform)
         run: |
-          cargo run --release --bin gt-corpus -- verify             --manifest docs/gt/CORPUS_MANIFEST.json --structural
+          cargo run --locked --release --bin gt-corpus -- verify             --manifest docs/gt/CORPUS_MANIFEST.json --structural
       - name: M3 scorecard and gate table
         run: |
-          cargo run --release --bin gt-corpus -- report \
+          cargo run --locked --release --bin gt-corpus -- report \
             --manifest runs/ci-corpus/manifest-a.json \
             --gates configs/GATES_V1.toml \
             --seal docs/gt/AUDIT_SEAL.json \
@@ -179,17 +179,17 @@ jobs:
       # so the two sentences are enforced by CI rather than read in a report.
       - name: M3.5 + M4 factorial oracle harness and gate table
         run: |
-          cargo run --release --bin gt-corpus -- oracle \
+          cargo run --locked --release --bin gt-corpus -- oracle \
             --out runs/ci-oracle/report.json --scope full
       # §28 M4. Three of the four gate clauses are computed from the
       # corridor report's own data, and the command exits non-zero when any
       # of them fails.
       - name: M4 corridor calibration and gate table
         run: |
-          cargo run --release --bin gt-corpus -- corridor             --out runs/ci-corridor/report.json --scope full
+          cargo run --locked --release --bin gt-corpus -- corridor             --out runs/ci-corridor/report.json --scope full
       - name: The committed corridor report reproduces (structural, cross-platform)
         run: |
-          cargo run --release --bin gt-corpus -- corridor-check             --report docs/gt/CORRIDOR_M4.json --structural
+          cargo run --locked --release --bin gt-corpus -- corridor-check             --report docs/gt/CORRIDOR_M4.json --structural
       # `--structural` for the same reason the corpus step uses it: the
       # oracle metrics are libm-derived floats and therefore Tier A (§5.5),
       # this runner is Linux and the artifact is recorded on Windows. Without
@@ -204,7 +204,7 @@ jobs:
       # REVIEW_M3_5 M35-N1).
       - name: The committed oracle report reproduces (structural, cross-platform)
         run: |
-          cargo run --release --bin gt-corpus -- oracle-check \
+          cargo run --locked --release --bin gt-corpus -- oracle-check \
             --report docs/gt/ORACLE_M4.json --structural
       # §28 M4.5. All THREE gate clauses are computed from the recall
       # report's own data and the command exits non-zero when any of them
@@ -214,7 +214,7 @@ jobs:
       # things a status document says.
       - name: M4.5 topology candidate recall and gate table
         run: |
-          cargo run --release --bin gt-corpus -- topology \
+          cargo run --locked --release --bin gt-corpus -- topology \
             --out runs/ci-topology/report.json --scope full
       # `--structural` for the same reason the three steps above use it: the
       # metrics are libm-derived floats and this runner is Linux while the
@@ -224,7 +224,7 @@ jobs:
       # different libm cannot move without moving the topology itself.
       - name: The committed topology report reproduces (structural, cross-platform)
         run: |
-          cargo run --release --bin gt-corpus -- topology-check \
+          cargo run --locked --release --bin gt-corpus -- topology-check \
             --report docs/gt/TOPOLOGY_M4_5.json --structural
 
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
@@ -250,13 +250,13 @@ jobs:
       - name: Install pinned toolchain
         run: rustup show
       - name: The committed corpus manifest reproduces (Tier A, all 1086 digests)
-        run: cargo run --release --bin gt-corpus -- verify --manifest docs/gt/CORPUS_MANIFEST.json
+        run: cargo run --locked --release --bin gt-corpus -- verify --manifest docs/gt/CORPUS_MANIFEST.json
       - name: The committed oracle report reproduces (Tier A, every metric)
-        run: cargo run --release --bin gt-corpus -- oracle-check --report docs/gt/ORACLE_M4.json
+        run: cargo run --locked --release --bin gt-corpus -- oracle-check --report docs/gt/ORACLE_M4.json
       - name: The committed corridor report reproduces (Tier A, every metric)
-        run: cargo run --release --bin gt-corpus -- corridor-check --report docs/gt/CORRIDOR_M4.json
+        run: cargo run --locked --release --bin gt-corpus -- corridor-check --report docs/gt/CORRIDOR_M4.json
       - name: The committed topology report reproduces (Tier A, every metric)
-        run: cargo run --release --bin gt-corpus -- topology-check --report docs/gt/TOPOLOGY_M4_5.json
+        run: cargo run --locked --release --bin gt-corpus -- topology-check --report docs/gt/TOPOLOGY_M4_5.json
 
 # Reproducing the pinned donor baselines needs local mirrors and a 104 MiB
 # hash-pinned asset, which CI has neither of; that step is executed by the
