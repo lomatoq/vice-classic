@@ -196,3 +196,23 @@ were quoted back at me from three independent cold contexts.
    exhaustive sweep says nothing about a field no predicate reads, and nothing
    at all about a defect inside `assemble`, which produces a self-consistent
    wrong value that is not a perturbation of anything (F-0066).
+
+
+## Erratum 3 — delta-3 (C262)
+
+1. **§1's table claimed "face cycles closed and oriented" from one argument.**
+   "A loop is a `Vec<HalfEdgeId>` traversed modulo its length" establishes
+   CLOSED and says nothing about ORIENTED. One of the six invariants listed as
+   unrepresentably-false was representably false in half of what §12 asks
+   (F-0068). The oriented half is a computation — `dcel::loops` — and it is
+   compared against loops re-derived from the LABELLING, not against
+   `target`/`origin`, which would have shared a provenance with what they check.
+2. **§3's leaf-count judge is keyed on the `Serialize` derive**, which is an
+   attribute on the struct being checked and is editable in the same commit as
+   the field it is supposed to expose (F-0069). Two lines defeated it. The ways
+   to control the key are enumerated now, and that enumeration is a text scan
+   whose own price is named.
+3. **The proof domain grew a sixth structural fixture.** `diagonal_staircase`
+   exists because §12's ORIENTED clause needs loops of three or more half-edges
+   to have anything to say, and neither M5 population had them — the corpus
+   averages 1.082 per loop and the register had zero.

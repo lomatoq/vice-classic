@@ -29,7 +29,7 @@ cargo test --locked --workspace
 cargo test --locked --release --workspace
 ```
 
-Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-2: **537 passed,
+Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-3: **543 passed,
 0 failed** in each profile.
 
 **The `--ignored` run, and its EXIT CODE** — which is the thing that matters,
@@ -72,8 +72,8 @@ groups 237, classes in 247 out 247, convention-dependent 10
   (7 from the CORPUS, 3 from the structural register)
 transactions 167 attempted, 167 committed, 0 rolled back
 unrelated chains 127, moved 0
-audit resolving power: 29 arrangements of 474 arms, 161 391 slots,
-  caught by audit 161 391, UNCAUGHT 0, no-ops 0
+audit resolving power: 30 arrangements of 480 arms, 179 253 slots,
+  caught by audit 179 253, UNCAUGHT 0, no-ops 0
     vertices              82        boundaries.owners     90
     boundaries.endpoints  90        boundaries.path    10 058
     faces.label           67        faces.loops           90
@@ -168,7 +168,10 @@ Suggestions, not instructions — the point of a red team is that it chooses.
    above some size. The size axis is supposed to make that visible; F-8 is the
    record of the last time it was not.
 3. **Make `assemble` wrong in a way that agrees with itself.** This is the one
-   that worked twice: RT5-A1 (a field no predicate read) and RT5-A9 (a
+   that worked three times — RT5-A1, RT5-A9 and RT5-A13 — and the third did not
+   need the map at all: reordering two half-edges inside one loop leaves every
+   pixel, every owner and every count where they were. It worked twice before
+   delta-3 as: RT5-A1 (a field no predicate read) and RT5-A9 (a
    relabelling that every check reproduced, because the cross-check's input is
    sampled out of what it checks). Try it a third time, and ask the question the
    reviewers wrote: not "does my check look different" but **"what is the

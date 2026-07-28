@@ -43,7 +43,8 @@ has public fields and accepts graphs from outside. M5 constructs, so:
 | every half-edge has a twin | `HalfEdgeId::twin` is `id ^ 1` | no — there is no twin field |
 | interior boundary has two owners | `Boundary::owners: FacePair` | no — two owners is the shape of the record |
 | border boundary has interior + exterior owner | the padding ring is background, so the exterior is an ordinary face of the ordinary walk | no |
-| face cycles closed and oriented | a loop is a `Vec<HalfEdgeId>` traversed modulo its length | no — a cyclic traversal has no open state |
+| face cycles CLOSED | a loop is a `Vec<HalfEdgeId>` traversed modulo its length | no — a cyclic traversal has no open state |
+| face cycles ORIENTED | *(corrected in addendum 3: this was claimed from the row above and does not follow from it — see A3.2)* | **yes**, and it is a computation since delta-3 |
 | no dangling cracks | `FacePair::new` refuses equal ids and is the only mint | no |
 | non-adjacent boundaries do not intersect | segments are unit steps of an integer lattice | no |
 | Euler / cubical signature preserved | `dcel::audit` | **yes** — and it is the audited one |
@@ -616,3 +617,155 @@ changed is that their limits are measured and stated instead of claimed.
 that is what it is.
 
 **STOPPED AFTER M5 DELTA-2 — M5.5 NOT STARTED.**
+
+
+---
+
+# Addendum 3 — delta-3 (C260–C262)
+
+`REDTEAM_M5` addendum 2 **FAIL**, `REVIEW_M5_A` addendum 2 **ACCEPT WITH
+CONDITIONS / GATE MET**, `REVIEW_M5_B` addendum 2 **ACCEPT WITH CONDITIONS /
+GATE MET**. §34 makes a separate red-team pass mandatory for M5, so one FAIL is
+the gate.
+
+## A3.1 The blocker: §12 asks for closed AND oriented; half was held
+
+`target(h) == origin(next(h))` — the property that makes a loop a walk rather
+than a bag — was checked nowhere, and `Dcel::target` and `Dcel::origin` were
+called by **nothing** in the workspace. Swapping two half-edges inside one loop
+violates it on **35 768 of 131 072** 4×4 arrangements, with `audit()` returning
+`Err` **zero** times, the exhaustive sweep green, the gate at EXIT 0 and the
+artifact byte-identical.
+
+Both delta-2 anchors reproduce it and this is asserted rather than described: the
+labelling anchor moves no pixel under a reordering, and `crossing` reads only
+`boundaries`. The exhaustive sweep exhausts the INPUT domain, which says nothing
+about a property no predicate evaluates — the eighth level of the F-0048 class,
+a **third** time, now on `next`.
+
+**Q4 was asked first, as required.** The obvious check —
+`target(h) == origin(next(h))` — shares a provenance with what it checks:
+`target`/`origin` read `boundaries[].start/end`, `next` reads `site` and
+`faces[].loops`, all outputs of the same `assemble`. Writing it would have been
+RT5-A9's shape a third time. So the loops are **re-derived from the labelling**
+and compared as cyclic lattice walks. Residual, stated in `loops.rs`: this shares
+the ALGORITHM with `assemble` and not the DATA, so corruption of the stored loops
+is caught and a wrong `succ` rule is not — that is what the sweep and the Euler
+identity are for, and they share no algorithm with it.
+
+**And the fixture, because a check whose population cannot exercise it is green
+for the old reason.** Loops of ≥3 half-edges did not exist in either M5
+population: the corpus averages 1.082 per loop, the structural register had
+**zero**. A sixth fixture, `diagonal_staircase`, puts a degree-four vertex
+between each consecutive pair of blocks and so carries loops of three or more at
+every size and under both arms, BY CONSTRUCTION. The register's derived counts
+are now computed from the register rather than written as `5 * 2`, which is the
+line the sixth fixture would otherwise have broken.
+
+## A3.2 The §12 claim, corrected
+
+The table in `dcel/mod.rs`, STATUS §1 and ADR-0031 §1 claimed **closed and
+oriented** from one argument: "a loop is a `Vec<HalfEdgeId>` traversed modulo its
+length". That establishes CLOSED and says nothing about ORIENTED — the right
+half-edges in the wrong order are still a cycle. **One of the six invariants
+declared unrepresentably-false was representably false in half of what §12
+asks.** The table now carries two rows: closed (no failure mode) and oriented
+(a computation, and it was unrepresented until delta-3).
+
+## A3.3 RT5-A14: the anchor is invisible to the instrument, and the row says so
+
+Switching the labelling anchor off moves no slot count, no `by_family` entry and
+no artifact byte. Reviewer A's diagnosis is exact and I adopt it: the walk is
+made of perturbations of a **correct** structure, and the anchor's whole domain
+is defects **inside** `assemble`, which are not perturbations of anything
+(F-0066). This is a boundary of the instrument, not a defect in the anchor.
+
+**Choice taken: the row says it plainly, and the anchor is guarded by
+KNOCKOUTS.** RT5-A1 and RT5-A9 are gate-level controls required to redden clause
+4, so the anchor is not unguarded — it is guarded by tests rather than measured
+by the walk, and the row now distinguishes those two things instead of letting
+one stand for the other.
+
+**Measured here rather than quoted**, because the row cites it: on a 13×13
+annulus the rebuild alone catches **153** slots the anchor does not, the anchor
+alone catches **3**, and **160** fall to both. So the two are not redundant and
+citing both is not citing one twice.
+
+*Price of the alternative I did not take*, named as the governor asked: a second
+instrument whose population is defects INSIDE `assemble` means a harness that
+edits `assemble`, rebuilds the crate in a temporary clone and re-runs the gate —
+the source-rewriting harness the red team costed at a milestone of its own. It
+is the honest form and it is not affordable here. **Owner M6**, and until then
+the anchor's guarantee is exactly as strong as its two knockouts.
+
+## A3.4 RT5-A12 / M5B-N14: the leaf judge keyed on the serialization
+
+`#[serde(skip)]` plus `extra: _` — **two lines**, clippy clean, everything
+green, the field invisible to the walk, to the leaf count and to the artifact.
+The judge's key is the `Serialize` derive, an attribute on the same surface the
+attacker edits in the same commit. B's rule: "a count the attacker does not
+control" is verified by ENUMERATING the ways to control it, because a derive is
+a function of attributes on the thing checked rather than a constant of nature.
+
+The ways are enumerated: no serde attribute may appear on a field of `Parts`,
+checked over the struct's own source, with a positive control that the derive is
+still present. **Residual, at the cheapest known price:** it is a text scan,
+which F-0048 Q3 calls a habit rather than a judge — renaming the struct, moving
+it, or spelling the attribute differently defeats it. What it closes is the
+two-line bypass that was measured. A judge sharing no surface with `Parts` needs
+reflection Rust does not have; the nearest thing is a proc-macro deriving both
+the sites and the count from one definition, which is a new crate. **Owner M6.**
+
+**Corrections to addendum 2:** A2.2 and A2.5 say `extra: _` "cannot move the
+leaf count". That is true of `extra: _` alone and false of the two-line form,
+and the two-line form is the one that matters.
+
+## A3.5 M5B-N15: the branch counters are gated, and the branch set is derived
+
+The counters were published and gated by nothing, so a commit deleting the branch
+probe and re-recording the artifact — which is **not** under §27.7 — would
+silently return clause 4 to stride-dependence. They are conjuncts now: every
+branch the judge reported must have been probed, and there must be at least two.
+
+And the branch set was a hand-written dichotomy computed by the CALLER
+(`count_inside() == 0`), so a new early return inside `audit` cost one line there
+and the probe would never have learned of it. **The judge names its own branch**
+in `AuditReport::branch`, and the harness buckets by whatever comes back, so a
+third branch is probed the first time it appears.
+
+## A3.6 New limitations
+
+45. **`loops_agree_with_the_labelling` shares an ALGORITHM with `assemble`**, and
+    that is its stated residual: a wrong `succ` rule produces the same wrong
+    loops on both sides. It shares no DATA, which is the class RT5-A13 lives in.
+    The `succ` rule is covered by the exhaustive sweep and the Euler identity,
+    which share no algorithm with it. **Owner: none — this is the boundary, not
+    a defect.**
+
+46. **The serde-skip ban is a text scan.** Named above with its price. **Owner
+    M6.**
+
+47. **No second instrument for defects inside `assemble`.** A3.3. **Owner M6.**
+
+## A3.7 F-0048 after delta-3, Q4 as PROVENANCE, new check first
+
+| mechanism | Q1 literal | Q2 next finding | Q3 judge | **Q4 provenance shared?** | Q5 both ways | verdict |
+|---|---|---|---|---|---|---|
+| `loops_agree_with_the_labelling` **(new, asked first)** | no | criterion changes | re-derivation from the input | **no data; YES algorithm**, and both are stated | RT5-A13 red, clean green, and the fixture that makes the red possible is asserted at every size | **PASSES on data-provenance; the algorithm share is named** |
+| `audit`'s labelling anchor | no | criterion changes | per-pixel comparison | no — the labelling is the input | guarded by two gate knockouts; NOT measured by the walk, and the row says so | **PASSES** |
+| `crossing::face_map_agrees` | no | criterion changes | an independent traversal | **YES, through `owners`** | RT5-A1 red; RT5-A9 reproduced; 153 unique slots measured | **DOES NOT PASS Q4**, residual class exact |
+| `Parts::perturbations` | no | leaf count moves | compiler + `Serialize` derive + a source scan | **YES — the derive is an attribute on `Parts`** | red, empty, idle | **DOES NOT PASS Q4.** Closed for the measured bypass; the scan's own price is named |
+| `audit()` | **YES — hand-written blocks** | "append a block" | habit, bounded over perturbations only | — | domain of the bound is named | **DOES NOT PASS** |
+| the branch probe | **no longer** — the judge names its branches | a new branch gets a bucket | the judge's own output | no | gated by clause 4 | **PASSES** |
+| `RunKnockouts` | no — counted against `gate_table()` | a clause without a knockout fails | the gate table | no | each reddens its own row | **PASSES** |
+| `transaction_for` | **YES — `_ => return None`** | "the fifth kind is dropped" | the outcome | yes | excluded count published | **DOES NOT PASS.** Limitation 37, owner M6, no second deferral |
+| representation invariants | no | criterion changes | compiler | no | yes | **PASSES** — for the five that remain after §12's ORIENTED clause left the column |
+| `Threshold::from_gates` | no | type error | compiler | no | yes | **PASSES** |
+| CI claim checker | no | a claim without a step fails | the workflow file | no | both, incl. its own false positive | **PASSES**, price named |
+| `doc_claims` doc set | exceptions only | forgetting is red | the file system | no | stale exceptions fail | **PASSES as a default** |
+
+Four rows do not pass, each with a named residual and an owner. Two of them —
+`crossing` and `Parts::perturbations` — share a provenance with what they check
+and are kept because their measured contribution is real and now quantified.
+
+**STOPPED AFTER M5 DELTA-3 — M5.5 NOT STARTED.**
