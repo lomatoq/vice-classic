@@ -29,8 +29,14 @@ cargo test --locked --workspace
 cargo test --locked --release --workspace
 ```
 
-Author's counts on `windows-x86_64`, rustc 1.96.0: **529 passed, 0 failed** in
-each profile, with 8 `#[ignore]`d.
+Author's counts on `windows-x86_64`, rustc 1.96.0: **530 passed, 0 failed** in
+each profile, and **11 passed** under `-- --ignored` in release.
+
+That number was 529 when this file was first written and went stale the moment
+C246 added a test. It is corrected here rather than removed, because it is the
+one number in this document a reviewer can check in a single command — but the
+correction is the point: a count in prose is a COPY (F-0028), and the command
+above is the original.
 
 `clippy` on a warm target directory is indistinguishable from not having run it;
 the reviewer's own note on this from M4.5 applies unchanged.
