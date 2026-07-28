@@ -28,6 +28,9 @@ use vice_bench::topology::TopologyScope;
 #[path = "gt-corpus/topology_cmd.rs"]
 mod topology_cmd;
 
+#[path = "gt-corpus/dcel_cmd.rs"]
+mod dcel_cmd;
+
 #[derive(Parser)]
 #[command(
     name = "gt-corpus",
@@ -191,6 +194,20 @@ enum Cmd {
     /// Re-run the topology harness at the report's own scope and compare.
     /// Tier A, exactly like the corridor and oracle reports.
     TopologyCheck {
+        #[arg(long)]
+        report: PathBuf,
+        #[arg(long)]
+        structural: bool,
+    },
+    /// Run the M5 shared-DCEL and transaction harness and write its report.
+    Dcel {
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, value_enum, default_value_t = TopologyScopeArg::Full)]
+        scope: TopologyScopeArg,
+    },
+    /// Re-run the DCEL harness at the report's own scope and compare. Tier A.
+    DcelCheck {
         #[arg(long)]
         report: PathBuf,
         #[arg(long)]
@@ -663,6 +680,8 @@ fn real_main() -> i32 {
         }
         Cmd::Topology { out, scope } => topology_cmd::run(&out, scope.into()),
         Cmd::TopologyCheck { report, structural } => topology_cmd::check(&report, structural),
+        Cmd::Dcel { out, scope } => dcel_cmd::run(&out, scope.into()),
+        Cmd::DcelCheck { report, structural } => dcel_cmd::check(&report, structural),
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {
                 Ok(v) => v,

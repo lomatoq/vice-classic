@@ -138,13 +138,13 @@ impl TopologyScope {
             TopologyScope::Test => "test",
         }
     }
-    fn stride(&self) -> usize {
+    pub(crate) fn stride(&self) -> usize {
         match self {
             TopologyScope::Full => 1,
             TopologyScope::Test => 12,
         }
     }
-    fn cells(&self) -> &'static [&'static str] {
+    pub(crate) fn cells(&self) -> &'static [&'static str] {
         match self {
             TopologyScope::Full => TOPOLOGY_CELL_IDS,
             TopologyScope::Test => TEST_SCOPE_CELLS,

@@ -28,6 +28,7 @@ pub mod config;
 pub mod corpus;
 pub mod correlation;
 pub mod corridor;
+pub mod dcel;
 pub mod envinfo;
 pub mod error;
 pub mod exec;

@@ -30,7 +30,10 @@ use std::collections::BTreeSet;
 use vice_ir::{ComplementaryConnectivity, PixelConnectivity};
 use vice_topology::continuation::EditKind;
 use vice_topology::dcel::{apply, audit, is_the_assembly_of_its_own_labelling, Edit, Outcome, Roi};
-use vice_topology::{audit_every_labelling, signature, Dcel, Labelling, TX_CONFIG_V1};
+use vice_topology::{
+    audit_every_labelling, signature, structural_fixtures, with_a_distant_witness, Dcel, Labelling,
+    TX_CONFIG_V1,
+};
 
 /// The sizes the corpus uses, plus the two the size list declares and no
 /// fixture reached in M4.5. F-8 is that gap; here it is not a gap.
@@ -40,132 +43,6 @@ pub const SIZES_PX: [usize; 5] = [32, 64, 128, 256, 512];
 /// under `--ignored` in release, which is where the corpus-wide measurements
 /// already live.
 pub const FAST_SIZES_PX: [usize; 3] = [32, 64, 128];
-
-fn lab(n: usize, f: impl Fn(usize, usize) -> bool) -> Labelling {
-    Labelling::new(n, n, (0..n * n).map(|i| f(i % n, i / n)).collect())
-}
-
-/// One structural fixture: its name, its labelling, and the class it is BUILT
-/// to have under each convention arm.
-///
-/// The class is carried per arm rather than once, because the fifth fixture
-/// exists precisely to have two different answers.
-pub struct Fixture {
-    pub name: &'static str,
-    pub labelling: Labelling,
-    /// `(components, holes)` under foreground-4.
-    pub class_fg4: (u32, u32),
-    /// `(components, holes)` under foreground-8.
-    pub class_fg8: (u32, u32),
-}
-
-/// The five structural fixtures of condition 51, at one size.
-///
-/// Returned with the class each one is BUILT to have, so that the class is an
-/// assertion about the generator rather than a summary of whatever came out.
-/// A fixture whose class drifts fails the test that reads this list.
-///
-/// **On "triple junction", and this is a correction to the condition rather
-/// than a substitution made quietly.** REVIEW_M4_5 condition 51 names five
-/// fixtures and the fifth is a triple junction. In a BINARY labelling there is
-/// no such thing, and the reason is arithmetic rather than an implementation
-/// limit: the degree of a lattice point is the number of disagreeing pairs
-/// around the 2x2 that surrounds it, which is a cycle of four, so the degree
-/// is even — 0, 2 or 4, never 3. Three regions meeting at a point needs three
-/// labels, and the multicolor RAG arrives with M8 (§11.5, §28 M8).
-///
-/// What is here instead is the fixture that produces the only junction a
-/// binary labelling HAS: the degree-four critical 2x2 of §5.3, as a diagonal
-/// pinch. It is strictly the more useful of the two for this milestone, since
-/// it is also the only fixture whose class differs between the convention
-/// arms — which is limitation 18 of STATUS_M4_5 ("the diagonal annulus lives
-/// in tests, not in the corpus") given a home at every size. The real triple
-/// junction is an M8 obligation and is recorded as one in `docs/STATUS_M5.md`.
-pub fn structural_fixtures(n: usize) -> Vec<Fixture> {
-    let c = n as f64 / 2.0;
-    let r =
-        |x: usize, y: usize| ((x as f64 + 0.5 - c).powi(2) + (y as f64 + 0.5 - c).powi(2)).sqrt();
-    let unit = (n as f64 / 16.0).max(1.0);
-    let block = |x: usize, y: usize, cx: f64, cy: f64, half: f64| {
-        ((x as f64 + 0.5) - cx).abs() <= half && ((y as f64 + 0.5) - cy).abs() <= half
-    };
-    let half = 2.0 * unit;
-    let (left, right) = (c - 4.0 * unit, c + 4.0 * unit);
-    vec![
-        Fixture {
-            name: "annulus",
-            labelling: lab(n, |x, y| {
-                let d = r(x, y);
-                d >= 2.0 * unit && d <= 6.0 * unit
-            }),
-            class_fg4: (1, 1),
-            class_fg8: (1, 1),
-        },
-        Fixture {
-            name: "nested_annulus",
-            labelling: lab(n, |x, y| {
-                let d = r(x, y);
-                (d >= 4.0 * unit && d <= 6.0 * unit) || d <= 1.5 * unit
-            }),
-            class_fg4: (2, 1),
-            class_fg8: (2, 1),
-        },
-        Fixture {
-            name: "bridge",
-            labelling: lab(n, |x, y| {
-                let (fx, fy) = (x as f64 + 0.5, y as f64 + 0.5);
-                let neck = (fx - c).abs() <= 4.0 * unit && (fy - c).abs() <= 0.5 * unit.max(1.0);
-                block(x, y, left, c, half) || block(x, y, right, c, half) || neck
-            }),
-            class_fg4: (1, 0),
-            class_fg8: (1, 0),
-        },
-        Fixture {
-            name: "two_components",
-            labelling: lab(n, |x, y| {
-                block(x, y, left, c, half) || block(x, y, right, c, half)
-            }),
-            class_fg4: (2, 0),
-            class_fg8: (2, 0),
-        },
-        Fixture {
-            // The only junction a binary labelling has: a degree-four critical
-            // 2x2 (§5.3). Two blocks meeting at exactly one lattice corner, so
-            // the two arms give two different answers — the one fixture in this
-            // set whose class is convention-dependent.
-            name: "diagonal_pinch",
-            labelling: lab(n, |x, y| {
-                let s = (2.0 * unit).max(2.0);
-                let a =
-                    (x as f64) < c && (x as f64) >= c - s && (y as f64) < c && (y as f64) >= c - s;
-                let b =
-                    (x as f64) >= c && (x as f64) < c + s && (y as f64) >= c && (y as f64) < c + s;
-                a || b
-            }),
-            class_fg4: (2, 0),
-            class_fg8: (1, 0),
-        },
-    ]
-}
-
-/// A structural fixture with an UNRELATED witness in a far corner.
-///
-/// The §28 M5 clause "no unrelated graph mutation" is a statement about the
-/// part of the graph an edit does not touch. A fixture where the edit's
-/// region plus its halo covers the whole canvas leaves that clause with an
-/// empty population, and an empty population is indistinguishable from a
-/// passing one from the outside (F-0039). So the witness is put there on
-/// purpose, and the tests assert that it is there.
-pub fn with_a_distant_witness(l: &Labelling, n: usize) -> Labelling {
-    let mut inside = l.inside().to_vec();
-    let s = (n / 8).max(2);
-    for y in 0..s {
-        for x in 0..s {
-            inside[y * n + x] = true;
-        }
-    }
-    Labelling::new(n, n, inside)
-}
 
 fn arms() -> [ComplementaryConnectivity; 2] {
     ComplementaryConnectivity::arms()

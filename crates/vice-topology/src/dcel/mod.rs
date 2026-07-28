@@ -57,6 +57,7 @@
 
 pub mod audit;
 pub mod certificate;
+pub mod fixtures;
 pub mod lattice;
 pub mod transaction;
 
@@ -69,12 +70,14 @@ use crate::cubical::Labelling;
 use lattice::{Arrangement, Lat, Px, Step};
 
 pub use audit::{
-    audit, audit_every_labelling, is_the_assembly_of_its_own_labelling, AuditReport,
-    ExhaustiveReport, InvariantViolation,
+    audit, audit_every_labelling, is_the_assembly_of_its_own_labelling,
+    measure_audit_resolving_power, AuditReport, ExhaustiveReport, InvariantViolation,
+    ResolvingPower,
 };
 pub use certificate::{
     curve_replacement_isotopy, incidence_signature, IsotopyRefusal, TopologyCertificate,
 };
+pub use fixtures::{structural_fixtures, with_a_distant_witness, Fixture};
 pub use transaction::{
     apply, Edit, Outcome, Roi, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
 };

@@ -68,10 +68,12 @@ pub use cubical::{
     TopologySignature,
 };
 pub use dcel::{
-    apply, audit, audit_every_labelling, AuditReport, Boundary, Dcel, Edit, ExhaustiveReport, Face,
-    FaceId, FacePair, HalfEdgeId, InvariantViolation, IsotopyRefusal, Outcome, Roi,
-    TopologyCertificate, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
+    apply, audit, audit_every_labelling, measure_audit_resolving_power, AuditReport, Boundary,
+    Dcel, Edit, ExhaustiveReport, Face, FaceId, FacePair, Fixture, HalfEdgeId, InvariantViolation,
+    IsotopyRefusal, Outcome, ResolvingPower, Roi, TopologyCertificate, TransactionRefusal,
+    TransactionReport, TxConfig, TX_CONFIG_V1,
 };
+pub use dcel::{structural_fixtures, with_a_distant_witness};
 pub use envelope::{
     prune, ApproximationRisk, Envelope, EnvelopeConfig, LostMassEstimate, PruningRecord,
     ENVELOPE_CONFIG_V1,

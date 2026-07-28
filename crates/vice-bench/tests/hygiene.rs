@@ -777,6 +777,13 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         "vice-bench/src/oracle/mod.rs",
         "vice-bench/src/topology/mod.rs",
         "vice-bench/src/topology/ambiguity.rs",
+        // M5: the §28 M5 DCEL and transaction harness. It walks the corpus the
+        // same way `topology/mod.rs` does, skips the sealed audit by the same
+        // `split_of_group` test at run time, and freezes nothing — every number
+        // it produces is a count published in the report. It reaches a fixture
+        // only through `exact_ink_coverage`, i.e. the same oracle truth field
+        // the M4.5 recall clause is scored against, and it renders nothing.
+        "vice-bench/src/dcel/mod.rs",
         // The ONE mint site of the frozen-measurement handle. It names the
         // split-filtered accessor and nothing wider, which
         // `the_only_mint_site_for_the_legal_handle_cannot_widen_it` checks.

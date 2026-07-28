@@ -56,6 +56,30 @@ impl Threshold {
     pub fn registered_value(self) -> u64 {
         self.0
     }
+
+    /// The ONLY mint, and it takes a loaded gate FILE rather than a number.
+    ///
+    /// M5 needed a second gate config, and the obvious way to give it one was a
+    /// `Threshold::from_gate_file(u64)`. That would have been a mint accepting
+    /// any integer, which is the door RT45-A10 came through the first time: the
+    /// type stops arithmetic on ITS side, and a constructor taking `u64` moves
+    /// the arithmetic one line earlier. This signature has nowhere to put it -
+    /// a caller cannot hand it a number at all, only a section and a key of a
+    /// file that has already been checked against `HEAD`.
+    ///
+    /// `gate_value` refuses a placeholder section, so a gate row still cannot
+    /// be computed from a number that is not frozen yet.
+    pub fn from_gates(g: &GatesFile, section: &str, key: &str) -> Result<Threshold, String> {
+        let v = g
+            .gate_value(section, key)
+            .map_err(|e| format!("gate {section}.{key}: {e}"))?;
+        let n = v
+            .as_integer()
+            .ok_or_else(|| format!("gate {section}.{key} is not an integer: {v}"))?;
+        u64::try_from(n)
+            .map(Threshold)
+            .map_err(|_| format!("gate {section}.{key} is negative: {n}"))
+    }
 }
 
 /// The population thresholds of the §28 M4.5 rows, as the gate file has them.
@@ -103,17 +127,7 @@ impl TopologyGateConfig {
     /// `gate_value` refuses a placeholder section, so a gate row cannot be
     /// computed from a number that is not frozen yet.
     pub fn from_gates(g: &GatesFile) -> Result<TopologyGateConfig, String> {
-        let t = |key: &str| -> Result<Threshold, String> {
-            let v = g
-                .gate_value("topology", key)
-                .map_err(|e| format!("gate topology.{key}: {e}"))?;
-            let n = v
-                .as_integer()
-                .ok_or_else(|| format!("gate topology.{key} is not an integer: {v}"))?;
-            u64::try_from(n)
-                .map(Threshold)
-                .map_err(|_| format!("gate topology.{key} is negative: {n}"))
-        };
+        let t = |key: &str| Threshold::from_gates(g, "topology", key);
         Ok(TopologyGateConfig {
             min_recall_arms: t("gate_min_recall_arms")?,
             min_recall_shape_families: t("gate_min_recall_shape_families")?,

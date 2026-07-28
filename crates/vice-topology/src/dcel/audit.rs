@@ -396,17 +396,66 @@ fn skeleton_components(d: &Dcel) -> i64 {
 /// A named type rather than a tuple in a signature: the walk is the mechanism
 /// the audit's resolving power is measured with, and a mechanism whose type is
 /// unpronounceable is a mechanism nobody re-reads.
-#[cfg(test)]
 pub(crate) type Perturbation = (String, Box<dyn Fn(&mut Parts)>);
+
+/// What one mutation walk found.
+///
+/// Published by the §28 M5 gate rather than kept in a test, because "the audit
+/// is green" says nothing about what the audit can SEE. This is the world in
+/// which it is red, counted (F-0035: exhibit the world where the conjunct is
+/// false before publishing the conjunct).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+pub struct ResolvingPower {
+    pub slots: u64,
+    pub caught_by_audit: u64,
+    pub caught_by_assembly_equality: u64,
+    /// Must be zero. A slot no check sees is a place a defect can live.
+    pub caught_by_neither: u64,
+    /// Perturbations that changed nothing. Must be zero: a no-op is not a test
+    /// of anything and must not be counted as a catch.
+    pub no_ops: u64,
+}
+
+/// Perturb every derived slot of an arrangement, one at a time, and count what
+/// each check catches.
+///
+/// No broken `Dcel` escapes: the corrupted values live inside this function.
+pub fn measure_audit_resolving_power(d: &Dcel) -> ResolvingPower {
+    let mut out = ResolvingPower::default();
+    for (_name, f) in d.parts().perturbations() {
+        let mut parts = d.parts().clone();
+        f(&mut parts);
+        out.slots += 1;
+        if parts == *d.parts() {
+            out.no_ops += 1;
+            continue;
+        }
+        let broken = d.clone().with_parts(parts);
+        let a = audit(&broken).is_err();
+        let b = !is_the_assembly_of_its_own_labelling(&broken);
+        if a {
+            out.caught_by_audit += 1;
+        }
+        if b {
+            out.caught_by_assembly_equality += 1;
+        }
+        if !a && !b {
+            out.caught_by_neither += 1;
+        }
+    }
+    out
+}
 
 impl Parts {
     /// One perturbation per scalar slot of the actual data.
     ///
     /// The destructuring below is the mechanism: a field added to `Parts`
-    /// without a site here does not compile. Test-only, because a public way
-    /// to corrupt the structure would be the second mint the module docs say
-    /// does not exist.
-    #[cfg(test)]
+    /// without a site here does not compile.
+    ///
+    /// `pub(crate)`, not public: a way to corrupt the structure that crossed
+    /// the crate boundary would be the second mint the module docs say does not
+    /// exist. [`measure_audit_resolving_power`] is the public face, and it
+    /// returns counts rather than broken values.
     pub(crate) fn perturbations(&self) -> Vec<Perturbation> {
         let Parts {
             vertices,
@@ -436,9 +485,15 @@ impl Parts {
             out.push((
                 format!("boundaries[{i}].start"),
                 Box::new(move |p: &mut Parts| {
+                    // `.max(2)`, not `.max(1)`: an arrangement with ONE vertex
+                    // — a single closed chain, which is what a disk is — sent
+                    // `(0 + 1) % 1` straight back to 0 and perturbed nothing.
+                    // Two silent no-ops per probed arrangement on the M5 run.
+                    // With 2 the value always moves, to another vertex or out
+                    // of range, and both are corruptions the audit must catch.
                     let n = p.vertices.len() as u32;
                     let b = &mut p.boundaries[i];
-                    b.start = super::VertexId((b.start.0 + 1) % n.max(1));
+                    b.start = super::VertexId((b.start.0 + 1) % n.max(2));
                 }),
             ));
             out.push((
@@ -446,22 +501,22 @@ impl Parts {
                 Box::new(move |p: &mut Parts| {
                     let n = p.vertices.len() as u32;
                     let b = &mut p.boundaries[i];
-                    b.end = super::VertexId((b.end.0 + 1) % n.max(1));
+                    b.end = super::VertexId((b.end.0 + 1) % n.max(2));
                 }),
             ));
             out.push((
                 format!("boundaries[{i}].owners"),
                 Box::new(move |p: &mut Parts| {
-                    let n = p.faces.len() as u32;
+                    // SWAP the two owners. The first version moved the left
+                    // owner to `(l + 1) % faces.len()` and skipped `r`, which
+                    // on a two-face arrangement walks straight back to `l` and
+                    // changes nothing — three no-op perturbations on the M5
+                    // corpus run, i.e. three slots the walk claimed to cover
+                    // and did not. `no_ops` is published for exactly that
+                    // reason and it is what found this.
                     let b = &mut p.boundaries[i];
                     let (l, r) = (b.owners.left(), b.owners.right());
-                    // Move the LEFT owner to another face, keeping the pair
-                    // distinct so the perturbation is representable at all.
-                    let mut cand = (l.0 + 1) % n.max(1);
-                    if cand == r.0 {
-                        cand = (cand + 1) % n.max(1);
-                    }
-                    if let Some(fp) = super::FacePair::new(FaceId(cand), r) {
+                    if let Some(fp) = super::FacePair::new(r, l) {
                         b.owners = fp;
                     }
                 }),
@@ -500,7 +555,7 @@ impl Parts {
                 format!("face_of_padded_px[{i}]"),
                 Box::new(move |p: &mut Parts| {
                     let n = p.faces.len() as u32;
-                    p.face_of_padded_px[i] = (p.face_of_padded_px[i] + 1) % n.max(1);
+                    p.face_of_padded_px[i] = (p.face_of_padded_px[i] + 1) % n.max(2);
                 }),
             ));
         }
@@ -523,9 +578,9 @@ impl Parts {
     }
 }
 
-#[cfg(test)]
 impl Dcel {
-    /// Replace the derived half. Test-only; see [`Parts::perturbations`].
+    /// Replace the derived half. `pub(crate)` and used only by
+    /// [`measure_audit_resolving_power`], which does not let the result out.
     pub(crate) fn with_parts(mut self, p: Parts) -> Dcel {
         self.parts = p;
         self
