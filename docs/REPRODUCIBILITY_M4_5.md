@@ -178,6 +178,9 @@ Float-ы округлены до четырёх знаков и сверяютс
 | row T28d | unit-test | — |
 | row T29d | unit-test | — |
 | row T30d | unit-test | — |
+| row G1 | unit-test | — |
+| row G2 | unit-test | — |
+| row G3 | unit-test | — |
 | row T4 | unit-test | — |
 | row T5 | unit-test | — |
 | row T6 | unit-test | — |
