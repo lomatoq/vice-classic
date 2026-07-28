@@ -237,3 +237,49 @@ set_by_milestone = "M4.5"
 gate_knockout_disk_radius_fraction = 0.3
 # Coverage level at which exact ink becomes inside/outside for the ground truth.
 gate_gt_majority_level = 0.5
+
+# --- Shared DCEL and topological transactions (§12, §11.4, §28 M5) ----------
+# The population thresholds of the four §28 M5 gate rows.
+#
+# Registered here for the reason REVIEW_M4_5 condition 7 / M45-N6 / RT45-A5
+# established for the M4.5 rows: a number that decides whether a §28 clause is
+# green is a gate, wherever it is written. If these lived beside the rows in
+# `dcel/report.rs`, one commit could relax a population threshold and change the
+# code that meets it, and §27.7's second sentence would have nothing to act on.
+#
+# The rows read them through `Threshold::from_gates`, which is the ONLY mint of
+# a `Threshold` and takes a gate FILE, a section and a key — never a number. M5
+# needed a second gate config and the obvious way to give it one was a
+# `Threshold::from_gate_file(u64)`; that would have been a mint accepting any
+# integer, which is the door RT45-A10 came through the first time. A constructor
+# taking `u64` does not stop arithmetic, it moves it one line earlier.
+#
+# Landing as a placeholder first, with no code in this commit: §27.7 forbids
+# changing this file and production code together, so the keys arrive here, the
+# rows that read them arrive next, and the freeze is the commit after. That is
+# the same three-step shape M4 used for the clean-bucket noise scale
+# (C134/C135/C136) and M4.5 for [topology] (C178/C179/C180).
+[dcel]
+status = "placeholder"
+set_by_milestone = "M5"
+
+# Arms the run must measure at all.
+gate_min_arms = 0
+# Arms from the STRUCTURAL register. Clause 1 has no population without them:
+# STATUS_M4_5 limitation 18 records that zero of the corpus's arms carry a
+# convention-dependent class.
+gate_min_structural_arms = 0
+# Groups whose two complementary-connectivity arms DISAGREE about the class.
+# This is the population on which "the stage did not reduce a set of topologies"
+# says anything at all.
+gate_min_convention_dependent_groups = 0
+# Transactions that committed. A clause about transactions is satisfiable by
+# running none.
+gate_min_transactions = 0
+# Boundary chains lying wholly outside a committed transaction's region. Zero
+# moved means nothing when zero were there.
+gate_min_unrelated_chain_population = 0
+# Arrangements the mutation walk probed. The walk is what exhibits the world in
+# which the audit is red; a walk that visited nothing would make clause 4 a
+# report of silence.
+gate_min_resolving_power_probes = 0
