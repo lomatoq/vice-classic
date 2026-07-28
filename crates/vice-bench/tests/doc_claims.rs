@@ -665,6 +665,26 @@ fn the_delta_clause_rows_equal_their_declared_keys_position_by_position() {
             1,
             "{doc}: gate row {prefix:?} declares {declared:?}. Every row of a gate table must              have exactly ONE specification in REPRODUCIBILITY_M4_5 - a positional binding per              number, `membership`, or `unit-test`. A row in no tier is checked by nothing"
         );
+        // CONDITION 28 / RT45-A22: the kind is DERIVED from what the row
+        // contains, not only from what it declares. A row carrying a numeric
+        // token is reporting a measurement, so it cannot be `unit-test` - the
+        // kind that is checked by nothing. The declaration and the content must
+        // agree, and the content is not something a tier downgrade can edit
+        // away without also deleting the numbers it wanted to publish.
+        let row_line = doc_text[doc]
+            .lines()
+            .find(|l| l.starts_with(prefix.as_str()))
+            .expect("the row exists");
+        let numbers = row_numbers(row_line);
+        if declared[0] == "unit-test" {
+            assert!(
+                numbers.is_empty(),
+                "{doc}: row {prefix:?} is declared `unit-test` and carries {} numeric token(s)                  {:?}. A row that publishes a number is reporting a measurement, and `unit-test`                  is the kind nothing checks - so the number would be published under no                  mechanism at all (condition 28, RT45-A22)",
+                numbers.len(),
+                numbers.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>()
+            );
+        }
+
         // And the third kind cannot cover the rows the attack aims at.
         if SPEC_CLAUSE_NAMES
             .iter()
