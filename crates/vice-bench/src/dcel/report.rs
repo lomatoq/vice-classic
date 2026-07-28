@@ -26,6 +26,26 @@ use crate::topology::gate::Threshold;
 
 pub const DCEL_REPORT_SCHEMA: &str = "vice-classic/dcel-report/v1";
 
+/// The six §28 M5 population floors, DECLARED here so that
+/// `gates::tests::every_frozen_value_agrees_with_the_code_that_uses_it` has a
+/// consumer to compare the frozen file against.
+///
+/// The rows do NOT read these — they read `DcelGateConfig`, which reads the
+/// file. That is RT45-A10 and it is the whole point: a constant the row
+/// compares against is a registration of the SPELLING, and `MIN / 20` keeps the
+/// spelling while changing the value. These exist only so that the file and the
+/// code must agree, so that:
+///
+/// - change one of these without the file, and the gates test fails;
+/// - change the file without these, and it fails for the same reason;
+/// - change both, and §27.7 refuses the commit.
+pub const MIN_ARMS: u32 = 200;
+pub const MIN_STRUCTURAL_ARMS: u32 = 20;
+pub const MIN_CONVENTION_DEPENDENT_GROUPS: u32 = 5;
+pub const MIN_TRANSACTIONS: u32 = 50;
+pub const MIN_UNRELATED_CHAIN_POPULATION: u32 = 40;
+pub const MIN_RESOLVING_POWER_PROBES: u32 = 10;
+
 /// The population thresholds of the §28 M5 rows, LOADED from the frozen gate
 /// file.
 ///
@@ -70,6 +90,13 @@ pub struct DcelReport {
     pub corpus_arms: u64,
     pub structural_arms: u64,
     pub arms_refused: u64,
+    /// Arms whose labelling has no interface at all, so the arrangement is
+    /// valid and EMPTY. Published, and subtracted from the population every
+    /// clause stands on: `adv/sliver` is thinner than a pixel and the §5.3
+    /// majority rule digitizes it to nothing, and an arm that contains nothing
+    /// is evidence for nothing.
+    pub arms_with_an_empty_arrangement: u64,
+    pub arms_with_a_non_empty_arrangement: u64,
     pub sealed_audit_groups_skipped: u64,
 
     // --- clause 1 -------------------------------------------------------
@@ -162,6 +189,10 @@ pub fn build(run: &DcelRun) -> DcelReport {
         corpus_arms: run.arms.iter().filter(|a| a.source == "corpus").count() as u64,
         structural_arms: run.arms.iter().filter(|a| a.source == "structural").count() as u64,
         arms_refused: run.refused.len() as u64,
+        arms_with_an_empty_arrangement: run.arms.iter().filter(|a| a.directed_steps == 0).count()
+            as u64,
+        arms_with_a_non_empty_arrangement: run.arms.iter().filter(|a| a.directed_steps > 0).count()
+            as u64,
         sealed_audit_groups_skipped: run.sealed_audit_groups_skipped,
 
         groups: in_classes.len() as u64,
@@ -226,7 +257,7 @@ impl DcelReport {
         // of groups whose two convention arms disagree — and that population
         // exists only because the structural register is here. The corpus alone
         // has none (STATUS_M4_5 limitation 18: zero of 132 arms).
-        let proxy_row = cfg.min_arms.met_by(self.arms_measured)
+        let proxy_row = cfg.min_arms.met_by(self.arms_with_a_non_empty_arrangement)
             && cfg.min_structural_arms.met_by(self.structural_arms)
             && cfg
                 .min_convention_dependent_groups
@@ -251,7 +282,7 @@ impl DcelReport {
         let recall_row = self.arms_disagreeing_with_the_independent_chain == 0
             && self.arms_failing_the_euler_identity == 0
             && self.distinct_classes >= 3
-            && cfg.min_arms.met_by(self.arms_measured);
+            && cfg.min_arms.met_by(self.arms_with_a_non_empty_arrangement);
 
         // Clause 3: NO UNRELATED GRAPH MUTATION.
         //
@@ -275,6 +306,7 @@ impl DcelReport {
         let p: &ResolvingPower = &self.audit_resolving_power;
         let faces_row = self.arms_failing_the_audit == 0
             && self.arms_that_are_not_their_own_assembly == 0
+            && cfg.min_arms.met_by(self.arms_with_a_non_empty_arrangement)
             && cfg
                 .min_resolving_power_probes
                 .met_by(u64::from(p.arrangements_probed))
@@ -377,8 +409,12 @@ impl DcelReport {
                      crack is not constructible, segments are integer-lattice unit steps and the \
                      exterior is an ordinary face - so there is nothing there to measure and \
                      nothing there is claimed. The seventh IS a computation, and this row is about \
-                     it: {} of {} arms failed the audit, {} were not the assembly of their own \
-                     labelling. What makes those zeros evidence rather than silence is the \
+                     it: {} of {} non-empty arms failed the audit, and {} were not the assembly of \
+                     their own labelling. A further {} arm(s) carry a valid but EMPTY arrangement \
+                     - `adv/sliver` is thinner than a pixel and the §5.3 majority rule digitizes \
+                     it to nothing - and they are audited like the rest while no clause is allowed \
+                     to stand on them, because an arm that contains nothing is evidence for \
+                     nothing. What makes those zeros evidence rather than silence is the \
                      MUTATION WALK, which is the world in which the audit is red: on {} sampled \
                      arrangements out of {} arms seen it perturbed {} derived slots one at a time \
                      - the walk is an exhaustive destructuring of the structure, so a field added \
@@ -389,7 +425,8 @@ impl DcelReport {
                      see the change and only the assembly comparison does. Both checks are cited \
                      because a row citing one would claim a resolving power that one does not have",
                     self.arms_failing_the_audit,
-                    self.arms_measured,
+                    self.arms_with_a_non_empty_arrangement,
+                    self.arms_with_an_empty_arrangement,
                     self.arms_that_are_not_their_own_assembly,
                     p.arrangements_probed,
                     p.arms_seen,
@@ -421,6 +458,8 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "corpus_arms",
         "structural_arms",
         "arms_refused",
+        "arms_with_an_empty_arrangement",
+        "arms_with_a_non_empty_arrangement",
         "sealed_audit_groups_skipped",
         "groups",
         "classes_in",

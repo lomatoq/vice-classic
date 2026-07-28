@@ -122,6 +122,12 @@ pub struct DcelArm {
     pub dcel_class: GtSignature,
     pub agrees_with_the_independent_chain: bool,
     pub audit_ok: bool,
+    /// Directed boundary steps. ZERO means the labelling has no interface at
+    /// all — `adv/sliver` digitizes to nothing under the §5.3 majority rule —
+    /// and such an arm carries a valid but EMPTY arrangement. It is measured
+    /// like any other and then counted separately, because a clause carried by
+    /// arms that contain nothing is a clause about nothing.
+    pub directed_steps: u32,
     pub is_its_own_assembly: bool,
     pub vertices: u32,
     pub boundaries: u32,
@@ -391,15 +397,16 @@ fn arm_from_labelling(
         holes: d.holes() as u32,
     };
 
-    let (v, b, l, f, c) = match &a {
+    let (v, b, l, f, c, steps) = match &a {
         Ok(r) => (
             r.vertices,
             r.boundaries,
             r.loops,
             r.faces,
             r.skeleton_components,
+            r.directed_steps,
         ),
-        Err(_) => (0, 0, 0, 0, 0),
+        Err(_) => (0, 0, 0, 0, 0, 0),
     };
 
     // The M5 stage carries topologies through. `topologies_out` is where §32
@@ -426,6 +433,7 @@ fn arm_from_labelling(
         dcel_class,
         agrees_with_the_independent_chain: dcel_class == truth,
         audit_ok: a.is_ok(),
+        directed_steps: steps,
         is_its_own_assembly: own,
         vertices: v,
         boundaries: b,

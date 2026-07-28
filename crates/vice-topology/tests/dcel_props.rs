@@ -265,7 +265,7 @@ fn the_two_conventions_disagree_about_a_critical_2x2() {
 #[ignore = "exhaustive 2^16 sweep; runs in CI in release"]
 fn the_audit_is_green_over_every_labelling_of_a_four_by_four() {
     let r = audit_every_labelling(4, 4).expect("exhaustive audit at 4x4");
-    assert_eq!(r.arrangements_audited, 2 * ((1u64 << 16) - 1));
+    assert_eq!(r.arrangements_audited, 2 * (1u64 << 16));
     assert!(r.distinct_classes >= 8, "{:?}", r.classes);
     assert!(r.classes.contains(&(1, 1)));
     assert!(r.labellings_with_a_critical_cell > 1000);

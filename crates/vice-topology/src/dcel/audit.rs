@@ -124,6 +124,14 @@ pub enum InvariantViolation {
     },
     #[error("the exterior face {0:?} is not a background face")]
     ExteriorIsNotBackground(FaceId),
+    #[error(
+        "the labelling has no interface at all, but the arrangement is not empty: {boundaries}          boundary chain(s), {loops} loop(s), {faces} face(s)"
+    )]
+    EmptyArrangementIsNotEmpty {
+        boundaries: usize,
+        loops: usize,
+        faces: usize,
+    },
 }
 
 /// What an audit measured, published beside the verdict.
@@ -153,6 +161,51 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
         d.height_px(),
         d.connectivity(),
     );
+
+    // (0) The EMPTY arrangement, and why it is a case rather than a failure.
+    //
+    // A labelling with no interface — every pixel background — has a perfectly
+    // good arrangement: one face, the exterior, and nothing else. It arrives
+    // from the corpus, not from a fixture: `adv/sliver` is thinner than a pixel
+    // and the §5.3 majority rule digitizes it to nothing, on 8 of 474 arms.
+    //
+    // The first version of this file refused it, because
+    // `successor_is_a_permutation` refuses an empty step set — correctly, since
+    // an empty relation is vacuously injective and vacuous success is
+    // indistinguishable from success (F-0039). But that refusal is about the
+    // PERMUTATION check having nothing to measure, and turning it into "this
+    // arrangement is invalid" confuses an instrument's silence with a verdict,
+    // which is meta-rule M-4.
+    //
+    // So the empty case is CHECKED rather than waved through: it must actually
+    // be empty. The arm is then marked by `directed_steps == 0` and the §28 M5
+    // report counts it separately, so a clause cannot be carried by arms that
+    // contain nothing.
+    if arr.steps().is_empty() {
+        if !d.boundaries().is_empty() || d.loop_count() != 0 || d.faces().len() != 1 {
+            return Err(InvariantViolation::EmptyArrangementIsNotEmpty {
+                boundaries: d.boundaries().len(),
+                loops: d.loop_count(),
+                faces: d.faces().len(),
+            });
+        }
+        if d.faces()[FaceId::EXTERIOR.index()].label {
+            return Err(InvariantViolation::ExteriorIsNotBackground(
+                FaceId::EXTERIOR,
+            ));
+        }
+        return Ok(AuditReport {
+            vertices: 0,
+            boundaries: 0,
+            segments: 0,
+            loops: 0,
+            faces: 1,
+            foreground_faces: 0,
+            holes: 0,
+            skeleton_components: 0,
+            directed_steps: 0,
+        });
+    }
 
     // (1) The successor rule. Everything downstream is orbits of this, so if
     // it is not a permutation the loops are not cycles.
@@ -391,202 +444,6 @@ fn skeleton_components(d: &Dcel) -> i64 {
     roots.len() as i64
 }
 
-/// One named slot of [`Parts`] and the edit that changes it.
-///
-/// A named type rather than a tuple in a signature: the walk is the mechanism
-/// the audit's resolving power is measured with, and a mechanism whose type is
-/// unpronounceable is a mechanism nobody re-reads.
-pub(crate) type Perturbation = (String, Box<dyn Fn(&mut Parts)>);
-
-/// What one mutation walk found.
-///
-/// Published by the §28 M5 gate rather than kept in a test, because "the audit
-/// is green" says nothing about what the audit can SEE. This is the world in
-/// which it is red, counted (F-0035: exhibit the world where the conjunct is
-/// false before publishing the conjunct).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
-pub struct ResolvingPower {
-    pub slots: u64,
-    pub caught_by_audit: u64,
-    pub caught_by_assembly_equality: u64,
-    /// Must be zero. A slot no check sees is a place a defect can live.
-    pub caught_by_neither: u64,
-    /// Perturbations that changed nothing. Must be zero: a no-op is not a test
-    /// of anything and must not be counted as a catch.
-    pub no_ops: u64,
-}
-
-/// Perturb every derived slot of an arrangement, one at a time, and count what
-/// each check catches.
-///
-/// No broken `Dcel` escapes: the corrupted values live inside this function.
-pub fn measure_audit_resolving_power(d: &Dcel) -> ResolvingPower {
-    let mut out = ResolvingPower::default();
-    for (_name, f) in d.parts().perturbations() {
-        let mut parts = d.parts().clone();
-        f(&mut parts);
-        out.slots += 1;
-        if parts == *d.parts() {
-            out.no_ops += 1;
-            continue;
-        }
-        let broken = d.clone().with_parts(parts);
-        let a = audit(&broken).is_err();
-        let b = !is_the_assembly_of_its_own_labelling(&broken);
-        if a {
-            out.caught_by_audit += 1;
-        }
-        if b {
-            out.caught_by_assembly_equality += 1;
-        }
-        if !a && !b {
-            out.caught_by_neither += 1;
-        }
-    }
-    out
-}
-
-impl Parts {
-    /// One perturbation per scalar slot of the actual data.
-    ///
-    /// The destructuring below is the mechanism: a field added to `Parts`
-    /// without a site here does not compile.
-    ///
-    /// `pub(crate)`, not public: a way to corrupt the structure that crossed
-    /// the crate boundary would be the second mint the module docs say does not
-    /// exist. [`measure_audit_resolving_power`] is the public face, and it
-    /// returns counts rather than broken values.
-    pub(crate) fn perturbations(&self) -> Vec<Perturbation> {
-        let Parts {
-            vertices,
-            boundaries,
-            faces,
-            face_of_padded_px,
-            site,
-        } = self;
-        let mut out: Vec<Perturbation> = Vec::new();
-
-        for i in 0..vertices.len() {
-            for k in 0..2usize {
-                out.push((
-                    format!("vertices[{i}].{k}"),
-                    Box::new(move |p: &mut Parts| {
-                        let v = &mut p.vertices[i];
-                        if k == 0 {
-                            v.0 = v.0.wrapping_add(1);
-                        } else {
-                            v.1 = v.1.wrapping_add(1);
-                        }
-                    }),
-                ));
-            }
-        }
-        for (i, bnd) in boundaries.iter().enumerate() {
-            out.push((
-                format!("boundaries[{i}].start"),
-                Box::new(move |p: &mut Parts| {
-                    // `.max(2)`, not `.max(1)`: an arrangement with ONE vertex
-                    // — a single closed chain, which is what a disk is — sent
-                    // `(0 + 1) % 1` straight back to 0 and perturbed nothing.
-                    // Two silent no-ops per probed arrangement on the M5 run.
-                    // With 2 the value always moves, to another vertex or out
-                    // of range, and both are corruptions the audit must catch.
-                    let n = p.vertices.len() as u32;
-                    let b = &mut p.boundaries[i];
-                    b.start = super::VertexId((b.start.0 + 1) % n.max(2));
-                }),
-            ));
-            out.push((
-                format!("boundaries[{i}].end"),
-                Box::new(move |p: &mut Parts| {
-                    let n = p.vertices.len() as u32;
-                    let b = &mut p.boundaries[i];
-                    b.end = super::VertexId((b.end.0 + 1) % n.max(2));
-                }),
-            ));
-            out.push((
-                format!("boundaries[{i}].owners"),
-                Box::new(move |p: &mut Parts| {
-                    // SWAP the two owners. The first version moved the left
-                    // owner to `(l + 1) % faces.len()` and skipped `r`, which
-                    // on a two-face arrangement walks straight back to `l` and
-                    // changes nothing — three no-op perturbations on the M5
-                    // corpus run, i.e. three slots the walk claimed to cover
-                    // and did not. `no_ops` is published for exactly that
-                    // reason and it is what found this.
-                    let b = &mut p.boundaries[i];
-                    let (l, r) = (b.owners.left(), b.owners.right());
-                    if let Some(fp) = super::FacePair::new(r, l) {
-                        b.owners = fp;
-                    }
-                }),
-            ));
-            for j in 0..bnd.path.len() {
-                out.push((
-                    format!("boundaries[{i}].path[{j}]"),
-                    Box::new(move |p: &mut Parts| {
-                        let pt = &mut p.boundaries[i].path[j];
-                        pt.0 = pt.0.wrapping_add(1);
-                    }),
-                ));
-            }
-        }
-        for (i, face) in faces.iter().enumerate() {
-            out.push((
-                format!("faces[{i}].label"),
-                Box::new(move |p: &mut Parts| {
-                    p.faces[i].label = !p.faces[i].label;
-                }),
-            ));
-            for j in 0..face.loops.len() {
-                for k in 0..face.loops[j].len() {
-                    out.push((
-                        format!("faces[{i}].loops[{j}][{k}]"),
-                        Box::new(move |p: &mut Parts| {
-                            let h = &mut p.faces[i].loops[j][k];
-                            *h = super::HalfEdgeId(h.0 ^ 1);
-                        }),
-                    ));
-                }
-            }
-        }
-        for i in 0..face_of_padded_px.len() {
-            out.push((
-                format!("face_of_padded_px[{i}]"),
-                Box::new(move |p: &mut Parts| {
-                    let n = p.faces.len() as u32;
-                    p.face_of_padded_px[i] = (p.face_of_padded_px[i] + 1) % n.max(2);
-                }),
-            ));
-        }
-        for i in 0..site.len() {
-            for k in 0..3usize {
-                out.push((
-                    format!("site[{i}].{k}"),
-                    Box::new(move |p: &mut Parts| {
-                        let s = &mut p.site[i];
-                        match k {
-                            0 => s.0 = s.0.wrapping_add(1),
-                            1 => s.1 = s.1.wrapping_add(1),
-                            _ => s.2 = s.2.wrapping_add(1),
-                        }
-                    }),
-                ));
-            }
-        }
-        out
-    }
-}
-
-impl Dcel {
-    /// Replace the derived half. `pub(crate)` and used only by
-    /// [`measure_audit_resolving_power`], which does not let the result out.
-    pub(crate) fn with_parts(mut self, p: Parts) -> Dcel {
-        self.parts = p;
-        self
-    }
-}
-
 /// Assemble every labelling of a `w x h` grid under both convention arms and
 /// audit each one.
 ///
@@ -614,9 +471,12 @@ pub fn audit_every_labelling(w: u32, h: u32) -> Result<ExhaustiveReport, String>
         .is_empty();
         for conn in ComplementaryConnectivity::arms() {
             let l = Labelling::new(w as usize, h as usize, inside.clone());
-            if l.count_inside() == 0 {
+            let is_empty = l.count_inside() == 0;
+            if is_empty {
+                // Covered rather than skipped, since C243: the corpus reaches
+                // this state and the sweep that was supposed to leave no
+                // subclass unreached was excluding one BY CONSTRUCTION.
                 empty += 1;
-                continue;
             }
             let d = Dcel::assemble(l, conn);
             let r = audit(&d).map_err(|e| format!("bits={bits} conn={conn:?}: {e}"))?;
@@ -634,7 +494,7 @@ pub fn audit_every_labelling(w: u32, h: u32) -> Result<ExhaustiveReport, String>
         width_px: w,
         height_px: h,
         arrangements_audited: audited,
-        empty_labellings_skipped: empty,
+        empty_arrangements_covered: empty,
         distinct_classes: classes.len() as u32,
         classes: classes.into_iter().collect(),
         labellings_with_a_critical_cell: critical,
@@ -647,7 +507,11 @@ pub struct ExhaustiveReport {
     pub width_px: u32,
     pub height_px: u32,
     pub arrangements_audited: u64,
-    pub empty_labellings_skipped: u64,
+    /// Labellings with no interface at all. Audited like every other one since
+    /// C243 — the corpus reaches this state (`adv/sliver`) and a sweep that
+    /// excluded it was leaving a subclass unreached by construction, which is
+    /// the very class F-0054 / F-9 names.
+    pub empty_arrangements_covered: u64,
     pub distinct_classes: u32,
     pub classes: Vec<(u32, u32)>,
     pub labellings_with_a_critical_cell: u64,
@@ -732,8 +596,8 @@ mod tests {
     #[test]
     fn the_audit_is_green_over_a_whole_small_input_space() {
         let r = audit_every_labelling(4, 3).expect("exhaustive audit");
-        assert_eq!(r.arrangements_audited, 2 * ((1 << 12) - 1));
-        assert_eq!(r.empty_labellings_skipped, 2);
+        assert_eq!(r.arrangements_audited, 2 * (1 << 12));
+        assert_eq!(r.empty_arrangements_covered, 2);
         assert!(r.distinct_classes >= 6, "classes seen: {:?}", r.classes);
         assert!(
             r.classes.contains(&(1, 1)),

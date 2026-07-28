@@ -60,6 +60,7 @@ pub mod certificate;
 pub mod fixtures;
 pub mod lattice;
 pub mod transaction;
+pub mod walk;
 
 use std::collections::BTreeMap;
 
@@ -70,9 +71,8 @@ use crate::cubical::Labelling;
 use lattice::{Arrangement, Lat, Px, Step};
 
 pub use audit::{
-    audit, audit_every_labelling, is_the_assembly_of_its_own_labelling,
-    measure_audit_resolving_power, AuditReport, ExhaustiveReport, InvariantViolation,
-    ResolvingPower,
+    audit, audit_every_labelling, is_the_assembly_of_its_own_labelling, AuditReport,
+    ExhaustiveReport, InvariantViolation,
 };
 pub use certificate::{
     curve_replacement_isotopy, incidence_signature, IsotopyRefusal, TopologyCertificate,
@@ -81,6 +81,7 @@ pub use fixtures::{structural_fixtures, with_a_distant_witness, Fixture};
 pub use transaction::{
     apply, Edit, Outcome, Roi, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
 };
+pub use walk::{measure_audit_resolving_power, ResolvingPower};
 
 /// Index into [`Dcel::faces`]. The exterior is a real one (§5.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]

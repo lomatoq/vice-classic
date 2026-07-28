@@ -448,6 +448,7 @@ mod tests {
     /// behaviour, so a relaxed literal shows up here as a mismatch.
     fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpectation)> {
         use crate::correlation::ResidualModel;
+        use crate::dcel::report as dcelr;
         use crate::gt::degradation as deg;
         use crate::gt::split::SPLIT_POLICY_V1;
         use crate::prereg::Preregistration;
@@ -618,6 +619,36 @@ mod tests {
                 "topology",
                 "continuation_max_plans",
                 GateExpectation::num(vice_topology::CONTINUATION_CONFIG_V1.max_plans as f64),
+            ),
+            (
+                "dcel",
+                "gate_min_arms",
+                GateExpectation::num(f64::from(dcelr::MIN_ARMS)),
+            ),
+            (
+                "dcel",
+                "gate_min_structural_arms",
+                GateExpectation::num(f64::from(dcelr::MIN_STRUCTURAL_ARMS)),
+            ),
+            (
+                "dcel",
+                "gate_min_convention_dependent_groups",
+                GateExpectation::num(f64::from(dcelr::MIN_CONVENTION_DEPENDENT_GROUPS)),
+            ),
+            (
+                "dcel",
+                "gate_min_transactions",
+                GateExpectation::num(f64::from(dcelr::MIN_TRANSACTIONS)),
+            ),
+            (
+                "dcel",
+                "gate_min_unrelated_chain_population",
+                GateExpectation::num(f64::from(dcelr::MIN_UNRELATED_CHAIN_POPULATION)),
+            ),
+            (
+                "dcel",
+                "gate_min_resolving_power_probes",
+                GateExpectation::num(f64::from(dcelr::MIN_RESOLVING_POWER_PROBES)),
             ),
             (
                 "topology",
