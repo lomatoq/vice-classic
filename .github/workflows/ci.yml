@@ -263,6 +263,40 @@ jobs:
         run: |
           cargo run --locked --release --bin gt-corpus -- topology-check \
             --report docs/gt/TOPOLOGY_M4_5.json --structural
+      # §28 M5. All FOUR gate clauses are computed from the run's own data and
+      # the command exits non-zero when any of them fails.
+      #
+      # These four steps did not exist until delta-1, and their absence is the
+      # whole of REDTEAM_M5 RT5-A3 / REVIEW_M5_A N3 / REVIEW_M5_B N3: C244's
+      # commit message described five M5 steps, `ci.yml` received one
+      # (`dcel-check`, in the windows job), and six places in the tree went on
+      # saying "runs in CI". `dcel-check` compares the artifact and never calls
+      # `gate_table`, so a run with four NOT MET clauses would have passed it —
+      # which is exactly what RT5-A1 was. F-7 is "a mechanism-existence check
+      # sees a PHRASE, not a behaviour", and it was committed by the commit
+      # that reported it closed.
+      - name: M5 shared DCEL and topological transactions, and gate table
+        run: |
+          cargo run --locked --release --bin gt-corpus -- dcel \
+            --out runs/ci-dcel/report.json --scope full
+      - name: The committed DCEL report reproduces (structural, cross-platform)
+        run: |
+          cargo run --locked --release --bin gt-corpus -- dcel-check \
+            --report docs/gt/DCEL_M5.json --structural
+      # The knockouts. Each applies the defect its clause forbids and requires
+      # the measurement to move; each has a positive control in the same test.
+      # `every_gate_clause_has_a_knockout_that_reddens_it` compares the number
+      # of knockouts against the number of rows `gate_table()` returns, so a
+      # fifth clause added without a knockout fails here rather than passing.
+      - name: M5 clause knockouts (release, --ignored)
+        run: cargo test --locked --release -p vice-bench --test dcel_harness -- --ignored --nocapture
+      # The DCEL's proof domain, on all three axes: every labelling of a 4x4
+      # under both convention arms, and the structural register at 256 and 512
+      # px. Without this step two of the three axes ADR-0031 names run nowhere
+      # automatic, and a defect that only fires above the corpus ceiling is
+      # caught only by a test connected to nothing (REVIEW_M5_B attack A3).
+      - name: M5 DCEL proof domain (release, --ignored)
+        run: cargo test --locked --release -p vice-topology --test dcel_props -- --ignored --nocapture
 
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
   # verified by nobody: the ubuntu job above physically cannot, because
