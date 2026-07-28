@@ -464,4 +464,39 @@ That is F-0058's second instance, in the same milestone.
   unchanged, with the prices in §4 above, which REVIEW_M5_A explicitly does not
   contest.
 
+
+## A1.6 F-0048 over every mechanism, after delta-1
+
+The red team's own run found three of eight failing, and all three carried the
+four `[MET]` clauses. This is the same procedure re-run, including on the
+mechanisms delta-1 added. It is published rather than asserted, and two rows do
+not pass.
+
+| mechanism | Q1 literal? | Q2 next finding | Q3 judge | Q4 guard key = mechanism key? | Q5 both directions? | verdict |
+|---|---|---|---|---|---|---|
+| representation invariants (six of §12) | no | the criterion changes; the violation is unrepresentable | compiler / type system | no | `a_face_pair_with_one_owner_is_not_constructible`, both ways | **PASSES**, residual repriced (`with_parts`, not "one `pub fn`") |
+| `Parts::perturbations` | no — exhaustive destructuring | a field without a site does not compile | compiler | no | red, empty and IDLE (`no_ops`) | **PASSES**; the `field: _` bypass is named where the strength is claimed |
+| `audit()` | **YES — numbered blocks written by hand** | "append a block" | habit, on its own | — | now bounded: `uncaught_by_audit == 0` over 155 160 slots | **PASSES ONLY BECAUSE IT IS BOUNDED.** The enumeration is still an enumeration; what changed is that a field with no predicate now shows up as an uncaught slot and fails clause 4, so the next missing block is a red gate rather than silence |
+| `dcel::crossing` (new) | no | the criterion changes | an independent construction | **no** — owners on crossed segments vs flood fill over pixels | RT5-A1's own edit is red; the clean structure is green | **PASSES** |
+| `audit_every_labelling` | no by inputs; **no longer yes by checked values** — every field has a predicate | a field without a predicate fails clause 4 | exhaustive enumeration of the input space | — | class set asserted EXACTLY, not as a floor | **PASSES** |
+| `RunKnockouts` | **no longer** — the count is compared against `gate_table()`'s own length | a fifth clause without a knockout fails the test | the gate table | — | each knockout must redden its OWN row, clean run all green | **PASSES** |
+| `transaction_for` | **YES — a four-arm `match` with `_ => return None`** | "the fifth kind is dropped" | **the outcome, i.e. the author** | yes — `kind` is read off the comparison `apply` redoes | the excluded count is published now; the branch is still not attempted | **DOES NOT PASS.** Mitigated, not closed: 307 of 474 excluded, published, and named as limitation 37 with owner M6. §28 M5 calls that subclass COMPOUND |
+| `DcelGateConfig` / `Threshold::from_gates` | no — one mint, takes a FILE and a key | arithmetic is a type error | compiler + the frozen-value cross-check | no — file and code check each other | yes | **PASSES** |
+| "the knockouts run in CI" (F-7) | no — derived from `.github/workflows/*.yml` | a claim without a step fails the test | the workflow file | no | empty walk and workflow-less tree both fail; it found a false positive in itself | **PASSES AS A CLAIM-CHECK.** Whether a runner runs them is still unverified (T11/T12) |
+| `doc_claims` document set | exceptions only | forgetting a document is red | the file system | no | stale exceptions fail too | **PASSES AS A DEFAULT**; `STATUS_M5` is still excepted, which is limitation 36, and delta-1 raised its price from desirable to obligatory |
+
+**Two rows do not pass cleanly, and both are named above rather than argued
+away.** `audit()` is an enumeration whose completeness is now measured instead of
+assumed — that is a weaker claim than the compiler judging it, and it is the
+claim I am making. `transaction_for` selects by outcome and still does; what
+delta-1 added is the count and the owner, which is F-0058's own rule and not its
+closure.
+
+The pattern the reviewer named holds and I have no counter-example to it: where
+the judge is the compiler, a type, an exhaustive sweep, or an independently
+constructed second answer, the mechanisms held under three cold attacks. Where
+the judge is a hand-written enumeration or the outcome itself, the milestone
+repeated the class it documents — twice inside mechanisms built during M5 to
+close that very class.
+
 **STOPPED AFTER M5 DELTA-1 — M5.5 NOT STARTED.**
