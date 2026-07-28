@@ -476,8 +476,11 @@ mod tests {
           <path fill="#112233" d="M 40 40 L 160 40 L 160 160 L 40 160 Z"/>
           <path fill="#445566" d="M 100 100 L 220 100 L 220 220 L 100 220 Z"/>
         </svg>"##;
-        let err = load_authored("overlap.svg", overlapping)
-            .expect_err("overlapping islands are not a planar partition");
+        // `let Err(err) = …` rather than `expect_err`: the Ok type no longer
+        // implements Debug, and that is deliberate (RT45-A14).
+        let Err(err) = load_authored("overlap.svg", overlapping) else {
+            panic!("overlapping islands are not a planar partition");
+        };
         let msg = err.to_string();
         assert!(
             msg.contains("certified") || msg.contains("valid scene"),

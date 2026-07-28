@@ -61,7 +61,9 @@ fn builder() -> SceneBuilder {
 
 /// One intentionally ambiguous pair, with the cells that make the claim
 /// checkable.
-#[derive(Debug, Clone)]
+/// No `Debug`: it carries a `GtSourceGroup`, and a derived `Debug` would print
+/// the group's geometry through a public `String` (RT45-A14).
+#[derive(Clone)]
 pub(crate) struct AmbiguityPair {
     pub group: GtSourceGroup,
     /// A cell at which the two members become indistinguishable.

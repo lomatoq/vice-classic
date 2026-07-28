@@ -288,9 +288,7 @@ pub(crate) fn identifiability(
 
 /// One rendered fixture: the bytes plus everything needed to score them.
 #[derive(Debug, Clone)]
-pub struct RenderedFixture {
-    pub scene_id: String,
-    pub group_id: String,
+pub(crate) struct RenderedFixture {
     pub cell_id: String,
     pub width_px: u32,
     pub height_px: u32,
@@ -307,7 +305,7 @@ pub struct RenderedFixture {
 /// cell whose `resize` is `None`; the oracle harness refuses the others in
 /// so many words rather than resampling a mask and calling it the truth.
 #[derive(Debug, Clone)]
-pub struct CellRaster {
+pub(crate) struct CellRaster {
     pub rgba8: Vec<u8>,
     pub width_px: u32,
     pub stack: super::raster::CoverageStack,
@@ -320,7 +318,7 @@ pub struct CellRaster {
 /// has no fixture metadata for — runs the SAME formation pipeline rather
 /// than a lookalike. `render_cell` is now a thin wrapper over it, so the
 /// corpus digests are the regression test for the extraction.
-pub fn render_cell_raster(
+pub(crate) fn render_cell_raster(
     certified: &vice_render::CertifiedMesh,
     paints: &[vice_ir::Paint],
     cell: &DegradationCell,
@@ -380,8 +378,6 @@ pub(crate) fn render_cell(
         .collect();
     let raster = render_cell_raster(scene.certified(), &paints, cell)?;
     Ok(RenderedFixture {
-        scene_id: scene.id().to_string(),
-        group_id: scene.group_id().to_string(),
         cell_id: cell.id(),
         width_px: raster.width_px,
         height_px: raster.width_px,

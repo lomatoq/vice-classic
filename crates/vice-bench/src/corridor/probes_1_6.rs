@@ -93,7 +93,7 @@ pub struct SemiTransparentProbe {
 /// `observable` is decided by the caller from the unmodified arm, because it
 /// is a property of the arm rather than of the probe: the criterion is the
 /// same resolved-interior fraction the detector itself uses.
-pub fn scaled_alpha(
+pub(crate) fn scaled_alpha(
     scene_id: &str,
     cell_id: &str,
     fixture: &RenderedFixture,
@@ -220,7 +220,7 @@ fn ink(rgba8: &[u8]) -> Option<([u8; 3], bool)> {
 }
 
 /// Probe one arm OVER AN OPAQUE LAYER, at every alpha in `alphas`.
-pub fn over_opaque_layer(
+pub(crate) fn over_opaque_layer(
     scene_id: &str,
     cell_id: &str,
     fixture: &RenderedFixture,
@@ -373,8 +373,6 @@ mod tests {
     /// The rendered fixture the probes take, around bytes built here.
     fn fixture(size: u32, rgba8: Vec<u8>) -> RenderedFixture {
         RenderedFixture {
-            scene_id: "test/disk".to_string(),
-            group_id: "test".to_string(),
             cell_id: "unit".to_string(),
             width_px: size,
             height_px: size,

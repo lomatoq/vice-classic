@@ -44,10 +44,11 @@
 //! They are not thereby optional — CI executes them in release on every push,
 //! as a named step (see `.github/workflows/ci.yml` and REPRODUCIBILITY_M4).
 
-use vice_bench::corridor::{frozen_calibration_population, frozen_calibration_profiles};
-use vice_bench::gt::degradation::{matrix_v1, DegradationCell, ResizeChain};
+use vice_bench::corridor::frozen_calibration_population;
+use vice_bench::gt::degradation::ResizeChain;
 use vice_bench::gt::grammar::AUTHORING_CANVAS_PX;
-use vice_bench::gt::raster::{Psf, RasterProfile, ViewTransform};
+use vice_bench::gt::legal::{LegalCell, LegalProfile};
+use vice_bench::gt::raster::{Psf, ViewTransform};
 use vice_evidence::analysis::{analyze_full, ANALYSIS_CONFIG_V1};
 use vice_evidence::formation::{filters_within_margin, transition_width_px, KERNEL_PROFILES_V1};
 use vice_image::{CanonicalImage, IccAssumption};
@@ -67,7 +68,7 @@ fn the_kernel_profile_table_matches_the_corpus() {
     // reach (condition D1).
     let population = frozen_calibration_population().unwrap();
     let scenes = population.first_scenes();
-    let legal = frozen_calibration_profiles();
+    let legal = population.legal_profiles();
     let mut rows = Vec::new();
     for k in KERNEL_PROFILES_V1 {
         let psf = match k.filter {
@@ -81,10 +82,14 @@ fn the_kernel_profile_table_matches_the_corpus() {
         // estimator would then be wrong on exactly the images it will see
         // (the first draft measured the supersampler alone and recovered
         // the filter on 3 arms out of 7).
-        let engines: Vec<RasterProfile> = if psf == Psf::Box {
+        let engines: Vec<LegalProfile> = if psf == Psf::Box {
             legal.clone()
         } else {
-            vec![RasterProfile::Supersample]
+            legal
+                .iter()
+                .filter(|p| p.as_str() == "supersample")
+                .copied()
+                .collect()
         };
         // The box row walks EVERY family, because the statistic varies with
         // the shape (corner density, curvature) at least as much as with the
@@ -103,23 +108,21 @@ fn the_kernel_profile_table_matches_the_corpus() {
             .flat_map(|g| engines.iter().map(move |p| (g, *p)))
             .flat_map(|(g, p)| [32u32, 64].iter().map(move |s| (g, p, *s)))
         {
-            let cell = DegradationCell {
-                size_px: size,
-                subpixel_dx: 0.0,
-                subpixel_dy: 0.0,
-                profile,
+            let cell = LegalCell::at(
+                &profile,
+                size,
                 psf,
-                blend: BlendSpace::LinearLight,
-                resize: ResizeChain::None,
-                contrast: 1.0,
-            };
+                BlendSpace::LinearLight,
+                ResizeChain::None,
+                1.0,
+            );
             let Ok(f) = scene.render(&cell) else {
                 continue;
             };
             let img = CanonicalImage::from_straight_srgb8(
-                f.width_px,
-                f.height_px,
-                f.rgba8,
+                f.width_px(),
+                f.height_px(),
+                f.rgba8().to_vec(),
                 true,
                 IccAssumption::NoProfileAssumedSrgb,
             )
@@ -237,15 +240,21 @@ fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
     // is therefore absent: the corridor clause it would contaminate is the
     // one about generalizing to an engine the calibration never saw
     // (REVIEW_M4 M4-N2).
-    let engines: Vec<RasterProfile> = frozen_calibration_profiles()
+    let engines: Vec<LegalProfile> = population
+        .legal_profiles()
         .into_iter()
         .filter(|p| p.is_independent_engine())
         .collect();
     assert!(
-        !engines.contains(&RasterProfile::TinySkia),
+        !engines.iter().any(|p| p.as_str() == "tiny-skia"),
         "the held-out engine must not appear in a frozen coefficient"
     );
     assert!(!engines.is_empty(), "no independent engine is legal here");
+    let exact_clip = *population
+        .legal_profiles()
+        .iter()
+        .find(|p| p.as_str() == "exact-clip")
+        .expect("the exact integrator is always legal");
     let mut rows: Vec<(&str, f64, f64, u64)> = Vec::new();
     for engine in engines {
         let (mut sum2, mut max, mut n) = (0.0f64, 0.0f64, 0u64);
@@ -258,13 +267,13 @@ fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
                     width_px: size,
                     height_px: size,
                 };
-                let Ok(truth) = scene.rasterize(&t, RasterProfile::ExactClip, Psf::Box) else {
+                let Ok(truth) = scene.rasterize(&t, &exact_clip, Psf::Box) else {
                     continue;
                 };
-                let Ok(got) = scene.rasterize(&t, engine, Psf::Box) else {
+                let Ok(got) = scene.rasterize(&t, &engine, Psf::Box) else {
                     continue;
                 };
-                for (a, b) in truth.per_face.iter().zip(&got.per_face) {
+                for (a, b) in truth.per_face().iter().zip(got.per_face()) {
                     for (x, y) in a.iter().zip(b) {
                         if *x > 0.0 && *x < 1.0 {
                             let d = (x - y).abs();
@@ -315,13 +324,19 @@ fn the_clean_bucket_noise_scale_is_measured_on_the_development_split() {
 fn the_semi_transparent_floor_separates_both_ways() {
     let population = frozen_calibration_population().unwrap();
     let scenes = population.all_scenes();
-    let cells: Vec<DegradationCell> = [
+    let legal_cells = population.legal_cells();
+    let cells: Vec<LegalCell> = [
         "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
         "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
         "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
     ]
     .iter()
-    .map(|id| *matrix_v1().iter().find(|c| c.id() == *id).unwrap())
+    .map(|id| {
+        *legal_cells
+            .iter()
+            .find(|c| c.id() == *id)
+            .unwrap_or_else(|| panic!("{id} is not a LEGAL cell of the frozen matrix"))
+    })
     .collect();
     const RATIOS: &[f64] = &[3.0, 5.0, 8.0, 12.0];
     let mut clean: Vec<(f64, Option<(u64, f64)>)> = Vec::new();
@@ -333,15 +348,15 @@ fn the_semi_transparent_floor_separates_both_ways() {
                     continue;
                 };
                 for (scale, into) in [(1.0f64, &mut clean), (0.5, &mut probe)] {
-                    let mut bytes = f.rgba8.clone();
+                    let mut bytes = f.rgba8().to_vec();
                     if scale != 1.0 {
                         for px in bytes.chunks_mut(4) {
                             px[3] = (f64::from(px[3]) * scale).round() as u8;
                         }
                     }
                     let Ok(img) = CanonicalImage::from_straight_srgb8(
-                        f.width_px,
-                        f.height_px,
+                        f.width_px(),
+                        f.height_px(),
                         bytes,
                         true,
                         IccAssumption::NoProfileAssumedSrgb,
@@ -423,10 +438,11 @@ fn the_residual_tolerance_separates_right_from_wrong_hypotheses() {
     use vice_evidence::analysis::MAX_RESIDUAL_P95_CODES;
     let population = frozen_calibration_population().unwrap();
     let scenes = population.all_scenes();
-    let cell = *matrix_v1()
+    let cell = *population
+        .legal_cells()
         .iter()
         .find(|c| c.id() == "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00")
-        .unwrap();
+        .unwrap_or_else(|| panic!("that cell is not LEGAL for a frozen coefficient"));
     let (mut right, mut wrong) = (Vec::new(), Vec::new());
     for scene in scenes.iter() {
         {
@@ -434,9 +450,9 @@ fn the_residual_tolerance_separates_right_from_wrong_hypotheses() {
                 continue;
             };
             let Ok(img) = CanonicalImage::from_straight_srgb8(
-                f.width_px,
-                f.height_px,
-                f.rgba8,
+                f.width_px(),
+                f.height_px(),
+                f.rgba8().to_vec(),
                 true,
                 IccAssumption::NoProfileAssumedSrgb,
             ) else {
@@ -489,10 +505,11 @@ fn interior_confidence_separates_cores_from_edges() {
     use vice_evidence::interior::{interior_confidence, INTERIOR_CONFIG_V1};
     let population = frozen_calibration_population().unwrap();
     let scenes = population.first_scenes();
-    let cell = *matrix_v1()
+    let cell = *population
+        .legal_cells()
         .iter()
         .find(|c| c.id() == "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00")
-        .unwrap();
+        .unwrap_or_else(|| panic!("that cell is not LEGAL for a frozen coefficient"));
     let mut core = Vec::new();
     let mut rim = Vec::new();
     for scene in scenes.iter() {
@@ -500,9 +517,9 @@ fn interior_confidence_separates_cores_from_edges() {
             continue;
         };
         let Ok(img) = CanonicalImage::from_straight_srgb8(
-            f.width_px,
-            f.height_px,
-            f.rgba8,
+            f.width_px(),
+            f.height_px(),
+            f.rgba8().to_vec(),
             true,
             IccAssumption::NoProfileAssumedSrgb,
         ) else {

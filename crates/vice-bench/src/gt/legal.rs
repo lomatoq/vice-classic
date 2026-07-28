@@ -70,10 +70,11 @@
 //! The source scan survives as a second echelon and says so in its own doc
 //! comment. It models a habit. This module is the proof.
 
-use crate::gt::degradation::{render_cell, DegradationCell, RenderedFixture};
+use crate::gt::degradation::{render_cell, DegradationCell, RenderedFixture, ResizeChain};
 use crate::gt::raster::{rasterize, CoverageStack, Psf, RasterProfile, ViewTransform};
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, GtSourceGroup};
+use vice_ir::BlendSpace;
 
 /// The legal calibration population, as an opaque handle.
 ///
@@ -133,6 +134,172 @@ impl FrozenPopulation {
             .map(|scene| FrozenScene { scene })
             .collect()
     }
+
+    /// The rasterizer profiles a frozen coefficient may be measured with, and
+    /// the ONLY source of a [`LegalProfile`] in the workspace.
+    ///
+    /// This is the second clause of D1, and until delta-3 it was guarded by
+    /// nothing (RT45-A15). The split policy holds `tiny-skia` out of
+    /// `development` entirely, because §28 M4 asks whether the system
+    /// generalizes to an engine the calibration did NOT see — and a
+    /// coefficient measured with it has seen its own test.
+    pub fn legal_profiles(&self) -> Vec<LegalProfile> {
+        legal_raster_profiles()
+            .into_iter()
+            .map(LegalProfile)
+            .collect()
+    }
+
+    /// The cells of the frozen §27.2 matrix a frozen coefficient may use.
+    ///
+    /// Three of the five frozen measurements used to pick a cell out of
+    /// `matrix_v1()` by a literal id, and swapping ONE of those literals to
+    /// `s64_ptiny-skia_…` measured a frozen `vice-evidence` coefficient with
+    /// the held-out engine while nine hygiene tests stayed green (RT45-A15).
+    /// They select from HERE now, so the same literal resolves to nothing.
+    pub fn legal_cells(&self) -> Vec<LegalCell> {
+        let legal = legal_raster_profiles();
+        crate::gt::degradation::matrix_v1()
+            .into_iter()
+            .filter(|c| legal.contains(&c.profile))
+            .map(|cell| LegalCell { cell })
+            .collect()
+    }
+}
+
+/// The rasterizer profiles the split policy leaves in `development`.
+///
+/// Derived from the policy, never listed: `held_out_profiles` is the frozen
+/// declaration and this asks it, so an engine held out tomorrow is excluded
+/// tomorrow without editing this module.
+fn legal_raster_profiles() -> Vec<RasterProfile> {
+    RasterProfile::ALL
+        .iter()
+        .copied()
+        .filter(|p| SPLIT_POLICY_V1.profile_allowed(Split::Development, p.as_str()))
+        .collect()
+}
+
+/// A rasterizer profile a frozen coefficient may be measured with.
+///
+/// Opaque, and the only way to obtain one is
+/// [`FrozenPopulation::legal_profiles`]. That is the whole mechanism: the
+/// legality of a profile becomes a property of the HANDLE rather than a habit
+/// of the caller, so `rasterize(&t, RasterProfile::TinySkia, Psf::Box)` through
+/// the legal door is a type error rather than a silent measurement.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LegalProfile(RasterProfile);
+
+impl LegalProfile {
+    pub fn as_str(&self) -> &'static str {
+        self.0.as_str()
+    }
+
+    /// Does this profile draw INDEPENDENTLY of our own integrator?
+    ///
+    /// Delegated to `RasterProfile`, deliberately, and the delegation is the
+    /// finding: porting the frozen measurements to this handle, I replaced the
+    /// call to `is_independent_engine()` with a list of three engine names and
+    /// put `vice-render` — our OWN renderer — in it. The measurement then
+    /// pooled a self-comparison at `RMS 0.00000` and the clean-bucket noise
+    /// scale fell from 25.57 codes to 18.079. A frozen coefficient would have
+    /// been diluted by a comparison of the renderer with itself.
+    ///
+    /// F-0042 in one move, committed while fixing F-0042: a property became a
+    /// list, and the list was wrong. The property is asked, never restated.
+    pub fn is_independent_engine(&self) -> bool {
+        self.0.is_independent_engine()
+    }
+}
+
+/// A degradation cell a frozen coefficient may be measured at.
+///
+/// Its profile is a [`LegalProfile`], so there is no way to name an illegal one
+/// — not by literal id, not by constructing the cell field by field.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LegalCell {
+    cell: DegradationCell,
+}
+
+impl LegalCell {
+    /// The frozen §27.2 id of this cell.
+    pub fn id(&self) -> String {
+        self.cell.id()
+    }
+
+    pub fn size_px(&self) -> u32 {
+        self.cell.size_px
+    }
+
+    /// Build a cell at a LEGAL profile. The only constructor, and it cannot be
+    /// handed anything else, because `LegalProfile` has no public constructor.
+    pub fn at(
+        profile: &LegalProfile,
+        size_px: u32,
+        psf: Psf,
+        blend: BlendSpace,
+        resize: ResizeChain,
+        contrast: f64,
+    ) -> LegalCell {
+        LegalCell {
+            cell: DegradationCell {
+                size_px,
+                subpixel_dx: 0.0,
+                subpixel_dy: 0.0,
+                profile: profile.0,
+                psf,
+                blend,
+                resize,
+                contrast,
+            },
+        }
+    }
+}
+
+/// What a render of a legal scene hands out: exactly the three quantities the
+/// five frozen measurements consume, and nothing that reaches the corpus.
+///
+/// RT45-A14: sealing `GtSourceGroup` closed what the corpus IS and left what it
+/// PRODUCES public. `RenderedFixture` had every field `pub` and `render_cell`
+/// was `pub(crate)`, so six lines in an already-declared module handed an
+/// integration test 63 renders over all 22 sealed-audit groups — no new type,
+/// no re-implemented pipeline. The currency of F-0026 is the render, not the
+/// group, so the seal now stands on the render.
+pub struct LegalRender {
+    fixture: RenderedFixture,
+}
+
+impl LegalRender {
+    pub fn width_px(&self) -> u32 {
+        self.fixture.width_px
+    }
+
+    pub fn height_px(&self) -> u32 {
+        self.fixture.height_px
+    }
+
+    pub fn rgba8(&self) -> &[u8] {
+        &self.fixture.rgba8
+    }
+}
+
+/// The same for coverage: per-face coverage and the dimensions, nothing else.
+pub struct LegalCoverage {
+    stack: CoverageStack,
+}
+
+impl LegalCoverage {
+    pub fn width_px(&self) -> u32 {
+        self.stack.width_px
+    }
+
+    pub fn height_px(&self) -> u32 {
+        self.stack.height_px
+    }
+
+    pub fn per_face(&self) -> &[Vec<f64>] {
+        &self.stack.per_face
+    }
 }
 
 /// One scene of the legal population, as an opaque handle.
@@ -149,19 +316,19 @@ impl FrozenScene<'_> {
         self.scene.id()
     }
 
-    /// Render this scene under one degradation cell.
-    pub fn render(&self, cell: &DegradationCell) -> Result<RenderedFixture, String> {
-        render_cell(self.scene, cell, 1)
+    /// Render this scene under one LEGAL degradation cell.
+    pub fn render(&self, cell: &LegalCell) -> Result<LegalRender, String> {
+        render_cell(self.scene, &cell.cell, 1).map(|fixture| LegalRender { fixture })
     }
 
-    /// Rasterize this scene's certified mesh under one profile and PSF.
+    /// Rasterize this scene's certified mesh under one LEGAL profile and a PSF.
     pub fn rasterize(
         &self,
         t: &ViewTransform,
-        profile: RasterProfile,
+        profile: &LegalProfile,
         psf: Psf,
-    ) -> Result<CoverageStack, String> {
-        rasterize(self.scene.certified(), t, profile, psf)
+    ) -> Result<LegalCoverage, String> {
+        rasterize(self.scene.certified(), t, profile.0, psf).map(|stack| LegalCoverage { stack })
     }
 }
 
@@ -211,6 +378,61 @@ mod tests {
             err.contains("only `development`"),
             "unexpected refusal: {err}"
         );
+    }
+
+    /// The SECOND clause of D1, which until delta-3 was guarded by nothing.
+    ///
+    /// `corridor::frozen_calibration_groups` states D1 as two clauses: the
+    /// sealed audit is never touched, AND the held-out rasterizer is never
+    /// seen. The first was closed by the constructor's refusal; the second was
+    /// a habit of two callers out of five, and swapping ONE literal cell id in
+    /// an existing frozen measurement measured a frozen `vice-evidence`
+    /// coefficient with `tiny-skia` while nine hygiene tests stayed green
+    /// (RT45-A15). Both halves are measured here.
+    #[test]
+    fn no_legal_profile_or_cell_carries_the_held_out_engine() {
+        let held_out = SPLIT_POLICY_V1.held_out_profiles;
+        assert!(
+            !held_out.is_empty(),
+            "the split policy holds no profile out, so this test would pass on a policy that              cannot leak - the clause it guards would have nothing to guard"
+        );
+        let pop = frozen_calibration_population().expect("the legal population");
+
+        let profiles = pop.legal_profiles();
+        assert!(!profiles.is_empty(), "no profile is legal at all");
+        for p in &profiles {
+            assert!(
+                !held_out.contains(&p.as_str()),
+                "the held-out engine {} is offered as a LEGAL profile",
+                p.as_str()
+            );
+        }
+
+        // And the cell selector cannot name one either. This is the exact
+        // literal the red team swapped in.
+        let cells = pop.legal_cells();
+        assert!(!cells.is_empty(), "no cell is legal at all");
+        assert!(
+            cells
+                .iter()
+                .any(|c| c.id() == "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00"),
+            "the legal cell set lost the cell a frozen measurement actually uses, so the check              below would pass for the wrong reason"
+        );
+        assert!(
+            !cells
+                .iter()
+                .any(|c| c.id() == "s64_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00"),
+            "the held-out engine is reachable by literal cell id through the legal handle"
+        );
+        for c in &cells {
+            for h in held_out {
+                assert!(
+                    !c.id().contains(h),
+                    "legal cell {} names the held-out engine {h}",
+                    c.id()
+                );
+            }
+        }
     }
 
     /// And the legal population is not refused by the same predicate — a

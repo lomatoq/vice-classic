@@ -344,7 +344,13 @@ fn count_components(scene: &ValidatedScene) -> u32 {
 /// constructing a `GtScene` runs `CertifiedMesh::from_scene`, so a fixture
 /// that is not a certified planar embedding cannot exist (debt D-4). This
 /// is the first non-rendering consumer the reviews were talking about.
-#[derive(Debug, Clone)]
+/// No `Debug`, and the absence is the mechanism (RT45-A14, second instance).
+/// `format!("{g:?}")` returns a `String`, and `String` is public, so a derived
+/// `Debug` is a public door out of the crate that no visibility modifier can
+/// close: it handed an integration test 878 067 characters of sealed-audit
+/// geometry. A type whose values must not leave the crate must not know how to
+/// print itself either.
+#[derive(Clone)]
 pub(crate) struct GtScene {
     id: String,
     group_id: String,
@@ -427,7 +433,8 @@ pub struct EquivalenceClass {
 }
 
 /// One independent trial unit (§27.4).
-#[derive(Debug, Clone)]
+/// No `Debug`, for the reason given on [`GtScene`].
+#[derive(Clone)]
 pub(crate) struct GtSourceGroup {
     pub id: String,
     pub origin: FixtureOrigin,

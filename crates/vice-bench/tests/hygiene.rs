@@ -434,6 +434,18 @@ fn fn_name_at(trimmed: &str) -> Option<&str> {
 /// the only two ways to undo it, and both fail here.
 #[test]
 fn the_corpus_types_are_sealed_by_the_compiler() {
+    // Two groups, and the second is the delta-3 correction. The corpus types
+    // answer what the corpus IS; the PRODUCT types answer what a frozen
+    // measurement CONSUMES, and RT45-A14 showed the second is the one that
+    // matters: sealing `GtSourceGroup` while `RenderedFixture` stayed `pub`
+    // with `pub` fields and `render_cell` stayed `pub(crate)` let six lines in
+    // an already-declared module hand an integration test 63 renders over all
+    // 22 sealed-audit groups. The currency of F-0026 is the render.
+    //
+    // This list is not a guess and not a place where the next finding gets
+    // appended: it is exactly what the compiler enumerated when the seal was
+    // applied, one error at a time, until it stopped. The judge is still the
+    // compiler; this guards the seal's preconditions.
     for (module, decl) in [
         (
             "vice-bench/src/gt/mod.rs",
@@ -444,6 +456,18 @@ fn the_corpus_types_are_sealed_by_the_compiler() {
             "vice-bench/src/gt/adversarial.rs",
             "pub(crate) struct AmbiguityPair",
         ),
+        (
+            "vice-bench/src/gt/degradation.rs",
+            "pub(crate) struct RenderedFixture",
+        ),
+        (
+            "vice-bench/src/gt/degradation.rs",
+            "pub(crate) struct CellRaster",
+        ),
+        (
+            "vice-bench/src/gt/raster.rs",
+            "pub(crate) struct CoverageStack",
+        ),
     ] {
         let text = std::fs::read_to_string(repo_root().join("crates").join(module)).expect(module);
         assert!(
@@ -453,6 +477,28 @@ fn the_corpus_types_are_sealed_by_the_compiler() {
              third attempt at this seal was walked around (RT45-A9)"
         );
     }
+    // And no corpus-bearing type knows how to print itself. `format!("{g:?}")`
+    // returns a `String`, `String` is public, and no visibility modifier can
+    // close that door - it handed an integration test 878 067 characters of
+    // sealed-audit geometry (RT45-A14, second instance). The only way to shut
+    // it is for the type not to implement `Debug` at all.
+    for (module, ty) in [
+        ("vice-bench/src/gt/mod.rs", "struct GtScene"),
+        ("vice-bench/src/gt/mod.rs", "struct GtSourceGroup"),
+        ("vice-bench/src/gt/adversarial.rs", "struct AmbiguityPair"),
+    ] {
+        let text = std::fs::read_to_string(repo_root().join("crates").join(module)).expect(module);
+        let before = &text[..text.find(ty).unwrap_or_else(|| panic!("{ty} in {module}"))];
+        let derive = before
+            .rfind("#[derive(")
+            .map(|i| &before[i..])
+            .unwrap_or("");
+        assert!(
+            !derive.contains("Debug"),
+            "{ty} derives Debug again. A type whose values may not leave the crate must not know              how to print itself: the printed form is a String, and String is public"
+        );
+    }
+
     let lib = std::fs::read_to_string(repo_root().join("crates/vice-bench/src/lib.rs"))
         .expect("vice-bench lib.rs");
     assert!(
@@ -640,6 +686,27 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
             );
         }
     }
+
+    // D1's SECOND clause, as a habit guard on the frozen measurements.
+    //
+    // The clause is enforced by the type - `FrozenScene::render` takes a
+    // `LegalCell` and `rasterize` a `&LegalProfile`, neither of which can be
+    // built outside the legal handle - so this is second echelon and says so.
+    // It models the specific habit RT45-A15 exploited: three of the five frozen
+    // measurements used to pick a cell out of `matrix_v1()` by literal id, and
+    // swapping one literal to `s64_ptiny-skia_…` measured a frozen coefficient
+    // with the engine §28 M4 asks the system to generalize TO.
+    let frozen_src = &frozen.1;
+    for habit in ["matrix_v1(", "RasterProfile::"] {
+        assert!(
+            !contains_call(frozen_src, habit),
+            "the frozen-calibration measurements name {habit}. A cell and a profile must come               from the legal handle, which cannot produce a held-out engine; naming the raw               matrix or the raw profile enum is how the held-out rasterizer got in (RT45-A15)"
+        );
+    }
+    assert!(
+        frozen_src.contains("legal_cells()") && frozen_src.contains("legal_profiles()"),
+        "the frozen measurements reach neither the legal cell set nor the legal profile set, so          the check above would pass on a file that measures nothing"
+    );
 
     // And the in-crate surface is declared, not assumed.
     const DECLARED: &[&str] = &[

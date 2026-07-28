@@ -165,7 +165,7 @@ impl ViewTransform {
 
 /// Per-face coverage over a render, row-major, indexed by face.
 #[derive(Debug, Clone, PartialEq)]
-pub struct CoverageStack {
+pub(crate) struct CoverageStack {
     pub width_px: u32,
     pub height_px: u32,
     pub per_face: Vec<Vec<f64>>,
@@ -417,7 +417,7 @@ fn supersample_face(loops: &[Vec<Pt>], w: u32, h: u32, psf: Psf) -> Vec<f64> {
 // ---------------------------------------------------------------------------
 
 /// Rasterize every face of a certified mesh under one profile.
-pub fn rasterize(
+pub(crate) fn rasterize(
     certified: &CertifiedMesh,
     t: &ViewTransform,
     profile: RasterProfile,

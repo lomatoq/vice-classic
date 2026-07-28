@@ -35,7 +35,7 @@ pub fn apply_contrast(c: LinearRgb, contrast: f64) -> LinearRgb {
 /// or after the sRGB transfer. Real rasterizers do both, and §5.2 forbids
 /// assuming one — so the corpus contains both, and the two produce
 /// different bytes for the same geometry, which is the point of the axis.
-pub fn composite_rgba8(
+pub(crate) fn composite_rgba8(
     stack: &CoverageStack,
     paints: &[Paint],
     blend: BlendSpace,
