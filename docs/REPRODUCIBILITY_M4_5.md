@@ -163,6 +163,12 @@ Float-ы округлены до четырёх знаков и сверяютс
 Строка, называющая клаузу спеки, обязана быть ПОЗИЦИОННОЙ: третий вид не
 может стать лазейкой ровно там, где живёт атака. -->
 
+| row T16d | unit-test | — |
+| row T17d | unit-test | — |
+| row T18d | unit-test | — |
+| row T19d | unit-test | — |
+| row T20d | unit-test | — |
+| row T21d | unit-test | — |
 | row T4 | unit-test | — |
 | row T5 | unit-test | — |
 | row T6 | unit-test | — |
