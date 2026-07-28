@@ -25,10 +25,23 @@
 //!   last paragraph, and REVIEW_M5_B N9): writing the new field as `extra: _`
 //!   in the pattern. One line, clippy clean with `-D warnings`, and the field
 //!   silently has no perturbation. What the compiler judges is that every field
-//!   is MENTIONED, not that every field is EXERCISED. The partial compensation
-//!   is that `Parts` derives `PartialEq`, so a new field is still compared by
-//!   the assembly-equality check — but the claim "one perturbation per scalar
-//!   slot" stops being a property, and no test would say so;
+//!   is MENTIONED, not that every field is EXERCISED. The red team measured it
+//!   literally: a new field with a public reader, corrupted above 16 px, plus
+//!   one line `face_area_px: _` — clippy clean, gate EXIT 0, four `[MET]`, and
+//!   **the slot count did not move** (RT5-A11).
+//!
+//!   The "partial compensation" this comment used to claim — that `PartialEq`
+//!   still compares a new field through assembly-equality — was **nil twice
+//!   over**, and saying so was worse than saying nothing: the walk stopped
+//!   calling assembly-equality (that WAS the RT5-A2 fix), and
+//!   `audit_every_labelling` compares two copies carrying the same defect.
+//!
+//!   Closed since delta-2, and not by the pattern:
+//!   `every_scalar_leaf_of_parts_has_exactly_one_perturbation` compares the
+//!   number of sites against the number of scalar leaves of the SERIALIZED
+//!   `Parts`. That count comes from the `Serialize` derive, i.e. from the struct
+//!   definition, which `extra: _` does not touch — so the field moves one side
+//!   of the equation and not the other, and the test fails;
 //! - the number of perturbations is a function of the DATA, so a bigger
 //!   arrangement is a wider control automatically, and a control that went
 //!   empty is visible as a count of zero rather than as silence (F-0039).
@@ -53,14 +66,34 @@
 use serde::Serialize;
 
 use super::audit::{audit, Parts};
-use super::{Dcel, FacePair, HalfEdgeId, VertexId};
+use super::{Dcel, FaceId, FacePair, HalfEdgeId, VertexId};
 
 /// One named slot of [`Parts`] and the edit that changes it.
 ///
 /// A named type rather than a tuple in a signature: the walk is the mechanism
 /// the audit's resolving power is measured with, and a mechanism whose type is
 /// unpronounceable is a mechanism nobody re-reads.
-pub(crate) type Perturbation = (String, Box<dyn Fn(&mut Parts)>);
+pub(crate) type Perturbation = (&'static str, String, Box<dyn Fn(&mut Parts)>);
+
+/// The scalar-slot families of [`Parts`], in a fixed order.
+///
+/// REDTEAM_M5 RT5-A10: `face_of_padded_px` is 149 488 of the 155 160 slots —
+/// **96.34 %** — and for that family a catch is guaranteed by the SHAPE of the
+/// check rather than by its strength, because the perturbation moves the map
+/// while the rebuild reconstructs it from `boundaries`, which the perturbation
+/// does not touch. "155 160 of 155 160" is true and reads as a coverage it is
+/// not. The decomposition belongs in the report rather than in a reviewer's
+/// reconstruction from the artifact, so every site declares its family.
+pub const SLOT_FAMILIES: &[&str] = &[
+    "vertices",
+    "boundaries.owners",
+    "boundaries.endpoints",
+    "boundaries.path",
+    "faces.label",
+    "faces.loops",
+    "face_of_padded_px",
+    "site",
+];
 
 /// What one mutation walk found.
 ///
@@ -106,6 +139,18 @@ pub struct ResolvingPower {
     /// Perturbations that changed nothing. Must be zero: a no-op is not a test
     /// of anything and must not be counted as a catch (F-0059).
     pub no_ops: u64,
+    /// Slots and catches per family, in [`SLOT_FAMILIES`] order (RT5-A10).
+    pub by_family: [FamilyCount; 8],
+}
+
+/// One family's share of the walk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+pub struct FamilyCount {
+    pub family: &'static str,
+    pub slots: u64,
+    pub caught_by_audit: u64,
+    pub uncaught_by_audit: u64,
+    pub no_ops: u64,
 }
 
 /// Perturb every derived slot of an arrangement, one at a time, and count what
@@ -120,19 +165,30 @@ pub struct ResolvingPower {
 /// No broken `Dcel` escapes: the corrupted values live inside this function.
 pub fn measure_audit_resolving_power(d: &Dcel) -> ResolvingPower {
     let mut out = ResolvingPower::default();
-    for (_name, f) in d.parts().perturbations() {
+    for (i, fam) in SLOT_FAMILIES.iter().enumerate() {
+        out.by_family[i].family = fam;
+    }
+    for (family, _name, f) in d.parts().perturbations() {
+        let fi = SLOT_FAMILIES
+            .iter()
+            .position(|x| *x == family)
+            .expect("every perturbation declares a registered family");
         let mut parts = d.parts().clone();
         f(&mut parts);
         out.slots += 1;
+        out.by_family[fi].slots += 1;
         if parts == *d.parts() {
             out.no_ops += 1;
+            out.by_family[fi].no_ops += 1;
             continue;
         }
         let broken = d.clone().with_parts(parts);
         if audit(&broken).is_err() {
             out.caught_by_audit += 1;
+            out.by_family[fi].caught_by_audit += 1;
         } else {
             out.uncaught_by_audit += 1;
+            out.by_family[fi].uncaught_by_audit += 1;
         }
     }
     out
@@ -161,6 +217,7 @@ impl Parts {
         for i in 0..vertices.len() {
             for k in 0..2usize {
                 out.push((
+                    "vertices",
                     format!("vertices[{i}].{k}"),
                     Box::new(move |p: &mut Parts| {
                         let v = &mut p.vertices[i];
@@ -175,6 +232,7 @@ impl Parts {
         }
         for (i, bnd) in boundaries.iter().enumerate() {
             out.push((
+                "boundaries.endpoints",
                 format!("boundaries[{i}].start"),
                 Box::new(move |p: &mut Parts| {
                     // `.max(2)`, not `.max(1)`: an arrangement with ONE vertex
@@ -189,6 +247,7 @@ impl Parts {
                 }),
             ));
             out.push((
+                "boundaries.endpoints",
                 format!("boundaries[{i}].end"),
                 Box::new(move |p: &mut Parts| {
                     let n = p.vertices.len() as u32;
@@ -196,8 +255,42 @@ impl Parts {
                     b.end = VertexId((b.end.0 + 1) % n.max(2));
                 }),
             ));
+            // TWO sites, one per scalar leaf of `FacePair`. A single swap
+            // site was one perturbation for two leaves, so the site count
+            // could not be compared against the serialized leaf count — and
+            // that comparison is what makes `extra: _` fail (RT5-A11).
             out.push((
-                format!("boundaries[{i}].owners"),
+                "boundaries.owners",
+                format!("boundaries[{i}].owners.left"),
+                Box::new(move |p: &mut Parts| {
+                    let n = p.faces.len() as u32;
+                    let b = &mut p.boundaries[i];
+                    let (l, r) = (b.owners.left(), b.owners.right());
+                    // On a TWO-face arrangement there is no third id to move
+                    // to: `(l + 1) % 2` lands on `r`, the skip lands back on
+                    // `l`, and the site computes its own input. That was 26
+                    // idle slots on the first full run of delta-2, found by the
+                    // `no_ops` counter F-0059 exists for — in the site F-0059
+                    // was written about, one milestone later.
+                    //
+                    // The fallback is an id that names no face at all, which is
+                    // a real corruption (`face_of` then reports a face outside
+                    // the structure) and is caught by the site/owner check.
+                    let mut cand = (l.0 + 1) % n.max(2);
+                    if cand == r.0 {
+                        cand = (cand + 1) % n.max(2);
+                    }
+                    if cand == l.0 {
+                        cand = n;
+                    }
+                    if let Some(fp) = FacePair::new(FaceId(cand), r) {
+                        b.owners = fp;
+                    }
+                }),
+            ));
+            out.push((
+                "boundaries.owners",
+                format!("boundaries[{i}].owners.right"),
                 Box::new(move |p: &mut Parts| {
                     // SWAP the two owners. The first version moved the left
                     // owner to `(l + 1) % faces.len()` and skipped `r`, which
@@ -214,17 +307,34 @@ impl Parts {
                 }),
             ));
             for j in 0..bnd.path.len() {
-                out.push((
-                    format!("boundaries[{i}].path[{j}]"),
-                    Box::new(move |p: &mut Parts| {
-                        let pt = &mut p.boundaries[i].path[j];
-                        pt.0 = pt.0.wrapping_add(1);
-                    }),
-                ));
+                // BOTH coordinates. Only `pt.0` was perturbed until delta-2 —
+                // about a tenth of the real scalar slots enumerated by nothing,
+                // while `walk.rs`, `audit.rs` and ADR-0031 §3 all said "one
+                // perturbation per scalar slot of the actual data".
+                //
+                // Delta-1 REPORTED this fixed. The edit never landed: the diff
+                // of `2216959..d042bba` on this file is empty and no document
+                // mentioned it (REVIEW_M5_A D1-N2). A finding named in a report
+                // and absent from the tree is F-7 in miniature, and it was mine.
+                for k in 0..2usize {
+                    out.push((
+                        "boundaries.path",
+                        format!("boundaries[{i}].path[{j}].{k}"),
+                        Box::new(move |p: &mut Parts| {
+                            let pt = &mut p.boundaries[i].path[j];
+                            if k == 0 {
+                                pt.0 = pt.0.wrapping_add(1);
+                            } else {
+                                pt.1 = pt.1.wrapping_add(1);
+                            }
+                        }),
+                    ));
+                }
             }
         }
         for (i, face) in faces.iter().enumerate() {
             out.push((
+                "faces.label",
                 format!("faces[{i}].label"),
                 Box::new(move |p: &mut Parts| {
                     p.faces[i].label = !p.faces[i].label;
@@ -233,6 +343,7 @@ impl Parts {
             for j in 0..face.loops.len() {
                 for k in 0..face.loops[j].len() {
                     out.push((
+                        "faces.loops",
                         format!("faces[{i}].loops[{j}][{k}]"),
                         Box::new(move |p: &mut Parts| {
                             let h = &mut p.faces[i].loops[j][k];
@@ -244,6 +355,7 @@ impl Parts {
         }
         for i in 0..face_of_padded_px.len() {
             out.push((
+                "face_of_padded_px",
                 format!("face_of_padded_px[{i}]"),
                 Box::new(move |p: &mut Parts| {
                     let n = p.faces.len() as u32;
@@ -254,6 +366,7 @@ impl Parts {
         for i in 0..site.len() {
             for k in 0..3usize {
                 out.push((
+                    "site",
                     format!("site[{i}].{k}"),
                     Box::new(move |p: &mut Parts| {
                         let s = &mut p.site[i];
@@ -303,5 +416,52 @@ pub fn rotate_face_map_above(d: &Dcel, threshold_px: u32) -> Dcel {
     for v in parts.face_of_padded_px.iter_mut() {
         *v = (*v + 1) % nf.max(1);
     }
+    d.clone().with_parts(parts)
+}
+
+/// **REVIEW_M5_A D1-N1 / REDTEAM_M5 RT5-A9, as a callable control.**
+///
+/// The corruption delta-1 did NOT catch: a relabelling of faces that leaves
+/// every structural relation internally consistent and attaches the wrong
+/// LABEL to a face's pixels.
+///
+/// Reviewer A found the class by publishing a refuted hypothesis first — moving
+/// the red team's global rotation above the sampling point IS caught, because a
+/// global rotation moves the exterior off id 0, and that single bit was the
+/// audit's only external anchor. A corruption respecting that bit was caught by
+/// nothing: 536 tests green, four `[MET]`, byte-identical artifact, `audit()`
+/// returning `None` and `face_map_agrees` returning true.
+///
+/// This is the smallest faithful form of it. Swapping the labels of one
+/// foreground face and one non-exterior background face keeps EVERY check
+/// delta-1 had:
+///
+/// - `face_map_agrees` rebuilds from `owners`, which are untouched — and which
+///   `assemble` samples out of `face_of_padded_px` in the first place, so the
+///   rebuild is downstream of what it certifies;
+/// - the site and owner checks are untouched;
+/// - the Euler identity is untouched;
+/// - even the SIGNATURE comparison survives, because swapping one foreground
+///   label for one background label leaves both counts exactly where they were.
+///
+/// What it breaks is the only thing nothing was comparing: the pixels now sit
+/// in a face whose label contradicts the labelling they were built from.
+pub fn swap_two_face_labels_above(d: &Dcel, threshold_px: u32) -> Dcel {
+    if d.width_px() < threshold_px {
+        return d.clone();
+    }
+    let fg = d.parts().faces.iter().position(|f| f.label);
+    let bg = d
+        .parts()
+        .faces
+        .iter()
+        .enumerate()
+        .position(|(i, f)| i != 0 && !f.label);
+    let (Some(fg), Some(bg)) = (fg, bg) else {
+        return d.clone();
+    };
+    let mut parts = d.parts().clone();
+    parts.faces[fg].label = false;
+    parts.faces[bg].label = true;
     d.clone().with_parts(parts)
 }

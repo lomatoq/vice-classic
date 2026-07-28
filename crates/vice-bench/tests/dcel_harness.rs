@@ -193,3 +193,49 @@ fn every_gate_clause_has_a_knockout_that_reddens_it() {
         );
     }
 }
+
+/// **REVIEW_M5_A D1-N1 / REDTEAM_M5 RT5-A9, at gate level.**
+///
+/// The corruption that passed the whole of delta-1 — 536 tests, four `[MET]`,
+/// a byte-identical artifact, `audit()` returning no violation and
+/// `face_map_agrees` returning true, with 529 of 1089 pixels sitting in a face
+/// whose label was not theirs.
+///
+/// It must take clause 4 down. Both directions: the production run has that row
+/// green, and the knockout has it red.
+#[test]
+#[ignore = "walks the corpus; wired into CI in release"]
+fn the_relabelling_that_survived_delta_one_now_reddens_clause_four() {
+    let cfg = dcel::report::DcelGateConfig::for_tests_from_the_committed_file().expect("gate");
+    let row = |r: &dcel::report::DcelReport| {
+        r.gate_table(&cfg)
+            .into_iter()
+            .find(|(n, _, _)| *n == "no dangling/invalid faces")
+            .expect("clause 4")
+            .1
+    };
+    let clean = run_at(TopologyScope::Full, PRODUCTION);
+    assert!(
+        row(&clean),
+        "positive control: clause 4 is MET on the clean run"
+    );
+
+    let knocked = run_at(
+        TopologyScope::Full,
+        RunKnockouts {
+            face_map: dcel::FaceMapKnockout::SwapLabels,
+            ..PRODUCTION
+        },
+    );
+    assert!(
+        !row(&knocked),
+        "the relabelling must redden clause 4. It keeps every count, every owner and every \
+         structural relation, so nothing delta-1 shipped could see it - only the per-pixel \
+         comparison against the LABELLING can, because the labelling is the one input no other \
+         predicate is derived from"
+    );
+    assert!(
+        knocked.arms_failing_the_audit > 0,
+        "and it must be the AUDIT that fails, not a population floor"
+    );
+}

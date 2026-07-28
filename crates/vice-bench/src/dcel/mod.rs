@@ -109,8 +109,13 @@ pub enum ClassKnockout {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FaceMapKnockout {
     Off,
-    /// Knockout: the red team's own ten-line edit.
+    /// Knockout: the red team's own ten-line edit (RT5-A1).
     Rotate,
+    /// Knockout: REVIEW_M5_A D1-N1 / REDTEAM_M5 RT5-A9 — a relabelling that
+    /// keeps EVERY count and every structural relation and attaches the wrong
+    /// label to a face's pixels. It passed the whole of delta-1 with a
+    /// byte-identical artifact and 529 of 1089 pixels reporting the wrong ink.
+    SwapLabels,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -266,13 +271,18 @@ pub struct DcelRun {
     pub audit_resolving_power: ResolvingPower,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
 pub struct ResolvingPower {
     /// Every arm the run saw. The probe fires on a stride of these, so a
     /// control that went empty would show up as `arrangements_probed = 0`
     /// beside a large `arms_seen` rather than as silence.
     pub arms_seen: u64,
     pub arrangements_probed: u32,
+    /// Arms probed because they were the FIRST of a judge branch, not because
+    /// the stride happened to land on them. Both must be non-zero, or clause 4
+    /// stands on whichever branch the ordering happened to sample (N11).
+    pub empty_arms_probed: u32,
+    pub non_empty_arms_probed: u32,
     pub slots_perturbed: u64,
     /// Perturbations the AUDIT rejected.
     pub caught_by_audit: u64,
@@ -282,6 +292,25 @@ pub struct ResolvingPower {
     /// here and are gone: RT5-A2 proved both are arithmetic on a value built by
     /// perturbing an assembled one, so the clause stood on an identity and
     /// required exactly one caught slot of the audit.
+    pub uncaught_by_audit: u64,
+    pub no_ops: u64,
+    /// Slots and catches per FAMILY (REDTEAM_M5 RT5-A10).
+    ///
+    /// `face_of_padded_px` is 96.34 % of the slots, and for that family a
+    /// catch is guaranteed by the SHAPE of the check: the perturbation moves
+    /// the map, and the rebuild reconstructs it from `boundaries`, which the
+    /// perturbation does not touch. So "161 365 of 161 391" is true and reads
+    /// as a coverage it is not. The decomposition belongs in the artifact
+    /// rather than in a reviewer's reconstruction from it.
+    pub by_family: Vec<FamilySlots>,
+}
+
+/// One slot family's share of the walk, summed over probed arrangements.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FamilySlots {
+    pub family: &'static str,
+    pub slots: u64,
+    pub caught_by_audit: u64,
     pub uncaught_by_audit: u64,
     pub no_ops: u64,
 }
@@ -419,10 +448,18 @@ pub fn run(scope: TopologyScope, k: RunKnockouts) -> Result<DcelRun, String> {
     })
 }
 
-/// How often the mutation walk is run. Every arm would be correct and slow;
-/// every twenty-fifth keeps the control's population in the hundreds while the
-/// run stays inside a CI step. The number of arrangements probed is published,
-/// so the control cannot go quietly empty.
+/// How often the mutation walk is run, ON TOP of one probe per judge branch.
+///
+/// Every arm would be correct and slow; a stride keeps the control's population
+/// in the hundreds while the run stays inside a CI step. The comment said
+/// "every twenty-fifth" against a constant of 17 from the commit that
+/// introduced it until delta-2, named by two reviewers independently
+/// (REVIEW_M5_A D1-N3, REVIEW_M5_B N13a) — so the number is not written in
+/// prose at all now, and the constant below is the only place it exists.
+///
+/// The stride is no longer what decides the population: clause 4's green rested
+/// on arm ORDER, because the eight empty arms sit at positions 87..96 and this
+/// stride hits 86 and 103. See `measure_arm` (REVIEW_M5_B N11).
 const RESOLVING_POWER_STRIDE: usize = 17;
 
 fn measure_arm(
@@ -488,6 +525,7 @@ fn arm_from_labelling(
     let d = match k.face_map {
         FaceMapKnockout::Off => d,
         FaceMapKnockout::Rotate => vice_topology::dcel::rotate_face_map_above(&d, 16),
+        FaceMapKnockout::SwapLabels => vice_topology::dcel::swap_two_face_labels_above(&d, 16),
     };
     let a = audit(&d);
     let own = is_the_assembly_of_its_own_labelling(&d);
@@ -516,7 +554,32 @@ fn arm_from_labelling(
     // one in `RESOLVING_POWER_STRIDE`, so the control's population grows with
     // the run instead of being a fixed list of places.
     power.arms_seen += 1;
-    if power.arms_seen % RESOLVING_POWER_STRIDE as u64 == 1 {
+    // DETERMINISTIC per BRANCH, then a stride on top (REVIEW_M5_B N11).
+    //
+    // The stride alone made clause 4's green a property of arm ORDER: the eight
+    // empty `adv/sliver` arms sit at positions 87..96, the stride of 17 hits 86
+    // and 103, and a corpus permuted by ONE position would have dropped the row
+    // to NOT MET without a line of code changing — reporting a real defect, by
+    // luck. A probe population that depends on ordering is not a population.
+    //
+    // So each branch of the judge — empty arrangement and non-empty — is probed
+    // the first time it is seen, and the counts are published so a branch that
+    // went unprobed is a zero rather than silence.
+    let empty = d.labelling().count_inside() == 0;
+    let first_of_branch = if empty {
+        let f = power.empty_arms_probed == 0;
+        if f {
+            power.empty_arms_probed += 1;
+        }
+        f
+    } else {
+        let f = power.non_empty_arms_probed == 0;
+        if f {
+            power.non_empty_arms_probed += 1;
+        }
+        f
+    };
+    if first_of_branch || power.arms_seen % RESOLVING_POWER_STRIDE as u64 == 1 {
         probe_resolving_power(&d, power);
     }
 
@@ -556,6 +619,24 @@ fn probe_resolving_power(d: &Dcel, power: &mut ResolvingPower) {
     power.caught_by_audit += r.caught_by_audit;
     power.uncaught_by_audit += r.uncaught_by_audit;
     power.no_ops += r.no_ops;
+    if power.by_family.is_empty() {
+        power.by_family = vice_topology::dcel::walk::SLOT_FAMILIES
+            .iter()
+            .map(|f| FamilySlots {
+                family: f,
+                slots: 0,
+                caught_by_audit: 0,
+                uncaught_by_audit: 0,
+                no_ops: 0,
+            })
+            .collect();
+    }
+    for (i, f) in r.by_family.iter().enumerate() {
+        power.by_family[i].slots += f.slots;
+        power.by_family[i].caught_by_audit += f.caught_by_audit;
+        power.by_family[i].uncaught_by_audit += f.uncaught_by_audit;
+        power.by_family[i].no_ops += f.no_ops;
+    }
 }
 
 /// One transaction per arm: fill a small square at the centre of the canvas.

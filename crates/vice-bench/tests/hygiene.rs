@@ -1302,6 +1302,14 @@ fn the_mechanisms_this_milestone_built_are_still_present() {
 /// - a reason that says CI and no step that runs it → fail;
 /// - no test file scanned at all, or no workflow found → fail, because an empty
 ///   walk is vacuously compliant (F-0039).
+///
+/// **The cheapest bypass, named where the strength is claimed** (F-0048's last
+/// paragraph, REVIEW_M5_B N13d). The workflow side is a LINE-WISE grep, so a
+/// COMMENTED-OUT line containing `--test <name>` and `--ignored` satisfies it —
+/// one line, and the step does not exist. Two further limits of the same kind:
+/// only `crates/*/tests/` targets are covered, and what is verified is that a
+/// step NAMES the target, not that the job runs or that the runner executes it.
+/// T11/T12 stay "closed in code, not executed" for precisely that reason.
 #[test]
 fn every_ignore_that_claims_ci_is_named_by_a_workflow_step() {
     let root = repo_root();

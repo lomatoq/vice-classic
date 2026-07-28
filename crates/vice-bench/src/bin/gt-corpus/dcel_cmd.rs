@@ -84,6 +84,12 @@ pub fn run(out: &Path, scope: TopologyScope) -> i32 {
         p.uncaught_by_audit,
         p.no_ops
     );
+    for f in &p.by_family {
+        println!(
+            "    {:<20} slots {:>7}  caught {:>7}  uncaught {:>3}  no-ops {:>3}",
+            f.family, f.slots, f.caught_by_audit, f.uncaught_by_audit, f.no_ops
+        );
+    }
     let mut all_ok = true;
     println!("M5 gate table (all four clauses of the spec):");
     for (name, ok, why) in report.gate_table(&cfg) {

@@ -260,8 +260,10 @@ fn the_two_conventions_disagree_about_a_critical_2x2() {
     assert_ne!(four.faces().len(), eight.faces().len());
 }
 
-/// The exhaustive axis at 4x4: 65 536 labellings, 131 070 arrangements, every
-/// one assembled and audited.
+/// The exhaustive axis at 4x4: 65 536 labellings, 131 072 arrangements, every
+/// one assembled and audited — including the two EMPTY ones, which C243 stopped
+/// skipping. The comment read 131 070 one line above an assertion of
+/// `2 * (1 << 16)` until delta-2 (REVIEW_M5_B N13b).
 ///
 /// `#[ignore]` because it is minutes in debug, and it runs in release in CI
 /// beside the other corpus-wide measurements. The 4x3 sweep is in the crate's

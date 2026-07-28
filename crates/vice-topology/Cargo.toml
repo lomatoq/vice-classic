@@ -14,3 +14,12 @@ serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
 thiserror = "2"
 vice-ir = { path = "../vice-ir" }
+
+[dev-dependencies]
+# Test-only. `every_scalar_slot_of_parts_has_a_perturbation` counts the scalar
+# leaves of the SERIALIZED `Parts` and compares that against the number of
+# perturbation sites. The leaf count comes from the `Serialize` derive, i.e.
+# from the struct definition, so a field added as `extra: _` in the walk's
+# pattern — REDTEAM_M5 RT5-A11, one line, clippy clean — moves the leaf count
+# and not the site count, and the test fails.
+serde_json = "1"

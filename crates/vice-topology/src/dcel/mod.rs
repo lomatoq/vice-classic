@@ -60,6 +60,7 @@ pub mod certificate;
 pub mod crossing;
 pub mod fixtures;
 pub mod lattice;
+pub mod sweep;
 pub mod transaction;
 pub mod walk;
 
@@ -71,19 +72,20 @@ use vice_ir::{ComplementaryConnectivity, PixelConnectivity};
 use crate::cubical::Labelling;
 use lattice::{Arrangement, Lat, Px, Step};
 
-pub use audit::{
-    audit, audit_every_labelling, is_the_assembly_of_its_own_labelling, AuditReport,
-    ExhaustiveReport, InvariantViolation,
-};
+pub use audit::{audit, is_the_assembly_of_its_own_labelling, AuditReport, InvariantViolation};
 pub use certificate::{
     curve_replacement_isotopy, degree_multiset, junction_count, IsotopyRefusal, TopologyCertificate,
 };
 pub use crossing::{face_map_agrees, face_map_from_boundaries, FaceMapDisagreement};
 pub use fixtures::{structural_fixtures, with_a_distant_witness, Fixture};
+pub use sweep::{audit_every_labelling, ExhaustiveReport};
 pub use transaction::{
     apply, Edit, Outcome, Roi, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
 };
-pub use walk::{measure_audit_resolving_power, rotate_face_map_above, ResolvingPower};
+pub use walk::{
+    measure_audit_resolving_power, rotate_face_map_above, swap_two_face_labels_above,
+    ResolvingPower,
+};
 
 /// Index into [`Dcel::faces`]. The exterior is a real one (§5.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]

@@ -321,7 +321,7 @@ pub fn build(run: &DcelRun) -> DcelReport {
             .iter()
             .filter(|a| !a.is_its_own_assembly)
             .count() as u64,
-        audit_resolving_power: run.audit_resolving_power,
+        audit_resolving_power: run.audit_resolving_power.clone(),
     }
 }
 
@@ -337,9 +337,17 @@ impl DcelReport {
         // The M5 stage carries every topology through: the number of distinct
         // classes per group is the same on both sides. That equality is worth
         // nothing on groups of size one, so the row ALSO requires a population
-        // of groups whose two convention arms disagree — and that population
-        // exists only because the structural register is here. The corpus alone
-        // has none (STATUS_M4_5 limitation 18: zero of 132 arms).
+        // of groups whose two convention arms disagree.
+        //
+        // This comment used to say that population "exists only because the
+        // structural register is here" and that "the corpus alone has none",
+        // citing STATUS_M4_5 limitation 18. That is FALSE on M5's population and
+        // the evidence string three lines below said so: 7 of the 10 are corpus
+        // groups. Limitation 18 was measured on M4.5's 132 arms over different
+        // cells, and carrying a limitation between milestones obliges recomputing
+        // its number (REVIEW_M5_B N13c). The register's contribution is that it
+        // guarantees the population BY CONSTRUCTION at every size and under both
+        // arms; the corpus supplies it IN FACT here and need not elsewhere.
         let proxy_row = cfg.min_arms.met_by(self.arms_with_a_non_empty_arrangement)
             && cfg.min_structural_arms.met_by(self.structural_arms)
             && cfg

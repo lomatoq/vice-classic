@@ -45,11 +45,10 @@
 //!   indistinguishable from a passing one from the outside (F-0039).
 
 use serde::Serialize;
-use vice_ir::ComplementaryConnectivity;
 
 use super::lattice::{Arrangement, Lat};
 use super::{Boundary, Dcel, Face, FaceId};
-use crate::cubical::{signature, Labelling};
+use crate::cubical::signature;
 
 /// The derived half of a [`Dcel`].
 ///
@@ -124,6 +123,18 @@ pub enum InvariantViolation {
     },
     #[error("the exterior face {0:?} is not a background face")]
     ExteriorIsNotBackground(FaceId),
+    #[error(
+        "pixel ({x}, {y}) is labelled {label} but sits in face {face}, whose label is {face_label};          {disagreeing} of {total} pixels disagree with the labelling they were built from"
+    )]
+    FaceMapContradictsTheLabelling {
+        x: u32,
+        y: u32,
+        label: bool,
+        face: u32,
+        face_label: bool,
+        disagreeing: usize,
+        total: usize,
+    },
     #[error(
         "the pixel-to-face map disagrees with the boundary owners on {disagreeing_pixels} pixel(s);          at ({x}, {y}) the map says face {stored} and the chain crossed says {from_boundaries}"
     )]
@@ -201,6 +212,75 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
     // be empty. The arm is then marked by `directed_steps == 0` and the §28 M5
     // report counts it separately, so a clause cannot be carried by arms that
     // contain nothing.
+    // (A) THE ANCHOR. Every pixel sits in a face whose label is the pixel's own
+    // label.
+    //
+    // REDTEAM_M5 RT5-A9 / REVIEW_M5_A D1-N1, and this check is the remedy both
+    // named. Delta-1 added `crossing::face_map_agrees`, which rebuilds the map
+    // from `Boundary::owners` — and `owners` is computed in `assemble` by
+    // SAMPLING `face_of_padded_px`, two pixels per chain. So the "third
+    // independent construction" sat DOWNSTREAM of the field it certified: the
+    // audit tied the map to the owners and the owners to the map, and neither
+    // to the LABELLING. The loop was closed with exactly one bit of external
+    // anchoring — that the exterior is face 0.
+    //
+    // Reviewer A established the boundary by publishing a REFUTED hypothesis:
+    // moving the red team's rotation above the sampling point IS caught,
+    // because a global rotation moves the exterior off id 0. A permutation that
+    // RESPECTS that single anchor — fix the exterior, swap 1 and 2 — was caught
+    // by nothing, with 529 of 1089 pixels sitting in a face whose label
+    // contradicts the labelling, 536 tests green and the artifact byte-identical.
+    //
+    // The truth was already in the structure and nothing read it. `labelling`
+    // is the INPUT: it is not derived from the map, from the owners or from the
+    // faces, so this is the one comparison in the audit whose two sides do not
+    // share a provenance. It is placed BEFORE the empty-arrangement branch
+    // because a judge's early return is a declared exclusion from its domain
+    // (REVIEW_M5_B N11), and the empty case has pixels too — all background,
+    // all of which must sit in the exterior.
+    {
+        let (w, h) = (d.width_px(), d.height_px());
+        let mut disagreeing = 0usize;
+        let mut first: Option<(u32, u32, bool, u32, bool)> = None;
+        for y in 0..h {
+            for x in 0..w {
+                let want = d.labelling().inside()[y as usize * w as usize + x as usize];
+                let f = d.face_of_pixel(x, y);
+                let got = match d.faces().get(f.index()) {
+                    Some(face) => face.label,
+                    None => {
+                        return Err(InvariantViolation::FaceMapContradictsTheLabelling {
+                            x,
+                            y,
+                            label: want,
+                            face: f.0,
+                            face_label: !want,
+                            disagreeing: 1,
+                            total: (w as usize) * (h as usize),
+                        })
+                    }
+                };
+                if got != want {
+                    disagreeing += 1;
+                    if first.is_none() {
+                        first = Some((x, y, want, f.0, got));
+                    }
+                }
+            }
+        }
+        if let Some((x, y, label, face, face_label)) = first {
+            return Err(InvariantViolation::FaceMapContradictsTheLabelling {
+                x,
+                y,
+                label,
+                face,
+                face_label,
+                disagreeing,
+                total: (w as usize) * (h as usize),
+            });
+        }
+    }
+
     if arr.steps().is_empty() {
         if !d.boundaries().is_empty() || d.loop_count() != 0 || d.faces().len() != 1 {
             return Err(InvariantViolation::EmptyArrangementIsNotEmpty {
@@ -213,6 +293,29 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
             return Err(InvariantViolation::ExteriorIsNotBackground(
                 FaceId::EXTERIOR,
             ));
+        }
+        // REVIEW_M5_B N11: an early return in a judge is a DECLARED EXCLUSION
+        // from its domain, and this one skipped the face-map comparison
+        // entirely. A corruption of the map confined to the empty subclass
+        // passed the full gate with four `[MET]`, and clause 4's green rested
+        // on arm ORDER — the eight sliver arms sit at positions 87..96 and the
+        // stride of 17 hits 86 and 103, missing by one position.
+        //
+        // The comparison is well defined and non-empty here: no boundaries
+        // means the rebuild is all-exterior, which is exactly what the stored
+        // map must be, and on a 20x20 that is 484 comparisons rather than
+        // zero. So the branch executes it instead of naming it as skipped.
+        //
+        // This is the third empty subclass of the milestone (F-0058, RT5-A4,
+        // this one), which is why the fix is the branch and not the instance.
+        if let Err(e) = crate::dcel::crossing::face_map_agrees(d) {
+            return Err(InvariantViolation::FaceMapDisagreesWithTheBoundaries {
+                x: e.x,
+                y: e.y,
+                stored: e.stored,
+                from_boundaries: e.from_boundaries,
+                disagreeing_pixels: e.disagreeing_pixels,
+            });
         }
         return Ok(AuditReport {
             vertices: 0,
@@ -517,82 +620,12 @@ fn skeleton_components(d: &Dcel) -> i64 {
     roots.len() as i64
 }
 
-/// Assemble every labelling of a `w x h` grid under both convention arms and
-/// audit each one.
-///
-/// This is the answer to F-0054 / F-9 in the only form that closes the class:
-/// the witness set IS the input space, so there is no subclass left in which a
-/// defect could be unreachable. `(w, h) = (4, 4)` is 65 536 labellings and
-/// 131 072 arrangements.
-pub fn audit_every_labelling(w: u32, h: u32) -> Result<ExhaustiveReport, String> {
-    let n = (w * h) as usize;
-    assert!(
-        n <= 20,
-        "the exhaustive sweep is 2^n; {n} bits is not a sweep"
-    );
-    let mut audited = 0u64;
-    let mut empty = 0u64;
-    let mut classes: std::collections::BTreeSet<(u32, u32)> = std::collections::BTreeSet::new();
-    let mut critical = 0u64;
-    for bits in 0u64..(1u64 << n) {
-        let inside: Vec<bool> = (0..n).map(|i| bits & (1 << i) != 0).collect();
-        let has_critical = !crate::cubical::critical_cells(&Labelling::new(
-            w as usize,
-            h as usize,
-            inside.clone(),
-        ))
-        .is_empty();
-        for conn in ComplementaryConnectivity::arms() {
-            let l = Labelling::new(w as usize, h as usize, inside.clone());
-            let is_empty = l.count_inside() == 0;
-            if is_empty {
-                // Covered rather than skipped, since C243: the corpus reaches
-                // this state and the sweep that was supposed to leave no
-                // subclass unreached was excluding one BY CONSTRUCTION.
-                empty += 1;
-            }
-            let d = Dcel::assemble(l, conn);
-            let r = audit(&d).map_err(|e| format!("bits={bits} conn={conn:?}: {e}"))?;
-            if !is_the_assembly_of_its_own_labelling(&d) {
-                return Err(format!("bits={bits} conn={conn:?}: not its own assembly"));
-            }
-            classes.insert((r.foreground_faces, r.holes));
-            audited += 1;
-        }
-        if has_critical {
-            critical += 1;
-        }
-    }
-    Ok(ExhaustiveReport {
-        width_px: w,
-        height_px: h,
-        arrangements_audited: audited,
-        empty_arrangements_covered: empty,
-        distinct_classes: classes.len() as u32,
-        classes: classes.into_iter().collect(),
-        labellings_with_a_critical_cell: critical,
-    })
-}
-
-/// What an exhaustive sweep saw.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ExhaustiveReport {
-    pub width_px: u32,
-    pub height_px: u32,
-    pub arrangements_audited: u64,
-    /// Labellings with no interface at all. Audited like every other one since
-    /// C243 — the corpus reaches this state (`adv/sliver`) and a sweep that
-    /// excluded it was leaving a subclass unreached by construction, which is
-    /// the very class F-0054 / F-9 names.
-    pub empty_arrangements_covered: u64,
-    pub distinct_classes: u32,
-    pub classes: Vec<(u32, u32)>,
-    pub labellings_with_a_critical_cell: u64,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cubical::Labelling;
+    use crate::dcel::walk::{measure_audit_resolving_power, SLOT_FAMILIES};
+    use vice_ir::ComplementaryConnectivity;
 
     fn ring() -> Dcel {
         let (w, h) = (13usize, 13usize);
@@ -629,7 +662,7 @@ mod tests {
         );
 
         let mut by_audit = 0usize;
-        for (name, f) in &ps {
+        for (_family, name, f) in &ps {
             let mut parts = d.parts().clone();
             f(&mut parts);
             if parts == *d.parts() {
@@ -653,24 +686,87 @@ mod tests {
         );
     }
 
-    /// The audit is green on every arrangement of every labelling of a 4x3
-    /// grid, under both conventions, and the sweep SEES more than one
-    /// topological class — an exhaustive run over a space with one answer in
-    /// it would prove nothing.
+    /// **RT5-A11: a field must be EXERCISED, not merely mentioned.**
+    ///
+    /// The exhaustive destructuring in `Parts::perturbations` is judged by the
+    /// compiler — but what the compiler judges is that every field is NAMED.
+    /// The red team measured the bypass literally: a new field with a public
+    /// reader, corrupted above 16 px, plus one line `face_area_px: _` in the
+    /// pattern — clippy clean, gate EXIT 0, four MET, **and the slot count did
+    /// not move**. The compensation delta-1 claimed through `PartialEq` is nil
+    /// twice over: the walk no longer calls assembly-equality (that WAS the
+    /// RT5-A2 fix), and `audit_every_labelling` compares two copies carrying
+    /// the same defect.
+    ///
+    /// So the site count is compared against a count derived from somewhere
+    /// the walk does not control: the number of scalar leaves of the SERIALIZED
+    /// `Parts`. That number comes from the `Serialize` derive, i.e. from the
+    /// struct definition. A field added as `extra: _` moves the leaf count and
+    /// not the site count, and this fails.
+    ///
+    /// Both directions: the count must also be non-trivial, because an empty
+    /// structure would satisfy `0 == 0`.
     #[test]
-    fn the_audit_is_green_over_a_whole_small_input_space() {
-        let r = audit_every_labelling(4, 3).expect("exhaustive audit");
-        assert_eq!(r.arrangements_audited, 2 * (1 << 12));
-        assert_eq!(r.empty_arrangements_covered, 2);
-        assert!(r.distinct_classes >= 6, "classes seen: {:?}", r.classes);
-        assert!(
-            r.classes.contains(&(1, 1)),
-            "the ring class must be in a 4x3 sweep: {:?}",
-            r.classes
-        );
-        assert!(
-            r.labellings_with_a_critical_cell > 0,
-            "a sweep with no critical 2x2 never exercises the convention branch"
+    fn every_scalar_leaf_of_parts_has_exactly_one_perturbation() {
+        fn leaves(v: &serde_json::Value) -> u64 {
+            match v {
+                serde_json::Value::Array(a) => a.iter().map(leaves).sum(),
+                serde_json::Value::Object(o) => o.values().map(leaves).sum(),
+                serde_json::Value::Null => 0,
+                _ => 1,
+            }
+        }
+        for d in [
+            ring(),
+            Dcel::assemble(
+                Labelling::new(9, 9, (0..81).map(|i| (i / 9) % 3 == 1).collect()),
+                ComplementaryConnectivity::arms()[1],
+            ),
+        ] {
+            let value = serde_json::to_value(d.parts()).expect("Parts serializes");
+            let n = leaves(&value);
+            assert!(n > 100, "only {n} scalar leaves; the walk covers nothing");
+            assert_eq!(
+                d.parts().perturbations().len() as u64,
+                n,
+                "one perturbation per SCALAR LEAF of the serialized structure. The leaf count \
+                 comes from the Serialize derive, so a field written `extra: _` in the walk's \
+                 pattern moves this side and not the other (RT5-A11)"
+            );
+        }
+    }
+
+    /// Every perturbation declares a family, and every family is exercised.
+    ///
+    /// RT5-A10: 96.34 % of the slots are one family, and for that family a
+    /// catch is guaranteed by the shape of the check. The decomposition is
+    /// published, so a family that silently went empty is visible as a zero
+    /// rather than absorbed into a total.
+    #[test]
+    fn every_slot_family_is_non_empty_and_declared() {
+        let d = ring();
+        let r = measure_audit_resolving_power(&d);
+        let total: u64 = r.by_family.iter().map(|f| f.slots).sum();
+        assert_eq!(total, r.slots, "the families must partition the walk");
+        for f in &r.by_family {
+            assert!(
+                SLOT_FAMILIES.contains(&f.family),
+                "unregistered family {:?}",
+                f.family
+            );
+            assert!(f.slots > 0, "family {:?} contributed no slot", f.family);
+            assert_eq!(
+                f.uncaught_by_audit, 0,
+                "family {:?} has an uncaught slot",
+                f.family
+            );
+        }
+        println!(
+            "families: {:?}",
+            r.by_family
+                .iter()
+                .map(|f| (f.family, f.slots))
+                .collect::<Vec<_>>()
         );
     }
 }

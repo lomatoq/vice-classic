@@ -36,29 +36,63 @@
 //! nothing, because the second number that was supposed to close them is an
 //! identity (RT5-A2).
 //!
-//! ## Why THIS construction is independent
+//! ## How independent this construction actually is — measured, not described
 //!
-//! Both cold contexts named the same remedy independently: a third construction
-//! of the arrangement, cross-checked against `assemble` at corpus size. This is
-//! it, and the independence is in the criterion rather than in the wording:
+//! This section said "Why THIS construction is independent" and carried a table
+//! whose last row read *"would survive a corrupted `face_of_padded_px` | it
+//! never looks at it"*. Two cold contexts refuted it independently
+//! (REDTEAM_M5 RT5-A9, REVIEW_M5_A D1-N1), and the refutation is one step up
+//! the provenance graph rather than in this file at all:
 //!
-//! | | `flood_faces` (in `assemble`) | [`face_map_from_boundaries`] |
+//! ```text
+//! // in assemble(), where Boundary::owners is built:
+//! let (left_px, right_px) = arr.flanks(ch[0]);
+//! let (lf, rf) = (face_at(&face_of_padded_px, &arr, left_px),
+//!                 face_at(&face_of_padded_px, &arr, right_px));
+//! ```
+//!
+//! `owners` is a SAMPLE of `face_of_padded_px`, two pixels per chain. So the
+//! rebuild is downstream of the field it certifies: the sentence is true of the
+//! FUNCTION and false of the CHECK.
+//!
+//! **The residual class, stated exactly rather than gestured at.** Reviewer A
+//! established it by publishing a refuted hypothesis first: moving the red
+//! team's global rotation above the sampling point IS caught, because the scan
+//! seeds from `FaceId::EXTERIOR` in the background ring rather than from the
+//! stored map. That is the construction's one genuinely external bit. So the
+//! set of corruptions this rebuild reproduces is exactly **every permutation of
+//! face ids that fixes the exterior** — and E2b, which fixes the exterior and
+//! swaps 1 with 2, passed 536 tests, four `[MET]` and a byte-identical artifact
+//! with 529 of 1089 pixels sitting in a face whose label was not theirs.
+//!
+//! | | `flood_faces` (in `assemble`) | this rebuild |
 //! |---|---|---|
 //! | works over | PIXELS | BOUNDARY CHAINS |
-//! | joins two pixels when | they share a label and are adjacent under that label's convention | nothing — it never joins pixels |
-//! | assigns a face by | flood fill from a seed | reading the OWNER recorded on the segment it just crossed |
-//! | would survive a corrupted `face_of_padded_px` | it produces it | it never looks at it |
+//! | joins two pixels when | they share a label and are adjacent under that label's convention | never — it does not join pixels |
+//! | assigns a face by | flood fill from a seed | reading the OWNER on the segment just crossed |
+//! | reads the stored map | it produces it | no |
+//! | **is derived from the stored map** | — | **YES, through `owners`** |
+//! | corruptions it reproduces | — | **every permutation of face ids fixing the exterior** |
 //!
-//! The scan starts in the background ring, which is the exterior by
-//! construction, and walks each row left to right. A vertical boundary segment
-//! between two pixels carries, in `Boundary::owners`, the face on each of its
-//! sides; crossing it means the current face becomes the owner on the far side.
-//! Between segments the face cannot change, because a face change without a
-//! boundary is precisely what a boundary is.
+//! ## The class rule, which is why this section is now a measurement
 //!
-//! So the map is rebuilt from `boundaries` alone. Comparing it with
-//! `face_of_padded_px` also cross-checks the OWNERS against the geometry, which
-//! is a second property the previous audit could not see either.
+//! **A cross-check is independent only up to the data it shares with what it
+//! checks, and independence is a property of the PROVENANCE GRAPH rather than
+//! of how different the algorithm looks.** The question is not "does B look
+//! different" but "what is the largest corruption of A that B reproduces". Both
+//! reviewers wrote that sentence independently; a third reviewer certified this
+//! construction as independent by checking that the stored map is not read and
+//! stopping there — which is the same error, committed while reviewing.
+//!
+//! ## What actually anchors the arrangement
+//!
+//! `audit`'s per-pixel check against the LABELLING, not this file. The labelling
+//! is the input: it is not derived from the map, the owners or the faces, so it
+//! is the one comparison in the audit whose two sides do not share a provenance.
+//! This rebuild remains worth having — it caught RT5-A1, it is the only check
+//! over the owners' geometry, and since delta-2 it also compares the west owner
+//! against the face the scan carries — but it is a check on the copy, and the
+//! anchor is what checks the value.
 
 use std::collections::BTreeMap;
 
@@ -106,11 +140,26 @@ fn vertical_segments(d: &Dcel) -> BTreeMap<(u32, u32), (FaceId, FaceId)> {
 /// Returns the padded map in the same layout `Parts::face_of_padded_px` uses,
 /// so the two are comparable element by element.
 pub fn face_map_from_boundaries(d: &Dcel) -> Vec<u32> {
+    face_map_and_owner_disagreements(d).0
+}
+
+/// A crossing whose WEST owner disagreed with the face the scan was carrying:
+/// `(x, y, face carried, owner recorded)`.
+pub type OwnerMismatch = (i64, i64, u32, u32);
+
+/// The rebuilt map, the number of west-owner disagreements, and the first one.
+pub type RebuiltMap = (Vec<u32>, usize, Option<OwnerMismatch>);
+
+/// The rebuilt map, the number of crossings whose WEST owner disagreed with the
+/// face the scan was carrying, and the first such crossing.
+pub fn face_map_and_owner_disagreements(d: &Dcel) -> RebuiltMap {
     let (w, h) = (d.width_px(), d.height_px());
     let segs = vertical_segments(d);
     let pw = w as usize + 2;
     let ph = h as usize + 2;
     let mut out = vec![FaceId::EXTERIOR.0; pw * ph];
+    let mut mismatched_west = 0usize;
+    let mut first_west: Option<OwnerMismatch> = None;
     for row in 0..ph {
         // Padded row `row` is canvas row `row - 1`.
         let y = row as i64 - 1;
@@ -124,20 +173,30 @@ pub fn face_map_from_boundaries(d: &Dcel) -> Vec<u32> {
             // pixel (x, y). Only rows inside the canvas can carry one.
             if y >= 0 && y < i64::from(h) && x >= 0 && x <= i64::from(w) {
                 if let Some((west, east)) = segs.get(&(x as u32, y as u32)) {
-                    // We are moving from the west pixel to the east pixel, so
-                    // the face becomes the owner on the east side. The west
-                    // owner is not used for the assignment; it is checked
-                    // against the face we were already carrying, which is what
-                    // makes this a cross-check of the OWNERS and not only of
-                    // the map.
-                    let _ = west;
+                    // The west owner IS compared against the face the scan is
+                    // already carrying. Until delta-2 this line read
+                    // `let _ = west;` under a comment saying it was checked
+                    // (REDTEAM_M5 MINOR, REVIEW_M5_B N12). A declared mechanism
+                    // that does not exist is worse than an absent one, because
+                    // the claim is what a reader budgets against.
+                    //
+                    // With it the walk is self-standing over the OWNERS: a
+                    // chain whose owners disagree with the run of faces around
+                    // it is a disagreement here, rather than something the
+                    // audit's site check has to catch downstream.
+                    if west.0 != face {
+                        mismatched_west += 1;
+                        if first_west.is_none() {
+                            first_west = Some((x, y, face, west.0));
+                        }
+                    }
                     face = east.0;
                 }
             }
             out[row * pw + col] = face;
         }
     }
-    out
+    (out, mismatched_west, first_west)
 }
 
 /// Compare the stored map against the one the boundaries imply.
@@ -146,7 +205,16 @@ pub fn face_map_from_boundaries(d: &Dcel) -> Vec<u32> {
 /// discarded so that a caller can refuse a comparison that compared nothing —
 /// an empty comparison agrees trivially (F-0039).
 pub fn face_map_agrees(d: &Dcel) -> Result<usize, FaceMapDisagreement> {
-    let rebuilt = face_map_from_boundaries(d);
+    let (rebuilt, mismatched_west, first_west) = face_map_and_owner_disagreements(d);
+    if let Some((x, y, carried, west)) = first_west {
+        return Err(FaceMapDisagreement {
+            x,
+            y,
+            stored: carried,
+            from_boundaries: west,
+            disagreeing_pixels: mismatched_west,
+        });
+    }
     let stored = d.padded_face_map();
     let n = rebuilt.len().min(stored.len());
     let pw = d.width_px() as usize + 2;
@@ -223,6 +291,64 @@ mod tests {
                 assert!(n > 0, "{name}: nothing compared");
             }
         }
+    }
+
+    /// **RT5-A9: the corruption delta-1 did not catch.**
+    ///
+    /// A permutation of face ids that FIXES the exterior and swaps 1 with 2.
+    /// `face_map_agrees` says TRUE on it — and that is asserted here rather
+    /// than hidden, because it is the honest boundary of this construction:
+    /// `Boundary::owners` is sampled from `face_of_padded_px` inside
+    /// `assemble`, so a relabelling that permutes both consistently is
+    /// reproduced by the rebuild. Independence is a property of the PROVENANCE
+    /// GRAPH, not of how different the algorithm looks.
+    ///
+    /// What catches it is the labelling anchor in `audit`, and this test pins
+    /// both halves so neither can be removed believing the other covers it.
+    #[test]
+    fn a_relabelling_that_keeps_every_count_defeats_the_rebuild_and_not_the_anchor() {
+        let l = lab(33, 33, |x, y| {
+            let (dx, dy) = (x as f64 - 16.0, y as f64 - 16.0);
+            let r = (dx * dx + dy * dy).sqrt();
+            (5.0..=13.0).contains(&r)
+        });
+        let d = super::super::Dcel::assemble(l, ComplementaryConnectivity::arms()[0]);
+        assert!(d.faces().len() >= 3, "the fixture needs two interior faces");
+        assert!(face_map_agrees(&d).is_ok(), "positive control");
+        assert!(super::super::audit(&d).is_ok(), "positive control");
+
+        let broken = super::super::swap_two_face_labels_above(&d, 16);
+        assert_ne!(
+            broken.parts(),
+            d.parts(),
+            "the corruption must change something"
+        );
+        // Every delta-1 check REPRODUCES it. This is the measured limit of the
+        // third construction, asserted rather than described: `owners` are
+        // sampled out of `face_of_padded_px` inside `assemble`, so a rebuild
+        // from `owners` cannot see a relabelling, and the signature comparison
+        // cannot either — one foreground label traded for one background label
+        // leaves both counts where they were.
+        assert!(
+            face_map_agrees(&broken).is_ok(),
+            "the rebuild is downstream of the owners, which are sampled from the map"
+        );
+        let sig = crate::cubical::signature(broken.labelling(), broken.connectivity());
+        assert_eq!(
+            (broken.foreground_faces() as u32, broken.holes() as u32),
+            (sig.components, sig.holes),
+            "the signature comparison survives the swap too"
+        );
+        // The anchor catches it, because the labelling is not derived from
+        // anything the corruption touched.
+        let e = super::super::audit(&broken).expect_err("the anchor must catch RT5-A9");
+        assert!(
+            matches!(
+                e,
+                super::super::InvariantViolation::FaceMapContradictsTheLabelling { .. }
+            ),
+            "{e}"
+        );
     }
 
     /// **RT5-A1, as a test.** The red team's own edit — rotate every entry of
