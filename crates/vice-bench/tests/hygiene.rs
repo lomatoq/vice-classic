@@ -1208,3 +1208,69 @@ fn only_declared_modules_call_the_render_pipeline() {
         }
     }
 }
+
+/// The mechanisms this milestone built EXIST, checked by a test rather than by a
+/// manual knock-out.
+///
+/// Condition 45, and it is F-0053's own remedy applied to F-0053's own instance.
+/// The `*.yaml` half of condition 26 was written, proven by a manual knock-out,
+/// then LOST when I restored `hygiene.rs` from a backup after knocking out an
+/// unrelated mechanism - and nothing noticed, because a knock-out is a procedure
+/// run once by hand and a lost mechanism leaves no failing test behind.
+///
+/// So each entry below answers condition 46's question - "what fails if this
+/// disappears tomorrow?" - with a test instead of a hope. The list is of
+/// PRECONDITIONS, not of places: each is a phrase whose absence silently widens
+/// what a mechanism accepts, which is exactly the failure mode a knock-out
+/// cannot see.
+#[test]
+fn the_mechanisms_this_milestone_built_are_still_present() {
+    for (file, needle, lost_if_absent) in [
+        (
+            "crates/vice-bench/tests/hygiene.rs",
+            "ext != \"yaml\"",
+            "a workflow named *.yaml stops being read at all, and RT45-A18 reopens (F-0053, the \
+             instance this test exists for)",
+        ),
+        (
+            "crates/vice-bench/tests/doc_claims.rs",
+            "quantity_tokens(cell)",
+            "the whole-row scan stops covering columns other than the evidence one, and RT45-A31 \
+             reopens: move the sentence one cell left",
+        ),
+        (
+            "crates/vice-bench/tests/doc_claims.rs",
+            "c == '№'",
+            "ordinal references start reading as measurements and the row scan fires on honest \
+             citations, which is how a guard gets deleted for firing on honest work",
+        ),
+        (
+            "crates/vice-bench/src/gates/mod.rs",
+            "git show HEAD",
+            "the gate decision stops being anchored to the repository and RT45-A21 reopens: one \
+             `run: sed -i` line before the step",
+        ),
+        (
+            "crates/vice-bench/src/topology/gate.rs",
+            "let TopologyGateConfig {",
+            "the exhaustive destructuring goes, and a threshold added without its site compiles \
+             again (RT45-A23)",
+        ),
+        (
+            "crates/vice-bench/src/gt/legal.rs",
+            "RasterProfile::from_id",
+            "a held-out profile name that resolves to nothing holds nothing out, and the D1 guard \
+             goes back to comparing with the key the mechanism joins on (RT45-A20)",
+        ),
+    ] {
+        let text = std::fs::read_to_string(repo_root().join(file))
+            .unwrap_or_else(|e| panic!("{file}: {e}"));
+        assert!(
+            text.contains(needle),
+            "{file} no longer contains {needle:?}. What is lost: {lost_if_absent}.\n\nThis test \
+             exists because a mechanism proven only by a manual knock-out is protected by \
+             nothing - the knock-out shows it worked once and says nothing about tomorrow \
+             (F-0053)"
+        );
+    }
+}
