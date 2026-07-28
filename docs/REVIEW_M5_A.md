@@ -563,3 +563,157 @@ Main tree unchanged and clean, at the same HEAD as at the start. The measuring c
 ---
 
 **Reviewer's note on the report itself, per §34.** I reproduced the milestone's documented commands, the gate artifacts and the negative tests, and I reproduced more than one adversarial case: I compiled an invalid `Dcel` from inside the crate, I measured the mutation walk against the structure it claims to exhaust, I measured the knockout's own population, and I re-derived condition 51's parity argument independently. The single most useful thing a second reviewer or the red team could do that I did not: **build a third, independent arrangement constructor and diff it against `assemble` at corpus size.** That is the one blind spot the audit documents and nothing in this milestone closes.
+
+---
+
+# REVIEW_M5_A — addendum 1 (delta-1)
+
+Reviewer A, independent cold review, Opus 5. The signed §0–§9 above is untouched; this is an append.
+Object: **`d042bba`**, commits **C249–C253** on top of `2216959`.
+
+## §A0. Hygiene
+
+```
+start:  main repo  git status --porcelain → (empty)
+        git rev-parse HEAD → d042bba0d53ff5d90836868726dc0aad7b3ccbc0
+```
+
+Clone `…/scratchpad/m5a-delta1-rev-qz83k` (unique by construction, condition 25), `CARGO_TARGET_DIR=…/tgt-m5a-delta1-qz83k` asserted **not to exist** before the first command. No `git worktree`; `git worktree list` shows one entry, the main tree. Every cargo call was blocking. A second clone `…-exp-qz83k` carries my probes and is deliberately dirty; no number from it is offered as a production measurement.
+
+```
+end:    measuring clone  git status --porcelain → (empty)   HEAD = d042bba
+        experiment clone  M dcel/mod.rs, M dcel/walk.rs     HEAD = d042bba
+        main repo         M docs/REDTEAM_M5.md              HEAD = d042bba
+```
+
+**The main-tree modification is not mine.** It is a 173-line append to `docs/REDTEAM_M5.md` (mtime 22:18, after my session began) — the red team writing its own delta-1 addendum concurrently. I diagnosed it far enough to confirm authorship and stopped at the header rather than read a parallel cold context's findings. My measurements are unaffected: all of them come from my clone, verified clean before and after each reported run.
+
+## §A1. What I reproduced
+
+| command | result |
+|---|---|
+| `cargo fmt --all --check` | `FMT_EXIT=0`, no output |
+| `cargo clippy --workspace --all-targets -- -D warnings`, **cold target dir** | `CLIPPY_EXIT=0`; all nine crates compiled from scratch, zero diagnostics |
+| `cargo test --locked --workspace` | `DEBUG_EXIT=0` — **534 passed, 0 failed, 12 ignored** |
+| `cargo test --locked --release --workspace` | `RELEASE_EXIT=0` — **534 passed, 0 failed, 12 ignored** |
+| `gt-corpus dcel --scope full` | `GATE_EXIT=0`, **four `[MET]`**; 474 arms, 237 groups, 247 in / 247 out, 10 convention-dependent (**7 corpus / 3 register, now computed**), 167/167 committed, `155160 slots, caught by audit 155160, UNCAUGHT 0, no-ops 0` |
+| artifact | `7406BF31…CEB11B05` = `7406BF31…CEB11B05` — **byte-identical** |
+| `dcel_props -- --ignored` | 2 passed; `4x4 exhaustive: 131072 arrangements, 12 classes, 41678 with a critical 2x2` |
+| `dcel_harness -- --ignored` | **5 passed**, 0 failed (380 s), including the new `every_gate_clause_has_a_knockout_that_reddens_it` |
+| `--workspace -- --ignored` | **exceeded my 10-minute cap; not verified end-to-end.** The `-101` cause is fixed by inspection (`legal.rs` ```` ```ignore ```` → ```` ```text ````) and both M5 targets pass individually. I do not certify the aggregate exit code. |
+
+## §A2. RT5-A2 — genuinely closed. The control the governor asked for, run.
+
+The question was whether `caught_by_audit == slots` became an identity from the other side. **It did not.** I disabled exactly one check — the third construction — in an experiment clone, changing nothing else, and re-measured the walk per field on a 33×33 ring:
+
+```
+BASELINE (crossing check enabled)          E1 (crossing check DISABLED)
+slots 1400  caught 1400  UNCAUGHT 0        slots 1400  caught 175  UNCAUGHT 1225
+  face_of_padded_px  1225 / 1225 / 0         face_of_padded_px  1225 / 0 / 1225
+  boundaries[].path   146 /  146 / 0         boundaries[].path   146 / 146 / 0
+  site                 12 /   12 / 0         site                 12 /  12 / 0
+  faces[].loops         4 /    4 / 0         (every other field unchanged)
+  vertices              4 /    4 / 0
+```
+
+`uncaught_by_audit` moves 0 → **1225**, exactly the `face_of_padded_px` slots, exactly the field RT5-A1 targeted, with every other field still fully caught. The predicate is live, attributable, and falsifiable. **The 3.6 % → 100 % jump is the first kind — the audit began reading the structure — not the second.** Both identities are gone from `ResolvingPower`, the clause now stands on the complement, and `gate_min_slots_perturbed = 40000` closes the "a walk that visited one slot satisfied it" hole. This is the strongest work in the delta and it holds.
+
+## §A3. Findings
+
+### M5A-D1-N1 — **BLOCKER.** The third construction is not independent of `flood_faces`, and RT5-A1's class survives one step earlier in the same function.
+
+**The structural fact.** `crossing.rs`'s independence table claims `face_map_from_boundaries` "never looks at" `face_of_padded_px`. That is literally true of the function and materially false of the check, because `Boundary::owners` is *sampled out of* `face_of_padded_px` inside `assemble`:
+
+```rust
+let (left_px, right_px) = arr.flanks(ch[0]);
+let (lf, rf) = (face_at(&face_of_padded_px, &arr, left_px),
+                face_at(&face_of_padded_px, &arr, right_px));
+```
+
+So the "third construction" is **downstream of the field it certifies**. Its only genuinely external anchor is one bit: *the padding ring is face 0*.
+
+**E2 — the red team's edit moved before the owners are sampled.** I took RT5-A1's ten lines verbatim and moved them from "just before `Dcel { … }`" to "just after `flood_faces`". **Caught** — 4 tests fail, including `the_boundary_walk_rebuilds_the_face_map`. My hypothesis that it would survive was wrong, and I am reporting the experiment rather than the hypothesis: the exterior anchor fires because a global rotation moves the exterior off id 0.
+
+**E2b — the same corruption, made to respect that one anchor.** A permutation that *fixes* the exterior and swaps ids 1↔2, applied inside `assemble` before the owners are sampled. Nothing else changed:
+
+```
+cargo test --locked --release --workspace   →  536 passed, 0 failed
+gt-corpus dcel --scope full                 →  four [MET], EXIT 0
+artifact SHA-256                            →  7406BF31…CEB11B05  BYTE-IDENTICAL
+audit(&d)                                   →  None   (no violation)
+face_map_agrees(&d)                         →  true
+pixels whose faces[face_of_pixel(p)].label
+  contradicts the labelling                 →  529 of 1089   (48.6 %)
+```
+
+It is a real defect, not a relabelling: the public `Dcel::face_of_pixel` reports a face whose `label` disagrees with the labelling on nearly half the canvas, and every instrument M5 owns says the arrangement is sound.
+
+**The root cause, stated once.** After delta-1 the audit connects the map to the owners and the owners to the map. It still **never connects either to the labelling.** The `signature` comparison compares *counts of faces*, not per-pixel attribution; `face_of_pixel` is read by no predicate. The loop is closed and its only external anchor is the identity of face 0.
+
+**This refutes the author's own F-0048 self-assessment for `audit()`,** which says the row "PASSES ONLY BECAUSE IT IS BOUNDED — a field with no predicate now shows up as an uncaught slot and fails clause 4." The bound is over *perturbations of a correct `Parts`*. A defect inside `assemble` produces a self-consistent wrong `Parts` that is not a perturbation of anything and never enters the walk. **The bound does not cover the class RT5-A1 belongs to** — E2b is the demonstration, and it is why 155 160/155 160 and a byte-identical artifact coexist with a half-wrong face map.
+
+**General rule of the class.** A cross-check is independent only up to the data it shares with what it checks. Deriving construction B from an intermediate that construction A produced makes B a paraphrase of A however different B's algorithm looks — F-0048's own lesson, applied to the *provenance of the inputs* rather than to the shape of the code. The test is not "does B look different" but **"what is the largest corruption of A that B reproduces"**; here that set is *every permutation of face ids fixing the exterior*.
+
+**The remedy is one line and needs no third construction.** The ground truth is already in the structure and unread:
+
+```
+for every pixel p:  faces[face_of_pixel(p)].label == labelling.inside()[p]
+```
+
+That catches RT5-A1, E2 and E2b alike, and it anchors the map to the labelling instead of to itself.
+
+### M5A-D1-N2 — MAJOR. `path[j].1` is still never perturbed, is not fixed, and is not declared.
+
+`walk.rs:218-221` is unchanged: `pt.0 = pt.0.wrapping_add(1);`, and `git diff 2216959..d042bba -- walk.rs` adds no `.1` perturbation. Measured on a 33×33 ring: `perturbations() = 1400`; with both path coordinates it would be 1546; the true scalar-slot count of `Parts` is 1548. **146 perturbations for 146 path points — one coordinate per point.** I found no record of it in `STATUS_M5.md`, `REPRODUCIBILITY_M5.md` or `FAILURE_LEDGER.md`.
+
+The governor's summary says the author found this himself. The tree at `d042bba` shows it neither fixed nor declared. It now carries more weight than in my signed §4: clause 4's conjuncts are `uncaught_by_audit == 0` and `gate_min_slots_perturbed = 40000`, both computed over a slot set that omits ~9.6 % of the structure's scalar slots — and the claim "one perturbation per scalar slot" is asserted in `walk.rs`, `audit.rs` and ADR-0031 §3.
+
+### M5A-D1-N3 — MINOR. One of the eight N8 sites is uncorrected.
+
+`crates/vice-bench/src/dcel/mod.rs:423` still reads "every twenty-fifth" against `RESOLVING_POWER_STRIDE = 17` at `:426`. It is in neither errata table.
+
+### M5A-D1-N4 — OBSERVATION. The number corrections are errata, not repairs.
+
+`STATUS_M5.md:101` still reads "11 classes", `:124` and `:249` still read "56", ADR-0031 `:85` still reads "131 070 / 11" and `:95`/`:100` still read "four modules"/"four files". The corrections live in appended errata tables (STATUS `:387-388`, ADR `:146-153`). Defensible under this project's append-only convention for reviewed documents, and every correction I checked is present and correct — but the number a reader meets first is still the wrong one, and none of them is derived. That is limitation 36, owner M6, unchanged.
+
+## §A4. Limitation 37, judged as a claim
+
+The author's own F-0048 table says `transaction_for` **"DOES NOT PASS. Mitigated, not closed"** — 307 of 474 excluded, published, owner M6. I agree with the classification and with the honesty of stating it in his own audit rather than in a footnote.
+
+On the **price** — "a harness that attempts every arm and classifies the outcome, plus whatever `apply` needs to accept a multi-step signature delta" — I looked for the hidden cost this project usually has and did not find it: `EditKind`'s variant names are **not** carried in `docs/gt/TOPOLOGY_M4_5.json` (checked: zero occurrences of `bridge_close`/`gap_open`/`hole_open`/`hole_fill`), so widening the enum does not touch a signed artifact and does not drag §27.1 in. **The price is honest and the deferral to M6 is legitimate.** §28 M5 does name *compound* transactions and the excluded subclass is exactly those, so it must not be deferred twice.
+
+## §A5. Conditions 52–60, verified
+
+| | condition | verdict |
+|---|---|---|
+| 52 | N1 swapped `format!` args | **CLOSED** — the row now reads "0 … and 0 were not the assembly … A further 8 arm(s) carry a valid but EMPTY arrangement". F-0064 records the class |
+| 53 | N8, eight sites | **CLOSED except one** — see D1-N3; gate-file provenance corrected in C249, which touched `configs/GATES_V1.toml` and nothing else (§27.7 kept) |
+| 54 | N3 CI | **CLOSED** — four M5 steps added, plus `every_ignore_that_claims_ci_is_named_by_a_workflow_step`, which derives the claim from `ci.yml` rather than trusting it. F-7's closure correctly declared invalid and reissued |
+| 55 | N2 transaction population | **MITIGATED, declared** — limitation 37, see §A4 |
+| 56 | N7 tautological conjunct | **CLOSED** — `arms_that_are_not_their_own_assembly` removed from `faces_row` |
+| 57 | N6 incidence | **CLOSED** — `degree_multiset` / `junction_count` replace `incidence_signature` |
+| 58 | N4 path slots | **NOT CLOSED** — see D1-N2 |
+| 59 | N5 audit panic / residual price | **CLOSED** — `d.faces().first()` guards both sites; `field: _` bypass named in `walk.rs` where the strength is claimed |
+| 60 | N9 / N10 / N11 | **CLOSED** — `knocked.transactions_attempted > 0` at `dcel_harness.rs:116`; traceability M5-12→T9, M5-13→T10 |
+
+## §A6. F-0048 applied to my own method, before I sign
+
+**Q1 — is there a literal enumerating my subjects?** Yes, twice. My delta-1 plan was the governor's three-item list, so the answer to Q2 was "the governor names a fourth" — the same shape I charged the author with. And my per-field classifier in `rev_a_resolving_power_by_field` is eight hand-written buckets with a catch-all; a field I failed to name would have been silently counted as `site`. **The only thing that made it safe is that I checked the buckets sum to `slots` (1400 = 1400) — and I checked it because the sum is a judge and the enumeration is not.**
+
+**Q3 — who was my judge?** For E1, E2 and E2b: the compiler, the test suite and the gate binary. Not my reading of the code. My reading produced a hypothesis (a global rotation before the owners would survive) and the compiler **refuted it** — E2 was caught. I published the refutation rather than quietly replacing it with the version that worked, because the pair E2/E2b is what turns an accusation into a boundary statement: the check has exactly one bit of external anchoring, and I can say which bit.
+
+**Q4 — did my guard share a key with the mechanism?** For E2b, no: the verdict came from a per-pixel comparison against the *labelling*, which is precisely the input no M5 predicate reads. Had I judged E2b with the milestone's own instruments I would have concluded it was correct.
+
+**Q5 — both directions?** E2 red, E2b green, E1 red-on-removal, baseline green. That is what I have; it is also the reason I can state the residual class exactly rather than gesturing at it.
+
+## §A7. What I could not verify
+
+CI execution (the governor's). `cargo test --workspace -- --ignored` end-to-end — exceeded my 10-minute blocking cap; the two M5 targets pass individually and the `-101` cause is fixed by inspection, but I do not certify the aggregate exit code. Cross-platform / A7.1. Donor sources (D-3). Whether the *shipped* `flood_faces` is correct per-pixel: after delta-1 that still rests on inspection plus two assertions on one 9×9 disk, which is the content of D1-N1 rather than a gap in my method.
+
+## §A8. Verdict
+
+**VERDICT (addendum 1): REJECT — one blocker (M5A-D1-N1), one major (M5A-D1-N2).**
+
+Said plainly, because the delta deserves it: RT5-A2 is genuinely and verifiably closed, RT5-A3/N3 is closed with a mechanism that derives the claim instead of asserting it, seven of my nine conditions are closed, and the author's own F-0048 table names two rows that do not pass rather than reporting nine green. This is the strongest delta the project has produced. The blocker is narrow and its remedy is one line — but it is the same class as the blocker it was written to close, at a placement one step earlier in the same function, and it passes with a byte-identical artifact while half the canvas reports the wrong ink.
+
+**GATE §28 M5: NOT MET**
