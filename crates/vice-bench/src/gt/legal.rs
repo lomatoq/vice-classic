@@ -3,7 +3,7 @@
 //!
 //! ## Why this module exists, and why the previous two answers were not enough
 //!
-//! The door has now been closed four times, and the first three all failed the
+//! The door has now been closed six times, and the first five all failed the
 //! same way — a check that READS THE SOURCE cannot enumerate the ways a value
 //! leaves a crate:
 //!
@@ -55,17 +55,29 @@
 //!    not a scan and not a list: mint a handle from the wide corpus and it
 //!    fails, wherever the call is written and whatever it is called.
 //!
-//! ## The residual, stated because it is not closed
+//! ## The residual, at the price it actually costs
 //!
-//! A future module inside `vice-bench` can still declare its OWN public struct
-//! with a private `Vec<GtSourceGroup>` field and re-implement render and
-//! rasterize on it. That compiles, and no mechanism here stops it: a crate
-//! boundary would, but the corpus and the harnesses that legitimately walk it
-//! (`corridor`, `oracle`, `topology`) live in one crate by construction, and
-//! splitting them would have to make `GtSourceGroup` public in the new crate,
-//! which is strictly worse. What this module closes is every EXISTING path and
-//! the two ways to widen this handle; what it leaves open is writing a second
-//! handle from scratch, which is a new public API and shows up as one.
+//! ONE description, here, and STATUS_M4_5 points at this one rather than
+//! carrying a second (condition 27). Two earlier versions of this paragraph
+//! were wrong in the same direction - they priced the residual too high - and
+//! the decision not to close the class rested on that price, which is why the
+//! wording is now the cheapest form anyone has demonstrated rather than the
+//! first form that came to mind.
+//!
+//! What is NOT closed, in the cheapest known form:
+//!
+//! - ONE `pub fn` in an already-declared module, with no new type, returning
+//!   `Vec<u8>` from `rgba8()`, `Vec<Vec<f64>>` from coverage, or a `String` from
+//!   a foreign crate's `Debug`. Measured: 22 of 22 sealed-audit groups and
+//!   258 048 bytes (RT45-A19, M45-N23). No visibility modifier reaches this:
+//!   the type seal ends at the first type this project does not declare, and
+//!   `Vec<u8>` is that type.
+//!
+//! What answers it instead, because types cannot:
+//! `hygiene.rs::only_declared_modules_call_the_render_pipeline` derives the
+//! pipeline by return type and declares WHICH modules may call it. That is a
+//! declared set and therefore reviewable, which is weaker than a compiler error
+//! and is said here rather than implied.
 //!
 //! The source scan survives as a second echelon and says so in its own doc
 //! comment. It models a habit. This module is the proof.

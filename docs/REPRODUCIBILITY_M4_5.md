@@ -169,6 +169,12 @@ Float-ы округлены до четырёх знаков и сверяютс
 | row T19d | unit-test | — |
 | row T20d | unit-test | — |
 | row T21d | unit-test | — |
+| row T22d | unit-test | — |
+| row T23d | unit-test | — |
+| row T24d | unit-test | — |
+| row T25d | unit-test | — |
+| row T26d | unit-test | — |
+| row T27d | unit-test | — |
 | row T4 | unit-test | — |
 | row T5 | unit-test | — |
 | row T6 | unit-test | — |
