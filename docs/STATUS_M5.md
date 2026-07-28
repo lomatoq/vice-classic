@@ -500,3 +500,119 @@ repeated the class it documents — twice inside mechanisms built during M5 to
 close that very class.
 
 **STOPPED AFTER M5 DELTA-1 — M5.5 NOT STARTED.**
+
+
+---
+
+# Addendum 2 — delta-2 (C255–C258)
+
+`REDTEAM_M5` addendum 1 **FAIL**, `REVIEW_M5_A` addendum 1 **REJECT**,
+`REVIEW_M5_B` addendum 1 **ACCEPT WITH CONDITIONS**. Two of three say NOT MET,
+so the gate is not met. This addendum records delta-2; the body and addendum 1
+stand as signed.
+
+## A2.1 The blocker: one step up the same provenance graph
+
+`Boundary::owners` is computed in `assemble` as
+`face_at(&face_of_padded_px, ...)` — a SAMPLE of the field, two pixels per
+chain. So delta-1's "third independent construction" sits **downstream of what
+it certifies**, and `crossing.rs`'s own independence row — *"would survive a
+corrupted `face_of_padded_px` | it never looks at it"* — is true of the FUNCTION
+and false of the CHECK.
+
+Reviewer A established the residual class exactly, by publishing a **refuted**
+hypothesis first: moving the red team's rotation above the sampling point IS
+caught, because a global rotation moves the exterior off id 0 — the
+construction's only external bit. A corruption respecting that bit passed
+everything, with **529 of 1089 pixels** in a face whose label was not theirs.
+
+The remedy needed no third construction:
+
+```text
+for every pixel p:  faces[face_of_pixel(p)].label == labelling.inside()[p]
+```
+
+**The labelling is the input.** It is not derived from the map, the owners or
+the faces, so it is the one comparison in the audit whose two sides do not share
+a provenance — and the one thing no M5 predicate read. Reviewer A's note is the
+sharpest statement of the cost: *"Had I judged E2b with the milestone's own
+instruments I would have concluded it was correct."*
+
+**This refutes my own F-0048 row for `audit()`.** I wrote that it "PASSES ONLY
+BECAUSE IT IS BOUNDED — a field with no predicate shows up as an uncaught slot".
+The bound is over *perturbations of a correct `Parts`*. A defect inside
+`assemble` produces a self-consistent wrong value that is not a perturbation of
+anything and never enters the walk at all. Reviewer B falsified the same formula
+from the other side — bounded only on the non-empty branch.
+
+## A2.2 What else delta-2 closed
+
+| finding | what it was | closed by |
+|---|---|---|
+| **RT5-A9 / M5A-D1-N1** | the cross-check derived from what it checks | the labelling anchor, plus the corruption as a gate knockout with a two-sided control |
+| **M5B-N11** (a) | the judge returned before the map check on the empty branch | the anchor runs before every branch; the empty branch executes the comparison |
+| **M5B-N11** (b) | clause 4's green rested on arm ORDER — 8 empty arms at 87..96, stride 17 hitting 86 and 103 | the probe takes the first arm of EACH branch deterministically; both counts published |
+| **RT5-A10** | 96.34 % of the slots are one family whose catch is guaranteed by the check's shape | `by_family` is in the artifact; the total is no longer offered alone |
+| **RT5-A11** | a new field still cost one line `_` | the site count is compared against the scalar-leaf count of the SERIALIZED `Parts`, which `extra: _` cannot move |
+| **M5A-D1-N2** | `path[j].1` never perturbed, and delta-1 reported it fixed | perturbed; and the false claim is recorded as F-0067 rather than quietly corrected |
+| **M5B-N12** | `let _ = west;` under a comment saying it was checked | implemented, which also gives the rebuild self-standing completeness over the owners |
+| **M5A-D1-N3 / M5B-N13** | stride comment, "131 070", limitation-18 premise (both sites), CI-checker bypass price | all four; the gate-file site travelled alone (C256) |
+
+**Found by delta-2's own new mechanism, before any reviewer:** the first full run
+with the deterministic probe reported **26 idle slots** in the new left-owner
+site — on a two-face arrangement it computed its own input. That is F-0059's
+counter firing in the very site F-0059 was written about, one milestone later.
+
+## A2.3 Corrections to addendum 1
+
+| said | is |
+|---|---|
+| A1.6, `audit()` row: "PASSES ONLY BECAUSE IT IS BOUNDED" | **the bound does not cover the class RT5-A1 belongs to.** It is over perturbations of a correct `Parts`; a defect inside `assemble` is not a perturbation. Falsified from two directions (A: non-perturbative defects; B: the empty branch) |
+| A1.6, `dcel::crossing` row: "Q4 — no" | **YES.** The guard reads a quantity sampled off the map it checks. Q4 was the one question of the five I did not ask about that mechanism |
+| C250's message: `path[j].1` among the fixes | **it was not fixed.** The edit never landed; see F-0067 |
+
+## A2.4 New limitations
+
+42. **The rebuild is a check on the COPY, not on the value**, and it stays — it
+    caught RT5-A1, it is the only check over the owners' geometry, and since
+    delta-2 it compares the west owner too. What anchors the arrangement is the
+    per-pixel comparison against the labelling. The residual class the rebuild
+    reproduces is stated exactly in `crossing.rs`: every permutation of face ids
+    fixing the exterior.
+
+43. **The CI checker greps line-wise**, so a COMMENTED-OUT line carrying
+    `--test <name>` and `--ignored` satisfies it; it covers only
+    `crates/*/tests/`; and it verifies that a step NAMES a target, not that a
+    runner executes it. Named in its doc comment. **Owner M6.**
+
+44. **Limitation 37 must not be deferred twice.** Reviewer A checked the price
+    and found it honest — `EditKind`'s variants are in no signed artifact, so
+    widening the enum does not drag §27.1 in — and said plainly that the
+    compound transaction is what §28 M5 names. **Owner M6, and it is the one
+    carried item with no second deferral available.**
+
+## A2.5 F-0048 after delta-2, with Q4 re-read as PROVENANCE
+
+Q4 is no longer "does the guard share a KEY with the mechanism" but **"does the
+guard share a PROVENANCE with it"** — the re-reading delta-2 was bought with.
+
+| mechanism | Q1 literal | Q2 next finding | Q3 judge | **Q4 provenance shared?** | Q5 both ways | verdict |
+|---|---|---|---|---|---|---|
+| representation invariants (six of §12) | no | criterion changes | compiler | no | yes | **PASSES** |
+| `audit`'s labelling anchor (new) | no | criterion changes | per-pixel comparison | **no — the labelling is the input** | RT5-A9 red, clean green | **PASSES** |
+| `crossing::face_map_agrees` | no | criterion changes | an independent traversal | **YES, through `owners`** | RT5-A1 red, RT5-A9 reproduced | **DOES NOT PASS Q4**, residual class stated exactly |
+| `Parts::perturbations` | no | the leaf count moves and the test fails | compiler **and** the `Serialize` derive | no | red, empty, idle | **PASSES** |
+| `audit()` | **YES — hand-written blocks** | "append a block" | habit, bounded by `uncaught == 0` | — | bounded only over PERTURBATIONS of a correct value | **DOES NOT PASS.** The bound's domain is named now instead of claimed |
+| `RunKnockouts` | no — counted against `gate_table()` | a clause without a knockout fails | the gate table | no | each reddens its own row | **PASSES** |
+| `transaction_for` | **YES — `_ => return None`** | "the fifth kind is dropped" | the outcome | yes | excluded count published | **DOES NOT PASS.** Limitation 37, owner M6, no second deferral |
+| `Threshold::from_gates` | no | type error | compiler | no | yes | **PASSES** |
+| CI claim checker | no | a claim without a step fails | the workflow file | no | both, incl. its own false positive | **PASSES**, bypass price named |
+| `doc_claims` doc set | exceptions only | forgetting is red | the file system | no | stale exceptions fail | **PASSES as a default** |
+
+**Three rows do not pass, and all three are named rather than argued away.** Two
+of them — `crossing` and `audit()` — are what delta-2 was written about, and what
+changed is that their limits are measured and stated instead of claimed.
+`crossing` is kept because a check on the copy is worth having once you know
+that is what it is.
+
+**STOPPED AFTER M5 DELTA-2 — M5.5 NOT STARTED.**

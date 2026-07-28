@@ -180,3 +180,19 @@ were quoted back at me from three independent cold contexts.
    REDTEAM_M5 RT5-A1 walked through: it was published as an honest weakness and
    what it said is that `face_of_padded_px`, the largest field, was read by no
    predicate at all.
+
+
+## Erratum 2 — delta-2 (C258)
+
+1. **§2's independence claim for `dcel::crossing` was wrong, and this ADR
+   carried it.** The construction reads `Boundary::owners`, which `assemble`
+   samples out of `face_of_padded_px`. It is a check on the COPY. What anchors
+   the arrangement is `audit`'s per-pixel comparison against the LABELLING — the
+   only input in the system whose provenance is independent of `assemble`
+   (F-0065).
+2. **§3's "one perturbation per scalar slot" was false for `path[j].1`** from
+   C238 until C255 — about a tenth of the slots (F-0067).
+3. **§5's three axes are about the INPUT and do not bound the OUTPUT.** An
+   exhaustive sweep says nothing about a field no predicate reads, and nothing
+   at all about a defect inside `assemble`, which produces a self-consistent
+   wrong value that is not a perturbation of anything (F-0066).

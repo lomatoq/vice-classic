@@ -29,7 +29,7 @@ cargo test --locked --workspace
 cargo test --locked --release --workspace
 ```
 
-Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-1: **534 passed,
+Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-2: **537 passed,
 0 failed** in each profile.
 
 **The `--ignored` run, and its EXIT CODE** — which is the thing that matters,
@@ -72,9 +72,27 @@ groups 237, classes in 247 out 247, convention-dependent 10
   (7 from the CORPUS, 3 from the structural register)
 transactions 167 attempted, 167 committed, 0 rolled back
 unrelated chains 127, moved 0
-audit resolving power: 28 arrangements of 474 arms, 155 160 slots,
-  caught by audit 155 160, UNCAUGHT 0, no-ops 0
+audit resolving power: 29 arrangements of 474 arms, 161 391 slots,
+  caught by audit 161 391, UNCAUGHT 0, no-ops 0
+    vertices              82        boundaries.owners     90
+    boundaries.endpoints  90        boundaries.path    10 058
+    faces.label           67        faces.loops           90
+    face_of_padded_px 150 644       site                 270
 ```
+
+**Read the decomposition, not the total.** `face_of_padded_px` is 150 644 of the
+161 391 slots — 93 % — and for that family a catch is guaranteed by the SHAPE of
+the check: the perturbation moves the map and the rebuild reconstructs it from
+`boundaries`, which the perturbation does not touch. "161 391 of 161 391" is
+true and reads as a coverage it is not (REDTEAM_M5 RT5-A10). The breakdown is in
+the artifact so a reviewer does not have to reconstruct it.
+
+The slot count rose from 155 160 because `path[j].1` is perturbed at last
+(REVIEW_M5_A D1-N2 — delta-1 reported this fixed and it was not; F-0067) and
+because the owners are two sites rather than one, so the site count equals the
+count of scalar leaves of the serialized `Parts`. 29 probes rather than 28: the
+probe now takes the first arm of EACH judge branch deterministically, because
+clause 4's green rested on arm order (REVIEW_M5_B N11).
 
 Two of those lines changed in delta-1, and both changes are the point of it.
 
@@ -149,9 +167,15 @@ Suggestions, not instructions — the point of a red team is that it chooses.
 2. **Edit `dcel::lattice::Arrangement::succ`** so it behaves differently only
    above some size. The size axis is supposed to make that visible; F-8 is the
    record of the last time it was not.
-3. **Make `assemble` wrong in a way that agrees with itself** — that is the
-   documented blind spot of `is_the_assembly_of_its_own_labelling`, and the
-   construction invariants are what is supposed to catch it.
+3. **Make `assemble` wrong in a way that agrees with itself.** This is the one
+   that worked twice: RT5-A1 (a field no predicate read) and RT5-A9 (a
+   relabelling that every check reproduced, because the cross-check's input is
+   sampled out of what it checks). Try it a third time, and ask the question the
+   reviewers wrote: not "does my check look different" but **"what is the
+   largest corruption of `assemble` that my check reproduces"**. For
+   `crossing::face_map_agrees` that set is stated in its own doc comment —
+   every permutation of face ids fixing the exterior — and the labelling anchor
+   is what lies outside it.
 4. **Relax a `[dcel]` threshold and change the code that meets it in one
    commit.** `gates-check` should refuse.
 5. **Find an arm where the DCEL and `topology::independent` agree and both are
