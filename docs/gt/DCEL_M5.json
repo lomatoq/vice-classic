@@ -18361,10 +18361,70 @@
   "arms_that_are_not_their_own_assembly": 0,
   "audit_resolving_power": {
     "arms_seen": 474,
-    "arrangements_probed": 28,
-    "slots_perturbed": 155160,
-    "caught_by_audit": 155160,
+    "arrangements_probed": 29,
+    "empty_arms_probed": 1,
+    "non_empty_arms_probed": 1,
+    "slots_perturbed": 161391,
+    "caught_by_audit": 161391,
     "uncaught_by_audit": 0,
-    "no_ops": 0
+    "no_ops": 0,
+    "by_family": [
+      {
+        "family": "vertices",
+        "slots": 82,
+        "caught_by_audit": 82,
+        "uncaught_by_audit": 0,
+        "no_ops": 0
+      },
+      {
+        "family": "boundaries.owners",
+        "slots": 90,
+        "caught_by_audit": 90,
+        "uncaught_by_audit": 0,
+        "no_ops": 0
+      },
+      {
+        "family": "boundaries.endpoints",
+        "slots": 90,
+        "caught_by_audit": 90,
+        "uncaught_by_audit": 0,
+        "no_ops": 0
+      },
+      {
+        "family": "boundaries.path",
+        "slots": 10058,
+        "caught_by_audit": 10058,
+        "uncaught_by_audit": 0,
+        "no_ops": 0
+      },
+      {
+        "family": "faces.label",
+        "slots": 67,
+        "caught_by_audit": 67,
+        "uncaught_by_audit": 0,
+        "no_ops": 0
+      },
+      {
+        "family": "faces.loops",
+        "slots": 90,
+        "caught_by_audit": 90,
+        "uncaught_by_audit": 0,
+        "no_ops": 0
+      },
+      {
+        "family": "face_of_padded_px",
+        "slots": 150644,
+        "caught_by_audit": 150644,
+        "uncaught_by_audit": 0,
+        "no_ops": 0
+      },
+      {
+        "family": "site",
+        "slots": 270,
+        "caught_by_audit": 270,
+        "uncaught_by_audit": 0,
+        "no_ops": 0
+      }
+    ]
   }
 }
