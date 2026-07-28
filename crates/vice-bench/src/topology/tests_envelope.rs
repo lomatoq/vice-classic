@@ -94,25 +94,39 @@ fn every_published_class_came_from_the_envelope() {
 /// already written for the GT signature. `propose`, `signature_classes`,
 /// `observations_for` and `TOPOLOGY_CONFIG_V1` are gone from the path.
 ///
-/// SEVEN links remain shared, and the number is counted here rather than
-/// asserted, because the previous two counts were both wrong in my favour -
-/// eight claimed as "independent", then four when the real figure was more.
-/// RT45-A33 found the fifth; recounting properly finds two more, so the list is
-/// given in full and a reader can check it against the code without trusting me:
+/// EIGHT links remain shared, counted BY SUBSTITUTION (condition 50) rather
+/// than by reading the body, because reading gave the wrong number three times
+/// running - four, then seven, and every one of them low, every one in my
+/// favour.
 ///
-///   1. `render_cell`                 produces the pixels
-///   2. `CanonicalImage::from_straight_srgb8`
-///   3. `analyze_full`                produces the coverage field
-///   4. `ANALYSIS_CONFIG_V1`          parameterizes it
-///   5. `ComplementaryConnectivity::arms()`   which two arms exist (RT45-A33)
-///   6. `conn.foreground()`           accessor used by both counters
-///   7. `alpha_field()` / `width_px()` / `height_px()`  the observation's shape
+/// THE COUNTING CONVENTION, stated so a recount can disagree with something
+/// definite: a link is any named item both paths invoke whose replacement by a
+/// different implementation could change what either side reports. Accessors
+/// count. Configuration constants count. Choices count. The test is "substitute
+/// it and see", not "does it look load-bearing".
 ///
-/// Links 1 to 4 produce the OBSERVATION, which both sides must agree on for the
-/// comparison to mean anything at all - an injection there changes the picture
-/// itself, and the frozen artifact is what stands against that. Links 5 to 7 are
-/// accessors with no arithmetic in them; sharing them narrows what this test can
-/// see, and it is named rather than netted out.
+///   1. `render_cell`                         pixels
+///   2. `CanonicalImage::from_straight_srgb8` canonicalization
+///   3. `analyze_full`                        the coverage field
+///   4. `ANALYSIS_CONFIG_V1`                  parameterizes it
+///   5. `out.chosen`                          WHICH HYPOTHESIS
+///      - a CHOICE, not an accessor, and the one I missed (RT45-A33): it selects
+///        the field both sides then read.
+///   6. `ComplementaryConnectivity::arms()`   which two arms exist
+///   7. `conn.foreground()`                   read by both counters
+///   8. `alpha_field` / `width_px` / `height_px`  the observation's shape
+///
+/// Ungrouped the red team counts ten, splitting item 8 into its three
+/// accessors; the reviewer counts five load-bearing or eight with accessors.
+/// Eight is what this convention yields, the three counts differ only in
+/// grouping, and the grouping is written above so the difference is visible
+/// rather than arguable.
+///
+/// Links 1 to 5 produce and select the OBSERVATION, which both sides must agree
+/// on for the comparison to mean anything - an injection there changes the
+/// picture itself, and the frozen artifact stands against that. Links 6 to 8
+/// carry no arithmetic; sharing them narrows what this test can see, and that is
+/// named rather than netted out.
 ///
 /// What is NOT shared is the thing that matters: the counting. `propose`,
 /// `signature_classes`, `observations_for` and `TOPOLOGY_CONFIG_V1` are gone,
@@ -195,10 +209,65 @@ fn the_independent_judge_agrees_with_production_at_corpus_sizes() {
     };
 
     let mut compared = 0u64;
+
+    // BOUNDARY labellings first, and they are the correction RT45-A32 needed a
+    // second time. A fixed seed with fixed sizes and a fixed trial count is not
+    // a SAMPLE - it is a list of 400 particular labellings written compactly.
+    // As reproducibility that is right; as a coverage argument it is wrong,
+    // because the set grows neither between runs nor between machines. The red
+    // team copied its addendum-7 edit character for character and it passed:
+    // its trigger is density 1.000, the sampler draws 0.125 / 0.333 / 0.500 /
+    // 0.750, and the chance of drawing all-true is 7.6e-11 in the best regime.
+    //
+    // Meanwhile the pipeline hands the judge density 1.000 at level 0 of EVERY
+    // field - the first iteration of the very loop the judge is called in. The
+    // edges of the interval are not exotic; there are four of them, they are
+    // deterministic, and they cost nothing.
+    let boundary = |size: usize| -> Vec<(&'static str, Vec<bool>)> {
+        let n = size * size;
+        let mut single = vec![false; n];
+        single[n / 2 + size / 2] = true;
+        let mut row = vec![false; n];
+        for x in 0..size {
+            row[(size / 2) * size + x] = true;
+        }
+        let mut col = vec![false; n];
+        for y in 0..size {
+            col[y * size + size / 2] = true;
+        }
+        vec![
+            (
+                "all-true (density 1.000, level 0 of every field)",
+                vec![true; n],
+            ),
+            ("all-false (density 0.000)", vec![false; n]),
+            ("single pixel", single),
+            ("full row", row),
+            ("full column", col),
+        ]
+    };
     // The sizes the judge actually rules on: coverage fields at 16 and 128, and
     // corpus arms from 32 to 512. `9` is included as the smallest size ABOVE
     // the 7x7 its hand fixtures reach - the first place an edit could hide.
     for &size in &[9usize, 16, 32, 64, 128] {
+        for (name, inside) in boundary(size) {
+            let labelling = Labelling::new(size, size, inside.clone());
+            for conn in ComplementaryConnectivity::arms() {
+                let mine = crate::topology::independent::signature_of(&inside, size, size, conn);
+                let theirs = vice_topology::signature(&labelling, conn);
+                assert_eq!(
+                    (mine.components, mine.holes),
+                    (theirs.components, theirs.holes),
+                    "the independent judge and the production signature disagree at                      {size}x{size} on the BOUNDARY labelling {name:?}, foreground {:?}:                      independent ({}, {}) against production ({}, {}). The edges of the density                      interval are where the pipeline actually starts, and a random sampler                      reaches them with probability ~1e-10 (RT45-A32)",
+                    conn.foreground(),
+                    mine.components,
+                    mine.holes,
+                    theirs.components,
+                    theirs.holes
+                );
+                compared += 1;
+            }
+        }
         for trial in 0..40 {
             // Two regimes: sparse (many small components) and dense (few large
             // ones with holes). Density is swept so neither end is the only
@@ -231,6 +300,18 @@ fn the_independent_judge_agrees_with_production_at_corpus_sizes() {
             }
         }
     }
+    // THE SIZE GAP, named by composition rather than rounded up (condition 48).
+    // `SIZES_PX` reaches 512 and this run stops at 128, so the gap is 256 and
+    // 512. The red team measured what actually calls the judge there: EIGHT
+    // invocations at 512x512, all of them deciding `is_topology_pair` and so the
+    // `gate_min_topology_pairs` conjunct - and no call above 128 anywhere else
+    // in the pipeline. So the gap is REAL for the declared size list and NOT
+    // REACHED by the corpus as it runs today. Both halves of that are the honest
+    // statement; either half alone is a different claim.
+    //
+    // 512x512 is 262 144 pixels against 128x128's 16 384 - sixteen times the
+    // work per comparison - which is why it is named instead of run. Frozen as
+    // F-8, owner M5.
     assert!(
         compared >= 400,
         "only {compared} comparisons made; the differential run is not sampling and a judge \
