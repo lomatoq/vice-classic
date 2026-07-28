@@ -280,9 +280,20 @@ set_by_milestone = "M5"
 
 # Arms the run must measure at all. Measured 474.
 gate_min_arms = 200
-# Arms from the STRUCTURAL register. Clause 1 has no population without them:
-# STATUS_M4_5 limitation 18 records that zero of the corpus's arms carry a
-# convention-dependent class. Measured 30.
+# Arms from the STRUCTURAL register.
+#
+# WAS: "Clause 1 has no population without them: STATUS_M4_5 limitation 18
+# records that zero of the corpus's arms carry a convention-dependent class."
+# The premise is FALSE on M5's population and the evidence row says so: of the
+# 10 convention-dependent groups, 7 are CORPUS groups and 3 come from the
+# register. Limitation 18 was measured on M4.5's 132 arms over different cells,
+# and carrying a limitation across a milestone obliges recomputing its number on
+# the new population (REVIEW_M5_B N13c).
+#
+# IS: the register guarantees the population BY CONSTRUCTION, at every size and
+# under both convention arms; the corpus supplies it IN FACT on this cell set
+# and need not on another. That is why the floor is on the register's arms and
+# not on the corpus's. Measured 30.
 gate_min_structural_arms = 20
 # Groups whose two complementary-connectivity arms DISAGREE about the class.
 # This is the population on which "the stage did not reduce a set of topologies"
