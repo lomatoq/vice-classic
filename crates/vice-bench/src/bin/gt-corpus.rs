@@ -187,9 +187,6 @@ enum Cmd {
         out: PathBuf,
         #[arg(long, value_enum, default_value_t = TopologyScopeArg::Full)]
         scope: TopologyScopeArg,
-        /// The frozen gate file the row thresholds come from (RT45-A10).
-        #[arg(long, default_value = "configs/GATES_V1.toml")]
-        gates: PathBuf,
     },
     /// Re-run the topology harness at the report's own scope and compare.
     /// Tier A, exactly like the corridor and oracle reports.
@@ -664,7 +661,7 @@ fn real_main() -> i32 {
             )
             .exit_code()
         }
-        Cmd::Topology { out, scope, gates } => topology_cmd::run(&out, scope.into(), &gates),
+        Cmd::Topology { out, scope } => topology_cmd::run(&out, scope.into()),
         Cmd::TopologyCheck { report, structural } => topology_cmd::check(&report, structural),
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {

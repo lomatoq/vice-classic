@@ -14,14 +14,22 @@ use vice_bench::topology::{self, TopologyScope};
 
 /// The gate-row thresholds, read from the frozen file rather than from a
 /// constant next to the row (RT45-A10).
-fn gate_config(gates: &Path) -> Result<TopologyGateConfig, String> {
-    let g = GatesFile::load(gates).map_err(|e| format!("load {}: {e}", gates.display()))?;
+///
+/// The PATH is a constant, not an argument, and that is RT45-A18. §27.7 is
+/// enforced over `GATE_PATHS`, so while the source of the thresholds was a
+/// `--gates` flag the rule protected a file NAME while the decision followed a
+/// line of YAML: a copy of the gate file with all five thresholds at 1, plus one
+/// edited line in `ci.yml`, relaxed every §28 M4.5 clause with zero lines in
+/// `crates/`, the gate file untouched and `gates-check` exit 0.
+fn gate_config() -> Result<TopologyGateConfig, String> {
+    let path = Path::new(vice_bench::gates::GATE_PATHS[0]);
+    let g = GatesFile::load(path).map_err(|e| format!("load {}: {e}", path.display()))?;
     TopologyGateConfig::from_gates(&g)
 }
 
 /// Run the M4.5 recall harness and write its report (§11.3, §28 M4.5).
-pub fn run(out: &Path, scope: TopologyScope, gates: &Path) -> i32 {
-    let cfg = match gate_config(gates) {
+pub fn run(out: &Path, scope: TopologyScope) -> i32 {
+    let cfg = match gate_config() {
         Ok(c) => c,
         Err(e) => {
             eprintln!("error: {e}");

@@ -215,8 +215,7 @@ jobs:
       - name: M4.5 topology candidate recall and gate table
         run: |
           cargo run --release --bin gt-corpus -- topology \
-            --out runs/ci-topology/report.json --scope full \
-            --gates configs/GATES_V1.toml
+            --out runs/ci-topology/report.json --scope full
       # `--structural` for the same reason the three steps above use it: the
       # metrics are libm-derived floats and this runner is Linux while the
       # artifact is recorded on Windows. The M4.5 projection is deliberately

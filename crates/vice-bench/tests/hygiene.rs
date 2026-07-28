@@ -881,3 +881,93 @@ fn no_gate_row_compares_against_an_unregistered_number() {
         );
     }
 }
+
+/// No workflow can point the gate-row thresholds at a different file.
+///
+/// RT45-A18. §27.7 is enforced over `GATE_PATHS`, so it protects a file NAME.
+/// While the source of the thresholds was a `--gates` argument, the decision
+/// followed a line of YAML instead: a copy of the gate file with all five
+/// thresholds at `1`, plus one edited line in `ci.yml`, relaxed every §28 M4.5
+/// clause with zero lines under `crates/`, the gate file untouched, and
+/// `gates-check` returning exit 0 because neither changed path is a gate path.
+///
+/// The flag is gone — `topology_cmd` reads `GATE_PATHS[0]`, a constant — so the
+/// primary answer is that there is nothing to point elsewhere. This is the
+/// second echelon: it catches the flag being reintroduced, and it catches a
+/// workflow naming a gate-like file the rule does not protect.
+#[test]
+fn no_workflow_redirects_the_gate_file() {
+    let dir = repo_root().join(".github/workflows");
+    let mut files = 0;
+    let mut invocations = 0;
+    let mut gate_args = 0;
+    for entry in std::fs::read_dir(&dir).expect("the workflow directory") {
+        let path = entry.expect("a workflow entry").path();
+        if path.extension().and_then(|e| e.to_str()) != Some("yml") {
+            continue;
+        }
+        files += 1;
+        let text = std::fs::read_to_string(&path).expect("a workflow");
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+
+        // `topology` has no `--gates` any more, so its thresholds cannot be
+        // redirected at all. Other subcommands still take one, and for those the
+        // rule is the red team's second formulation: every invocation must name
+        // exactly a protected path.
+        for (i, _) in text.match_indices("--gates") {
+            let arg: String = text[i + "--gates".len()..]
+                .trim_start()
+                .chars()
+                .take_while(|c| !c.is_whitespace())
+                .collect();
+            assert!(
+                vice_bench::gates::GATE_PATHS.contains(&arg.as_str()),
+                "{name} passes --gates {arg}, which is not in GATE_PATHS. §27.7 protects the \
+                 paths in GATE_PATHS, so a gate file named anywhere else moves the decision to a \
+                 path no rule covers (RT45-A18)"
+            );
+            gate_args += 1;
+        }
+        invocations += text.matches("gt-corpus -- topology").count();
+    }
+    assert!(files >= 1, "no workflow file was read at all");
+    assert!(
+        invocations >= 1,
+        "no workflow invokes `gt-corpus topology`; this test would be guarding nothing"
+    );
+    assert!(
+        gate_args >= 1,
+        "no workflow passes --gates at all, so the path check above never ran"
+    );
+
+    // And there is no SECOND gate-shaped file for anything to be pointed at.
+    // The red team's sidecar was a copy of the gate file with every threshold
+    // at 1; what makes a file a gate is that it declares frozen sections, so
+    // that is what is looked for rather than a name or a location.
+    let mut gate_shaped = Vec::new();
+    for entry in std::fs::read_dir(repo_root().join("configs")).expect("the configs directory") {
+        let path = entry.expect("a config entry").path();
+        if path.extension().and_then(|e| e.to_str()) != Some("toml") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        if !text.contains("status = \"frozen\"") {
+            continue;
+        }
+        let rel = format!("configs/{}", path.file_name().unwrap().to_string_lossy());
+        gate_shaped.push(rel);
+    }
+    gate_shaped.sort();
+    let mut protected: Vec<String> = vice_bench::gates::GATE_PATHS
+        .iter()
+        .map(|p| (*p).to_string())
+        .collect();
+    protected.sort();
+    assert_eq!(
+        gate_shaped, protected,
+        "the set of files declaring frozen gate sections is not the set §27.7 protects. A second          gate-shaped file is a second gate that no rule covers, and pointing anything at it costs          one line (RT45-A18)"
+    );
+    println!(
+        "{files} workflow file(s), {invocations} topology invocation(s), {gate_args} --gates          argument(s), every one naming a protected path"
+    );
+}
