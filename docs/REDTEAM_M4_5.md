@@ -894,3 +894,635 @@ HEAD не двигался, дерево чистое, ничего не ком�
 ---
 
 Red team (adversarial pass, cold agent context, Opus 5)
+
+---
+---
+
+# ADDENDUM 2 — RED TEAM M4.5, дельта-2 (C189–C203)
+
+> Addendum публикуется **дословно**. Подписанный текст и addendum 1 выше не изменены ни в одной строке.
+
+## §0. Гигиена и спека, начало
+
+```text
+$ git status --porcelain
+(пусто)
+
+$ git rev-parse HEAD
+18e77c1b0f097b1fe8dc4d9520e4b3bb2f740bf4
+
+$ git worktree list
+C:/Users/nirrt/Toolset/vice-classic 18e77c1 [main]        ← только основное дерево
+
+$ sha256sum /c/Users/nirrt/Downloads/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md
+652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1
+```
+
+Совпадает с обязательным значением. Спека — единственный source of truth ниже.
+
+**Метод.** Основное дерево — только на чтение. Всё ломающее — в **ОТДЕЛЬНОМ КЛОНЕ** (`git clone` → `…/scratchpad/clone`, detached `18e77c1`, `CARGO_TARGET_DIR` вне проекта), не в `git worktree`: клон не регистрируется в `.git/worktrees` и не может быть разобран чужим `prune`. `git worktree prune` я не выполнял ни разу. Клон и target-директория удалены в конце. Донорские исходники не открывались (D-3).
+
+**Базовые факты на HEAD, измерены до атак, в клоне:**
+
+```text
+$ cargo test --release --workspace                    498 passed, 0 failed
+$ cargo test --release -p vice-bench --test hygiene   9 passed, 0 failed
+$ cargo test --release -p vice-bench --test doc_claims 5 passed, 0 failed
+$ gt-corpus topology --scope full                     3/3 MET, EXIT=0
+$ gt-corpus topology-check --report docs/gt/TOPOLOGY_M4_5.json
+  topology report reproduced with every metric compared   EXIT=0
+$ cargo fmt --all --check                             чисто
+$ cargo clippy --workspace --all-targets -- -D warnings  0 диагностик
+```
+
+`crates/vice-topology/` дельтой-2 **не тронут вообще** (`git diff --stat 5c42df7..18e77c1 -- crates/vice-topology/` пуст). Кодовая часть дельты-2 — 20 файлов, все в `vice-bench` плюс `configs/GATES_V1.toml` (+29 строк).
+
+---
+
+## §1. Состояние тринадцати прежних атак на новом дереве
+
+| # | что атаковалось | вердикт на `18e77c1` |
+|---|---|---|
+| RT45-A1 | нокаут второго плеча комплементарной связности | **ОТБИТА** |
+| RT45-A2 | GT-сигнатура считалась той же функцией, что и кандидат | **ОТБИТА** |
+| RT45-A3 | печать популяции D1 по именам | **ОТБИТА** в своей форме; класс открыт (RT45-A14, RT45-A15) |
+| RT45-A4 | сверка чисел клаузной строки по словарю | **ОТБИТА** для `T1/T2/T3`; ярус обходится сменой имени строки (RT45-A17) |
+| RT45-A5 | §27.7 и гейт-константы | **ОТБИТА ЧАСТИЧНО** — значения закрыты, источник значений нет (RT45-A16) |
+| RT45-A6 | импликуемые конъюнкты клаузы 1 | **ОТБИТА** |
+| RT45-A7 | контроль, истинный по принципу Дирихле | **ОТБИТА** (снят вместе с RT45-A13) |
+| RT45-A8 | состав и ширина популяции | **ОТБИТА**; остаток закрыт публикацией 24 arm / 2 семейства |
+| RT45-A9 | тип-печать популяции, три двери | **ОТБИТА ДОСЛОВНО**; класс **ПО-ПРЕЖНЕМУ ПРОХОДИТ** (RT45-A14) |
+| RT45-A10 | арифметика над зарегистрированной константой | **ОТБИТА**; перенесена на слой выше (RT45-A16) |
+| RT45-A11 | позиционный ярус не накрывает `T1/T2/T3` | **ОТБИТА**; вывод обходится (RT45-A17) |
+| RT45-A12 | обнуление нокаут-контроля | **ОТБИТА, ДВУСТОРОННЕ** |
+| RT45-A13 | «конъюнкт удалён» не исполнено | **ОТБИТА** |
+
+### RT45-A1 — ОТБИТА
+
+```diff
+-            for conn in ComplementaryConnectivity::arms() {
++            for conn in [ComplementaryConnectivity::arms()[0]] {
+```
+```text
+$ gt-corpus topology --out ../a1.json --scope full
+  [NOT MET] GT-equivalent topology present in envelope
+  [MET]     ambiguous fixtures retain alternatives
+  [MET]     no magic-threshold-only architecture
+```
+Конъюнкт `self.arms_missing_a_connectivity_arm == 0` на месте (`gate.rs:135`) и работает.
+
+### RT45-A2 — ОТБИТА
+
+```diff
+// crates/vice-topology/src/cubical.rs:303
+-    let background = count_regions(l, false, conn.background()).max(1);
++    let background = count_regions(l, false, conn.foreground()).max(1);
+```
+```text
+$ cargo test --release --workspace
+test topology::independent::tests::the_independent_chain_agrees_with_the_production_signature ... FAILED
+test result: FAILED. 161 passed; 1 failed
+```
+Независимая цепь ловит запрещённую §5.3 конвенцию. Гейт-строка по-прежнему слепа к ней — это законное разделение труда, и `T1`/`T1d` теперь сами это говорят (C196).
+
+### RT45-A9 — ОТБИТА ДОСЛОВНО
+
+Все три двери подписанного addendum-а не компилируются, ровно как заявлено в `T10d`:
+
+```text
+error: type `GtSourceGroup` is more private than the item `Rt45Fixtures`
+  --> crates/vice-bench/src/gt/corpus.rs:138:1
+error: type `GtSourceGroup` is more private than the item `rt45_door_alias`
+  --> crates/vice-bench/src/gt/corpus.rs:139:1
+error: type `GtSourceGroup` is more private than the item `Rt45Basket::groups`
+  --> crates/vice-bench/src/gt/corpus.rs:141:25
+error: could not compile `vice-bench` (lib) due to 3 previous errors
+```
+```text
+// дверь C188: FrozenPopulation::of(all_groups())
+error[E0624]: associated function `of` is private
+// FrozenPopulation::new(...)
+error[E0599]: the associated function or constant `new` exists for struct `FrozenPopulation`,
+              but its trait bounds were not satisfied
+```
+
+Это настоящая победа, и её надо назвать так: судьёй стал компилятор, ни один синтаксис не пришлось перечислять. Класс, однако, не закрыт — см. §2.
+
+### RT45-A12 — ОТБИТА, и проверена В ОБЕ СТОРОНЫ
+
+Дословная атака больше не проходит, потому что значение зарегистрировано (`topology_controls.gate_knockout_disk_radius_fraction = 0.3` ↔ `KNOCKOUT_DISK_RADIUS_FRACTION`). Я взял её усиленную форму — арифметику на месте использования, при неизменной константе:
+
+```diff
+// crates/vice-bench/src/topology/mod.rs:608
+-        let r = KNOCKOUT_DISK_RADIUS_FRACTION * (kw.min(kh) as f64);
++        let r = KNOCKOUT_DISK_RADIUS_FRACTION * 0.0003 * (kw.min(kh) as f64);
+```
+```text
+$ gt-corpus topology --scope full
+  [NOT MET] GT-equivalent topology present in envelope
+  knockout          {'arms': 100, 'hits': 0, 'fraction': 0.0}
+  knockout trivial  {'arms':  69, 'hits': 0, 'fraction': 0.0}
+$ cargo test --release -p vice-bench gates    10 passed
+$ cargo test --release -p vice-bench --test hygiene  9 passed
+```
+
+Положительный контроль `recall_unrelated_field_trivial.hits > 0` роняет клаузу 1. Это ровно то, чего не было, и это сделано правильно.
+
+### RT45-A10 — ОТБИТА
+
+Дословная форма не компилируется (`Threshold` без арифметических impl-ов). Её обход через публичный `registered_value()`:
+
+```diff
+-        let recall_row = cfg.min_recall_arms.met_by(r.arms)
+-            && cfg.min_recall_shape_families.met_by(families as u64)
+-            && cfg.min_non_trivial_gt_arms.met_by(self.non_trivial_gt_arms)
++        let recall_row = r.arms >= cfg.min_recall_arms.registered_value() / 20
++            && families as u64 >= cfg.min_recall_shape_families.registered_value() - 4
++            && cfg.min_non_trivial_gt_arms.met_by(self.non_trivial_gt_arms + 4)
+-        let ambiguity_row = cfg.min_topology_pairs.met_by(pairs.len() as u64)
++        let ambiguity_row = cfg.min_topology_pairs.met_by(pairs.len() as u64 + 1)
+```
+```text
+$ cargo test --release -p vice-bench --test hygiene
+  no_gate_row_compares_against_an_unregistered_number ... ok      ← текстовый скан слеп, как и раньше
+  test result: ok. 9 passed
+
+$ cargo test --release -p vice-bench each_gate_row_flips
+  clause 1 turns green at 2 arms while the gate file registers 20
+  test result: FAILED. 0 passed; 1 failed
+```
+
+Перебор действующей границы ловит арифметику с обеих сторон сравнения. Заявление C193 исполнено — **в пределах того, что этот перебор видит** (RT45-A16).
+
+### RT45-A11 / RT45-A4 — ОТБИТЫ на `T1`
+
+```diff
+// docs/STATUS_M4_5.md, строка T1
+-recall 100 из 100; на 31 arm-е с нетривиальной GT — 31; бюджет потерял ответ на 0
++recall  56 из 132; на  8 arm-е с нетривиальной GT —  5; бюджет потерял ответ на 2
+```
+```text
+docs/STATUS_M4_5.md row "| T1 " position 5: the row says 56, but
+TOPOLOGY_M4_5.json:recall_all.hits is 100. This is the check membership could not make
+test result: FAILED. 4 passed; 1 failed
+```
+
+Позиционный ярус выведен из свойства строки и накрывает `T1–T3`. Обходится (RT45-A17), но починка настоящая.
+
+### RT45-A13 — ОТБИТА
+
+`git log -S"self.tie_batches_max > 0"` → `0c9a1e9 C190` удаляет, `fe45e18 C157` вносит. В `threshold_row` конъюнкта нет; число публикуется в `T3d` с прямым указанием, что это размер входа.
+
+---
+
+## §2. Новые атаки
+
+### RT45-A14 — четвёртая дверь: не фикстура и не обёртка, а РЕНДЕР — **BLOCKER**
+
+**Утверждение, которое ломается.** `T10d`: «Условие D1/14: широкая популяция недостижима — ОБА вопроса | PASS … НИ ОДНА из [22 audit-групп] не достижима снаружи крейта». Ограничение 19: остаток — «модуль может объявить свою публичную структуру с приватным полем `Vec<GtSourceGroup>` и **переписать на ней render и rasterize**».
+
+**Цена остатка названа неверно.** Ни структуры, ни переписывания не требуется. Крейт запечатал ТИПЫ КОРПУСА и оставил публичными ТИПЫ ЕГО ПРОДУКТА, а конвейер — `pub(crate)`:
+
+| элемент | видимость | где |
+|---|---|---|
+| `RenderedFixture` (все поля `pub`, включая `group_id`, `rgba8`) | `pub` | `gt/degradation.rs:291` |
+| `CoverageStack`, `ViewTransform`, `RasterProfile`, `Psf` | `pub` | `gt/raster.rs` |
+| `render_cell(&GtScene, &DegradationCell, usize)` | `pub(crate)` | `gt/degradation.rs:369` |
+| `rasterize(&CertifiedMesh, …)` | `pub` | `gt/raster.rs:420` |
+| `all_groups()` | `pub(crate)` | `gt/corpus.rs:129` |
+| `SplitPolicy::split_of_family(&str)` | `pub` | `gt/split.rs:122` |
+
+А замороженные измерения потребляют именно `RenderedFixture` и `CoverageStack`: `f.rgba8`, `f.width_px`, `truth.per_face` — `frozen_calibration.rs:119,267,342,437,502`. Валюта дефекта F-0026 — не группа, а рендер: докблок того же файла говорит «104 renders became 286, the frozen kernel table was measured on the sealed audit again».
+
+**Процедура воспроизведения.** В `crates/vice-bench/src/gt/corpus.rs` (модуль УЖЕ в объявленном списке `DECLARED`, так что второй эшелон не двигается):
+
+```rust
+pub fn rt45_wide_renders(
+    cell: &DegradationCell,
+) -> Vec<(String, super::degradation::RenderedFixture)> {
+    all_groups().unwrap_or_default().iter()
+        .flat_map(|g| { let fam = g.shape_family.clone();
+                        g.scenes.iter().map(move |s| (fam.clone(), s)) })
+        .filter_map(|(fam, s)| super::degradation::render_cell(s, cell, 1).ok().map(|f| (fam, f)))
+        .collect()
+}
+
+pub fn rt45_wide_stacks(
+    t: &super::raster::ViewTransform,
+    profile: super::raster::RasterProfile,
+    psf: super::raster::Psf,
+) -> Vec<(String, super::raster::CoverageStack)> {
+    all_groups().unwrap_or_default().iter()
+        .flat_map(|g| g.scenes.iter())
+        .filter_map(|s| super::raster::rasterize(s.certified(), t, profile, psf)
+            .ok().map(|c| (s.group_id().to_string(), c)))
+        .collect()
+}
+```
+
+плюс интеграционный тест `crates/vice-bench/tests/rt45_fourth_door.rs`, который зовёт обе двери и классифицирует по публичному `SPLIT_POLICY_V1.split_of_family`.
+
+```bash
+cargo test --release -p vice-bench --test rt45_fourth_door -- --nocapture
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --release -p vice-bench --test hygiene
+cargo test --release --workspace
+git diff --name-status HEAD^ HEAD | gt-corpus gates-check --stdin --existing-gate configs/GATES_V1.toml
+```
+
+**Наблюдаемый результат.**
+
+```text
+RT45-A14 door (a) `pub fn rt45_wide_renders(&DegradationCell) -> Vec<(String, RenderedFixture)>`
+  renders                 : 63
+  distinct groups         : 60  (dev 22, cal 16, SEALED-AUDIT 22)
+  sealed-audit group ids  : ["authored/bracket", "authored/leaf",
+     "proc/arc_disk/000".."003", "proc/dot_cluster/000".."003",
+     "proc/nested_island/000".."003", "proc/shared_edge/000".."003",
+     "proc/thin_bridge/000".."003"]
+  RGBA bytes handed over  : 258048
+RT45-A14 door (b) `pub fn rt45_wide_stacks(...) -> Vec<(String, CoverageStack)>`
+  stacks 63 over 60 groups
+  HELD-OUT tiny-skia stacks reachable: 63
+
+FMT CLEAN
+clippy: 0 диагностик
+hygiene.rs: 9 passed; 0 failed
+  every_public_path_to_a_corpus_fixture_is_the_declared_one ... ok
+  the_only_mint_site_for_the_legal_handle_cannot_widen_it ... ok
+  the_corpus_types_are_sealed_by_the_compiler ... ok
+cargo test --release --workspace: 499 passed / 0 failed   (498 + мой пробник)
+gates-check: no gate/feature co-change in 2 path(s)   EXIT=0
+```
+
+**Те же 60 групп, те же 22 sealed-audit, те же 63 сцены, что и у RT45-A9** — и вдобавок held-out `tiny-skia`, которого RT45-A9 не доставала.
+
+**Второй экземпляр того же класса, дешевле первого.** `GtSourceGroup` и `GtScene` выводят `Debug`, а `String` публичен:
+
+```rust
+pub fn rt45_debug_door() -> Vec<(String, String)> {
+    all_groups().unwrap_or_default().iter()
+        .map(|g| (g.shape_family.clone(), format!("{g:?}"))).collect()
+}
+```
+```text
+groups via Debug: 60, of them SEALED-AUDIT: 22, 410041 chars of sealed geometry
+first 200 chars: GtSourceGroup { id: "authored/bracket", origin: Authored,
+  shape_family: "authored/bracket", provenance: "hand-authored in this repository:
+  tests/fixtures/gt/authored/bracket.svg", scenes: [GtScene { i…
+clippy: 0 диагностик
+```
+
+**Почему BLOCKER, а не «названный остаток».** Три вещи.
+
+1. **Цена в ограничении 19 завышена в разы.** Заявлено: новая структура с приватным полем **плюс переписанные render и rasterize**. Фактически: две `pub fn` без единого нового типа и без единой строки дублированного конвейера, потому что крейт сам держит конвейер `pub(crate)`, а его выход — `pub` со всеми полями. Разница не косметическая: остаток описан как «новый публичный API, который виден как таковой», а на деле он неотличим от обычного хелпера и стоит шесть строк.
+2. **Печать поставлена не на ту величину.** `deny(private_interfaces)` отвечает на вопрос «что пересекает границу» для ТИПА КОРПУСА. Условие D1 — про **популяцию, которую видит замороженный коэффициент**, а он видит рендеры. Механизм закрыл представление, а не предмет.
+3. **`T10d` утверждает свойство, которое не выполняется.** «НИ ОДНА из 22 audit-групп не достижима снаружи крейта» — достижимы все 22, вместе с их пикселями, `group_id`, метками `identifiability` и геометрией.
+
+**Общее правило класса.** Печать по типу закрывает ТИП. Чтобы закрыть популяцию, печать обязана стоять на том, что измерение ПОТРЕБЛЯЕТ, а не на том, из чего оно это получает. Проверяемый критерий: перечислить публичные типы, ЗНАЧЕНИЯ которых порождаются из корпуса (`RenderedFixture`, `CellRaster`, `CoverageStack`, `String`-из-`Debug`), и потребовать, чтобы ни один публичный элемент не отдавал их наружу иначе как из легальной ручки — либо, что честнее, чтобы конвейер (`render_cell`, `rasterize`) был достижим ТОЛЬКО через `FrozenScene`.
+
+---
+
+### RT45-A15 — легальная дверь пропускает HELD-OUT движок: вторая клауза D1 не охраняется ничем — **BLOCKER**
+
+**Утверждение, которое ломается.** Докблок единственной легальной двери, `gt/legal.rs:171`: «Development groups, **development-legal profiles**, nothing else». Докблок `corridor::frozen_calibration_groups` формулирует D1 ДВУМЯ клаузами дословно:
+
+> «— **the sealed audit is never touched** … — **the held-out rasterizer is never seen.** … A coefficient that sets the corridor's width may not be measured with it (REVIEW_M4 M4-N2, F-0027). So: development groups, development-legal profiles, and nothing else.»
+
+Сообщение живого стража, `hygiene.rs:637`: «a frozen coefficient must come from `corridor::frozen_calibration_population()`, **which excludes the sealed audit and the held-out profile**».
+
+Первая клауза закрыта отказом `FrozenPopulation::of`. **Вторая не закрыта ничем.** `FrozenScene::render(&DegradationCell)` и `FrozenScene::rasterize(&ViewTransform, RasterProfile, Psf)` принимают ЛЮБОЙ профиль; профиль не является свойством популяции и не проходит ни через какой фильтр.
+
+**Процедура воспроизведения. Ни одна производственная строка не менялась.** Только интеграционный тест, на дереве как оно закоммичено:
+
+```rust
+use vice_bench::corridor::{frozen_calibration_population, frozen_calibration_profiles};
+// …
+let legal = frozen_calibration_profiles();
+assert!(!legal.contains(&RasterProfile::TinySkia));      // held out
+let population = frozen_calibration_population().unwrap();
+for s in population.first_scenes().iter() {
+    s.rasterize(&t, RasterProfile::TinySkia, Psf::Box)   // ← проходит
+}
+```
+
+```text
+$ cargo test --release -p vice-bench --test rt45_heldout -- --nocapture
+frozen_calibration_profiles() = ["exact-clip", "supersample", "raqote", "vice-render"]
+legal population: 22 groups, 22 first scenes
+RASTERIZE with the HELD-OUT engine through the legal handle: 22/22 scenes, 5608 edge pixels
+RENDER   with the HELD-OUT engine through the legal handle: 22/22 scenes, 360448 RGBA bytes
+held-out cells in the frozen degradation matrix: 6
+test result: ok. 1 passed
+```
+
+**И это не гипотеза — это одна строка в существующем замороженном измерении.** `frozen_calibration_profiles()` имеет ДВА потребителя из ПЯТИ замороженных измерений; остальные три выбирают `DegradationCell` литералом `id`:
+
+| измерение | как выбирает профиль | охраняется? |
+|---|---|---|
+| `the_kernel_profile_table_matches_the_corpus` | `frozen_calibration_profiles()` | да |
+| `the_clean_bucket_noise_scale_…` | `frozen_calibration_profiles()` + assert | да |
+| `the_semi_transparent_floor_separates_both_ways` | литералы `"s32_pexact-clip_…"` | **нет** |
+| `the_residual_tolerance_separates_right_from_wrong_hypotheses` | литерал `"s64_praqote_…"` | **нет** |
+| `interior_confidence_separates_cores_from_edges` | литерал `"s128_pexact-clip_…"` | **нет** |
+
+Замена ОДНОГО литерала:
+
+```diff
+// crates/vice-bench/tests/frozen_calibration.rs:428
+-        .find(|c| c.id() == "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00")
++        .find(|c| c.id() == "s64_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00")
+```
+```text
+$ cargo test --release -p vice-bench --test frozen_calibration -- --ignored the_residual_tolerance --nocapture
+correct hypothesis p95 residual: min 0.50 median 2.15 max 2.87 codes over 15 renders
+wrong palette:                   min 230.69 median 294.53 max 294.53 codes
+test the_residual_tolerance_separates_right_from_wrong_hypotheses ... ok
+
+$ cargo test --release -p vice-bench --test hygiene    9 passed; 0 failed
+```
+
+`MAX_RESIDUAL_P95_CODES` — замороженный коэффициент `vice-evidence` — измерен движком, к которому клауза §28 M4 проверяет обобщение. Ни компилятор, ни ручка, ни девять тестов гигиены не сказали ни слова. Доступных held-out ячеек в замороженной матрице шесть:
+`s16/s32/s64/s128/s256/s512_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00`.
+
+**Почему BLOCKER.** Это F-0027 / M4-N2, воспроизведённая целиком, и это **живое состояние мира**, не «можно дописать»: строка `T10d` читается PASS, докблок легальной двери и текст ошибки живого стража утверждают то, чего нет. И форма — ровно та, которую милестоун чинит третий раз: правило из двух клауз, первая охраняется механизмом, вторая — привычкой пяти вызывающих. Это симптом F-0026 («четыре измерения фильтруют, пятое нет»), перенесённый на другую клаузу того же правила.
+
+**Общее правило класса.** Если правило состоит из N клауз, механизм обязан закрывать N клауз, и непокрытая клауза должна называться в том же месте, где заявлена покрытая. Проверяемо: легальность профиля обязана быть свойством РУЧКИ (`FrozenScene::render` принимает не `DegradationCell`, а `LegalCell`, который умеет родиться только из `frozen_calibration_profiles()`), а не проверкой в двух измерениях из пяти.
+
+---
+
+### RT45-A16 — приёмка условия 7 сверяет `gate_table` с ТЕСТОВОЙ РЕАЛИЗАЦИЕЙ агрегации; действующий порог двигается в `report::build` — **MAJOR**
+
+**Утверждение, которое ломается.** `T12d`: «Приёмка — не написание сравнения: `each_gate_row_flips_at_exactly_the_registered_threshold` находит ДЕЙСТВУЮЩУЮ границу перебором измерения и сверяет с файлом». Докблок `hygiene.rs:704`: «It never reads the source, so it is blind to how the comparison is written — **on EITHER side**». Ограничение 20 называет остаток как «арифметику на стороне измерения» и объявляет, что ловит её именно перебор.
+
+**Перебор её не ловит, и причина глубже ограничения 20.** `boundary()` строит отчёт через `rebuilt(&r)` — функцию в `topology/tests.rs:174`, которая ПЕРЕСЧИТЫВАЕТ `recall_shape_families`, `non_trivial_gt_arms`, `identifiable_supported_arms` **своей собственной реализацией**:
+
+```rust
+// crates/vice-bench/src/topology/tests.rs:186
+    r.recall_shape_families = pop.iter()
+        .map(|a| a.shape_family.as_str())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len() as u64;
+```
+
+Производственная агрегация `report::build` (`topology/report.rs:383,393`) в приёмке не участвует вовсе. Действующая граница, которую находит перебор, — это граница `gate_table` над `rebuilt`, а не над тем, что считает харнесс.
+
+**Процедура воспроизведения.** Одна правка, только в `crates/`:
+
+```diff
+// crates/vice-bench/src/topology/report.rs
+-        recall_shape_families: families.len() as u64,
++        recall_shape_families: (families.len() as u64).max(5),
+-        non_trivial_gt_arms: nontrivial.len() as u64,
++        non_trivial_gt_arms: (nontrivial.len() as u64).max(5),
+```
+
+На сегодняшнем корпусе клампы — no-op (8 > 5, 31 > 5), поэтому **не двигается ни одно опубликованное число**.
+
+```text
+$ cargo test --release -p vice-bench each_gate_row_flips
+  each_gate_row_flips_at_exactly_the_registered_threshold ... ok
+
+$ cargo test --release -p vice-bench --test hygiene       9 passed; 0 failed
+$ gt-corpus topology-check --report docs/gt/TOPOLOGY_M4_5.json
+  topology report reproduced with every metric compared   EXIT=0
+$ cargo test --release --workspace                        498 passed; 0 failed
+$ git diff --stat HEAD^ HEAD -- configs/                  (пусто)
+$ git diff --name-status HEAD^ HEAD | gt-corpus gates-check --stdin --existing-gate configs/GATES_V1.toml
+  no gate/feature co-change in 1 path(s)                  EXIT=0
+```
+
+**И действующий порог при этом равен единице.** Тот же клампованный код на корпусе из ДВУХ shape family (`annulus` + `bezier_blob`, 36 arms, recall 36/36):
+
+```text
+### С клампом,   популяция сужена до 2 семейств ###
+  [MET]     GT-equivalent topology present in envelope      recall_shape_families = 5
+### БЕЗ клампа, та же самая суженная популяция ###
+  [NOT MET] GT-equivalent topology present in envelope      recall_shape_families = 2
+```
+
+Зарегистрированные в `configs/GATES_V1.toml` `gate_min_recall_shape_families = 5` и `gate_min_non_trivial_gt_arms = 5` перестают ограничивать что-либо. Гейт-файл не тронут, §27.7 молчит, артефакт побайтово тот же, 498 тестов зелены.
+
+**Общее правило класса.** Приёмка, которая сверяет производственный предикат с ТЕСТОВОЙ репликой его входа, измеряет предикат, а не систему. Всякая расхождение реплики и оригинала невидимо по построению. Годная замена одна: `boundary()` обязана дёргать `report::build` на настоящем `TopologyRun`, а не пересобирать поля отчёта вручную; тогда «действующая граница» будет действующей.
+
+---
+
+### RT45-A17 — позиционный ярус выведен по имени клаузы, и имя строки — редактируемый документ — **MAJOR**
+
+**Утверждение, которое ломается.** `T13d`: «строка попадает в ярус, если ДОКЛАДЫВАЕТ клаузу спеки по имени; имена — из §28». Ограничение 21 называет остаток («строка, докладывающая клаузу и не называющая её»), но подаёт его как честную границу вывода. Он эксплуатируется в три строки документа, и попутно вскрывается непустотный порог, который сам является перечнем.
+
+**Что удерживает атаку сегодня.** `assert!(rows_under_check.len() >= 6)` — жёсткое число, равное текущему количеству именующих строк (`T1,T2,T3,T1d,T2d,T3d`). Переименование одной роняет тест:
+
+```text
+only 5 spec-clause rows derived ([… "| T2 ", "| T3 ", "| T1d ", "| T2d ", "| T3d "]);
+the derivation is not reading the gate tables and this test would check nothing
+```
+
+**Процедура воспроизведения. Правки только в документах.**
+
+```diff
+--- docs/STATUS_M4_5.md
+ | T3d | **No magic-threshold-only architecture** | PASS | … |
++| T16d | **GT-equivalent topology present in envelope** (сводка популяции) | PASS | популяция 100 arms |
+
+-| T1 | **GT-equivalent topology present in envelope** (клауза спеки 1) | PASS | … recall 100 из 100; на 31 arm-е с нетривиальной GT — 31; бюджет потерял ответ на 0 …
++| T1 | **GT-эквивалентная топология присутствует в конверте** (клауза спеки 1) | PASS | … recall  56 из 132; на  8 arm-е с нетривиальной GT —  5; бюджет потерял ответ на 2 …
+
+--- docs/REPRODUCIBILITY_M4_5.md
+ | row T3d | 8 | `topology:tie_batches_max` |
++| row T16d | 1 | `topology:recall_all.arms` |
+```
+
+```bash
+cargo test --release -p vice-bench --test doc_claims
+cargo test --release --workspace
+```
+
+**Наблюдаемый результат.**
+
+```text
+test the_row_split_honours_the_markdown_escape ... ok
+test a_wrong_declaration_would_be_caught ... ok
+test the_delta_clause_rows_equal_their_declared_keys_position_by_position ... ok
+test every_declared_number_matches_the_committed_artifact ... ok
+test the_status_clause_rows_quote_only_declared_numbers ... ok
+test result: ok. 5 passed; 0 failed
+
+cargo test --release --workspace: 498 passed / 0 failed
+
+$ grep "^| T1 |" docs/STATUS_M4_5.md
+| T1 | **GT-эквивалентная топология присутствует в конверте** (клауза спеки 1) | PASS | … recall  56 из 132 …
+```
+
+Строка под заголовком «## 4. Gate table (author-side; §28 M4.5)», помеченная «клауза спеки 1», несущая **PASS**, докладывает recall 56 из 132 при бюджете, потерявшем 2 ответа. Ярус её больше не видит, потому что она сменила ИМЯ; счётчик непустоты удовлетворён декоративной седьмой строкой.
+
+**Дополнительно, к тому же выводу.** Множество, из которого выводится ярус, само содержит три перечня: `POSITIONAL_DOCS = ["docs/STATUS_M4_5.md"]`, `GATE_TABLE_HEADER = ["", "#", "Gate", "Статус", "Evidence", ""]` (таблица с английским заголовком выпадает молча) и `SPEC_CLAUSE_NAMES`. Плюс дефект в самом тесте, `doc_claims.rs:568`:
+
+```rust
+for name in SPEC_CLAUSE_NAMES {
+    assert!(rows_under_check.len() >= 2,
+        "clause {name:?} must be reported by at least the milestone row and the delta row");
+}
+```
+
+Ассерт внутри цикла не зависит от `name` — он проверяет ОБЩУЮ длину, а не покрытие каждой клаузы. Сообщение обещает по-клаузное покрытие; проверки по-клаузного покрытия нет.
+
+**Общее правило класса.** Вывод множества из свойства предмета сильнее перечня ровно настолько, насколько свойство не редактируется тем же коммитом, что и предмет. «Строка называет клаузу» — свойство ДОКУМЕНТА, а документ и есть то, что проверяется; вывод замкнут сам на себя. Годный вывод берётся из стороны, которую атакующий не редактирует: строка обязана нести КЛЮЧ (`topology:…`) в собственной ячейке, и тогда «строка о клаузе» опознаётся по ключу артефакта, а не по прозаическому заголовку.
+
+---
+
+### RT45-A18 — §27.7 защищает ИМЯ ФАЙЛА, а источник порогов — аргумент командной строки — **MAJOR**
+
+**Утверждение, которое ломается.** `T12d`: «гейт-строка считается от значений ИЗ ФАЙЛА … `TopologyGateConfig::from_gates` — единственный источник». Верно — но «файл» выбирается флагом `--gates`, а §27.7 исполняется через `GATE_PATHS = &["configs/GATES_V1.toml"]` (`gates/mod.rs:43`).
+
+**Процедура воспроизведения.** Ни одной строки в `crates/`.
+
+```bash
+# 1) копия гейт-файла с ослабленными порогами
+python -c "…"    # все пять gate_min_* → 1  →  configs/RT45_SIDECAR.toml
+# 2) одна строка в workflow
+sed -i '219s|configs/GATES_V1.toml|configs/RT45_SIDECAR.toml|' .github/workflows/ci.yml
+git add -A && git commit -m "RT45: relax every gate threshold without touching the gate file"
+git diff --name-status HEAD^ HEAD | gt-corpus gates-check --stdin --existing-gate configs/GATES_V1.toml
+cargo test --release --workspace && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
+```
+
+**Наблюдаемый результат.**
+
+```text
+$ sed -n '217,219p' .github/workflows/ci.yml
+          cargo run --release --bin gt-corpus -- topology \
+            --out runs/ci-topology/report.json --scope full \
+            --gates configs/RT45_SIDECAR.toml
+
+$ grep -E "^gate_min" configs/RT45_SIDECAR.toml
+gate_min_recall_arms = 1
+gate_min_recall_shape_families = 1
+gate_min_non_trivial_gt_arms = 1
+gate_min_topology_pairs = 1
+gate_min_classes_per_retaining_pair = 1
+
+--- changed paths ---
+M	.github/workflows/ci.yml
+A	configs/RT45_SIDECAR.toml
+--- gates-check ---
+no gate/feature co-change in 2 path(s)              EXIT=0
+
+cargo test --release --workspace   498 passed / 0 failed
+cargo fmt --all --check            FMT CLEAN
+cargo clippy … -D warnings         0 диагностик
+git diff --stat HEAD^ HEAD -- configs/GATES_V1.toml   (пусто)
+```
+
+И действующие пороги действительно следуют за флагом — измерено отдельно, встречной подстановкой:
+
+```text
+$ gt-corpus topology --scope full --gates configs/RT45_SIDECAR.toml   # arms→1000 в пробе
+  [NOT MET] GT-equivalent topology present in envelope
+$ gt-corpus topology --scope full --gates configs/GATES_V1.toml       # тот же бинарь, тот же корпус
+  [MET]     GT-equivalent topology present in envelope
+```
+
+Приёмочный тест `each_gate_row_flips_at_exactly_the_registered_threshold` этого не видит: он жёстко открывает канонический путь (`tests.rs:22-24`), а не тот файл, с которым считается вердикт CI. `every_frozen_value_agrees_with_the_code_that_uses_it` — тоже.
+
+Оговорка в пользу автора: `changeset.rs:286` умышленно пропускает `ChangeKind::Added` для гейт-путей, так что даже добавление файла ПОД защищённым именем не считается co-change; здесь имя вообще другое.
+
+**Общее правило класса.** Правило вида «этот файл меняется только отдельным коммитом» защищает файл, а не решение. Пока источник порога — аргумент, §27.7 исполняется над строкой в YAML, которую §27.7 не покрывает. Проверяемая замена: путь к гейт-файлу — константа в коде (`GATE_PATHS[0]`), а не флаг; либо тест обязан утверждать, что каждая инвокация `gt-corpus topology` во всех workflow называет ровно `GATE_PATHS`.
+
+---
+
+## §3. Атаки, которые НЕ удались (измерение прочности)
+
+**FA. `independent.rs`.** Дельтой-2 не тронут (`git log` по файлу: последний коммит `c94c6e8 C171`, дельта-1). Потребитель ровно один — `topology/mod.rs:396`, новых нет. Дифференциальный тест против продакшн-сигнатуры проходит на чистом дереве и **падает** на мутации §5.3 (см. RT45-A2). Референс остаётся самой прочной частью работы; 1 115 536 сравнений прошлого прохода описывают тот же байт-в-байт код.
+
+**FB. Двусторонний нокаут трёх новых стражей (мета-правило M-4).** Все три срабатывают в ту сторону, где должны:
+
+```text
+# of перестаёт отказывать
+gt::legal::tests::the_handle_refuses_a_population_that_is_not_development ... FAILED
+gt::legal::tests::the_legal_population_passes_the_same_predicate ... ok      ← и не вакуумен
+
+# вторая точка чеканки внутри gt::legal
+the_only_mint_site_for_the_legal_handle_cannot_widen_it ... FAILED
+  gt/legal.rs has 3 struct literals of FrozenPopulation; there must be exactly one
+
+# голый литерал в гейт-строке (r.arms > 0  →  r.arms > 3)
+no_gate_row_compares_against_an_unregistered_number ... FAILED
+  a gate row compares against the literal 3 at byte 2017
+```
+
+Непустотные оговорки на месте: `the_handle_refuses_…` сам проверяет `sealed > 0`, `the_legal_population_passes_the_same_predicate` закрывает вырожденный конструктор, отвергающий всё.
+
+**FC. Честность артефакта.** `topology-check` без флага на чистом клоне: `topology report reproduced with every metric compared`, exit 0. Расхождения committed-vs-live нет.
+
+**FD. Детерминизм §11.2.** Повтор симметрийной пробы на новом дереве (плато-зиккурат с террасой ровно на 0.5 и шахматное ядро; транспозиция / поворот 180° / зеркало; 32×32, 48×32, 40×24):
+
+```text
+checkerboard 32x32: base   {(1,0),(1,450),(58,0),(60,0),(512,0)}
+checkerboard 32x32: transp {(1,0),(1,450),(58,0),(60,0),(512,0)}
+checkerboard 32x32: rot180 {(1,0),(1,450),(58,0),(60,0),(512,0)}
+checkerboard 32x32: mirror {(1,0),(1,450),(58,0),(60,0),(512,0)}
+… 48x32 и 40x24 идентично; ziggurat {(1,0)} во всех случаях
+```
+
+Порядок обхода по-прежнему не является входом.
+
+**FE. §27.6 fake placeholder arms.** Не найдено. `grep -rn "todo!(\|unimplemented!(" crates/*/src` — пусто. Типизированные отказы (`ContinuationStep`, `FieldRefusal`) не изменились. Ни одного отказа, засчитанного как успех.
+
+**FF. Дверь через `serde`.** Не существует: `GtScene` и `GtSourceGroup` выводят только `Debug, Clone`, без `Serialize`. (Через `Debug` — существует, см. RT45-A14.)
+
+**FG. Дверь через `FrozenScene`.** Обёртка держится: поля приватны, `id()` отдаёт `&str`, `render`/`rasterize` не возвращают ничего, из чего восстанавливается `GtScene`. Расширить популяцию через неё нельзя — можно только расширить ПРОФИЛЬ (RT45-A15).
+
+**FH. Обход позиционного яруса числом.** Не удалось: `numbers.len() == keys.len()` не даёт ни спрятать число (токен с внутренним не-цифровым символом молча выпадает и роняет счёт), ни добавить лишнее. Ярус для строк, которые в него попали, сделан крепко.
+
+**FI. Смещение зарегистрированного ЗНАЧЕНИЯ.** Закрыто: `KNOCKOUT_DISK_RADIUS_FRACTION`, `GT_MAJORITY_LEVEL` и 21 ключ `[topology]` связаны с кодом через `every_frozen_value_agrees_with_the_code_that_uses_it`, и «значение с нулём потребителей» тоже запрещено.
+
+---
+
+## §4. Что я не смог атаковать
+
+1. **CI и кросс-платформенность.** Работал только на windows-x86_64, сеть не использовалась. Прогон 55 не читал; всё, что сказано о CI (включая RT45-A18), выведено из `.github/workflows/ci.yml` и локальных прогонов.
+2. **Свип по бюджету конверта.** По-прежнему не сделан. `arms_where_budget_removed_a_gt_class_candidate = 9` показывает, что запас существует и невелик; границ я не мерил.
+3. **Донорские исходники** — не открывались (D-3).
+4. **Стадия evidence M4.** 44 отказа на identifiable-рендерах раскрыты составом; справедливость самих отказов вне предмета M4.5.
+5. **`achievable` внутри complexity-ограниченного `SupportedModelUniverse`** — владелец M6/M7.
+6. **Достижимость потери класса на tier 2 через `propose` на легальном входе** — не установлена; остаётся оговоркой автора, а не находкой.
+
+---
+
+## §5. RED TEAM VERDICT (addendum 2)
+
+**RED TEAM VERDICT (addendum 2): FAIL**
+
+*(Основание — RT45-A15: условие D1 состоит из двух клауз, названных дословно в докблоке легальной популяции; вторая — «held-out растеризатор никогда не виден» — не охраняется ничем, и замена ОДНОГО литерала ячейки в существующем замороженном измерении даёт коэффициент `MAX_RESIDUAL_P95_CODES`, измеренный `tiny-skia`, при девяти зелёных тестах гигиены и молчащем компиляторе. Это F-0027 целиком, и это живое состояние дерева, а не гипотеза. Второе основание — RT45-A14: `T10d` утверждает, что ни одна из 22 sealed-audit групп не достижима снаружи крейта; достижимы все 22 — рендерами (258 048 байт RGBA), coverage-стеками и 410 041 символом геометрии через `Debug`, шестью строками без единого нового типа и без переписывания конвейера, при `fmt` чистом, `clippy -D warnings` молчащем и 499 зелёных тестах. Цена этого остатка в ограничении 19 названа существенно выше фактической. Усугубляющие: RT45-A16 (приёмка условия 7 сверяет `gate_table` с тестовой репликой агрегации, и действующий порог ширины опускается с 5 до 1 правкой в `report.rs`, невидимой для артефакта, перебора и §27.7), RT45-A17 (позиционный ярус обходится переименованием ячейки строки, и подделка `T1` снова проходит молча), RT45-A18 (все пять порогов §28 M4.5 ослабляются до 1 без единой строки в `crates/` и без касания гейт-файла, `gates-check` exit 0).*
+
+*Отдельно и не в порядке смягчения: RT45-A1, A2, A6, A7, A8, A9 (дословно), A10 (дословно), A11 (на `T1`), A12 и A13 отбиты по-настоящему; A12 — впервые в этом милестоуне проверен в ОБЕ стороны, и это правильный ответ на мета-правило M-4. Печать компилятором — лучший механизм, который эта работа произвела: он не перечисляет синтаксисы и потому не может быть дописан. Он поставлен не на ту величину, но он поставлен верно.*
+
+---
+
+## §6. Гигиена, конец
+
+```text
+$ git status --porcelain
+(пусто)
+
+$ git rev-parse HEAD
+4bd6e1e6d2aa4efdd3c1c49024823bde064f5e67
+
+$ git worktree list
+C:/Users/nirrt/Toolset/vice-classic 4bd6e1e [main]        ← только основное дерево
+
+$ sha256sum /c/Users/nirrt/Downloads/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md
+652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1
+```
+
+**HEAD основного репозитория сдвинулся во время моей работы, и это не я.** На входе было `18e77c1`, чистое дерево. В середине появилось ` M docs/REVIEW_M4_5.md` (+514 строк, начало: «# ADDENDUM 3 к REVIEW_M4_5 — независимая холодная рецензия дельты-2»), затем оно было закоммичено как `4bd6e1e C204 M4.5(governance): REVIEW_M4_5 addendum 3 - VERDICT ACCEPT WITH CONDITIONS`. Я к этим изменениям **не прикасался и не откатывал**. Фиксирую по правилу: чужое состояние в общем дереве называется вслух.
+
+`git diff --name-status 18e77c1..4bd6e1e` → ровно `M docs/REVIEW_M4_5.md`; `git diff --stat 18e77c1..4bd6e1e -- crates/ configs/ Cargo.toml Cargo.lock` → пусто. **Код между этими коммитами не двигался, поэтому все измерения выше, сделанные в клоне на `18e77c1`, описывают и `4bd6e1e`.**
+
+Из основного дерева я ничего не правил, не коммитил и не пушил; все замеры — в отдельном клоне (`…/scratchpad/clone`) с отдельным `CARGO_TARGET_DIR` (`…/scratchpad/tgt`), оба удалены. `git worktree prune` не выполнялся ни разу.
+
+---
+
+Red team (adversarial pass, cold agent context, Opus 5)
