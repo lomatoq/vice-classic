@@ -104,7 +104,7 @@ arms, где бюджет мог потерять ответ                    
 значений**, и 52 числа в клаузных строках двух гейт-таблиц~~ **[УСТАРЕЛО,
 условие 16: на конец дельты-2 это девяносто пять значений и девяносто два
 числа в клаузных строках четырёх гейт-таблиц. Оба числа теперь ПЕЧАТАЮТСЯ
-тестом (`95 declared measurements resolve`, `92 numbers across 4 gate tables`),
+тестом (`95 declared measurements resolve`),
 и написаны здесь СЛОВАМИ намеренно: цифра в прозе — ровно тот объект, который
 устаревает молча, а слово рядом с печатающим её тестом заставляет читателя
 взять число оттуда, где оно измеряется. Условие 19]**.
@@ -217,8 +217,8 @@ interior         ядро 0.900 против каймы 0.000
 ```text
 cargo fmt --all --check                  exit 0
 cargo clippy --workspace --all-targets -- -D warnings   exit 0, 0 warnings
-cargo test --workspace                   487 passed / 0 failed / 5 ignored
-cargo test --release --workspace         487 passed / 0 failed / 5 ignored
+cargo test --workspace                   487 passed / 0 failed / 5 ignored   [УСТАРЕЛО -> §13]
+cargo test --release --workspace         487 passed / 0 failed / 5 ignored   [УСТАРЕЛО -> §13]
 cargo test --release -p vice-bench --test frozen_calibration -- --ignored
                                          5 passed, 258 с
 gt-corpus topology --scope full          exit 0, 3/3 клаузы MET
@@ -226,8 +226,11 @@ gt-corpus topology-check                 reproduced with every metric compared
 diff двух полных прогонов                побайтово идентичны
 ```
 
-- продакшн-модулей **99**, наибольший **792** строки (тест печатает своё
-  число; §4.1 соблюдён);
+- продакшн-модулей ~~**99**~~ **[УСТАРЕЛО, условие 22: на конец дельты-3 их сто
+  три — число ПЕЧАТАЕТСЯ тестом `no_production_module_is_over_the_size_rule`
+  («103 production modules, largest 792 lines»), и здесь оно намеренно написано
+  словами: цифра в прозе — ровно тот объект, который устаревает молча]**,
+  наибольший **792** строки (§4.1 соблюдён);
 - крейтов **8**, и все восемь несут `#![forbid(unsafe_code)]`;
 - `todo!` / `unimplemented!` — **0**; placeholder API для M5+ нет;
 - скрытых env-переключателей нет: поверхность чтения env — те же три
@@ -237,8 +240,13 @@ diff двух полных прогонов                побайтово и
   проверенными по распакованным пакетам лицензиями (§2e THIRD_PARTY_NOTICES);
 - `PORTING_MANIFEST.toml` — **0 units**; донорские родственники названы и не
   открывались (D-3);
-- `configs/GATES_V1.toml` **не тронут**: M4.5 не замораживает ни одной новой
-  константы, поэтому §27.7 здесь нечего исполнять;
+- ~~`configs/GATES_V1.toml` **не тронут**: M4.5 не замораживает ни одной новой
+  константы, поэтому §27.7 здесь нечего исполнять~~ **[ЛОЖНО с C178, условие 22.
+  Это дословно то предложение, против которого написана находка M45-N6. Файл
+  несёт две новые секции — `[topology]` и `[topology_controls]` — заморожённые
+  четырьмя коммитами (C178/C179/C180 и C192/C193/C194), каждый из
+  гейт-коммитов трогает ТОЛЬКО гейт-файл. §27.7 здесь исполняется, и исполняется
+  буквально]**;
 - подписанные `REVIEW_*`, `REDTEAM_*`, `STATUS_M0/M1/M2/M3/M3_5`,
   `docs/baselines/**`, `docs/gt/{AUDIT_SEAL,CORPUS_MANIFEST,SCORECARD_M3,
   CORRIDOR_M4,ORACLE_M4}.json`, `rust-toolchain.toml`, `SOURCE_PINS.toml`,

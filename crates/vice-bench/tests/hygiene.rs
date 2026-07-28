@@ -784,11 +784,27 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
 fn no_gate_row_compares_against_an_unregistered_number() {
     let src = std::fs::read_to_string(repo_root().join("crates/vice-bench/src/topology/gate.rs"))
         .expect("the gate-row module");
-    let body = strip_comments(
-        src.split_once("pub fn gate_table(")
-            .expect("gate_table exists")
-            .1,
+    assert!(
+        src.contains("pub fn gate_table("),
+        "the gate-row module no longer declares gate_table; this scan would be reading nothing"
     );
+    // THE WHOLE MODULE, not the text after `pub fn gate_table(`.
+    //
+    // Condition 21 / M45-N18: the scope was a PLACE, so a predicate declared
+    // ABOVE the function was outside it. `fn rv_enough_saddles(r) -> bool {
+    // r.saddle_alternatives_total > 7 }` moved the effective value of a clause-3
+    // conjunct from 0 to 7 in one feature commit, with fmt clean, clippy silent,
+    // nine hygiene tests green, `gates-check` exit 0 and the gate file untouched
+    // — while the SAME literal inside `gate_table` was caught immediately and
+    // with a byte offset. The instrument was sound and its scope was a place,
+    // which is meta-rule M-1 applied to a scan for the sixth time in this
+    // milestone.
+    //
+    // The module is the unit because the rows are what it exists to compute: a
+    // helper anywhere in it is a helper of a gate row. A predicate in ANOTHER
+    // module is not covered by this and is covered by the boundary scan
+    // instead — stated as a limitation rather than left implied.
+    let body = strip_comments(&src);
 
     // Every comparison operator, not just `>=` and `<=`: the old boundary let
     // `>` and `<` through, and a threshold written as `> 19` is a threshold.
