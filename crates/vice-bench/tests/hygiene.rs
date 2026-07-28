@@ -960,19 +960,45 @@ fn no_workflow_redirects_the_gate_file() {
     // The red team's sidecar was a copy of the gate file with every threshold
     // at 1; what makes a file a gate is that it declares frozen sections, so
     // that is what is looked for rather than a name or a location.
-    let mut gate_shaped = Vec::new();
-    for entry in std::fs::read_dir(repo_root().join("configs")).expect("the configs directory") {
-        let path = entry.expect("a config entry").path();
-        if path.extension().and_then(|e| e.to_str()) != Some("toml") {
-            continue;
+    // THE WHOLE REPOSITORY, not `configs/`. Condition 26 / M45-N24: a sidecar
+    // only had to be written somewhere else for this to miss it, so the scope
+    // was a directory rather than the property. `target/`, `.git/` and `runs/`
+    // are skipped as build output, history and recorded past runs.
+    fn walk(dir: &std::path::Path, out: &mut Vec<String>, root: &std::path::Path) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            if path.is_dir() {
+                if matches!(name.as_str(), "target" | ".git" | "runs" | "node_modules") {
+                    continue;
+                }
+                walk(&path, out, root);
+                continue;
+            }
+            if path.extension().and_then(|e| e.to_str()) != Some("toml") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).unwrap_or_default();
+            if !text.contains("status = \"frozen\"") {
+                continue;
+            }
+            out.push(
+                path.strip_prefix(root)
+                    .unwrap_or(&path)
+                    .to_string_lossy()
+                    .replace('\\', "/"),
+            );
         }
-        let text = std::fs::read_to_string(&path).unwrap_or_default();
-        if !text.contains("status = \"frozen\"") {
-            continue;
-        }
-        let rel = format!("configs/{}", path.file_name().unwrap().to_string_lossy());
-        gate_shaped.push(rel);
     }
+    let mut gate_shaped = Vec::new();
+    walk(&repo_root(), &mut gate_shaped, &repo_root());
     gate_shaped.sort();
     let mut protected: Vec<String> = vice_bench::gates::GATE_PATHS
         .iter()

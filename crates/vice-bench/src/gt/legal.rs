@@ -392,6 +392,35 @@ mod tests {
     #[test]
     fn no_legal_profile_or_cell_carries_the_held_out_engine() {
         let held_out = SPLIT_POLICY_V1.held_out_profiles;
+
+        // RT45-A20: the checks BELOW compare `!held_out.contains(p.as_str())`,
+        // which is the same string join the mechanism itself computes, so they
+        // measure consistency rather than the property. Renaming
+        // `RasterProfile::TinySkia => "tinyskia"` made the held-out engine a
+        // legal profile and six legal cells while that guard stayed green.
+        //
+        // These two do not go through `as_str` at all:
+        //
+        //   - every held-out NAME must resolve to a variant that exists. A name
+        //     nobody can resolve holds nothing out, and nothing checked that.
+        //   - the legal set and the held-out set must PARTITION the enum. A
+        //     rename moves a variant from one side to the other without
+        //     changing either count, and the sum stops matching.
+        for h in held_out {
+            assert!(
+                RasterProfile::from_id(h).is_some(),
+                "the split policy holds out {h:?}, which resolves to no RasterProfile variant. A                  held-out name that names nothing holds nothing out (RT45-A20)"
+            );
+        }
+        assert_eq!(
+            RasterProfile::ALL.len(),
+            legal_raster_profiles().len() + held_out.len(),
+            "the legal profiles and the held-out profiles do not partition RasterProfile::ALL:              {} legal + {} held out against {} variants. A variant that is in neither is legal by              accident, and a rename is how it gets there (RT45-A20)",
+            legal_raster_profiles().len(),
+            held_out.len(),
+            RasterProfile::ALL.len()
+        );
+
         assert!(
             !held_out.is_empty(),
             "the split policy holds no profile out, so this test would pass on a policy that              cannot leak - the clause it guards would have nothing to guard"
