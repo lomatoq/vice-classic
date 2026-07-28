@@ -152,6 +152,34 @@ Float-ы округлены до четырёх знаков и сверяютс
 
 | строка | позиция | ключ |
 |---|---|---|
+<!-- Каждая строка КАЖДОЙ гейт-таблицы объявлена здесь ровно один раз, и
+строка без объявления — ОШИБКА теста, а не пропуск (RT45-A17, M45-N20,
+условие 23). Три вида:
+  N (число)   — позиционная привязка: i-е число строки РАВНО i-му ключу;
+  membership  — числа строки обязаны быть объявленными величинами, но не
+                привязаны по позиции;
+  unit-test   — строка докладывает результат юнит-теста, а не измерение
+                артефакта, и артефактных чисел не несёт.
+Строка, называющая клаузу спеки, обязана быть ПОЗИЦИОННОЙ: третий вид не
+может стать лазейкой ровно там, где живёт атака. -->
+
+| row T4 | unit-test | — |
+| row T5 | unit-test | — |
+| row T6 | unit-test | — |
+| row T7 | unit-test | — |
+| row T8 | unit-test | — |
+| row T9 | unit-test | — |
+| row T10 | unit-test | — |
+| row T11 | unit-test | — |
+| row T12 | unit-test | — |
+| row T13 | unit-test | — |
+| row T14 | unit-test | — |
+| row T10d | membership | — |
+| row T11d | membership | — |
+| row T12d | membership | — |
+| row T13d | membership | — |
+| row T14d | membership | — |
+| row T15d | membership | — |
 | row T1 | 1 | `topology:identifiable_supported_arms` |
 | row T1 | 2 | `topology:arms_measured` |
 | row T1 | 3 | `topology:recall_source_groups` |

@@ -164,11 +164,25 @@ const POSITIONAL_DOCS: &[&str] = &["docs/STATUS_M4_5.md"];
 /// there are two.
 const GATE_TABLE_HEADER: &[&str] = &["", "#", "Gate", "Статус", "Evidence", ""];
 
-/// Every gate-table row that reports a spec clause, as (document, row prefix).
+/// EVERY data row of EVERY gate table, as (document, row prefix).
 ///
-/// Derived, never listed. The non-vacuity assertions in the test are what stop
-/// this from silently returning nothing.
-fn spec_clause_rows() -> Vec<(&'static str, String)> {
+/// Derived from the document's own structure: a gate table is found by its
+/// header, and every row under it belongs to this set whatever it is called.
+/// Deliberately NOT "rows that report a spec clause" any more.
+///
+/// RT45-A17: identifying a row by the clause name in its title is a derivation
+/// closed on itself, because the title lives in the document being checked and
+/// one commit edits both. Renaming `T1`'s title to Russian took it out of the
+/// tier, a decorative seventh row satisfied the non-vacuity counter, and a
+/// forged `recall 56 из 132` under a `PASS` went through in silence. M45-N20 is
+/// the other end of the same hole: a row in NEITHER tier, because the
+/// membership tier was a hand-list of prefixes.
+///
+/// Both close the same way, and it is the form both cold contexts asked for:
+/// every row of every gate table carries a SPECIFICATION, and a row without one
+/// is an error rather than an omission. A rename no longer helps - the row id
+/// keeps its spec - and a new row cannot arrive unspecified.
+fn gate_table_rows() -> Vec<(&'static str, String)> {
     let mut out = Vec::new();
     for doc in POSITIONAL_DOCS {
         let Ok(text) = std::fs::read_to_string(repo_root().join(doc)) else {
@@ -187,11 +201,50 @@ fn spec_clause_rows() -> Vec<(&'static str, String)> {
             if !in_gate_table || cells.len() < 5 {
                 continue;
             }
-            if SPEC_CLAUSE_NAMES.iter().any(|n| cells[2].contains(n)) {
-                out.push((*doc, format!("| {} ", cells[1])));
+            if cells[1].chars().all(|c| c == '-' || c.is_whitespace()) {
+                continue;
             }
+            out.push((*doc, format!("| {} ", cells[1])));
         }
     }
+    out
+}
+
+/// The KIND declared for a row in the specification table.
+///
+/// Condition 23: the membership tier used to be a hand-list of row prefixes, so
+/// a row absent from it was checked by nothing. Every row declares its kind in
+/// the same table as the positional bindings now, so a row is in exactly one
+/// tier and never in none.
+///
+/// `unit-test` is a real third kind, not a hatch: rows T4-T9 report what a unit
+/// test measured and their numbers are in no artifact. What stops it BEING a
+/// hatch is the constraint the test enforces separately - a row that names a
+/// spec clause may only be positional.
+fn declared_row_kinds() -> Vec<(String, &'static str)> {
+    let path = repo_root().join("docs/REPRODUCIBILITY_M4_5.md");
+    let text = std::fs::read_to_string(&path).expect("REPRODUCIBILITY_M4_5");
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let Some(cells) = table_cells(line) else {
+            continue;
+        };
+        if cells.len() < 4 {
+            continue;
+        }
+        let Some(row) = cells[1].strip_prefix("row ") else {
+            continue;
+        };
+        let kind = match cells[2].as_str() {
+            "membership" => "membership",
+            "unit-test" => "unit-test",
+            n if n.parse::<usize>().is_ok() => "positional",
+            _ => continue,
+        };
+        out.push((format!("| {row} "), kind));
+    }
+    out.sort();
+    out.dedup();
     out
 }
 
@@ -559,18 +612,86 @@ fn the_delta_clause_rows_equal_their_declared_keys_position_by_position() {
         "only {} positional bindings declared; the specification table is not being read",
         spec.len()
     );
-    let rows_under_check = spec_clause_rows();
+    let all_rows = gate_table_rows();
     assert!(
-        rows_under_check.len() >= 6,
-        "only {} spec-clause rows derived ({rows_under_check:?}); the derivation is not reading          the gate tables and this test would check nothing",
-        rows_under_check.len()
+        all_rows.len() >= 20,
+        "only {} gate-table rows derived ({all_rows:?}); the derivation is not reading the gate          tables and this test would check nothing",
+        all_rows.len()
     );
+    let doc_text: std::collections::BTreeMap<&str, String> = POSITIONAL_DOCS
+        .iter()
+        .filter_map(|d| {
+            std::fs::read_to_string(repo_root().join(d))
+                .ok()
+                .map(|t| (*d, t))
+        })
+        .collect();
+    let gate_cell = |prefix: &str, doc: &str| -> String {
+        doc_text[doc]
+            .lines()
+            .find(|l| l.starts_with(prefix))
+            .and_then(table_cells)
+            .and_then(|c| c.get(2).cloned())
+            .unwrap_or_default()
+    };
+
+    // PER CLAUSE, not "at least six rows in total". The previous version put
+    // this assertion inside `for name in SPEC_CLAUSE_NAMES` and then checked the
+    // TOTAL length, so the loop variable was unused and the message promised a
+    // per-clause guarantee the code did not make (RT45-A17).
     for name in SPEC_CLAUSE_NAMES {
+        let reporting = all_rows
+            .iter()
+            .filter(|(doc, prefix)| gate_cell(prefix, doc).contains(name))
+            .count();
         assert!(
-            rows_under_check.len() >= 2,
-            "clause {name:?} must be reported by at least the milestone row and the delta row"
+            reporting >= 2,
+            "clause {name:?} is reported by {reporting} gate row(s); the milestone table and the              delta table must both carry it, or one of them stopped reporting a spec clause"
         );
     }
+
+    // EVERY row declares exactly one kind. A row with no declaration is the
+    // ERROR, not the omission.
+    let kinds = declared_row_kinds();
+    for (doc, prefix) in &all_rows {
+        let mut declared: Vec<&str> = kinds
+            .iter()
+            .filter(|(r, _)| r == prefix)
+            .map(|(_, k)| *k)
+            .collect();
+        declared.dedup();
+        assert_eq!(
+            declared.len(),
+            1,
+            "{doc}: gate row {prefix:?} declares {declared:?}. Every row of a gate table must              have exactly ONE specification in REPRODUCIBILITY_M4_5 - a positional binding per              number, `membership`, or `unit-test`. A row in no tier is checked by nothing"
+        );
+        // And the third kind cannot cover the rows the attack aims at.
+        if SPEC_CLAUSE_NAMES
+            .iter()
+            .any(|n| gate_cell(prefix, doc).contains(n))
+        {
+            assert_eq!(
+                declared[0], "positional",
+                "{doc}: row {prefix:?} reports a spec clause and is declared {:?}. A row that                  reports a clause carries the numbers a reader takes for the verdict, so it is                  bound position by position or it is not accepted",
+                declared[0]
+            );
+        }
+    }
+    let not_positional: Vec<String> = kinds
+        .iter()
+        .filter(|(_, k)| *k != "positional")
+        .map(|(r, _)| r.clone())
+        .collect();
+    assert!(
+        !not_positional.is_empty(),
+        "no row is declared membership or unit-test, so the branch above never runs"
+    );
+
+    let rows_under_check: Vec<(&str, String)> = all_rows
+        .iter()
+        .filter(|(_, prefix)| !not_positional.contains(prefix))
+        .cloned()
+        .collect();
     let mut checked = 0;
     for (doc, prefix) in &rows_under_check {
         let doc: &str = doc;
@@ -726,4 +847,70 @@ fn the_status_clause_rows_quote_only_declared_numbers() {
     }
     assert!(tables > 0, "no gate table was found at all");
     println!("{total} numbers across {tables} gate tables are declared measurements");
+}
+
+/// Every row of a markdown table has the SAME number of cells as its header.
+///
+/// Condition 24 / M45-N21. `REQUIREMENTS_TRACEABILITY.md` was brought under this
+/// mechanism by condition 10 — with a list of three row prefixes. The row that
+/// broke was `M45-17`: it lost the separator between the requirement column and
+/// the mechanism column in C189, so the text read "…а не просто не обойдена
+/// корпусные типы `pub(crate)`…", six cells where the table has seven. It is
+/// also, precisely, the row documenting the BLOCKING condition.
+///
+/// A file entered "under the mechanism" by three of its rows is entered by three
+/// rows. This is the property instead: it is derived from each table's own
+/// header, it needs no list of prefixes, and it covers tables that do not exist
+/// yet. It is one loop, which is the honest measure of what condition 10 should
+/// have cost.
+#[test]
+fn every_table_row_has_as_many_cells_as_its_header() {
+    let docs = [
+        "REQUIREMENTS_TRACEABILITY.md",
+        "docs/STATUS_M4_5.md",
+        "docs/REPRODUCIBILITY_M4_5.md",
+        "docs/REPRODUCIBILITY_M4.md",
+    ];
+    let mut checked = 0;
+    for doc in docs {
+        let Ok(text) = std::fs::read_to_string(repo_root().join(doc)) else {
+            panic!("{doc} is missing");
+        };
+        let mut header: Option<(usize, usize)> = None; // (line, cells)
+        for (i, line) in text.lines().enumerate() {
+            let Some(cells) = table_cells(line) else {
+                header = None;
+                continue;
+            };
+            // A separator row `|---|---|` both confirms the line above was a
+            // header and fixes the table's width.
+            let is_sep = cells.len() > 2
+                && cells[1..cells.len() - 1]
+                    .iter()
+                    .all(|c| !c.is_empty() && c.chars().all(|ch| ch == '-' || ch == ':'));
+            if is_sep {
+                header = Some((i + 1, cells.len()));
+                continue;
+            }
+            let Some((hline, width)) = header else {
+                continue;
+            };
+            assert_eq!(
+                cells.len(),
+                width,
+                "{doc}:{} has {} cells and the table opened at line {hline} has {width}. A row \
+                 that lost or gained a separator is a row the table parser reads wrongly, and \
+                 every mechanism over that table starts by parsing it (condition D2, F-0029)\nrow: \
+                 {line}",
+                i + 1,
+                cells.len()
+            );
+            checked += 1;
+        }
+    }
+    assert!(
+        checked >= 200,
+        "only {checked} table rows checked; the scan is not finding the tables"
+    );
+    println!("{checked} table rows have the cell count their header declares");
 }
