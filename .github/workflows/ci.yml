@@ -41,6 +41,11 @@ jobs:
           fetch-depth: 2
       - name: Install pinned toolchain
         run: rustup show
+      # F-2 again, in the second job that measures: a step that fails to
+      # COMPILE must not be reachable from a step whose exit code is read as a
+      # measurement.
+      - name: Build the measurement binaries (this step does not measure)
+        run: cargo build --locked --release --workspace --bins
       - name: Regenerate the smoke corpus and compare bytes
         run: cargo run --locked --release --bin gen-smoke -- --out tests/fixtures/smoke --check
       - name: Verify the smoke corpus against its manifest
@@ -75,6 +80,17 @@ jobs:
           fetch-depth: 0
       - name: Install pinned toolchain
         run: rustup show
+      # F-2 (STATUS_M4_5 §17): build and measurement were ONE command, so a
+      # step that failed to COMPILE was indistinguishable by exit code from a
+      # step that measured and disagreed. The reviewer showed it with a clock:
+      # one second against thirty-five.
+      #
+      # This step builds and nothing else. Every `cargo run` below is therefore
+      # a measurement on an artifact that already exists, and a compile error
+      # fails HERE, with the compiler's own message, before any number is
+      # printed.
+      - name: Build the measurement binaries (this step does not measure)
+        run: cargo build --locked --release --workspace --bins
       # Spec §27.7 / §32 rule 9, enforced rather than requested: an EXISTING
       # gate file and production code may not change together.
       #
@@ -96,11 +112,32 @@ jobs:
              && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
             COMMITS=$(git rev-list "${BEFORE}..${{ github.sha }}")
           else
-            # First push of a branch, a force-push, or a fetch depth that
-            # does not reach the base: check the tip rather than nothing, and
-            # say so instead of reporting a silent pass.
-            echo "NOTE: base commit unavailable; checking the tip commit only"
-            COMMITS=$(git rev-list -1 HEAD)
+            # M4-N9 (owner M5), closed here. This branch used to print
+            #   NOTE: base commit unavailable; checking the tip commit only
+            # and carry on. That is a gate degrading to advisory exactly where
+            # the two-commit bypass of REVIEW_M3_5 M35-N6 lives: with no base,
+            # `--existing-gate` is empty AND only the tip is inspected, so
+            # deleting the gate file in one commit and re-adding it with the
+            # code in the next passes.
+            #
+            # The base is now RECONSTRUCTED rather than given up on: everything
+            # reachable from HEAD and not from the default branch is this
+            # push's own range, which is what the rule needs. Only if that also
+            # fails does the step REFUSE, because an instrument that cannot
+            # check says so instead of passing (meta-rule M-4).
+            git fetch --no-tags --quiet origin "+refs/heads/${{ github.event.repository.default_branch }}:refs/remotes/origin/default" 2>/dev/null || true
+            if git rev-parse --verify --quiet refs/remotes/origin/default >/dev/null; then
+              BASE_REF=$(git merge-base refs/remotes/origin/default HEAD)
+              echo "base commit unavailable from the event; reconstructed from the default branch: $BASE_REF"
+              COMMITS=$(git rev-list "${BASE_REF}..HEAD")
+              [ -z "$COMMITS" ] && COMMITS=$(git rev-list -1 HEAD)
+              BEFORE="$BASE_REF"
+            else
+              echo "REFUSED: the base of this push cannot be established, so the frozen-gate rule" >&2
+              echo "         cannot be applied to the commits it is supposed to cover. Checking the" >&2
+              echo "         tip alone would report a pass this instrument did not earn (M4-N9)." >&2
+              exit 2
+            fi
           fi
           echo "commits to check:"
           echo "$COMMITS"
@@ -257,6 +294,8 @@ jobs:
         run: cargo run --locked --release --bin gt-corpus -- corridor-check --report docs/gt/CORRIDOR_M4.json
       - name: The committed topology report reproduces (Tier A, every metric)
         run: cargo run --locked --release --bin gt-corpus -- topology-check --report docs/gt/TOPOLOGY_M4_5.json
+      - name: The committed DCEL report reproduces (Tier A, every metric)
+        run: cargo run --locked --release --bin gt-corpus -- dcel-check --report docs/gt/DCEL_M5.json
 
 # Reproducing the pinned donor baselines needs local mirrors and a 104 MiB
 # hash-pinned asset, which CI has neither of; that step is executed by the
