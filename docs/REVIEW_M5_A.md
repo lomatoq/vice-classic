@@ -870,3 +870,170 @@ My delta-1 blocker is closed by exactly the check I named, placed better than I 
 The difference from delta-1 is material and I want it on the record rather than inferred: E2b was a real defect corrupting a public output on half the canvas with a byte-identical artifact; E6 is a defect nothing would catch in a traversal nothing currently reads. Same class, different consequence.
 
 **GATE §28 M5: MET**
+
+---
+
+# REVIEW_M5_A — addendum 3 (delta-3)
+
+Reviewer A, independent cold review, Opus 5. Signed §0–§9 and addenda 1–2 untouched.
+Object: **`d8bc9bb`**, commits **C260–C262** on top of `b6a57d3`.
+
+## §C0. Hygiene
+
+```
+start / end:  main repo  git status --porcelain → (empty)   HEAD = d8bc9bbffee9198f139a9c97632c9a3323ca1016
+              measuring clone …/m5a-delta3-rev-hp62w  (empty)  HEAD = d8bc9bb
+              experiment clone …/m5a-delta3-exp-hp62w  M walk.rs  (deliberately dirty)
+              git worktree list → one entry, the main tree
+```
+
+`CARGO_TARGET_DIR=…/tgt-m5a-delta3-hp62w` asserted **not to exist** before the first command. Every cargo call blocking. No `git worktree`.
+
+## §C1. Reproduced
+
+| command | result |
+|---|---|
+| `cargo fmt --all --check` | `FMT_EXIT=0` |
+| `cargo clippy --workspace --all-targets -- -D warnings`, **cold target** | `CLIPPY_EXIT=0`, zero diagnostics |
+| `cargo test --locked --workspace` | `DEBUG_EXIT=0` — **543 passed, 0 failed, 13 ignored** |
+| `cargo test --locked --release --workspace` | `RELEASE_EXIT=0` — **543 passed, 0 failed, 13 ignored** |
+| `gt-corpus dcel --scope full` | `GATE_EXIT=0`, **four `[MET]`**; 480 arms (444 corpus, 36 register), 240 groups, 253 in/253 out, 13 convention-dependent (**7 corpus / 6 register**), 170/170 committed, 30 probes, **179 253 slots, UNCAUGHT 0, no-ops 0** |
+| artifact | `8E008635…B2F8799F` — **byte-identical** |
+| `dcel_props -- --ignored` | 2 passed |
+| `dcel_harness -- --ignored` | **6 passed** |
+| §27.7 | C261 → `docs/gt/DCEL_M5.json` only. Kept |
+
+## §C2. My D2-N1, verified closed — and closed better than I specified
+
+**61(a) — CLOSED.** The §12 claim is corrected in all three places; the argument now establishes **closed** and explicitly disclaims **oriented**.
+
+**61(b) — CLOSED, and the author was right to reject my first option.** I named two variants. He applied Q4 to the first — `target(h) == origin(next(h))` reads `boundaries[].start/end` and `site`, both outputs of the same `assemble`, which is RT5-A9's shape a third time — and took the second. `loops.rs` re-derives the orbits from the **labelling** and compares stored loops as canonical cyclic lattice walks. Its test asserts that **both** delta-2 anchors reproduce my reordering and this one does not, which is my E6 turned into a two-sided control. That is the stronger check and the correct Q4 reasoning.
+
+**61(c) — CLOSED.** The clause-4 row now says in the run's own output that the anchor is **guarded by knockouts rather than measured by the walk** — my formulation, verbatim — and re-publishes the disjointness on a 13×13 annulus as rebuild-only 153, anchor-only 3, both 160. The price of the second instrument is named with owner M6.
+
+## §C3. The governor's asks, answered by execution
+
+### C3.1 — Is there a `succ` corruption both sides share that survives the sweep and Euler? **No — verified.**
+
+I took the one degree of freedom `succ` has and flipped it: at a critical 2×2 (`!al && ar`) take the **right** pairing instead of the left, inside `Arrangement::succ`, which both `assemble` and `loops_agree_with_the_labelling` call. Both sides therefore receive the same wrong loops.
+
+```
+E7: cargo test --locked --release --workspace  →  536 passed, 2 failed
+  ---- dcel::lattice::tests::a_critical_vertex_has_degree_four_and_one_pairing_under_both_arms
+  ---- dcel::sweep::tests::the_audit_is_green_over_a_whole_small_input_space
+       panicked: exhaustive audit: "bits=18 conn=fg-Four:
+                 half-edge 2 sits in face 1 but its owners put it on face 2"
+```
+
+The exhaustive sweep catches it, at **the same 4×3 labelling 18 under foreground-4** that F-0057 records, and it catches it through the owner/site check — a predicate that shares no algorithm with the loop comparison. **The author's residual statement is true by execution, not only by argument.**
+
+### C3.2 — What the new check does **not** bind: the residual class, stated exactly
+
+`loops_agree_with_the_labelling` reads `faces[].loops` and `boundaries[].path`, expands each loop into lattice steps, canonicalises the rotation, and compares as a **multiset** against `orbits()` re-derived from the labelling.
+
+**It binds the ORDER of half-edges within each loop, as a lattice walk.** It does not bind:
+
+**(a) the DECOMPOSITION of that walk into chains — verified, E8c.** `steps_of` *concatenates* chain paths, so any re-split producing the same lattice walk is invisible. I split one maximal chain in two at an interior degree-2 lattice point, keeping vertices, boundaries, loops and `site` all consistent:
+
+```
+REV-A E8c boundaries 2 -> 3     vertices 2 -> 3
+REV-A E8c audit(broken)      -> None          (accepted)
+REV-A E8c loops_agree        -> true
+REV-A E8c face_map_agrees    -> true
+```
+
+`V` and `B` both rise by one, so `V − B + L = 2C` is preserved. **§12 asks for "maximal shared boundary chains" and the audit checks maximality nowhere.**
+
+**(b) which FACE a loop belongs to** — the comparison is flat across all faces. (Bound elsewhere, by `face_of(h) == fi`.)
+
+**(c) `site`, `owners`, `vertices`** — not read here; bound by other checks.
+
+**(d) the rule generating the walk** — shared algorithm, covered by the sweep (C3.1).
+
+So after delta-3: **map → labelling** (anchor), **loop order → labelling** (loops.rs), **succ rule → exhaustive sweep**, **chain decomposition → nothing.**
+
+**Severity, honestly narrowed — and this is where I was wrong twice.** I predicted a spurious-vertex corruption inside `assemble` would pass everything. It did not. E8 (split point chosen by traversal order) → gate `[NOT MET]`, 2 transactions rolled back. E8b (split point a function of the lattice point alone, so edit-stable) → gate `[NOT MET]`, 8 rolled back. Both fell to **clause 3's** unrelated-chain comparison, which compares chains by path and therefore notices a changed decomposition. I had not modelled that as a maximality guard. Only the reduced claim survives: **the audit accepts non-maximal chains; the gate, on the corpus, does not.** That makes it a residual worth naming and not a hole worth blocking on.
+
+### C3.3 — The fixture, checked as a claim
+
+**What holds.** `diagonal_staircase` is registered; `the_register_carries_loops_long_enough_to_have_an_order` runs in the **default** path (no `#[ignore]`) and asserts `at_least_three > 0` for the staircase at 32/64/128 under both arms, plus `longest >= 3` per size. Register 30 → 36 arms; convention-dependent groups 10 → 13 with 6 now from the register, and `diagonal_staircase@s32/s64/s128` appear in the printed set — the counts are computed from the register as claimed. "Loops ≥3 by construction" is asserted, not hoped.
+
+**What does not.** See D3-N1.
+
+## §C4. New finding
+
+### M5A-D3-N1 — MAJOR. The ORIENTED check has no population floor, and the numbers establishing that its population changed are in no artifact.
+
+**No floor.** Clause 4's conjuncts are `arms_failing_the_audit == 0`, `min_arms`, `min_resolving_power_probes`, `min_slots_perturbed`, `uncaught_by_audit == 0`, `no_ops == 0`, `branches_seen.len() >= 2`, and every branch probed. **None requires a loop of length ≥ 3 to exist in the measured population.** A reordering of a 1- or 2-element cycle is the same cycle, so on a population of short loops the ORIENTED check is green for exactly the reason the *absent* check was green — which `loops.rs:204` states in its own words: *"a check whose population cannot exercise it is green for the reason the old one was."*
+
+This is the position clause 1 was in before `gate_min_convention_dependent_groups` existed, and the milestone fixed that one with a floor. The newest check got a fixture instead. A fixture is asserted by a unit test; a floor is what makes the *gate row* false when the population thins. `report.rs`'s own header requires the second: *"every row that stands on a population also PUBLISHES that population's size, and the row is false when the population is empty."*
+
+**Unmeasured.** `loop_length_profile` is consumed by exactly one site in the workspace — `dcel_props.rs:353`, a test. The figures that justify the whole fixture — *"the corpus averages 1.082 half-edges per loop, at most 55 of 1334 loops of length 3 or more, and the structural register had zero"* — appear in three code comments and ADR-0031 §218, **in no artifact key and under no mechanism**. I checked the artifact directly: no arm carries a longest-loop or loops-≥3 field, and no report-level key does either. That is limitation 36's class, occurring in the delta that closed the check those numbers exist to justify.
+
+**Class rule.** *When a check is added because its population was empty, the population is part of the check.* Closing the gap with a fixture makes the check exercised **today**; closing it with a published floor makes it exercised **tomorrow**. The milestone has now made this exact trade four times and gated it three times — clause 1's convention-dependent groups, clause 3's unrelated chains, clause 4's slots and probes — and the fourth is the one that got a fixture.
+
+**Price.** One `[dcel]` key (`gate_min_loops_of_three_or_more`), one field on `DcelArm` or the report from `loop_length_profile`, one conjunct. Same shape as `gate_min_slots_perturbed`, which delta-2 added for the same reason.
+
+### M5A-D3-N2 — MINOR. Chain maximality is bound by nothing; a gate clause catches it incidentally.
+
+Per C3.2(a) and E8c. §12 names "maximal shared boundary chains" as one of the six representation-held invariants; the representation does not hold it and the audit does not check it. In practice the corpus run catches an `assemble`-level violation through clause 3's path comparison — a mechanism for a different property. Worth a named limitation with the M6 owner, because §14.2's span candidates consume the chain decomposition, which is exactly when "caught by a neighbouring clause" stops being adequate.
+
+## §C5. Conditions, by halves, each with its own status (condition 38)
+
+| | half | status |
+|---|---|---|
+| **52** | (a) swapped args | **CLOSED** |
+| | (b) M5 rows bound positionally | **OPEN**, limitation 36, owner M6 |
+| **53** | (a) eight stale numbers | **CLOSED** |
+| | (b) numbers derived, not errata'd | **OPEN**, same owner |
+| **54** | (a) four M5 CI steps | **CLOSED** |
+| | (b) claim derived from `ci.yml` | **CLOSED** |
+| | (c) CI observed green | **OPEN — yours** |
+| **55** | (a) excluded count published | **CLOSED** |
+| | (b) compound transactions attempted | **OPEN**, limitation 37, owner M6 |
+| **56** | tautological conjunct removed | **CLOSED** |
+| **57** | (a) degree multiset | **CLOSED** |
+| | (b) junction detection | **CLOSED** |
+| **58** | (a) `path[j].1` perturbed | **CLOSED** |
+| | (b) site count judged from outside | **CLOSED** |
+| **59** | (a) range guards | **CLOSED** |
+| | (b) residual priced at `with_parts` | **CLOSED** |
+| **60** | (a) knockout non-emptiness | **CLOSED** |
+| | (b) traceability | **CLOSED** |
+| | (c) saddle axis declared | **CLOSED** |
+| **61** | (a) §12 claim corrected in all three places | **CLOSED** |
+| | (b) ORIENTED check anchored to the labelling | **CLOSED**, and by the stronger of my two variants |
+| | (c) clause-4 row states guarded-not-measured; disjointness re-measured | **CLOSED** |
+| **62** *(new)* | (a) population floor for loops of length ≥3, gated | **OPEN** — D3-N1 |
+| | (b) `loop_length_profile` published to the artifact | **OPEN** — D3-N1 |
+| | (c) chain maximality: checked, or declared with an owner | **OPEN** — D3-N2, owed **before M6 walks chains** |
+
+## §C6. F-0048 on my own method
+
+**Q1 — literal enumerating my subjects?** Yes: the governor's three asks. My mitigation was to derive the fourth subject rather than receive it — E8c came from asking Q1 of `steps_of`'s *inputs* (it reads `faces[].loops` and `boundaries[].path`, and concatenates), which is reading the provenance graph rather than a list I invented. That is the method I have been charging others with, applied to myself for the first time deliberately.
+
+**Q2 — what happens at the next finding?** Still "the governor names a fourth". Unchanged, and I do not have a fix for it.
+
+**Q3 — who was my judge?** The compiler and the test binary for E7, E8, E8b, E8c. My *reading* produced the E8 hypothesis, and my reading was wrong.
+
+**Q4 — did my guard share a key with the mechanism?** For E8c the verdict is `audit()` returning `Ok` — the mechanism judging itself, which is legitimate here because the question is "does it accept", not "is it right".
+
+**Q5 — both directions?** E7 red, E8/E8b red *unexpectedly*, E8c green-where-it-should-be-red, baseline green.
+
+**Where I was wrong, and it is the useful part.** I predicted E8 would pass everything and it was caught twice, by a mechanism I had not modelled. I refined the corruption twice before I could say anything true, and what survived is much narrower than my first claim: not "non-maximal chains pass everything" but "**the audit accepts them; the gate does not**". In addendum 1 I published a refuted hypothesis and it produced the exact boundary; here the same discipline turned a would-be blocker into a minor. **The first version of a finding is a hypothesis about the tree, and the difference between it and the third version is the whole value of running it.**
+
+## §C7. What I could not verify
+
+CI execution (yours). Cross-platform / A7.1. Donor sources (D-3). The corpus-wide loop-length figures (1.082, 55 of 1334) — I could not check them against anything, because no artifact carries them; that inability *is* D3-N1.
+
+## §C8. Verdict
+
+**VERDICT (addendum 3): ACCEPT WITH CONDITIONS — one major (M5A-D3-N1), one minor (M5A-D3-N2), no blocker.**
+
+D2-N1 is closed by the stronger of the two remedies I offered, with the weaker one correctly rejected on Q4 grounds — the first time in this cycle a reviewer's proposal has been improved rather than implemented. Conditions 61(a,b,c) are closed, everything reproduces, and the succ-residual the author declared is now verified by execution rather than accepted on his word.
+
+The two new findings are of a kind the milestone has repeatedly closed elsewhere: a check without a gated population, and an invariant §12 names that the representation does not hold. Neither is a live defect passing every instrument — the ORIENTED check is exercised today by a fixture a default-path test asserts, and non-maximal chains redden clause 3 on the corpus.
+
+**The date at which this stops being MET is the same one I named in addendum 2 and it is now closer:** M6/§14.2 consumes the chain decomposition, and 62(a–c) are owed before it does.
+
+**GATE §28 M5: MET**
