@@ -676,3 +676,5 @@ fn measure_arm(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_envelope;

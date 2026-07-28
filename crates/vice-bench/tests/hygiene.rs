@@ -786,6 +786,7 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         "vice-bench/src/gt/raster.rs",
         "vice-bench/src/gt/split.rs",
         "vice-bench/src/topology/tests.rs",
+        "vice-bench/src/topology/tests_envelope.rs",
     ];
     let mut found: Vec<String> = production_modules()
         .iter()
@@ -1170,8 +1171,10 @@ fn only_declared_modules_call_the_render_pipeline() {
         // `every_published_class_came_from_the_envelope` (RT45-A28): it walks
         // render, analyze and propose itself, on purpose, because asking
         // `envelope_classes` to verify `envelope_classes` is F-0034 word for
-        // word. It renders, so it belongs here.
-        "vice-bench/src/topology/tests.rs",
+        // word. It renders, so it belongs here. It lives in its own module since
+        // C229: `tests.rs` crossed the §4.1 size rule, and the check that must
+        // NOT share a chain with what it verifies is clearer standing apart.
+        "vice-bench/src/topology/tests_envelope.rs",
     ];
     let mut found: Vec<String> = production_modules()
         .iter()

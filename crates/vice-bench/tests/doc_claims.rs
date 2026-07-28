@@ -530,14 +530,25 @@ fn the_row_split_honours_the_markdown_escape() {
 /// Numeric tokens of a clause row's evidence column, in order.
 fn row_numbers(row: &str) -> Vec<(String, f64)> {
     let cells = table_cells(row).expect("a clause row is a table row");
-    let evidence = cells.get(4).cloned().unwrap_or_default();
+    quantity_tokens(&cells.get(4).cloned().unwrap_or_default())
+}
+
+/// The QUANTITIES in a piece of cell text, in order.
+///
+/// Factored out of [`row_numbers`] so the same tokenizer decides what a quantity
+/// is wherever the question is asked. A token containing a letter, `§`, `@` or
+/// `№` is an IDENTIFIER - `T1`, `M4.5`, `§11.4`, `RT45-A31`, `№23` - not a
+/// measurement. `№` joins the set for the same reason `§` is in it: it marks an
+/// ordinal reference to a numbered thing, and a gate row that cites condition
+/// twenty-three is not publishing a measured quantity.
+fn quantity_tokens(text: &str) -> Vec<(String, f64)> {
     let mut out = Vec::new();
-    for word in evidence.split(|c: char| c.is_whitespace() || c == '/' || c == '(' || c == ')') {
+    for word in text.split(|c: char| c.is_whitespace() || c == '/' || c == '(' || c == ')') {
         let token = word.trim_matches(|c: char| !c.is_ascii_digit());
         if token.is_empty()
             || word
                 .chars()
-                .any(|c| c.is_alphabetic() || c == '§' || c == '@')
+                .any(|c| c.is_alphabetic() || c == '§' || c == '@' || c == '№')
         {
             continue;
         }
@@ -689,23 +700,45 @@ fn the_delta_clause_rows_equal_their_declared_keys_position_by_position() {
         // needs no table of notations and no list of alphabets - `is_numeric`
         // covers every Unicode numeric category, and the catch-all covers what
         // it does not.
-        let evidence = table_cells(row_line)
-            .and_then(|c| c.get(4).cloned())
-            .unwrap_or_default();
-        for (i, ch) in evidence.char_indices() {
-            // ASCII digits are the notation `row_numbers` parses: it already
-            // separates a QUANTITY (`56`) from an identifier that contains
-            // digits (`§11.4`, `RT45-A29`, `C217`), and the tier check below
-            // uses it. Every OTHER numeric character in Unicode - fullwidth
-            // `５６`, a vulgar fraction, a Roman numeral - is a notation this
-            // file does not parse, so whatever it says is published under no
-            // mechanism at all.
-            if ch.is_ascii_digit() || !ch.is_numeric() {
+        // EVERY CELL of the row, not the evidence column alone.
+        //
+        // RT45-A31 / M45-N36 is the cheapest of the six forms of this attack and
+        // the one that needed no cleverness at all: the criterion "is the whole
+        // cell accounted for" was right, and it was applied to `cells[4]`. So
+        // nothing had to be renamed, downgraded, or written in an exotic
+        // notation - the sentence just moved ONE CELL LEFT, into the Gate or
+        // Status column of a row reporting a spec clause under PASS, and all six
+        // mechanisms passed it.
+        //
+        // Five times the TIER was repaired and once the NOTATION; both times the
+        // SCOPE stayed a place. That is F-0048's own question Q1 asked about the
+        // area a mechanism covers rather than the form it takes, and it is why
+        // this walks the whole row.
+        let cells_of_row = table_cells(row_line).unwrap_or_default();
+        for (col, cell) in cells_of_row.iter().enumerate() {
+            for (i, ch) in cell.char_indices() {
+                if ch.is_ascii_digit() || !ch.is_numeric() {
+                    continue;
+                }
+                panic!(
+                    "{doc}: row {prefix:?} carries the UNPARSED numeric character {ch:?}                      (U+{:04X}) at byte {i} of column {col}. The criterion is not \"does this                      contain a digit\" but \"is the whole ROW accounted for\": a quantity in a                      notation nothing reads, in a column nothing reads, is published under no                      mechanism at all (RT45-A29, RT45-A31)",
+                    ch as u32
+                );
+            }
+        }
+        // And a bare ASCII quantity outside the evidence column is unbound by
+        // construction: `row_numbers` reads column four, so the positional
+        // binding cannot reach a number anywhere else. An identifier that
+        // contains digits (`T1`, `M4.5`, `§11.4`) is not a quantity and
+        // `quantity_tokens` already separates the two.
+        for (col, cell) in cells_of_row.iter().enumerate() {
+            if col == 4 {
                 continue;
             }
-            panic!(
-                "{doc}: row {prefix:?} carries the UNPARSED numeric character {ch:?} (U+{:04X})                  at byte {i}. The criterion is not \"does this contain a digit\" but \"is the                  whole cell accounted for\": a quantity in a notation nothing reads is published                  under no mechanism, which is how `recall ５６ из １３２` went into a PASS row                  that reports a spec clause (RT45-A29)",
-                ch as u32
+            let stray: Vec<String> = quantity_tokens(cell).into_iter().map(|(t, _)| t).collect();
+            assert!(
+                stray.is_empty(),
+                "{doc}: row {prefix:?} carries the quantity {stray:?} in column {col}. Only the                  evidence column is read by the positional binding, so a number in any other                  column is published under no mechanism - which is the whole of RT45-A31: move                  the sentence one cell left and six mechanisms stop looking"
             );
         }
 
