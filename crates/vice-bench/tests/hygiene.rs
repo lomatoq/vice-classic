@@ -265,6 +265,17 @@ fn strip_comments(text: &str) -> String {
 /// it carries one in a field.
 const CORPUS_BEARING_TYPES: &[&str] = &["GtSourceGroup", "AmbiguityPair"];
 
+/// The types a frozen coefficient is actually MEASURED on.
+///
+/// RT45-A19: the type seal stops at the first type the project does not
+/// declare. `rgba8()` hands out `&[u8]`, coverage is `Vec<Vec<f64>>`, a foreign
+/// crate's public type prints itself through `String` - none of them can be
+/// sealed, and three `pub fn` handed out 22 of 22 sealed-audit groups and
+/// 258 048 bytes with no new type at all. Past this point there are no more
+/// types, so the second echelon must stop looking for a TYPE in return position
+/// and look for a CALL of the pipeline from a module that may not make it.
+const CORPUS_PRODUCT_TYPES: &[&str] = &["RenderedFixture", "CoverageStack", "CellRaster"];
+
 /// Fully-public functions allowed to return a corpus type: NONE.
 ///
 /// The set is empty on purpose. The corpus types are `pub(crate)`, so a public
@@ -289,6 +300,18 @@ struct CorpusFn {
 /// takes a fixture and returns a `Split`, and counting it would make the
 /// declared set meaningless.
 fn corpus_returning_fns() -> Vec<CorpusFn> {
+    fns_returning(CORPUS_BEARING_TYPES)
+}
+
+/// The PIPELINE: functions that turn a corpus fixture into measurable output.
+///
+/// Derived by RETURN TYPE, the same way corpus doors are, because that is what
+/// makes a function part of the pipeline - not its name.
+fn pipeline_fns() -> Vec<CorpusFn> {
+    fns_returning(CORPUS_PRODUCT_TYPES)
+}
+
+fn fns_returning(types: &[&str]) -> Vec<CorpusFn> {
     let mut out = Vec::new();
     for (path, _) in production_modules() {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
@@ -338,7 +361,7 @@ fn corpus_returning_fns() -> Vec<CorpusFn> {
             // Stop at the body brace so a fixture mentioned in the first line
             // of an implementation is not read as a return type.
             let ret = ret.split('{').next().unwrap_or_default();
-            if !CORPUS_BEARING_TYPES.iter().any(|t| ret.contains(t)) {
+            if !types.iter().any(|t| ret.contains(t)) {
                 continue;
             }
             out.push(CorpusFn {
@@ -446,35 +469,41 @@ fn the_corpus_types_are_sealed_by_the_compiler() {
     // appended: it is exactly what the compiler enumerated when the seal was
     // applied, one error at a time, until it stopped. The judge is still the
     // compiler; this guards the seal's preconditions.
-    for (module, decl) in [
-        (
-            "vice-bench/src/gt/mod.rs",
-            "pub(crate) struct GtSourceGroup",
-        ),
-        ("vice-bench/src/gt/mod.rs", "pub(crate) struct GtScene"),
-        (
-            "vice-bench/src/gt/adversarial.rs",
-            "pub(crate) struct AmbiguityPair",
-        ),
-        (
-            "vice-bench/src/gt/degradation.rs",
-            "pub(crate) struct RenderedFixture",
-        ),
-        (
-            "vice-bench/src/gt/degradation.rs",
-            "pub(crate) struct CellRaster",
-        ),
-        (
-            "vice-bench/src/gt/raster.rs",
-            "pub(crate) struct CoverageStack",
-        ),
-    ] {
-        let text = std::fs::read_to_string(repo_root().join("crates").join(module)).expect(module);
+    // DERIVED, not six hand-written pairs (condition 29 / M45-N26). The
+    // property is: every type this crate treats as corpus-bearing or as corpus
+    // PRODUCT must be declared `pub(crate)`. Both name sets already exist for
+    // other reasons, so the list of declarations follows them - a type added to
+    // either set is checked the day it is added, and there is no place here for
+    // a seventh pair to be appended.
+    let sealed_types: Vec<&str> = CORPUS_BEARING_TYPES
+        .iter()
+        .chain(CORPUS_PRODUCT_TYPES.iter())
+        .chain(["GtScene"].iter())
+        .copied()
+        .collect();
+    assert!(
+        sealed_types.len() >= 6,
+        "only {} types to check; the derivation is reading nothing",
+        sealed_types.len()
+    );
+    let sources: Vec<(String, String)> = production_modules()
+        .iter()
+        .map(|(p, _)| (rel(p), std::fs::read_to_string(p).unwrap_or_default()))
+        .collect();
+    for ty in &sealed_types {
+        let decl = format!("struct {ty}");
+        let sites: Vec<&(String, String)> =
+            sources.iter().filter(|(_, t)| t.contains(&decl)).collect();
+        assert_eq!(
+            sites.len(),
+            1,
+            "{ty} is declared in {} modules; the seal has no single site to check",
+            sites.len()
+        );
+        let (module, text) = sites[0];
         assert!(
-            text.contains(decl),
-            "{module} no longer declares `{decl}`. Widened to `pub`, a type alias or a public \
-             field can carry a corpus fixture out of the crate again, which is exactly how the \
-             third attempt at this seal was walked around (RT45-A9)"
+            text.contains(&format!("pub(crate) {decl}")),
+            "{module} no longer declares `pub(crate) {decl}`. Widened to `pub`, a type alias, a              public field or a return position carries a corpus fixture - or the render a frozen              coefficient is measured on - out of the crate again (RT45-A9, RT45-A14)"
         );
     }
     // And no corpus-bearing type knows how to print itself. `format!("{g:?}")`
@@ -1012,4 +1041,122 @@ fn no_workflow_redirects_the_gate_file() {
     println!(
         "{files} workflow file(s), {invocations} topology invocation(s), {gate_args} --gates          argument(s), every one naming a protected path"
     );
+}
+
+/// A FREE call of `name(`, not a method call of the same name.
+///
+/// `FrozenScene::rasterize` is deliberately named after the pipeline function it
+/// wraps, so `s.rasterize(&t, &profile, psf)` in a frozen measurement is the
+/// LEGAL door being used correctly, while `rasterize(scene.certified(), …)` is
+/// the pipeline being called directly. A scan that cannot tell them apart calls
+/// the one legal usage a violation - which is the shape of the false positive
+/// this file already fixed once, on `groups(`.
+fn contains_free_call(code: &str, call: &str) -> bool {
+    let name = call.trim_end_matches('(');
+    code.match_indices(call).any(|(i, _)| {
+        let before = code[..i].chars().rev().find(|c| !c.is_whitespace());
+        if before == Some('.') {
+            return false;
+        }
+        code[..i]
+            .chars()
+            .last()
+            .is_none_or(|c| !c.is_alphanumeric() && c != '_')
+            && !name.is_empty()
+    })
+}
+
+/// Only declared modules may CALL the pipeline that turns a fixture into
+/// measurable output.
+///
+/// RT45-A19, as a class rule rather than a patch. The type seal ends at the
+/// first type this project does not declare: `LegalRender::rgba8()` returns
+/// `&[u8]`, coverage is `Vec<Vec<f64>>`, and a foreign crate's public type
+/// prints itself into a `String`. Three `pub fn` in an already-declared module
+/// handed an integration test 22 of 22 sealed-audit groups and 258 048 bytes
+/// with no new type at all, and no visibility modifier could have stopped any of
+/// them. Past `Vec<u8>` there is nothing left to seal.
+///
+/// So the echelon changes what it looks for. Not a TYPE in return position - a
+/// CALL of the pipeline from a module that has no business making one. The
+/// pipeline is DERIVED by return type, so a function added to it tomorrow is
+/// covered the day it is written; only the set of callers is declared, and that
+/// set is the thing a reviewer should be reading anyway.
+#[test]
+fn only_declared_modules_call_the_render_pipeline() {
+    let pipeline: Vec<String> = pipeline_fns()
+        .into_iter()
+        .map(|f| format!("{}(", f.name))
+        .collect();
+    assert!(
+        pipeline.len() >= 3,
+        "only {} pipeline functions derived ({pipeline:?}); the scan is not reading the \
+         signatures and would be searching for nothing",
+        pipeline.len()
+    );
+    // The three the red team used must be among them, or the derivation has
+    // drifted away from the thing it is supposed to describe.
+    // Written WITHOUT the parenthesis on purpose: with it, this file would
+    // contain the very call pattern it forbids an integration test from
+    // containing, and the guard would trip on itself. Same shape as the
+    // `groups(` false positive this file already fixed once.
+    for must in ["render_cell", "rasterize", "render_cell_raster"] {
+        let wanted = format!("{must}(");
+        assert!(
+            pipeline.contains(&wanted),
+            "the derived pipeline {pipeline:?} does not contain {must}, which is one of the calls \
+             RT45-A19 used"
+        );
+    }
+
+    // Modules that may turn a fixture into pixels or coverage. Every entry is a
+    // harness that walks the corpus at run time and reports, the corpus
+    // machinery itself, or the one legal handle.
+    const MAY_CALL: &[&str] = &[
+        // The pipeline's own modules.
+        "vice-bench/src/gt/degradation.rs",
+        "vice-bench/src/gt/raster.rs",
+        // The one legal door: this is the whole point of it existing.
+        "vice-bench/src/gt/legal.rs",
+        // Corpus machinery that renders to build or label fixtures.
+        "vice-bench/src/gt/corpus.rs",
+        "vice-bench/src/gt/adversarial.rs",
+        // Harness runs: they report, they freeze nothing.
+        "vice-bench/src/corridor/mod.rs",
+        "vice-bench/src/oracle/ceiling.rs",
+        "vice-bench/src/topology/mod.rs",
+        "vice-bench/src/topology/ambiguity.rs",
+        "vice-bench/src/correlation.rs",
+    ];
+    let mut found: Vec<String> = production_modules()
+        .iter()
+        .filter(|(p, _)| {
+            let code = strip_comments(&std::fs::read_to_string(p).unwrap_or_default());
+            pipeline.iter().any(|c| contains_free_call(&code, c))
+        })
+        .map(|(p, _)| rel(p))
+        .collect();
+    found.sort();
+    found.dedup();
+    let mut declared: Vec<String> = MAY_CALL.iter().map(|s| (*s).to_string()).collect();
+    declared.sort();
+    assert_eq!(
+        found, declared,
+        "the set of modules that turn a corpus fixture into measurable output changed. Past the \
+         last sealable type this is the only mechanism left, so every entry is reviewed rather \
+         than assumed (RT45-A19)"
+    );
+
+    // And no INTEGRATION test calls the pipeline directly - that is the
+    // boundary the seal used to guard by type and can no longer guard past
+    // `Vec<u8>`.
+    for (path, code) in integration_tests() {
+        for call in &pipeline {
+            assert!(
+                !contains_free_call(&code, call),
+                "{path} calls {call} directly. A frozen coefficient is measured through \
+                 FrozenScene, which cannot be handed a held-out profile or a sealed-audit scene"
+            );
+        }
+    }
 }
