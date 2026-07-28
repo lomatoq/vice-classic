@@ -717,3 +717,156 @@ CI execution (the governor's). `cargo test --workspace -- --ignored` end-to-end 
 Said plainly, because the delta deserves it: RT5-A2 is genuinely and verifiably closed, RT5-A3/N3 is closed with a mechanism that derives the claim instead of asserting it, seven of my nine conditions are closed, and the author's own F-0048 table names two rows that do not pass rather than reporting nine green. This is the strongest delta the project has produced. The blocker is narrow and its remedy is one line — but it is the same class as the blocker it was written to close, at a placement one step earlier in the same function, and it passes with a byte-identical artifact while half the canvas reports the wrong ink.
 
 **GATE §28 M5: NOT MET**
+
+---
+
+# REVIEW_M5_A — addendum 2 (delta-2)
+
+Reviewer A, independent cold review, Opus 5. Signed §0–§9 and addendum 1 untouched; this is an append.
+Object: **`2ec7c95`**, commits **C255–C258** on top of `dbe0dea`.
+
+## §B0. Hygiene
+
+```
+start:  main repo  git status --porcelain → (empty)   HEAD = 2ec7c9546a10fefdeaac1b314a69d6925d13a094
+end:    main repo  (empty)                            HEAD = 2ec7c95
+        measuring clone …/m5a-delta2-rev-vt41m  (empty)  HEAD = 2ec7c95
+        experiment clone …/m5a-delta2-exp-vt41m  M audit.rs, M walk.rs  (deliberately dirty)
+        git worktree list → one entry, the main tree
+```
+
+`CARGO_TARGET_DIR=…/tgt-m5a-delta2-vt41m` asserted **not to exist** before the first command. Every cargo call blocking. No `git worktree`. No number below comes from the experiment clone except where labelled as mine.
+
+*On C254: recorded, and the correction is yours to make, not mine to absorb. It cost nothing — I stopped at the header and every measurement in addendum 1 came from my own clone.*
+
+## §B1. What I reproduced
+
+| command | result |
+|---|---|
+| `cargo fmt --all --check` | `FMT_EXIT=0` |
+| `cargo clippy --workspace --all-targets -- -D warnings`, **cold target** | `CLIPPY_EXIT=0`, zero diagnostics |
+| `cargo test --locked --workspace` | `DEBUG_EXIT=0` — **537 passed, 0 failed, 13 ignored** |
+| `cargo test --locked --release --workspace` | `RELEASE_EXIT=0` — **537 passed, 0 failed, 13 ignored** |
+| `gt-corpus dcel --scope full` | `GATE_EXIT=0`, **four `[MET]`**; 29 probes, **161 391 slots, caught 161 391, UNCAUGHT 0, no-ops 0** |
+| artifact | `26A08BF0…99A19349` = committed — **byte-identical** |
+| `dcel_props -- --ignored` | 2 passed; `131072 arrangements, 12 classes, 41678 with a critical 2x2` |
+| `dcel_harness -- --ignored` | **6 passed**, including `the_relabelling_that_survived_delta_one_now_reddens_clause_four` |
+| §27.7 | C256 → `configs/GATES_V1.toml` only; C257 → `docs/gt/DCEL_M5.json` only. Kept, and separated as you said |
+
+## §B2. My delta-1 findings, verified closed
+
+- **D1-N1 (blocker) — CLOSED, by exactly the remedy I named.** The per-pixel anchor is in `audit.rs` at `(A)`, placed **before all branches**, which also closes reviewer B's empty-subclass N11(a) in the same movement. The E2b knockout is in the tree, runs in the default path, and — measured — the whole suite goes `534 passed, 1 failed` when I disable the anchor, the failure being `a_relabelling_that_keeps_every_count_defeats_the_rebuild_and_not_the_anchor`. The author's refuted first reproduction mirrors mine; F-0066 generalises it correctly.
+- **D1-N2 — CLOSED.** `boundaries.path` now yields **292 slots on a 33×33 ring = 2 × 146**, and the walk's total is **1548**, which is *exactly* the scalar-leaf count I computed by hand in addendum 1 §A3. Workspace figure 155 160 → 161 391. F-0067's rule (each batch replacement asserts its own anchor; the edit list is built from what actually changed) is the right shape, and `assert old in d` catching three mismatched anchors inside this same delta is the kind of evidence that makes a rule credible.
+- **D1-N3 — CLOSED.** `mod.rs:455` now records the correction; stride 17 with `first_of_branch ||`.
+- **D1-N4 — CLOSED** as errata, with the ADR erratum added.
+
+## §B3. Your two questions, answered with numbers
+
+### B3.1 — What carries the load
+
+Attribution on a 33×33 ring, 1548 slots, one check disabled at a time, nothing else changed:
+
+| configuration | UNCAUGHT | carried uniquely |
+|---|---|---|
+| shipped (anchor + crossing) | **0** | — |
+| **anchor OFF**, crossing on | **0** | the anchor carries **0 slots of the walk** |
+| **crossing OFF**, anchor on | **205** | crossing carries **205** uniquely, all in `face_of_padded_px` |
+| *(delta-1: crossing off, no anchor)* | *1225* | |
+
+**They carry disjoint loads, and both are real.** `crossing` is not redundant: it uniquely catches **205 of 1548 — 13.2 % of the walk, 16.7 % of the map family**. Those are precisely the slots the anchor cannot see, and the reason is structural: the anchor iterates **canvas pixels only** and compares **labels only**, so a reassignment to a different face with the *same* label, and every entry in the **padding ring**, are outside it. That is the number you asked for, and it means the clause-4 row may keep citing both.
+
+**The converse is the finding.** The anchor contributes **zero to every number the gate publishes**: with it disabled, `slots_perturbed`, `caught_by_audit`, `by_family` and the artifact are unchanged. The check that closed the blocker is **invisible to the instrument clause 4 cites** as "what makes those zeros evidence rather than silence".
+
+It is *not* unguarded — the default-path test above fails on its removal. The precise statement, which belongs in the row: **the anchor is guarded by a test, not measured by the instrument.** `by_family` decomposes the walk, and the walk is by construction made of perturbations of a *correct* value; the anchor's whole domain is defects *inside* `assemble`, which are not perturbations of anything. That is F-0066, and F-0066 implies the walk can never attribute a slot to the anchor.
+
+### B3.2 — The anchor's residual class, stated exactly
+
+The anchor binds, per pixel, `faces[face_of_pixel(p)].label == labelling[p]` — it ties the **labelled partition** to the input. It does **not** tie:
+
+**(a) which face id** — only its label. Two faces carrying the *same* label may exchange ids consistently and the anchor is silent by construction.
+
+**(b) the loop structure and traversal order — verified, E6.** Swap two half-edges inside one face loop and keep `site` the exact inverse, so every internal-consistency check still holds. On a 5×5 labelling (`bits=69`, fg-4, loop of length 4):
+
+```
+audit(broken)               → None            (passes)
+face_map_agrees(broken)     → true
+parts changed?              → true
+half-edges whose next(h) does NOT begin where h ends  → 2
+```
+
+The labelling, the map, the owners, the paths, the vertices and the loop *count* are untouched, so the anchor is untouched by construction. The constraints that remain on the loop lists are: each boundary used exactly twice, `site` the exact inverse, `next` staying inside the face, and `loop_count()` entering Euler. **None ties the order to the geometry.** Audit step (1) recomputes `successor_is_a_permutation` from the labelling, but only verifies that `succ` *is* a permutation — it never compares the stored loops against the orbits of that permutation. The geometry→loops link is computed once in `assemble` and never re-derived.
+
+**Answering your framing directly: this is not "we moved the single external bit."** Delta-2 added a genuinely *second* external anchor, and it is the right one — the labelling is the only input the audit does not derive. But it anchors the **face map**. The **loop structure** still has no external anchor at all: it has internal consistency and counts. The arrangement now has one anchored half and one unanchored half.
+
+The two functions that would close it already exist in the API and are called by **nothing** in the workspace: `Dcel::origin` (`mod.rs:438`) and `Dcel::target` (`:448`).
+
+## §B4. New finding
+
+### M5A-D2-N1 — MAJOR. §12's "face cycles closed **and oriented**" is half-held, and the §12 table claims the whole.
+
+The milestone's central table (`dcel/mod.rs`, STATUS §1, ADR-0031 §1) says of this invariant: *"a loop is a `Vec<HalfEdgeId>` traversed modulo its length — no: a cyclic traversal has no open state."* That argument establishes **closed**. It does not establish **oriented** — that the cycle *is* the boundary walk of its face — and E6 exhibits a value where it is false, which `audit`, `crossing`, the anchor, the walk and all 537 tests accept.
+
+So one of the six invariants claimed as *unrepresentably-false* is representable-false in half of what §12 asks. The remedy is one line and, by symmetry with the anchor, uses what exists:
+
+```
+for every half-edge h:   target(h) == origin(next(h))
+```
+
+or, matching the anchor's shape exactly, re-derive `orbits(&arr)` from the labelling and compare against the stored loops.
+
+**Severity, and why it is MAJOR and not the blocker E2b was.** E2b corrupted a *public output* — `face_of_pixel` — on 48.6 % of the canvas with the gate green and the artifact byte-identical. E6 corrupts a *traversal* that no M5 consumer reads: `next` is used inside the audit's own check and nowhere else in the workspace, so no gate number and no artifact byte moves, and the shipped `assemble` builds the loops from `orbits(&arr)` and is correct. What is deficient is resolving power against one class, not any current output. It becomes load-bearing the moment M6 walks those chains for span candidates (§14.2), which is why it is a condition owed before M6 rather than a stop now.
+
+**General rule of the class.** It is the same rule as D1-N1, one level over: *a structure is anchored only in the parts a check ties to an input the structure does not derive.* Delta-2 anchored the partition. The incidence structure — which half-edge follows which — is still certified only against itself. **The question "what is the largest corruption this reproduces" must be asked once per half of the value, not once per mechanism.**
+
+## §B5. Conditions 52–60, by halves, each with its own status (condition 38)
+
+| | half | status |
+|---|---|---|
+| **52** | (a) swapped `format!` args corrected | **CLOSED** (delta-1, verified) |
+| | (b) M5 gate rows bound positionally to artifact keys | **OPEN**, limitation 36, owner M6 — unchanged and correctly priced |
+| **53** | (a) the eight stale numbers | **CLOSED** — last one (stride comment) closed in delta-2 |
+| | (b) numbers *derived* rather than errata'd | **OPEN**, same owner as 52(b) |
+| **54** | (a) four M5 CI steps present | **CLOSED** |
+| | (b) the claim derived from `ci.yml` | **CLOSED** — `every_ignore_that_claims_ci_is_named_by_a_workflow_step` |
+| | (c) CI observed to pass | **OPEN — yours** |
+| **55** | (a) excluded count published | **CLOSED** |
+| | (b) compound transactions attempted | **OPEN**, limitation 37, owner M6; price re-checked in addendum 1 §A4 and still honest |
+| **56** | tautological conjunct removed | **CLOSED** |
+| **57** | (a) `degree_multiset` / `junction_count` replace the sum | **CLOSED** |
+| | (b) junction detection no longer `\|B\| > \|V\|` | **CLOSED** |
+| **58** | (a) `path[j].1` perturbed | **CLOSED** — 292 slots, total 1548 = scalar leaves |
+| | (b) site count judged from outside the walk | **CLOSED** — `every_scalar_leaf_of_parts_has_exactly_one_perturbation` compares against the `Serialize` derive, which `extra: _` does not move. This is the right judge |
+| **59** | (a) audit range guards | **CLOSED** |
+| | (b) residual priced at `with_parts`, not at a new `pub fn` | **CLOSED** |
+| **60** | (a) knockout non-emptiness | **CLOSED** |
+| | (b) traceability gate column | **CLOSED** |
+| | (c) saddle-axis narrowing declared | **CLOSED** |
+| **61** *(new)* | (a) §12 table corrected: "closed" is held, "oriented" is not | **OPEN** |
+| | (b) the loop order anchored to the labelling | **OPEN**, owed **before M6 walks chains** |
+| | (c) clause-4 row states that the anchor is guarded-not-measured, and keeps citing crossing for its 205 | **OPEN** |
+
+## §B6. F-0048 on my own method, before I sign
+
+**Q1 — literal enumerating my subjects?** Yes, and worse than last time: my plan was *your* two questions, so the answer to Q2 was again "the governor names a third". What I did against it: E6 was not on your list as an experiment — you asked for the residual class and I had to *find* the half that was unanchored, which meant enumerating the value's parts (map / loops / twins / paths) and asking Q1 of each. That enumeration is mine and hand-written, and if the structure had a fifth part I did not name, I would have missed it. **The check that made it safe: `SLOT_FAMILIES` has eight entries and my four-way split had to account for all 1548 slots — it does (4+4+4+292+3+4+1225+12).** A sum is a judge; my list is not.
+
+**Q3 — who was my judge?** The compiler and the test binary for E5a/E5b/E6. My *reading* of `crossing.rs` produced the delta-1 hypothesis that was refuted; my reading this time produced the E6 hypothesis that held. I do not get to count the second as better method than the first — same method, different luck — which is why both are published as runs.
+
+**Q4 — did my guard share a key with the mechanism?** E5a/E5b are differential against the milestone's own instrument, so they share everything; that is fine because they measure *attribution*, not correctness. E6's verdict came from `target`/`origin`, which the milestone computes and never reads — an input to my judgement that no M5 check uses.
+
+**Q5 — both directions?** E5a red-on-nothing (0), E5b red-on-205, anchor-off suite red (1 failed), E6 green-when-it-should-be-red, baseline green. Four directions, and the pair E5a/E5b is what turns "does crossing still matter" from an opinion into 205.
+
+**Where my method was weakest.** I asserted in addendum 1 §A3 that the remedy "catches RT5-A1, E2 and E2b alike". I did not verify the *padding ring* case then, and E5b now shows the anchor does not cover it — crossing does. My one-line remedy was correct for the class I named and incomplete as a replacement, and the author was right to keep both checks rather than swap one for the other.
+
+## §B7. What I could not verify
+
+CI execution (yours). `cargo test --workspace -- --ignored` end-to-end — exceeded my blocking cap again; both M5 targets and `dcel_props` pass individually. Cross-platform / A7.1. Donor sources (D-3). Whether any consumer beyond M5 reads `Dcel::next` — I checked the current workspace and found none, which is the basis for calling D2-N1 major rather than blocking, and it stops being true in M6.
+
+## §B8. Verdict
+
+**VERDICT (addendum 2): ACCEPT WITH CONDITIONS — one major (M5A-D2-N1), no blocker.**
+
+My delta-1 blocker is closed by exactly the check I named, placed better than I specified (before all branches, closing the empty subclass too), with my E2b in the tree as a two-sided knockout that fails when the anchor is removed. D1-N2, N3 and N4 are closed, and 58(b) is closed by a judge — the `Serialize` derive — that sits outside the mechanism it judges, which is the first time in this milestone that a "the compiler is the judge" claim has been true at the level it was claimed. The author's three F-0048 rows declared non-passing are, as far as I can measure, the correct three.
+
+The difference from delta-1 is material and I want it on the record rather than inferred: E2b was a real defect corrupting a public output on half the canvas with a byte-identical artifact; E6 is a defect nothing would catch in a traversal nothing currently reads. Same class, different consequence.
+
+**GATE §28 M5: MET**
