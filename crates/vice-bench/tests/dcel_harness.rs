@@ -15,7 +15,11 @@ use vice_bench::dcel::{self, ProxyKnockout, RoiKnockout, RunKnockouts, PRODUCTIO
 use vice_bench::topology::TopologyScope;
 
 fn run(k: RunKnockouts) -> dcel::report::DcelReport {
-    let r = dcel::run(TopologyScope::Test, k).expect("dcel run");
+    run_at(TopologyScope::Test, k)
+}
+
+fn run_at(scope: TopologyScope, k: RunKnockouts) -> dcel::report::DcelReport {
+    let r = dcel::run(scope, k).expect("dcel run");
     dcel::report::build(&r)
 }
 
@@ -59,7 +63,7 @@ fn the_production_run_has_a_population_for_every_clause() {
     assert_eq!(r.unrelated_chains_that_moved, 0);
     assert_eq!(r.arms_failing_the_audit, 0);
     assert_eq!(r.arms_that_are_not_their_own_assembly, 0);
-    assert_eq!(r.audit_resolving_power.caught_by_neither, 0);
+    assert_eq!(r.audit_resolving_power.uncaught_by_audit, 0);
     assert_eq!(r.audit_resolving_power.no_ops, 0);
 }
 
@@ -73,9 +77,13 @@ fn a_stage_that_picks_a_winner_is_visible_to_clause_one() {
         clean.classes_out, clean.classes_in,
         "positive control: production carries every topology through"
     );
+    assert!(
+        clean.groups > 0,
+        "the clean run has no groups to carry through"
+    );
     let knocked = run(RunKnockouts {
         proxy: ProxyKnockout::Select,
-        roi: RoiKnockout::Off,
+        ..PRODUCTION
     });
     assert!(
         knocked.classes_out < knocked.classes_in,
@@ -97,9 +105,17 @@ fn an_edit_reaching_outside_its_roi_is_refused_on_every_arm() {
         "positive control: the clean edit commits somewhere"
     );
     let knocked = run(RunKnockouts {
-        proxy: ProxyKnockout::Off,
         roi: RoiKnockout::Reach,
+        ..PRODUCTION
     });
+    // M5A-N9: both assertions below are VACUOUSLY true when the knockout
+    // produced no transactions at all, and `RoiKnockout::Reach` adds a pixel
+    // BEFORE `kind` is derived, so it can move the population. A knockout must
+    // assert its own population (F-0039, RT45-A12).
+    assert!(
+        knocked.transactions_attempted > 0,
+        "the knockout attempted nothing, so the two assertions below are about the empty set"
+    );
     assert_eq!(
         knocked.transactions_committed, 0,
         "every transaction whose edit leaves its ROI must roll back"
@@ -130,4 +146,50 @@ fn the_full_scope_population_is_what_the_thresholds_were_read_from() {
         r.audit_resolving_power.arrangements_probed
     );
     println!("FULL: classes {:?}", r.classes);
+}
+
+/// **Every §28 M5 clause has a knockout, and each reddens its OWN row.**
+///
+/// REDTEAM_M5 §3 lists `RunKnockouts` as one of three mechanisms that fail
+/// F-0048: it was one field per clause that happened to have a knockout, so
+/// the answer to Q2 was "append a field" and clauses 2 and 4 had no world in
+/// which they are false at all.
+///
+/// The judge here is the GATE TABLE, not this file: the number of knockouts is
+/// compared against the number of rows `gate_table()` returns, and each
+/// knockout is required to turn the row of the same name red while the clean
+/// run has it green. A fifth clause added without a knockout fails this test,
+/// and a knockout that reddens the wrong row fails it too.
+#[test]
+#[ignore = "walks the corpus; wired into CI in release"]
+fn every_gate_clause_has_a_knockout_that_reddens_it() {
+    let cfg =
+        dcel::report::DcelGateConfig::for_tests_from_the_committed_file().expect("gate config");
+    // FULL scope: the population floors are what a gate row stands on, and at
+    // test scope they are not met, so "the clean run is MET" — the positive
+    // control this test needs — could not be established at all.
+    let clean = run_at(TopologyScope::Full, PRODUCTION).gate_table(&cfg);
+    assert_eq!(clean.len(), 4, "the §28 M5 gate has four clauses");
+    for (name, ok, _) in &clean {
+        assert!(ok, "positive control: {name} must be MET on the clean run");
+    }
+
+    let knockouts = RunKnockouts::one_per_clause();
+    assert_eq!(
+        knockouts.len(),
+        clean.len(),
+        "every clause needs a knockout; the count comes from the gate table, not from a list          in this file"
+    );
+
+    for (clause, k) in knockouts {
+        let rows = run_at(TopologyScope::Full, k).gate_table(&cfg);
+        let row = rows
+            .iter()
+            .find(|(n, _, _)| *n == clause)
+            .unwrap_or_else(|| panic!("no row named {clause}"));
+        assert!(
+            !row.1,
+            "the knockout for {clause:?} left its own row MET; a clause whose knockout does not              redden it has no world in which it is false (F-0035)"
+        );
+    }
 }

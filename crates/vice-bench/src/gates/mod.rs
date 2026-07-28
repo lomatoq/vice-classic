@@ -31,7 +31,7 @@ pub use changeset::{
 };
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -148,12 +148,51 @@ impl GatesFile {
             });
         }
 
-        let head = std::process::Command::new("git")
-            .args([
-                "show",
-                &format!("HEAD:{}", path.display().to_string().replace('\\', "/")),
-            ])
-            .output();
+        // `git show HEAD:<p>` needs `<p>` relative to the repository root, and
+        // the caller may hand us either a workspace-relative path (the CLI) or
+        // an absolute one (an integration test, whose cwd is the crate). So the
+        // root is asked for and the path made relative to it, rather than
+        // assuming the working directory is the root.
+        //
+        // This does not widen the anchor: the file still has to match what
+        // `HEAD` carries, and a path outside the repository fails to strip and
+        // is refused below.
+        let dir = path.parent().filter(|p| !p.as_os_str().is_empty());
+        let mut top_args: Vec<String> = Vec::new();
+        if let Some(d) = dir {
+            top_args.push("-C".to_string());
+            top_args.push(d.display().to_string());
+        }
+        top_args.push("rev-parse".to_string());
+        top_args.push("--show-toplevel".to_string());
+        let top = std::process::Command::new("git").args(&top_args).output();
+        let root = match &top {
+            Ok(o) if o.status.success() => Some(PathBuf::from(
+                String::from_utf8_lossy(&o.stdout).trim().to_string(),
+            )),
+            _ => None,
+        };
+        let rel = match &root {
+            Some(r) => {
+                let abs = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+                let rabs = std::fs::canonicalize(r).unwrap_or_else(|_| r.clone());
+                abs.strip_prefix(&rabs)
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|_| path.to_path_buf())
+            }
+            None => path.to_path_buf(),
+        };
+        let mut args: Vec<String> = Vec::new();
+        if let Some(r) = &root {
+            args.push("-C".to_string());
+            args.push(r.display().to_string());
+        }
+        args.push("show".to_string());
+        args.push(format!(
+            "HEAD:{}",
+            rel.display().to_string().replace('\\', "/")
+        ));
+        let head = std::process::Command::new("git").args(&args).output();
         let head = match head {
             Ok(o) if o.status.success() => o.stdout,
             other => {
@@ -649,6 +688,11 @@ mod tests {
                 "dcel",
                 "gate_min_resolving_power_probes",
                 GateExpectation::num(f64::from(dcelr::MIN_RESOLVING_POWER_PROBES)),
+            ),
+            (
+                "dcel",
+                "gate_min_slots_perturbed",
+                GateExpectation::num(f64::from(dcelr::MIN_SLOTS_PERTURBED)),
             ),
             (
                 "topology",

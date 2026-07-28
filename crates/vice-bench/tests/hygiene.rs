@@ -1281,3 +1281,105 @@ fn the_mechanisms_this_milestone_built_are_still_present() {
         );
     }
 }
+
+/// **Every `#[ignore]` whose reason says "CI" is actually named by a step of a
+/// workflow.**
+///
+/// REDTEAM_M5 RT5-A3, REVIEW_M5_A N3 and REVIEW_M5_B N3 are one defect found
+/// three times independently: six places in the tree said the M5 gate, its
+/// knockouts and its proof-domain sweeps "run in CI in release", and
+/// `.github/workflows/ci.yml` contained one M5 step — `dcel-check`, which never
+/// calls `gate_table`. C244's commit message described five steps and added
+/// one.
+///
+/// F-7 is "a mechanism-existence check sees a PHRASE, not a behaviour". The
+/// phrase "runs in CI" is itself a claim about a FILE, and it was in six places
+/// with nothing checking any of them. So the claim is now derived from the file
+/// it is about: an `#[ignore]` reason mentioning CI must name a test target
+/// that some workflow step actually runs.
+///
+/// Both directions, because a one-directional version is half a check:
+/// - a reason that says CI and no step that runs it → fail;
+/// - no test file scanned at all, or no workflow found → fail, because an empty
+///   walk is vacuously compliant (F-0039).
+#[test]
+fn every_ignore_that_claims_ci_is_named_by_a_workflow_step() {
+    let root = repo_root();
+    let wf_dir = root.join(".github/workflows");
+    let mut workflows = String::new();
+    let mut wf_count = 0usize;
+    for e in std::fs::read_dir(&wf_dir).expect("workflows dir").flatten() {
+        let p = e.path();
+        if p.extension().is_some_and(|x| x == "yml" || x == "yaml") {
+            workflows.push_str(&std::fs::read_to_string(&p).expect("read workflow"));
+            wf_count += 1;
+        }
+    }
+    assert!(
+        wf_count > 0,
+        "no workflow files found; the walk covers nothing"
+    );
+
+    // Every integration-test file of the workspace, with its target name.
+    let mut targets: Vec<(String, String)> = Vec::new();
+    for c in std::fs::read_dir(root.join("crates"))
+        .expect("crates")
+        .flatten()
+    {
+        let tdir = c.path().join("tests");
+        if !tdir.is_dir() {
+            continue;
+        }
+        for t in std::fs::read_dir(&tdir).expect("tests dir").flatten() {
+            let p = t.path();
+            if p.extension().is_some_and(|x| x == "rs") {
+                let name = p.file_stem().unwrap().to_string_lossy().to_string();
+                targets.push((name, std::fs::read_to_string(&p).unwrap_or_default()));
+            }
+        }
+    }
+    assert!(
+        targets.len() >= 8,
+        "the walk found only {} test targets; it is not covering the workspace",
+        targets.len()
+    );
+
+    let mut claiming: Vec<String> = Vec::new();
+    let mut unrun: Vec<String> = Vec::new();
+    for (name, text) in &targets {
+        // An `#[ignore = "..."]` reason that mentions CI is the claim.
+        // ATTRIBUTE lines only. A doc comment that talks ABOUT `#[ignore]` is
+        // prose, and counting it made this very file claim to run in CI — the
+        // check found a false positive in itself on its first run, which is
+        // the cheapest possible demonstration that it reads something.
+        let says_ci = text
+            .lines()
+            .map(|l| l.trim_start())
+            .filter(|l| l.starts_with("#[ignore"))
+            .any(|l| l.to_lowercase().contains("ci"));
+        if !says_ci {
+            continue;
+        }
+        claiming.push(name.clone());
+        // The workflow must run that target with `--ignored`.
+        let named = workflows
+            .lines()
+            .filter(|l| l.contains("--ignored"))
+            .any(|l| l.contains(&format!("--test {name}")));
+        if !named {
+            unrun.push(name.clone());
+        }
+    }
+
+    assert!(
+        !claiming.is_empty(),
+        "no test target claims to run in CI, so this check has no population"
+    );
+    assert!(
+        unrun.is_empty(),
+        "these test targets carry an #[ignore] reason that says CI, and no workflow step runs \
+         them with --ignored: {unrun:?}. A sentence asserting where a mechanism runs is a claim \
+         about a file, and it is checked against that file or it drifts (RT5-A3)"
+    );
+    println!("test targets claiming CI: {claiming:?} — all named by a workflow step");
+}

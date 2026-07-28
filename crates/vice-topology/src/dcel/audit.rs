@@ -125,6 +125,26 @@ pub enum InvariantViolation {
     #[error("the exterior face {0:?} is not a background face")]
     ExteriorIsNotBackground(FaceId),
     #[error(
+        "the pixel-to-face map disagrees with the boundary owners on {disagreeing_pixels} pixel(s);          at ({x}, {y}) the map says face {stored} and the chain crossed says {from_boundaries}"
+    )]
+    FaceMapDisagreesWithTheBoundaries {
+        x: i64,
+        y: i64,
+        stored: u32,
+        from_boundaries: u32,
+        disagreeing_pixels: usize,
+    },
+    #[error(
+        "half-edge {half_edge} is sited at face {face}, loop {loop_index}, position {position},          but the half-edge AT that position is {found}"
+    )]
+    SiteIsNotWhereTheHalfEdgeIs {
+        half_edge: u32,
+        face: u32,
+        loop_index: u32,
+        position: u32,
+        found: u32,
+    },
+    #[error(
         "the labelling has no interface at all, but the arrangement is not empty: {boundaries}          boundary chain(s), {loops} loop(s), {faces} face(s)"
     )]
     EmptyArrangementIsNotEmpty {
@@ -189,7 +209,7 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
                 faces: d.faces().len(),
             });
         }
-        if d.faces()[FaceId::EXTERIOR.index()].label {
+        if d.faces().first().is_none_or(|f| f.label) {
             return Err(InvariantViolation::ExteriorIsNotBackground(
                 FaceId::EXTERIOR,
             ));
@@ -328,7 +348,23 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
             });
         }
     }
+    // The site is the INVERSE of the loop lists, so it is checked as one: the
+    // half-edge at the sited position must be the half-edge itself. The
+    // previous check asked only that `next` stayed in the same face, which a
+    // position shifted WITHIN a loop satisfies — so a whole family of `site`
+    // perturbations was seen by nothing (RT5-A1's class, on a smaller field).
     for h in d.half_edges() {
+        let (f, l, p) = d.site_of(h);
+        let found = d.faces()[f as usize].loops[l as usize][p as usize];
+        if found != h {
+            return Err(InvariantViolation::SiteIsNotWhereTheHalfEdgeIs {
+                half_edge: h.0,
+                face: f,
+                loop_index: l,
+                position: p,
+                found: found.0,
+            });
+        }
         if d.face_of(d.next(h)) != d.face_of(h) {
             return Err(InvariantViolation::SiteDisagreesWithOwners {
                 half_edge: h.0,
@@ -341,10 +377,24 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
     // (5) The exterior is a background face. §5.3 wants it to be a real
     // `FaceId`; that it is index zero is arithmetic, that it is BACKGROUND is
     // a fact about the flood fill.
-    if d.faces()[FaceId::EXTERIOR.index()].label {
-        return Err(InvariantViolation::ExteriorIsNotBackground(
-            FaceId::EXTERIOR,
-        ));
+    // Indexed only after checking there is something to index. An instrument
+    // that panics on the structure it was asked to judge reports a broken
+    // instrument as a crash (meta-rule M-4), and `with_parts` can hand this
+    // function a `Parts` with no faces at all.
+    match d.faces().first() {
+        None => {
+            return Err(InvariantViolation::EmptyArrangementIsNotEmpty {
+                boundaries: d.boundaries().len(),
+                loops: d.loop_count(),
+                faces: 0,
+            })
+        }
+        Some(f) if f.label => {
+            return Err(InvariantViolation::ExteriorIsNotBackground(
+                FaceId::EXTERIOR,
+            ))
+        }
+        Some(_) => {}
     }
 
     // (6) Euler. V - B + L = 2C for a planar arrangement whose 1-skeleton has
@@ -370,6 +420,29 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
             lhs,
             rhs,
         });
+    }
+
+    // (7a) THE THIRD CONSTRUCTION. The pixel-to-face map is rebuilt from the
+    // boundary chains and their owners — a walk that never joins two pixels and
+    // never looks at the stored map — and compared element by element.
+    //
+    // This is REDTEAM_M5 RT5-A1, and the finding is worth restating where the
+    // fix lives: `face_of_padded_px` is the largest field of the structure and
+    // NO predicate read it. A ten-line edit rotating every entry above 16 px
+    // passed 530 tests, four MET clauses, a byte-identical artifact, the
+    // exhaustive 4x4 sweep and every knockout. Exhausting the input domain and
+    // exhausting the CHECKED FIELDS of the value are independent properties.
+    match crate::dcel::crossing::face_map_agrees(d) {
+        Ok(_) => {}
+        Err(e) => {
+            return Err(InvariantViolation::FaceMapDisagreesWithTheBoundaries {
+                x: e.x,
+                y: e.y,
+                stored: e.stored,
+                from_boundaries: e.from_boundaries,
+                disagreeing_pixels: e.disagreeing_pixels,
+            })
+        }
     }
 
     // (7) Agreement with the M4.5 instrument. Different mathematics for the
@@ -543,7 +616,7 @@ mod tests {
     /// value must pass both checks (a checker that always fails would satisfy
     /// the first half and measure nothing).
     #[test]
-    fn every_perturbation_of_every_slot_is_caught() {
+    fn every_perturbation_of_every_slot_is_caught_by_the_audit_alone() {
         let d = ring();
         assert!(audit(&d).is_ok(), "positive control: the real one passes");
         assert!(is_the_assembly_of_its_own_labelling(&d));
@@ -555,7 +628,7 @@ mod tests {
             ps.len()
         );
 
-        let (mut by_audit, mut by_assembly) = (0usize, 0usize);
+        let mut by_audit = 0usize;
         for (name, f) in &ps {
             let mut parts = d.parts().clone();
             f(&mut parts);
@@ -566,27 +639,18 @@ mod tests {
                 panic!("perturbation {name} changed nothing");
             }
             let broken = d.clone().with_parts(parts);
-            let a = audit(&broken).is_err();
-            let b = !is_the_assembly_of_its_own_labelling(&broken);
-            assert!(a || b, "perturbation {name} was caught by neither check");
-            if a {
-                by_audit += 1;
-            }
-            if b {
-                by_assembly += 1;
-            }
+            assert!(
+                audit(&broken).is_err(),
+                "perturbation {name} was accepted by the audit. RT5-A1 is what an unchecked slot                  costs: a field no predicate reads passes 530 tests, four MET clauses and a                  byte-identical artifact"
+            );
+            by_audit += 1;
         }
-        // Published rather than asserted at a threshold: the split is the
-        // honest measurement of how much each check sees, and pinning it would
-        // freeze a number nothing chose.
-        println!(
-            "slots {} | caught by audit {} | caught by assembly-equality {}",
-            ps.len(),
+        println!("slots {} | caught by audit {}", ps.len(), by_audit);
+        assert_eq!(
             by_audit,
-            by_assembly
+            ps.len(),
+            "the audit must catch EVERY real perturbation. `assembly equality is total` used to              stand here and it was a theorem (RT5-A2), so it certified nothing"
         );
-        assert!(by_audit > 0, "the audit caught nothing at all");
-        assert_eq!(by_assembly, ps.len(), "assembly equality is total");
     }
 
     /// The audit is green on every arrangement of every labelling of a 4x3

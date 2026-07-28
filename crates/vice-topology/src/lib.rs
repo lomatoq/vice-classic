@@ -73,7 +73,10 @@ pub use dcel::{
     IsotopyRefusal, Outcome, ResolvingPower, Roi, TopologyCertificate, TransactionRefusal,
     TransactionReport, TxConfig, TX_CONFIG_V1,
 };
-pub use dcel::{structural_fixtures, with_a_distant_witness};
+pub use dcel::{
+    face_map_agrees, face_map_from_boundaries, structural_fixtures, with_a_distant_witness,
+    FaceMapDisagreement,
+};
 pub use envelope::{
     prune, ApproximationRisk, Envelope, EnvelopeConfig, LostMassEstimate, PruningRecord,
     ENVELOPE_CONFIG_V1,

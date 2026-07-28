@@ -19,7 +19,16 @@
 //!
 //! - a field added to `Parts` without a site does not compile, because the
 //!   pattern is exhaustive. The judge is the compiler, which is the form the
-//!   project already accepted for `TopologyGateConfig::sites`;
+//!   project already accepted for `TopologyGateConfig::sites`.
+//!
+//!   **The cheapest bypass, named where the strength is claimed** (F-0048's
+//!   last paragraph, and REVIEW_M5_B N9): writing the new field as `extra: _`
+//!   in the pattern. One line, clippy clean with `-D warnings`, and the field
+//!   silently has no perturbation. What the compiler judges is that every field
+//!   is MENTIONED, not that every field is EXERCISED. The partial compensation
+//!   is that `Parts` derives `PartialEq`, so a new field is still compared by
+//!   the assembly-equality check — but the claim "one perturbation per scalar
+//!   slot" stops being a property, and no test would say so;
 //! - the number of perturbations is a function of the DATA, so a bigger
 //!   arrangement is a wider control automatically, and a control that went
 //!   empty is visible as a count of zero rather than as silence (F-0039).
@@ -43,7 +52,7 @@
 
 use serde::Serialize;
 
-use super::audit::{audit, is_the_assembly_of_its_own_labelling, Parts};
+use super::audit::{audit, Parts};
 use super::{Dcel, FacePair, HalfEdgeId, VertexId};
 
 /// One named slot of [`Parts`] and the edit that changes it.
@@ -55,24 +64,58 @@ pub(crate) type Perturbation = (String, Box<dyn Fn(&mut Parts)>);
 
 /// What one mutation walk found.
 ///
-/// Published by the §28 M5 gate rather than kept in a test, because "the audit
-/// is green" says nothing about what the audit can SEE. This is the world in
-/// which it is red, counted (F-0035: exhibit the world where the conjunct is
-/// false before publishing the conjunct).
+/// ## RT5-A2: two of the three published numbers used to be arithmetic
+///
+/// The previous version published `caught_by_audit`,
+/// `caught_by_assembly_equality` and `caught_by_neither`, and the §28 M5 clause
+/// stood on the last being zero. The red team proved it is a THEOREM: `broken`
+/// carries the same labelling and convention as `d`, and `d` is always an
+/// output of `assemble`, so
+///
+/// ```text
+/// is_the_assembly_of_its_own_labelling(broken)
+///   = (assemble(broken.labelling).parts() == broken.parts())
+///   = (d.parts() == perturbed_parts)
+///   = false, always
+/// ```
+///
+/// so `caught_by_neither == 0` could not be otherwise and
+/// `caught_by_assembly_equality == slots - no_ops` identically. What the clause
+/// actually required of the audit was `caught_by_audit > 0` — **one slot** —
+/// and the red team reduced `audit()` to range guards plus a single check,
+/// deleting the whole seventh §12 invariant, and watched the gate stay green
+/// with 530 tests passing.
+///
+/// F-0035 is written at the top of `dcel/report.rs` and the violation was three
+/// files away: a conjunct that cannot be false measures the size of the input.
+///
+/// So both identities are GONE from this type. What is left is the number that
+/// carries information and its complement, and the clause stands on the
+/// complement being zero — a property the audit can fail, and does fail the
+/// moment a check is removed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 pub struct ResolvingPower {
     pub slots: u64,
+    /// Perturbations `audit` rejected. The only number here that depends on
+    /// what `audit` does.
     pub caught_by_audit: u64,
-    pub caught_by_assembly_equality: u64,
-    /// Must be zero. A slot no check sees is a place a defect can live.
-    pub caught_by_neither: u64,
+    /// Perturbations `audit` ACCEPTED. Must be zero: a slot the audit cannot
+    /// see is a place a defect can live, which is exactly what RT5-A1 did with
+    /// `face_of_padded_px`.
+    pub uncaught_by_audit: u64,
     /// Perturbations that changed nothing. Must be zero: a no-op is not a test
-    /// of anything and must not be counted as a catch.
+    /// of anything and must not be counted as a catch (F-0059).
     pub no_ops: u64,
 }
 
 /// Perturb every derived slot of an arrangement, one at a time, and count what
-/// each check catches.
+/// `audit` catches.
+///
+/// `is_the_assembly_of_its_own_labelling` is NOT consulted here and that is the
+/// point of RT5-A2: on a value built by perturbing an assembled one it is
+/// constant-false, so including it made two of three published numbers
+/// arithmetic. It remains a useful check for a value that arrived from
+/// somewhere else, and `audit_every_labelling` still runs it there.
 ///
 /// No broken `Dcel` escapes: the corrupted values live inside this function.
 pub fn measure_audit_resolving_power(d: &Dcel) -> ResolvingPower {
@@ -86,16 +129,10 @@ pub fn measure_audit_resolving_power(d: &Dcel) -> ResolvingPower {
             continue;
         }
         let broken = d.clone().with_parts(parts);
-        let a = audit(&broken).is_err();
-        let b = !is_the_assembly_of_its_own_labelling(&broken);
-        if a {
+        if audit(&broken).is_err() {
             out.caught_by_audit += 1;
-        }
-        if b {
-            out.caught_by_assembly_equality += 1;
-        }
-        if !a && !b {
-            out.caught_by_neither += 1;
+        } else {
+            out.uncaught_by_audit += 1;
         }
     }
     out
@@ -240,4 +277,31 @@ impl Dcel {
         self.parts = p;
         self
     }
+}
+
+/// **REDTEAM_M5 RT5-A1, as a callable control.**
+///
+/// Rotates every entry of the pixel-to-face map when the arrangement is at
+/// least `threshold` px wide — the red team's own ten-line edit, which before
+/// delta-1 passed 530 tests, four `[MET]` clauses, a byte-identical artifact,
+/// `dcel-check`, the exhaustive 4x4 sweep and every knockout.
+///
+/// It lives in the tree rather than in a deletable clone because that is the
+/// red team's tenth obligation and F-7: a check on a mechanism's PRESENCE sees
+/// a phrase, and an attack that is not executable is not a control. The §28 M5
+/// harness calls it for the clause-4 knockout.
+///
+/// `pub` on purpose and narrow by construction: it returns a `Dcel` that is
+/// deliberately wrong, and the only thing in the workspace that calls it is a
+/// knockout whose entire job is to require a clause to go red.
+pub fn rotate_face_map_above(d: &Dcel, threshold_px: u32) -> Dcel {
+    if d.width_px() < threshold_px {
+        return d.clone();
+    }
+    let mut parts = d.parts().clone();
+    let nf = parts.faces.len() as u32;
+    for v in parts.face_of_padded_px.iter_mut() {
+        *v = (*v + 1) % nf.max(1);
+    }
+    d.clone().with_parts(parts)
 }

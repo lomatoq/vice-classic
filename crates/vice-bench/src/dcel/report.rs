@@ -45,6 +45,7 @@ pub const MIN_CONVENTION_DEPENDENT_GROUPS: u32 = 5;
 pub const MIN_TRANSACTIONS: u32 = 50;
 pub const MIN_UNRELATED_CHAIN_POPULATION: u32 = 40;
 pub const MIN_RESOLVING_POWER_PROBES: u32 = 10;
+pub const MIN_SLOTS_PERTURBED: u32 = 40000;
 
 /// The population thresholds of the §28 M5 rows, LOADED from the frozen gate
 /// file.
@@ -61,9 +62,29 @@ pub struct DcelGateConfig {
     pub min_transactions: Threshold,
     pub min_unrelated_chain_population: Threshold,
     pub min_resolving_power_probes: Threshold,
+    /// Slots the mutation walk must actually perturb. `slots_perturbed > 0`
+    /// stood here and was not a gate: a walk that visited one slot satisfied
+    /// it. A floor read off a run is (RT5-A2's neighbourhood).
+    pub min_slots_perturbed: Threshold,
 }
 
 impl DcelGateConfig {
+    /// The committed thresholds, for tests that need to evaluate a gate row.
+    ///
+    /// Goes through `load_for_a_gate_decision` exactly like the CLI does, so a
+    /// test cannot evaluate a row against a file `HEAD` does not carry.
+    pub fn for_tests_from_the_committed_file() -> Result<DcelGateConfig, String> {
+        // Resolved from the crate manifest rather than from the working
+        // directory: an integration test runs with the CRATE as its cwd, and
+        // `GATE_PATHS[0]` is workspace-relative.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(crate::gates::GATE_PATHS[0]);
+        let g = GatesFile::load_for_a_gate_decision(&path)
+            .map_err(|e| format!("load {}: {e}", path.display()))?;
+        DcelGateConfig::from_gates(&g)
+    }
+
     pub fn from_gates(g: &GatesFile) -> Result<DcelGateConfig, String> {
         let t = |key: &str| Threshold::from_gates(g, "dcel", key);
         Ok(DcelGateConfig {
@@ -73,6 +94,7 @@ impl DcelGateConfig {
             min_transactions: t("gate_min_transactions")?,
             min_unrelated_chain_population: t("gate_min_unrelated_chain_population")?,
             min_resolving_power_probes: t("gate_min_resolving_power_probes")?,
+            min_slots_perturbed: t("gate_min_slots_perturbed")?,
         })
     }
 }
@@ -109,6 +131,14 @@ pub struct DcelReport {
     /// population: on a group of size one, "the stage did not reduce the set"
     /// is true of any stage at all.
     pub convention_dependent_groups: u64,
+    /// Split by SOURCE. The row used to assert "every one of them comes from
+    /// the structural register", carrying STATUS_M4_5 limitation 18 onto M5's
+    /// population — 444 corpus arms over different cells, not M4.5's 132 —
+    /// without recomputing it. The list printed in the same sentence refuted
+    /// it: 7 of the 10 are corpus groups (REVIEW_M5_B N1). A prose universal
+    /// beside a printed set is a claim COMPUTABLE from that set.
+    pub convention_dependent_groups_from_corpus: u64,
+    pub convention_dependent_groups_from_register: u64,
     pub convention_dependent_group_names: Vec<String>,
 
     // --- clause 2 -------------------------------------------------------
@@ -125,6 +155,9 @@ pub struct DcelReport {
     // --- clause 3 -------------------------------------------------------
     pub transactions_attempted: u64,
     pub transactions_committed: u64,
+    /// Committed transactions on arms whose arrangement is NOT empty. This is
+    /// what clause 3 stands on (RT5-A4).
+    pub transactions_committed_on_non_empty_arms: u64,
     pub transactions_rolled_back: u64,
     /// Summed over committed transactions: chains lying wholly outside the ROI
     /// plus halo, and how many of them were not found verbatim afterwards.
@@ -133,6 +166,16 @@ pub struct DcelReport {
     /// Committed transactions that had NO unrelated chain to compare. Published
     /// because on those the clause is a statement about the empty set.
     pub transactions_with_no_unrelated_population: u64,
+    /// Arms that had NO transaction attempted because the edit's effect on the
+    /// signature is compound. This is clause 3's exclusion, and §28 M5 names
+    /// exactly this subclass — "local COMPOUND topology transactions"
+    /// (REVIEW_M5_A N2).
+    pub transaction_arms_excluded_as_compound: u64,
+    /// Which of `apply`'s six refusal reasons can fire on THIS population.
+    /// Four cannot, and one of the four is the declared-edit check, because the
+    /// harness derives `kind` from the comparison `apply` redoes.
+    pub reachable_refusals_on_this_population: Vec<&'static str>,
+    pub unreachable_refusals_on_this_population: Vec<&'static str>,
 
     // --- clause 4 -------------------------------------------------------
     pub arms_failing_the_audit: u64,
@@ -157,10 +200,21 @@ pub fn build(run: &DcelRun) -> DcelReport {
             .or_default()
             .insert((a.class_out.components, a.class_out.holes));
     }
-    let convention_dependent: Vec<String> = in_classes
+    // COUNTED from the set, not asserted beside it (REVIEW_M5_B N1).
+    let convention_dependent_keys: Vec<(String, String)> = in_classes
         .iter()
         .filter(|(_, v)| v.len() > 1)
-        .map(|(k, _)| format!("{}@{}", k.0, k.1))
+        .map(|(k, _)| k.clone())
+        .collect();
+    let source_of: BTreeMap<(String, String), &'static str> =
+        run.arms.iter().map(|a| (group_key(a), a.source)).collect();
+    let from_register = convention_dependent_keys
+        .iter()
+        .filter(|k| source_of.get(*k) == Some(&"structural"))
+        .count() as u64;
+    let convention_dependent: Vec<String> = convention_dependent_keys
+        .iter()
+        .map(|k| format!("{}@{}", k.0, k.1))
         .collect();
 
     let classes: BTreeSet<(u32, u32)> = run
@@ -199,6 +253,8 @@ pub fn build(run: &DcelRun) -> DcelReport {
         classes_in: in_classes.values().map(|v| v.len() as u64).sum(),
         classes_out: out_classes.values().map(|v| v.len() as u64).sum(),
         convention_dependent_groups: convention_dependent.len() as u64,
+        convention_dependent_groups_from_register: from_register,
+        convention_dependent_groups_from_corpus: convention_dependent.len() as u64 - from_register,
         convention_dependent_group_names: convention_dependent,
 
         arms_disagreeing_with_the_independent_chain: run
@@ -216,6 +272,13 @@ pub fn build(run: &DcelRun) -> DcelReport {
 
         transactions_attempted: run.arms.iter().filter(|a| a.transaction.is_some()).count() as u64,
         transactions_committed: tx(|t| t.committed),
+        transactions_committed_on_non_empty_arms: run
+            .arms
+            .iter()
+            .filter(|a| a.directed_steps > 0)
+            .filter_map(|a| a.transaction.as_ref())
+            .filter(|t| t.committed)
+            .count() as u64,
         transactions_rolled_back: tx(|t| !t.committed),
         unrelated_chains_total: run
             .arms
@@ -231,6 +294,26 @@ pub fn build(run: &DcelRun) -> DcelReport {
             .map(|t| t.unrelated_chains_that_moved as u64)
             .sum(),
         transactions_with_no_unrelated_population: tx(|t| t.committed && t.unrelated_chains == 0),
+        transaction_arms_excluded_as_compound: run
+            .arms
+            .iter()
+            .filter(|a| a.excluded_from_transactions_as_compound)
+            .count() as u64,
+        // Stated rather than measured, and stated as an argument a reader can
+        // check against `transaction_for`: the ROI is derived from the canvas
+        // so no pixel can leave it or the canvas; a no-op has signature delta
+        // (0,0) and returns `None` before `apply` is called; and `kind` is read
+        // off the same comparison `apply` redoes.
+        reachable_refusals_on_this_population: vec![
+            "UnrelatedGraphMutation",
+            "CandidateFailedAudit",
+        ],
+        unreachable_refusals_on_this_population: vec![
+            "EditLeftTheCanvas",
+            "EditLeftTheRoi",
+            "EditIsANoOp",
+            "NotTheDeclaredEdit",
+        ],
 
         arms_failing_the_audit: run.arms.iter().filter(|a| !a.audit_ok).count() as u64,
         arms_that_are_not_their_own_assembly: run
@@ -290,7 +373,17 @@ impl DcelReport {
         // byte-identical. The population is published beside the verdict,
         // because a transaction whose region swallows the canvas has no
         // unrelated chain and its zero means nothing.
-        let mutation_row = cfg.min_transactions.met_by(self.transactions_committed)
+        // RT5-A4: this row used to count `transactions_committed`, which
+        // includes the 8 arms whose arrangement is EMPTY — while STATUS_M5 T7
+        // said "excluded from every clause" and F-0058's rule said every clause
+        // stands on the non-empty population. Three of the four places were
+        // done; this was the fourth, and it was a different QUANTITY, so
+        // appending `arms_with_a_non_empty_arrangement` in three spots missed
+        // it. That is F-0048 Q2 answered "append a line" again, inside the fix
+        // for the previous instance.
+        let mutation_row = cfg
+            .min_transactions
+            .met_by(self.transactions_committed_on_non_empty_arms)
             && cfg
                 .min_unrelated_chain_population
                 .met_by(self.unrelated_chains_total)
@@ -300,24 +393,37 @@ impl DcelReport {
         //
         // The audit is green on every arrangement, and the audit can be red:
         // the mutation walk perturbs every derived slot of a sampled
-        // arrangement and counts what each check catches. `caught_by_neither`
-        // being zero is the property; `slots_perturbed` being large is what
-        // stops the row from being satisfied by a walk that visited nothing.
+        // arrangement and counts what the AUDIT catches.
         let p: &ResolvingPower = &self.audit_resolving_power;
+        // RT5-A2 removed two conjuncts and replaced the third.
+        //
+        // `caught_by_neither == 0` and `caught_by_assembly_equality == slots`
+        // are ARITHMETIC on a value built by perturbing an assembled one: the
+        // perturbed value is by construction not the assembly of its own
+        // labelling. The clause therefore required of the audit only
+        // `caught_by_audit > 0` — one slot — and the red team reduced `audit()`
+        // to range guards plus a single check, deleting the entire seventh §12
+        // invariant, with the gate green and 530 tests passing.
+        //
+        // What stands here now is the complement, and it is a property the
+        // audit can fail: EVERY real perturbation of EVERY derived slot must be
+        // rejected by the audit ALONE. Remove a check and `uncaught_by_audit`
+        // rises off zero.
+        // `arms_that_are_not_their_own_assembly == 0` is NOT a conjunct here
+        // any more. On this population it cannot be false: every arm IS
+        // `assemble(L, c)`, and the check recomputes `assemble(L, c)` and
+        // compares — so it measures repeat-determinism of `assemble`, which is
+        // worth having and is not what the row said it was (REVIEW_M5_A N7). It
+        // is published below under that name. The check earns its keep inside
+        // the mutation walk, where `Parts` is genuinely corrupted.
         let faces_row = self.arms_failing_the_audit == 0
-            && self.arms_that_are_not_their_own_assembly == 0
             && cfg.min_arms.met_by(self.arms_with_a_non_empty_arrangement)
             && cfg
                 .min_resolving_power_probes
                 .met_by(u64::from(p.arrangements_probed))
-            && p.slots_perturbed > 0
-            && p.caught_by_neither == 0
-            && p.no_ops == 0
-            // Both directions. The walk must find slots the audit itself
-            // catches, or "the audit is green" would rest entirely on the
-            // assembly comparison and the row would be citing a check it does
-            // not use.
-            && p.caught_by_audit > 0;
+            && cfg.min_slots_perturbed.met_by(p.slots_perturbed)
+            && p.uncaught_by_audit == 0
+            && p.no_ops == 0;
 
         vec![
             (
@@ -329,17 +435,25 @@ impl DcelReport {
                      a score could arrive. MEASURED over {} groups (one fixture at one size): {} \
                      distinct classes entering the stage, {} leaving. That equality is empty on a \
                      group of size one, so the row stands on the {} group(s) whose two \
-                     complementary-connectivity arms DISAGREE: {:?}. Every one of them comes from \
-                     the STRUCTURAL register ({} of {} arms), and that is not an accident of \
-                     fixture choice - STATUS_M4_5 limitation 18 records that ZERO of the corpus's \
-                     arms have a convention-dependent class, so on the corpus alone this clause \
-                     would be a statement about singletons. The knockout that makes it false is in \
-                     the tree and runs under `--ignored`: `ProxyKnockout::Select` gives the group \
-                     its first class and the row goes NOT MET",
+                     complementary-connectivity arms DISAGREE, of which {} come from the CORPUS \
+                     and {} from the structural register: {:?}. Those two counts are computed from \
+                     the printed set rather than asserted beside it, which is delta-1's correction \
+                     of this row: it used to say `every one of them comes from the structural \
+                     register`, carrying STATUS_M4_5 limitation 18 (`zero of 132 arms`) onto M5's \
+                     444-arm population over different cells without recomputing it, and the list \
+                     printed in the same sentence refuted it (REVIEW_M5_B N1). What the register \
+                     supplies is the population BY CONSTRUCTION, at every size and under both \
+                     arms; the corpus supplies it IN FACT, on this cell set, and would not \
+                     necessarily on another. Structural arms are {} of {}. The knockout that makes \
+                     this row false is in the tree and runs under `--ignored`: \
+                     `ProxyKnockout::Select` gives each group its first class and the row goes NOT \
+                     MET",
                     self.groups,
                     self.classes_in,
                     self.classes_out,
                     self.convention_dependent_groups,
+                    self.convention_dependent_groups_from_corpus,
+                    self.convention_dependent_groups_from_register,
                     self.convention_dependent_group_names,
                     self.structural_arms,
                     self.arms_measured
@@ -418,22 +532,27 @@ impl DcelReport {
                      MUTATION WALK, which is the world in which the audit is red: on {} sampled \
                      arrangements out of {} arms seen it perturbed {} derived slots one at a time \
                      - the walk is an exhaustive destructuring of the structure, so a field added \
-                     without a site does not compile - and caught {} by the audit, {} by assembly \
-                     equality, {} by neither, with {} perturbations that changed nothing. The \
-                     audit's own share is the honest number here and it is not the whole: most \
-                     slots are face ids inside a uniform face, where no construction invariant can \
-                     see the change and only the assembly comparison does. Both checks are cited \
-                     because a row citing one would claim a resolving power that one does not have",
+                     without a site does not compile - and the AUDIT ALONE rejected {} of them, \
+                     ACCEPTED {}, with {} that changed nothing. Delta-1 changed what this row \
+                     asks. It required `caught_by_neither == 0`, which REDTEAM_M5 RT5-A2 proved is \
+                     ARITHMETIC - a perturbed value is by construction not the assembly of its own \
+                     labelling - so the audit was asked for ONE caught slot, and an audit reduced \
+                     to a single check kept this row green with 530 tests passing. It now requires \
+                     the complement to be zero: every real perturbation of every derived slot \
+                     rejected by the audit alone. The number that made this visible was already \
+                     printed and was misread - 5648 of 155 160 was offered as an honest weakness \
+                     and what it said is that 96.4 % of the structure was checked by nothing, \
+                     including `face_of_padded_px`, the largest field, which no predicate read at \
+                     all until the third construction of delta-1 (RT5-A1)",
                     self.arms_failing_the_audit,
                     self.arms_with_a_non_empty_arrangement,
-                    self.arms_with_an_empty_arrangement,
                     self.arms_that_are_not_their_own_assembly,
+                    self.arms_with_an_empty_arrangement,
                     p.arrangements_probed,
                     p.arms_seen,
                     p.slots_perturbed,
                     p.caught_by_audit,
-                    p.caught_by_assembly_equality,
-                    p.caught_by_neither,
+                    p.uncaught_by_audit,
                     p.no_ops
                 ),
             ),
@@ -472,10 +591,14 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "classes",
         "transactions_attempted",
         "transactions_committed",
+        "transactions_committed_on_non_empty_arms",
         "transactions_rolled_back",
         "unrelated_chains_total",
         "unrelated_chains_that_moved",
         "transactions_with_no_unrelated_population",
+        "transaction_arms_excluded_as_compound",
+        "reachable_refusals_on_this_population",
+        "unreachable_refusals_on_this_population",
         "arms_failing_the_audit",
         "arms_that_are_not_their_own_assembly",
         "audit_resolving_power",

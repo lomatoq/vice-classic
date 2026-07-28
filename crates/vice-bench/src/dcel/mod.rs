@@ -87,15 +87,93 @@ pub enum RoiKnockout {
     Reach,
 }
 
+/// Whether the arrangement's class is reported as the arrangement computed it.
+///
+/// Clause 2 had NO knockout, which REDTEAM_M5 §3 lists as one of the three
+/// mechanisms that fail F-0048: `RunKnockouts` was one field per clause that
+/// happened to have a knockout, so "add a field" was the answer to Q2 and two
+/// of the four clauses had no world in which they are false.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassKnockout {
+    Off,
+    /// Knockout: report one more component than the arrangement has, so the
+    /// DCEL and the independent chain disagree.
+    Shift,
+}
+
+/// Whether the pixel-to-face map is left as `assemble` built it.
+///
+/// This is REDTEAM_M5 RT5-A1 itself, wired in as a control: rotate every entry
+/// of `face_of_padded_px` above 16 px. Before delta-1 it passed 530 tests, four
+/// `[MET]` clauses and a byte-identical artifact. Clause 4 must now go red.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FaceMapKnockout {
+    Off,
+    /// Knockout: the red team's own ten-line edit.
+    Rotate,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RunKnockouts {
     pub proxy: ProxyKnockout,
     pub roi: RoiKnockout,
+    pub class: ClassKnockout,
+    pub face_map: FaceMapKnockout,
+}
+
+impl RunKnockouts {
+    /// One knockout per §28 M5 clause, in clause order.
+    ///
+    /// The DESTRUCTURING is the mechanism: a field added without an entry does
+    /// not compile, and `every_gate_clause_has_a_knockout_that_reddens_it`
+    /// compares the length of this against the length of the gate table, which
+    /// is derived from `gate_table()` rather than written here. A fifth clause
+    /// with no knockout fails that test.
+    pub fn one_per_clause() -> Vec<(&'static str, RunKnockouts)> {
+        let RunKnockouts {
+            proxy: _,
+            roi: _,
+            class: _,
+            face_map: _,
+        } = PRODUCTION;
+        vec![
+            (
+                "no final-topology claim from proxy",
+                RunKnockouts {
+                    proxy: ProxyKnockout::Select,
+                    ..PRODUCTION
+                },
+            ),
+            (
+                "candidate recall maintained after budget pruning",
+                RunKnockouts {
+                    class: ClassKnockout::Shift,
+                    ..PRODUCTION
+                },
+            ),
+            (
+                "no unrelated graph mutation",
+                RunKnockouts {
+                    roi: RoiKnockout::Reach,
+                    ..PRODUCTION
+                },
+            ),
+            (
+                "no dangling/invalid faces",
+                RunKnockouts {
+                    face_map: FaceMapKnockout::Rotate,
+                    ..PRODUCTION
+                },
+            ),
+        ]
+    }
 }
 
 pub const PRODUCTION: RunKnockouts = RunKnockouts {
     proxy: ProxyKnockout::Off,
     roi: RoiKnockout::Off,
+    class: ClassKnockout::Off,
+    face_map: FaceMapKnockout::Off,
 };
 
 /// One measured arm: one scene, one degradation cell, one convention.
@@ -147,6 +225,15 @@ pub struct DcelArm {
     pub class_out: GtSignature,
     /// The transaction this arm ran, if its geometry admitted one.
     pub transaction: Option<ArmTransaction>,
+    /// True when this arm had NO transaction because the edit's effect on the
+    /// signature is COMPOUND — not a single `±1` in one of the two counts.
+    ///
+    /// Published so that clause 3's population is a number rather than an
+    /// impression: `transaction_for` drops these, and the subclass it drops is
+    /// exactly what §28 M5 calls "local COMPOUND topology transactions"
+    /// (REVIEW_M5_A N2). F-0058's own rule is that a filter deciding membership
+    /// by looking at the answer must publish what it excluded.
+    pub excluded_from_transactions_as_compound: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -187,9 +274,15 @@ pub struct ResolvingPower {
     pub arms_seen: u64,
     pub arrangements_probed: u32,
     pub slots_perturbed: u64,
+    /// Perturbations the AUDIT rejected.
     pub caught_by_audit: u64,
-    pub caught_by_assembly_equality: u64,
-    pub caught_by_neither: u64,
+    /// Perturbations the audit ACCEPTED. Must be zero.
+    ///
+    /// `caught_by_assembly_equality` and `caught_by_neither` used to stand
+    /// here and are gone: RT5-A2 proved both are arithmetic on a value built by
+    /// perturbing an assembled one, so the clause stood on an identity and
+    /// required exactly one caught slot of the audit.
+    pub uncaught_by_audit: u64,
     pub no_ops: u64,
 }
 
@@ -389,11 +482,17 @@ fn arm_from_labelling(
     };
 
     let d = Dcel::assemble(Labelling::new(w, h, inside.clone()), conn);
-    let _ = &k;
+    // The clause-4 knockout is REDTEAM_M5 RT5-A1 itself, applied through the
+    // same `pub(crate)` seam the mutation walk uses. It corrupts the largest
+    // field of the structure above 16 px and nothing else.
+    let d = match k.face_map {
+        FaceMapKnockout::Off => d,
+        FaceMapKnockout::Rotate => vice_topology::dcel::rotate_face_map_above(&d, 16),
+    };
     let a = audit(&d);
     let own = is_the_assembly_of_its_own_labelling(&d);
     let dcel_class = GtSignature {
-        components: d.foreground_faces() as u32,
+        components: d.foreground_faces() as u32 + u32::from(k.class == ClassKnockout::Shift),
         holes: d.holes() as u32,
     };
 
@@ -444,6 +543,7 @@ fn arm_from_labelling(
         euler_lhs: i64::from(v) - i64::from(b) + i64::from(l),
         euler_rhs: 2 * i64::from(c),
         class_out: dcel_class,
+        excluded_from_transactions_as_compound: transaction.is_none() && t.width_px >= 16,
         transaction,
     }
 }
@@ -454,8 +554,7 @@ fn probe_resolving_power(d: &Dcel, power: &mut ResolvingPower) {
     power.arrangements_probed += 1;
     power.slots_perturbed += r.slots;
     power.caught_by_audit += r.caught_by_audit;
-    power.caught_by_assembly_equality += r.caught_by_assembly_equality;
-    power.caught_by_neither += r.caught_by_neither;
+    power.uncaught_by_audit += r.uncaught_by_audit;
     power.no_ops += r.no_ops;
 }
 

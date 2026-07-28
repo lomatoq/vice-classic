@@ -75,14 +75,14 @@ pub fn run(out: &Path, scope: TopologyScope) -> i32 {
     );
     let p = &report.audit_resolving_power;
     println!(
-        "  audit resolving power: {} arrangements of {} arms, {} slots, audit {}, assembly {}, \
-         neither {}",
+        "  audit resolving power: {} arrangements of {} arms, {} slots, caught by audit {}, \
+         UNCAUGHT {}, no-ops {}",
         p.arrangements_probed,
         p.arms_seen,
         p.slots_perturbed,
         p.caught_by_audit,
-        p.caught_by_assembly_equality,
-        p.caught_by_neither
+        p.uncaught_by_audit,
+        p.no_ops
     );
     let mut all_ok = true;
     println!("M5 gate table (all four clauses of the spec):");

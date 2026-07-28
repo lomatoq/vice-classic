@@ -57,11 +57,20 @@ pub struct TopologyCertificate {
     pub euler_lhs_after: i64,
     pub skeleton_components_before: u32,
     pub skeleton_components_after: u32,
-    /// Junction incidence, before and after: the multiset of vertex degrees,
-    /// summarised as `(vertices, sum of degrees)`. This is §12's FIRST isotopy
-    /// condition and the only one M5 can evaluate.
-    pub incidence_before: (u32, u32),
-    pub incidence_after: (u32, u32),
+    /// Junction incidence, before and after: the number of vertices of degree
+    /// greater than two, i.e. the JUNCTIONS, and the sorted degree multiset.
+    ///
+    /// It used to be `(vertices, sum of degrees)`, which REVIEW_M5_A N6 proved
+    /// is algebraically `(|V|, 2|B|)` for every arrangement without exception -
+    /// each boundary increments exactly two entries - so it was a paraphrase of
+    /// two counts the `AuditReport` already published and could not distinguish
+    /// two arrangements with equal `|V|` and `|B|` and different degree
+    /// distributions, which is precisely what "junction incidence" means. The
+    /// per-vertex degrees were computed and then discarded.
+    pub junctions_before: u32,
+    pub junctions_after: u32,
+    pub degrees_before: Vec<u32>,
+    pub degrees_after: Vec<u32>,
     /// The isotopy certificate §12 asks for when a chain is replaced by a
     /// curve. Not produced: see [`IsotopyRefusal`].
     pub isotopy: IsotopyRefusal,
@@ -130,15 +139,27 @@ pub fn curve_replacement_isotopy() -> IsotopyRefusal {
     )
 }
 
-/// Vertices and the sum of their degrees, computed from the boundary
-/// endpoints. §12's first isotopy condition compares this across an edit.
-pub fn incidence_signature(d: &Dcel) -> (u32, u32) {
+/// The sorted multiset of vertex degrees, from the boundary endpoints.
+///
+/// This is what §12's first isotopy condition compares across an edit. The sum
+/// of these is `2|B|` unconditionally and therefore carries nothing; the
+/// multiset does (REVIEW_M5_A N6).
+pub fn degree_multiset(d: &Dcel) -> Vec<u32> {
     let mut degree = vec![0u32; d.vertices().len()];
     for b in d.boundaries() {
         degree[b.start.index()] += 1;
         degree[b.end.index()] += 1;
     }
-    (degree.len() as u32, degree.iter().sum())
+    degree.sort_unstable();
+    degree
+}
+
+/// Vertices of degree greater than two: the JUNCTIONS.
+///
+/// In a binary labelling every lattice point has even degree — 0, 2 or 4 — so
+/// this counts the critical 2x2 cells of §5.3 that survived as vertices.
+pub fn junction_count(d: &Dcel) -> u32 {
+    degree_multiset(d).iter().filter(|k| **k > 2).count() as u32
 }
 
 /// Build the certificate for a committed transaction.
@@ -161,8 +182,10 @@ pub fn topology_certificate(
             + i64::from(cand_audit.loops),
         skeleton_components_before: base_audit.skeleton_components,
         skeleton_components_after: cand_audit.skeleton_components,
-        incidence_before: incidence_signature(base),
-        incidence_after: incidence_signature(candidate),
+        junctions_before: junction_count(base),
+        junctions_after: junction_count(candidate),
+        degrees_before: degree_multiset(base),
+        degrees_after: degree_multiset(candidate),
         isotopy: curve_replacement_isotopy(),
     }
 }

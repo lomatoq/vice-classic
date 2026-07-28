@@ -17,7 +17,13 @@
 //! |---|---|---|
 //! | **exhaustive** | every labelling of 4x3 and 4x4, both convention arms ([`vice_topology::audit_every_labelling`]) | any defect reachable at small size — there is no subclass left to hide in |
 //! | **size** | the corpus sizes 32, 64, 128 and the declared-but-unreached 256 and 512 | a defect that only triggers above the fixture ceiling — F-8 in M4.5 |
-//! | **structure** | five structural fixtures AT EVERY SIZE: annulus, nested annulus, bridge, two components, triple junction | the register the corpus actually lives in. REVIEW_M4_5 M45-N42 / condition 51: the class `(1,1)` appeared in 450 random comparisons ONCE, by chance |
+//! | **structure** | five structural fixtures AT EVERY SIZE: annulus, nested annulus, bridge, two components, DIAGONAL PINCH | the register the corpus actually lives in. REVIEW_M4_5 M45-N42 / condition 51: the class `(1,1)` appeared in 450 random comparisons ONCE, by chance |
+//!
+//! The fifth fixture is the diagonal pinch and not a triple junction. This
+//! table said "triple junction" until delta-1 while `fixtures.rs` had already
+//! substituted it and explained why — the silent substitution limitation 29
+//! says must not be made, made in the axis table itself (REVIEW_M5_A N8f,
+//! REVIEW_M5_B N8).
 //!
 //! The third axis is condition 51, and its acceptance criterion is that the
 //! class `(1,1)` is present BY CONSTRUCTION rather than by chance.
@@ -124,13 +130,13 @@ fn the_audit_holds_on_the_structural_register_at_corpus_sizes() {
                     "{} at {n}: empty arrangement",
                     f.name
                 );
-                // A junction is a lattice point of degree four, and it shows up
-                // as a vertex whose incidence exceeds two. `incidence` is
-                // (vertices, sum of degrees); with no junction every vertex is
-                // the artificial one of a closed chain and the sum is exactly
-                // twice the count.
-                let (v, deg) = vice_topology::dcel::incidence_signature(&d);
-                if deg > 2 * v {
+                // A junction is a lattice point of degree greater than two, and
+                // it is counted as such. The previous version compared
+                // `sum(degrees) > 2 * |V|`, which is `|B| > |V|` — a comparison
+                // of two counts, not a junction test (REVIEW_M5_A N6). It gave
+                // the right answer on this register and was not testing what
+                // its name said.
+                if vice_topology::dcel::junction_count(&d) > 0 {
                     junctions_seen += 1;
                 }
                 audited += 1;

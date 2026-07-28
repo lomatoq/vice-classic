@@ -32,7 +32,7 @@
 //! was the proof: `FrozenPopulation::new` was `pub(crate)`, and `pub(crate)`
 //! restricts nobody inside `vice-bench`. Four lines in any module of the crate
 //!
-//! ```ignore
+//! ```text
 //! pub fn wide() -> FrozenPopulation {
 //!     FrozenPopulation::new(crate::gt::corpus::all_groups().unwrap())
 //! }

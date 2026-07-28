@@ -57,6 +57,7 @@
 
 pub mod audit;
 pub mod certificate;
+pub mod crossing;
 pub mod fixtures;
 pub mod lattice;
 pub mod transaction;
@@ -75,13 +76,14 @@ pub use audit::{
     ExhaustiveReport, InvariantViolation,
 };
 pub use certificate::{
-    curve_replacement_isotopy, incidence_signature, IsotopyRefusal, TopologyCertificate,
+    curve_replacement_isotopy, degree_multiset, junction_count, IsotopyRefusal, TopologyCertificate,
 };
+pub use crossing::{face_map_agrees, face_map_from_boundaries, FaceMapDisagreement};
 pub use fixtures::{structural_fixtures, with_a_distant_witness, Fixture};
 pub use transaction::{
     apply, Edit, Outcome, Roi, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
 };
-pub use walk::{measure_audit_resolving_power, ResolvingPower};
+pub use walk::{measure_audit_resolving_power, rotate_face_map_above, ResolvingPower};
 
 /// Index into [`Dcel::faces`]. The exterior is a real one (§5.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -453,6 +455,14 @@ impl Dcel {
     /// Every half-edge, in id order.
     pub fn half_edges(&self) -> impl Iterator<Item = HalfEdgeId> + '_ {
         (0..self.parts.boundaries.len() as u32 * 2).map(HalfEdgeId)
+    }
+
+    /// The stored pixel-to-face map, in padded layout. `pub(crate)` so that
+    /// [`crossing::face_map_agrees`] can compare it against a map rebuilt from
+    /// the boundaries; not public, because a caller outside this crate has no
+    /// business with the padding.
+    pub(crate) fn padded_face_map(&self) -> &[u32] {
+        &self.parts.face_of_padded_px
     }
 
     /// The face a canvas pixel belongs to.

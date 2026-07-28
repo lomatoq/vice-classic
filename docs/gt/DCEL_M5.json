@@ -48,7 +48,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -82,7 +83,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -116,7 +118,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -150,7 +153,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -184,7 +188,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -218,7 +223,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -252,7 +258,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -286,7 +293,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -320,7 +328,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -354,7 +363,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -388,7 +398,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -422,7 +433,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -456,7 +468,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -490,7 +503,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -524,7 +538,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -558,7 +573,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -568,50 +584,6 @@
       "split": "calibration",
       "size_px": 128,
       "foreground_connectivity": "4",
-      "truth": {
-        "components": 2,
-        "holes": 0
-      },
-      "dcel_class": {
-        "components": 2,
-        "holes": 0
-      },
-      "agrees_with_the_independent_chain": true,
-      "audit_ok": true,
-      "directed_steps": 736,
-      "is_its_own_assembly": true,
-      "vertices": 2,
-      "boundaries": 2,
-      "segments": 368,
-      "loops": 4,
-      "faces": 3,
-      "skeleton_components": 2,
-      "euler_lhs": 4,
-      "euler_rhs": 4,
-      "class_out": {
-        "components": 2,
-        "holes": 0
-      },
-      "transaction": {
-        "declared": "bridge_close",
-        "committed": true,
-        "refusal": null,
-        "roi_area_px": 256,
-        "pixels_changed": 32,
-        "unrelated_chains": 0,
-        "unrelated_chains_that_moved": 0,
-        "components_before": 2,
-        "components_after": 1
-      }
-    },
-    {
-      "source": "corpus",
-      "scene_id": "adv/ambiguous/bridge-or-gap#split",
-      "shape_family": "ambiguity/topology",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "split": "calibration",
-      "size_px": 128,
-      "foreground_connectivity": "8",
       "truth": {
         "components": 2,
         "holes": 0
@@ -646,7 +618,53 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
+    },
+    {
+      "source": "corpus",
+      "scene_id": "adv/ambiguous/bridge-or-gap#split",
+      "shape_family": "ambiguity/topology",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "split": "calibration",
+      "size_px": 128,
+      "foreground_connectivity": "8",
+      "truth": {
+        "components": 2,
+        "holes": 0
+      },
+      "dcel_class": {
+        "components": 2,
+        "holes": 0
+      },
+      "agrees_with_the_independent_chain": true,
+      "audit_ok": true,
+      "directed_steps": 736,
+      "is_its_own_assembly": true,
+      "vertices": 2,
+      "boundaries": 2,
+      "segments": 368,
+      "loops": 4,
+      "faces": 3,
+      "skeleton_components": 2,
+      "euler_lhs": 4,
+      "euler_rhs": 4,
+      "class_out": {
+        "components": 2,
+        "holes": 0
+      },
+      "transaction": {
+        "declared": "bridge_close",
+        "committed": true,
+        "refusal": null,
+        "roi_area_px": 256,
+        "pixels_changed": 32,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 1
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -680,7 +698,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -714,7 +733,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -748,7 +768,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -782,7 +803,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -816,7 +838,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -850,7 +873,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -884,7 +908,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -918,7 +943,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -952,7 +978,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -986,7 +1013,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1020,7 +1048,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1054,7 +1083,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1088,7 +1118,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1122,7 +1153,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1156,7 +1188,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1190,7 +1223,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1224,7 +1258,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1258,7 +1293,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1292,7 +1328,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1326,7 +1363,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1360,7 +1398,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1394,7 +1433,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1428,7 +1468,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1462,7 +1503,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1496,7 +1538,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1530,7 +1573,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1564,7 +1608,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1598,7 +1643,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1632,7 +1678,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1666,7 +1713,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1700,7 +1748,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1734,7 +1783,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1768,7 +1818,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1802,7 +1853,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1836,7 +1888,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1870,7 +1923,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1904,7 +1958,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1938,7 +1993,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -1972,7 +2028,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2006,7 +2063,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2040,7 +2098,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2074,7 +2133,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2108,7 +2168,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2142,7 +2203,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2176,7 +2238,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2210,7 +2273,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2254,7 +2318,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2298,7 +2363,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2342,7 +2408,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2386,7 +2453,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2430,7 +2498,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2474,7 +2543,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2518,7 +2588,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2562,7 +2633,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2606,7 +2678,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2650,7 +2723,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2684,7 +2758,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2718,7 +2793,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -2762,7 +2838,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2806,7 +2883,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2850,7 +2928,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2894,7 +2973,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2938,7 +3018,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -2982,7 +3063,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3026,7 +3108,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3070,7 +3153,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3104,7 +3188,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -3138,7 +3223,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -3182,7 +3268,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 0,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3226,7 +3313,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 0,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3270,7 +3358,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 0,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3314,7 +3403,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 0,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3358,7 +3448,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3402,7 +3493,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3446,7 +3538,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 0,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3490,7 +3583,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 0,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3534,7 +3628,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 0,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3578,7 +3673,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 0,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3622,7 +3718,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3666,7 +3763,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3710,7 +3808,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3754,7 +3853,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3798,7 +3898,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3842,7 +3943,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3886,7 +3988,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3930,7 +4033,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -3974,7 +4078,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -4018,7 +4123,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -4062,7 +4168,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -4106,7 +4213,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -4140,7 +4248,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4174,7 +4283,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4208,7 +4318,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4242,7 +4353,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4276,7 +4388,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4310,7 +4423,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4344,7 +4458,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4378,7 +4493,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4412,7 +4528,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4446,7 +4563,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4480,7 +4598,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4514,7 +4633,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4548,7 +4668,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4582,7 +4703,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4616,7 +4738,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4650,7 +4773,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4684,7 +4808,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4718,7 +4843,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4752,7 +4878,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4786,7 +4913,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -4830,7 +4958,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -4874,7 +5003,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -4918,7 +5048,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -4962,7 +5093,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5006,7 +5138,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5050,7 +5183,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5094,7 +5228,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5138,7 +5273,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5182,7 +5318,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5226,7 +5363,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5270,7 +5408,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5314,7 +5453,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5358,7 +5498,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5402,7 +5543,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5446,7 +5588,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5490,7 +5633,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5534,7 +5678,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5578,7 +5723,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5622,7 +5768,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5666,7 +5813,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5710,7 +5858,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5754,7 +5903,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5798,7 +5948,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5842,7 +5993,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5886,7 +6038,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5930,7 +6083,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -5974,7 +6128,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6018,7 +6173,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6062,7 +6218,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6106,7 +6263,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6150,7 +6308,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6194,7 +6353,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6238,7 +6398,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6282,7 +6443,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6326,7 +6488,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6370,7 +6533,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6404,7 +6568,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6438,7 +6603,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6472,7 +6638,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6506,7 +6673,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6540,7 +6708,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6574,7 +6743,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6608,7 +6778,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6642,7 +6813,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6676,7 +6848,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6710,7 +6883,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6744,7 +6918,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6778,7 +6953,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -6822,7 +6998,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6866,7 +7043,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6910,7 +7088,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6954,7 +7133,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -6998,7 +7178,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -7042,7 +7223,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -7086,7 +7268,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -7130,7 +7313,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -7174,7 +7358,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -7218,7 +7403,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -7262,7 +7448,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -7306,7 +7493,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -7340,7 +7528,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7374,7 +7563,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7408,7 +7598,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7442,7 +7633,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7476,7 +7668,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7510,7 +7703,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7544,7 +7738,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7578,7 +7773,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7612,7 +7808,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7646,7 +7843,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7680,7 +7878,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7714,7 +7913,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7748,7 +7948,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7782,7 +7983,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7816,7 +8018,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7850,7 +8053,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7884,7 +8088,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7918,7 +8123,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7952,7 +8158,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -7986,7 +8193,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8020,7 +8228,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8054,7 +8263,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8088,7 +8298,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8122,7 +8333,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8156,7 +8368,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8190,7 +8403,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8224,7 +8438,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8258,7 +8473,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8292,7 +8508,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8326,7 +8543,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8360,7 +8578,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8394,7 +8613,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8428,7 +8648,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8462,7 +8683,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8496,7 +8718,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8530,7 +8753,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8564,7 +8788,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8598,7 +8823,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8632,7 +8858,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8666,7 +8893,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8700,7 +8928,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8734,7 +8963,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8768,7 +8998,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8802,7 +9033,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8836,7 +9068,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8870,7 +9103,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8904,7 +9138,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8938,7 +9173,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -8982,7 +9218,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9026,7 +9263,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9070,7 +9308,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9114,7 +9353,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9158,7 +9398,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9202,7 +9443,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9246,7 +9488,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9290,7 +9533,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9334,7 +9578,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9378,7 +9623,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9422,7 +9668,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9466,7 +9713,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9510,7 +9758,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9554,7 +9803,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9598,7 +9848,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9642,7 +9893,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9686,7 +9938,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9730,7 +9983,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9774,7 +10028,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9818,7 +10073,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9862,7 +10118,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9906,7 +10163,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9950,7 +10208,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -9994,7 +10253,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10028,7 +10288,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10062,7 +10323,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10096,7 +10358,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10130,7 +10393,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10164,7 +10428,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10198,7 +10463,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10232,7 +10498,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10266,7 +10533,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10300,7 +10568,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10334,7 +10603,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10368,7 +10638,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10402,7 +10673,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10446,7 +10718,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10490,7 +10763,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10534,7 +10808,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10578,7 +10853,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10622,7 +10898,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10666,7 +10943,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10710,7 +10988,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10754,7 +11033,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10798,7 +11078,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10842,7 +11123,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10886,7 +11168,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10930,7 +11213,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 1,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -10964,7 +11248,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -10998,7 +11283,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11032,7 +11318,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11066,7 +11353,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11100,7 +11388,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11134,7 +11423,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11168,7 +11458,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11202,7 +11493,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11236,7 +11528,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11270,7 +11563,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11304,7 +11598,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11338,7 +11633,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11372,7 +11668,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11406,7 +11703,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11440,7 +11738,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11474,7 +11773,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11508,7 +11808,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11542,7 +11843,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11576,7 +11878,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11610,7 +11913,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11644,7 +11948,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11678,7 +11983,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11712,7 +12018,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11746,7 +12053,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11780,7 +12088,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11814,7 +12123,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11848,7 +12158,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11882,7 +12193,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11916,7 +12228,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11950,7 +12263,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -11984,7 +12298,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12018,7 +12333,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12052,7 +12368,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12086,7 +12403,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12120,7 +12438,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12154,7 +12473,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12188,7 +12508,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12222,7 +12543,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12256,7 +12578,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12290,7 +12613,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12324,7 +12648,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12358,7 +12683,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12392,7 +12718,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12426,7 +12753,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12460,7 +12788,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12494,7 +12823,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12528,7 +12858,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12562,7 +12893,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12596,7 +12928,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12630,7 +12963,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12664,7 +12998,8 @@
         "components": 3,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12698,7 +13033,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12732,7 +13068,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12766,7 +13103,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12800,7 +13138,8 @@
         "components": 3,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12834,7 +13173,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12868,7 +13208,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12902,7 +13243,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12936,7 +13278,8 @@
         "components": 3,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -12970,7 +13313,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13004,7 +13348,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13038,7 +13383,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13072,7 +13418,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13106,7 +13453,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13140,7 +13488,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13174,7 +13523,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13208,7 +13558,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13242,7 +13593,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13276,7 +13628,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13310,7 +13663,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13344,7 +13698,8 @@
         "components": 5,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13378,7 +13733,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13412,7 +13768,8 @@
         "components": 5,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13446,7 +13803,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13480,7 +13838,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13514,7 +13873,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13548,7 +13908,8 @@
         "components": 5,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13582,7 +13943,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13616,7 +13978,8 @@
         "components": 5,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13650,7 +14013,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13684,7 +14048,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13718,7 +14083,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13752,7 +14118,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13786,7 +14153,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13820,7 +14188,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13854,7 +14223,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13888,7 +14258,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13922,7 +14293,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13956,7 +14328,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -13990,7 +14363,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14024,7 +14398,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14058,7 +14433,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14092,7 +14468,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14126,7 +14503,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14160,7 +14538,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14194,7 +14573,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14228,7 +14608,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14262,7 +14643,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14296,7 +14678,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14330,7 +14713,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14364,7 +14748,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14398,7 +14783,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14432,7 +14818,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14466,7 +14853,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14500,7 +14888,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14534,7 +14923,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14568,7 +14958,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14602,7 +14993,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14636,7 +15028,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14670,7 +15063,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14704,7 +15098,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14738,7 +15133,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14772,7 +15168,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14806,7 +15203,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14840,7 +15238,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14874,7 +15273,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14908,7 +15308,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14942,7 +15343,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -14976,7 +15378,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15010,7 +15413,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15054,7 +15458,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15098,7 +15503,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15142,7 +15548,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15186,7 +15593,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15230,7 +15638,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15274,7 +15683,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15318,7 +15728,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15362,7 +15773,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15406,7 +15818,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15450,7 +15863,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15494,7 +15908,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15538,7 +15953,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15572,7 +15988,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15606,7 +16023,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15650,7 +16068,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15694,7 +16113,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15728,7 +16148,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15762,7 +16183,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15806,7 +16228,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15850,7 +16273,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -15884,7 +16308,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15918,7 +16343,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15952,7 +16378,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -15986,7 +16413,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -16020,7 +16448,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -16054,7 +16483,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -16088,7 +16518,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -16122,7 +16553,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -16156,7 +16588,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -16190,7 +16623,8 @@
         "components": 1,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "corpus",
@@ -16234,7 +16668,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16278,7 +16713,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16322,7 +16758,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16366,7 +16803,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16410,7 +16848,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16454,7 +16893,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16498,7 +16938,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16542,7 +16983,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16586,7 +17028,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "corpus",
@@ -16630,7 +17073,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 1
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -16674,7 +17118,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -16718,7 +17163,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -16752,7 +17198,8 @@
         "components": 3,
         "holes": 1
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -16786,7 +17233,8 @@
         "components": 3,
         "holes": 1
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -16820,7 +17268,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -16854,7 +17303,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -16898,7 +17348,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 4
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -16942,7 +17393,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 4
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -16986,7 +17438,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17020,7 +17473,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17064,7 +17518,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17108,7 +17563,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17142,7 +17598,8 @@
         "components": 3,
         "holes": 1
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17176,7 +17633,8 @@
         "components": 3,
         "holes": 1
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17210,7 +17668,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17244,7 +17703,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17288,7 +17748,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 4
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17332,7 +17793,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 4
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17376,7 +17838,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17410,7 +17873,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17454,7 +17918,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17498,7 +17963,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 2,
         "components_after": 3
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17532,7 +17998,8 @@
         "components": 3,
         "holes": 1
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17566,7 +18033,8 @@
         "components": 3,
         "holes": 1
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17600,7 +18068,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17634,7 +18103,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     },
     {
       "source": "structural",
@@ -17678,7 +18148,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 4
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17722,7 +18193,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 4
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17766,7 +18238,8 @@
         "unrelated_chains_that_moved": 0,
         "components_before": 3,
         "components_after": 2
-      }
+      },
+      "excluded_from_transactions_as_compound": false
     },
     {
       "source": "structural",
@@ -17800,7 +18273,8 @@
         "components": 2,
         "holes": 0
       },
-      "transaction": null
+      "transaction": null,
+      "excluded_from_transactions_as_compound": true
     }
   ],
   "arms_measured": 474,
@@ -17814,6 +18288,8 @@
   "classes_in": 247,
   "classes_out": 247,
   "convention_dependent_groups": 10,
+  "convention_dependent_groups_from_corpus": 7,
+  "convention_dependent_groups_from_register": 3,
   "convention_dependent_group_names": [
     "diagonal_pinch@s128",
     "diagonal_pinch@s32",
@@ -17865,19 +18341,30 @@
   ],
   "transactions_attempted": 167,
   "transactions_committed": 167,
+  "transactions_committed_on_non_empty_arms": 159,
   "transactions_rolled_back": 0,
   "unrelated_chains_total": 127,
   "unrelated_chains_that_moved": 0,
   "transactions_with_no_unrelated_population": 64,
+  "transaction_arms_excluded_as_compound": 307,
+  "reachable_refusals_on_this_population": [
+    "UnrelatedGraphMutation",
+    "CandidateFailedAudit"
+  ],
+  "unreachable_refusals_on_this_population": [
+    "EditLeftTheCanvas",
+    "EditLeftTheRoi",
+    "EditIsANoOp",
+    "NotTheDeclaredEdit"
+  ],
   "arms_failing_the_audit": 0,
   "arms_that_are_not_their_own_assembly": 0,
   "audit_resolving_power": {
     "arms_seen": 474,
     "arrangements_probed": 28,
     "slots_perturbed": 155160,
-    "caught_by_audit": 5648,
-    "caught_by_assembly_equality": 155160,
-    "caught_by_neither": 0,
+    "caught_by_audit": 155160,
+    "uncaught_by_audit": 0,
     "no_ops": 0
   }
 }
