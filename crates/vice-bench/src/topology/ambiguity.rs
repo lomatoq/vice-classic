@@ -182,7 +182,13 @@ pub(super) fn measure_ambiguity_pairs() -> Result<(Vec<AmbiguityRow>, u64), Stri
     Ok((out, skipped))
 }
 
-fn envelope_classes(
+/// `pub(crate)` so a test can recompute the SAME reading the row publishes.
+///
+/// RT45-A24: the threshold site filtered the published list by a plausibility
+/// bound, and a bound describes the sentinel someone already showed you. The
+/// property is not "the number looks reasonable" but "this class came out of
+/// the envelope", and the only way to say that is to ask the envelope again.
+pub(crate) fn envelope_classes(
     scene: &GtScene,
     cell: &DegradationCell,
     cfg: &TopologyConfig,

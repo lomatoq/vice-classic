@@ -198,17 +198,18 @@ impl TopologyGateConfig {
                         .sum()
                 },
                 from_run: |r| {
-                    // WELL-FORMED, DISTINCT readings only. Padding the list with
-                    // sentinels is what RT45-A23 did, and a sentinel is not a
-                    // topology any envelope produced.
-                    let good = |v: &Vec<(u32, u32)>| {
-                        let mut seen: Vec<(u32, u32)> = v
-                            .iter()
-                            .copied()
-                            .filter(|(c, h)| {
-                                *c != 0 && *c < PLAUSIBLE_CLASS_BOUND && *h < PLAUSIBLE_CLASS_BOUND
-                            })
-                            .collect();
+                    // DISTINCT readings. No plausibility bound: a bound
+                    // describes the sentinel someone already demonstrated, and
+                    // RT45-A24 walked past `< 100_000` by padding with `(3, 1)`.
+                    //
+                    // Dedup is all this site can honestly do, because a report
+                    // does not carry the envelope its classes came from. The
+                    // property "every published class came OUT of the envelope"
+                    // is checked where the envelope can be asked again, in
+                    // `every_published_class_came_from_the_envelope`, and that
+                    // is the check RT45-A24's padding fails.
+                    let distinct = |v: &Vec<(u32, u32)>| {
+                        let mut seen = v.clone();
                         seen.sort_unstable();
                         seen.dedup();
                         seen.len() as u64
@@ -216,17 +217,13 @@ impl TopologyGateConfig {
                     r.ambiguity
                         .iter()
                         .filter(|p| p.is_topology_pair)
-                        .map(|p| good(&p.classes_from_a) + good(&p.classes_from_b))
+                        .map(|p| distinct(&p.classes_from_a) + distinct(&p.classes_from_b))
                         .sum()
                 },
             },
         ]
     }
 }
-
-/// A component or hole count above this is not a reading of a 32-512 px render;
-/// it is a sentinel someone pushed into a published list.
-const PLAUSIBLE_CLASS_BOUND: u32 = 100_000;
 
 impl TopologyReport {
     /// The three §28 M4.5 clauses, as booleans over this report's own data and

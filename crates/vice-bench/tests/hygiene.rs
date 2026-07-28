@@ -300,18 +300,39 @@ struct CorpusFn {
 /// takes a fixture and returns a `Split`, and counting it would make the
 /// declared set meaningless.
 fn corpus_returning_fns() -> Vec<CorpusFn> {
-    fns_returning(CORPUS_BEARING_TYPES)
+    fns_matching(|_, ret| CORPUS_BEARING_TYPES.iter().any(|t| ret.contains(t)))
 }
 
 /// The PIPELINE: functions that turn a corpus fixture into measurable output.
 ///
-/// Derived by RETURN TYPE, the same way corpus doors are, because that is what
-/// makes a function part of the pipeline - not its name.
+/// Derived by ARGUMENT, not by result type. RT45-A27: deriving it from two
+/// literal arrays of type NAMES meant a new `pub(crate)` product type carried
+/// the pipeline out from under the echelon - a wrapper in `gt/grammar.rs`,
+/// which is not in `MAY_CALL`, handed out 258 048 bytes across seven
+/// sealed-audit families with 504 tests green.
+///
+/// RT45-A27's prescribed form - derive by ARGUMENT, since `GtScene` is sealed by
+/// the compiler and a new wrapper would join by its own signature - is NOT what
+/// this does, and the reason is measured rather than argued. Deriving by
+/// argument yields functions with generic names (`of`, `identifiability`,
+/// `estimated_cell`, `measure_arm`), and this echelon finds CALLS by name, so
+/// those names collide workspace-wide: the caller set went from ten modules to
+/// twenty-four, including `vice-evidence` and `vice-image` modules that never
+/// touch the corpus. A discriminator that fires on honest work is not a
+/// discriminator, and widening it with a name filter would be the literal list
+/// this was meant to remove.
+///
+/// So the derivation stays on the result type and the gap is DECLARED: a new
+/// `pub(crate)` product type carries the pipeline out from under this echelon
+/// until its name is added to `CORPUS_PRODUCT_TYPES`. Owner M5, recorded in
+/// STATUS_M4_5 §16 with the red team's own reproduction. Closing it needs a
+/// call scan that resolves names to definitions rather than matching text, and
+/// that is a different instrument from this one.
 fn pipeline_fns() -> Vec<CorpusFn> {
-    fns_returning(CORPUS_PRODUCT_TYPES)
+    fns_matching(|_, ret| CORPUS_PRODUCT_TYPES.iter().any(|t| ret.contains(t)))
 }
 
-fn fns_returning(types: &[&str]) -> Vec<CorpusFn> {
+fn fns_matching(select: impl Fn(&str, &str) -> bool) -> Vec<CorpusFn> {
     let mut out = Vec::new();
     for (path, _) in production_modules() {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
@@ -355,13 +376,17 @@ fn fns_returning(types: &[&str]) -> Vec<CorpusFn> {
                     break;
                 }
             }
-            let Some((_, ret)) = sig.split_once("->") else {
-                continue;
-            };
+            let params = sig
+                .split_once('(')
+                .map(|(_, p)| p.split("->").next().unwrap_or_default().to_string())
+                .unwrap_or_default();
             // Stop at the body brace so a fixture mentioned in the first line
             // of an implementation is not read as a return type.
-            let ret = ret.split('{').next().unwrap_or_default();
-            if !types.iter().any(|t| ret.contains(t)) {
+            let ret = sig
+                .split_once("->")
+                .map(|(_, r)| r.split('{').next().unwrap_or_default().to_string())
+                .unwrap_or_default();
+            if !select(&params, &ret) {
                 continue;
             }
             out.push(CorpusFn {

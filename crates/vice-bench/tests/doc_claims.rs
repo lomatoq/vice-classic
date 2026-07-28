@@ -102,18 +102,12 @@ const DECLARING_DOCS: &[&str] = &["docs/REPRODUCIBILITY_M4.md", "docs/REPRODUCIB
 const CLAUSE_ROWS: &[(&str, &[&str])] = &[
     ("docs/STATUS_M4.md", &["| G7 ", "| G8 ", "| G9 ", "| G10 "]),
     ("docs/STATUS_M4_5.md", &["| T1 ", "| T2 ", "| T3 "]),
-    // The delta-2 gate table. Its rows report CONDITIONS rather than spec
-    // clauses, so the positional derivation does not claim them and they are
-    // held to membership - the same tier a signed document is held to. The
-    // limitation is written down (STATUS_M4_5 §13, limitation 21) rather than
-    // left as a gap: what a row declares about itself is the only thing a
-    // derivation can read, and the alternative is a list again.
-    (
-        "docs/STATUS_M4_5.md",
-        &[
-            "| T10d ", "| T11d ", "| T12d ", "| T13d ", "| T14d ", "| T15d ",
-        ],
-    ),
+    // The delta gate tables are NOT here. Their rows are declared `membership`
+    // or `unit-test`, and since RT45-A22 those tiers publish no measured
+    // quantity at all - so there is nothing for a membership check to check,
+    // and a row that contributed zero tokens would fail the non-vacuity rule
+    // for the right reason. The quantities those rows used to carry now live in
+    // T1d, bound position by position, and the rows point at it.
     // Condition 10. One of the five original B3 defects (M4-N3) was in THIS
     // file - a step-invariance triple from an older run - and it stayed
     // outside the mechanism that closes B3, so two of the class's three
@@ -676,10 +670,23 @@ fn the_delta_clause_rows_equal_their_declared_keys_position_by_position() {
             .find(|l| l.starts_with(prefix.as_str()))
             .expect("the row exists");
         let numbers = row_numbers(row_line);
-        if declared[0] == "unit-test" {
+        // ALL unchecked tiers, not just `unit-test`. Condition 28 covered one
+        // of the two and RT45-A22 simply declared the other: `membership` does
+        // not bind a number to a key either, it only requires the number to
+        // appear SOMEWHERE among the declared values - which, with ninety-five
+        // of them and most of them small integers, a forged figure usually
+        // does.
+        //
+        // And the rule is about the QUANTITY, not the glyph. Condition 28 said
+        // "a row with a number", I answered by spelling eighteen of them as
+        // words, and the reviewer was right that no tier reads words either. A
+        // row in an unchecked tier publishes no measured quantity in ANY
+        // notation; a quantity that must be published gets a key.
+        if declared[0] != "positional" {
             assert!(
                 numbers.is_empty(),
-                "{doc}: row {prefix:?} is declared `unit-test` and carries {} numeric token(s)                  {:?}. A row that publishes a number is reporting a measurement, and `unit-test`                  is the kind nothing checks - so the number would be published under no                  mechanism at all (condition 28, RT45-A22)",
+                "{doc}: row {prefix:?} is declared `{}` and carries {} numeric token(s) {:?}. A                  row that publishes a measured quantity is reporting a measurement, and neither                  `membership` nor `unit-test` binds it to a key - so the figure would be                  published under no mechanism at all. Bind it positionally or do not publish it                  (condition 28, RT45-A22)",
+                declared[0],
                 numbers.len(),
                 numbers.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>()
             );

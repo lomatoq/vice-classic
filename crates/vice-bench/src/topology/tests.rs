@@ -659,7 +659,14 @@ fn the_report_aggregates_agree_with_the_run_they_came_from() {
         .iter_mut()
         .find(|p| p.is_topology_pair)
         .expect("a topology pair");
-    retaining.classes_from_a.push((u32::MAX, u32::MAX));
+    // A DUPLICATE, because that is what this site now claims to catch: it
+    // counts DISTINCT readings and no longer filters by a plausibility bound.
+    // A bound describes the sentinel someone already showed you, and RT45-A24
+    // walked past `< 100_000` with `(3, 1)`. The property "this class came out
+    // of the envelope" is checked where the envelope can be asked again, in
+    // `every_published_class_came_from_the_envelope`.
+    let dup = *retaining.classes_from_a.first().expect("a published class");
+    retaining.classes_from_a.push(dup);
     let site = sites
         .iter()
         .find(|s| s.name == "gate_min_classes_per_retaining_pair")
@@ -667,7 +674,7 @@ fn the_report_aggregates_agree_with_the_run_they_came_from() {
     assert_ne!(
         (site.reported)(&padded),
         (site.from_run)(&padded),
-        "a class list padded with a sentinel was accepted: gate_min_classes_per_retaining_pair          stops being falsifiable and the artifact does not move (RT45-A23)"
+        "a class list padded with a duplicate reading was accepted:          gate_min_classes_per_retaining_pair stops being falsifiable and the artifact does not          move (RT45-A23)"
     );
 
     let mut clamped = rep.clone();
@@ -680,5 +687,60 @@ fn the_report_aggregates_agree_with_the_run_they_came_from() {
         (site.reported)(&clamped),
         (site.from_run)(&clamped),
         "a clamped width aggregate was accepted (RT45-A16)"
+    );
+}
+
+/// Every class a pair PUBLISHES came out of the envelope it claims to describe.
+///
+/// RT45-A24. The threshold site used to filter the published list by
+/// `< PLAUSIBLE_CLASS_BOUND`, which is a bound describing the sentinel the red
+/// team had already shown me — so padding with `(3, 1)` walked past it, the
+/// artifact stayed byte-identical, eleven guards stayed green, and
+/// `gate_min_classes_per_retaining_pair` stopped being falsifiable.
+///
+/// Comparing two readings of ONE list cannot catch padding: both readings see
+/// the padded list. The input has to be the ENVELOPE, so this asks the envelope
+/// again — the same call `ambiguity.rs` makes, with the same config — and
+/// requires the published list to be exactly what comes back. There is no
+/// constant to tune and nothing to append.
+#[test]
+fn every_published_class_came_from_the_envelope() {
+    let run = run_once();
+    let pairs = crate::gt::adversarial::ambiguity_pairs();
+    let mut checked = 0usize;
+    for row in run.ambiguity.iter().filter(|p| p.is_topology_pair) {
+        let pair = pairs
+            .iter()
+            .find(|p| p.group.id == row.group_id)
+            .expect("every published row has its pair");
+        for (scene, published) in [
+            (pair.group.scenes.first(), &row.classes_from_a),
+            (pair.group.scenes.get(1), &row.classes_from_b),
+        ] {
+            let Some(scene) = scene else { continue };
+            if published.is_empty() {
+                continue;
+            }
+            let recomputed = crate::topology::ambiguity::envelope_classes(
+                scene,
+                &pair.collapse_cell,
+                &vice_topology::TOPOLOGY_CONFIG_V1,
+            )
+            .expect("the envelope recomputes");
+            assert_eq!(
+                published, &recomputed,
+                "pair {} publishes {published:?} and its envelope produces {recomputed:?}. A \
+                 class in a published list that the envelope did not produce is a threshold \
+                 turned unfalsifiable, and no plausibility bound can tell the two apart \
+                 (RT45-A24)",
+                row.group_id
+            );
+            checked += 1;
+        }
+    }
+    assert!(
+        checked >= 2,
+        "only {checked} published class lists were recomputed; this test would be checking \
+         nothing"
     );
 }
