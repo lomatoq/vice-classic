@@ -123,6 +123,8 @@ pub enum InvariantViolation {
     },
     #[error("the exterior face {0:?} is not a background face")]
     ExteriorIsNotBackground(FaceId),
+    #[error("the face loops disagree with the loops of the labelling: {0}")]
+    LoopsDisagreeWithTheLabelling(String),
     #[error(
         "pixel ({x}, {y}) is labelled {label} but sits in face {face}, whose label is {face_label};          {disagreeing} of {total} pixels disagree with the labelling they were built from"
     )]
@@ -168,6 +170,15 @@ pub enum InvariantViolation {
 /// What an audit measured, published beside the verdict.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct AuditReport {
+    /// Which branch of the judge produced this verdict.
+    ///
+    /// REVIEW_M5_B N15: the probe's branch set was a hand-written
+    /// two-element dichotomy computed by the CALLER (`count_inside() == 0`),
+    /// so a new early return in this function cost one line there and the
+    /// probe would never learn of it. The judge names its own branches now,
+    /// and the harness buckets by whatever it reports — a third branch
+    /// creates a third bucket without anyone remembering to add one.
+    pub branch: &'static str,
     pub vertices: u32,
     pub boundaries: u32,
     pub segments: u32,
@@ -281,6 +292,28 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
         }
     }
 
+    // (B) THE ORIENTED HALF of §12's "face cycles closed and oriented".
+    //
+    // RT5-A13 / M5A-D2-N1, found independently by two contexts: `target(h) ==
+    // origin(next(h))` was checked nowhere and `Dcel::target`/`origin` were
+    // called by nothing in the workspace. Swapping two half-edges inside one
+    // loop violates the property on 35 768 of 131 072 4x4 arrangements, and
+    // `audit()` returned `Err` zero times.
+    //
+    // The loops are compared against loops RE-DERIVED FROM THE LABELLING rather
+    // than against `target`/`origin`, which would have read `boundaries` and
+    // `site` — outputs of the same `assemble`, i.e. RT5-A9's shape a third
+    // time. See `loops` for the residual: this shares the ALGORITHM with
+    // `assemble` and not the DATA.
+    //
+    // Placed before the empty branch for the reason N11 gave: an early return
+    // in a judge is a declared exclusion from its domain.
+    if let Err(e) = crate::dcel::loops::loops_agree_with_the_labelling(d) {
+        return Err(InvariantViolation::LoopsDisagreeWithTheLabelling(
+            e.to_string(),
+        ));
+    }
+
     if arr.steps().is_empty() {
         if !d.boundaries().is_empty() || d.loop_count() != 0 || d.faces().len() != 1 {
             return Err(InvariantViolation::EmptyArrangementIsNotEmpty {
@@ -318,6 +351,7 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
             });
         }
         return Ok(AuditReport {
+            branch: "empty",
             vertices: 0,
             boundaries: 0,
             segments: 0,
@@ -566,6 +600,7 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
     }
 
     Ok(AuditReport {
+        branch: "arrangement",
         vertices: v as u32,
         boundaries: bnd as u32,
         segments: d.segment_count() as u32,
@@ -620,153 +655,8 @@ fn skeleton_components(d: &Dcel) -> i64 {
     roots.len() as i64
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::cubical::Labelling;
-    use crate::dcel::walk::{measure_audit_resolving_power, SLOT_FAMILIES};
-    use vice_ir::ComplementaryConnectivity;
-
-    fn ring() -> Dcel {
-        let (w, h) = (13usize, 13usize);
-        let inside: Vec<bool> = (0..w * h)
-            .map(|i| {
-                let (dx, dy) = ((i % w) as f64 - 6.0, (i / w) as f64 - 6.0);
-                let r2 = dx * dx + dy * dy;
-                (4.0..=30.0).contains(&r2)
-            })
-            .collect();
-        Dcel::assemble(
-            Labelling::new(w, h, inside),
-            ComplementaryConnectivity::arms()[0],
-        )
-    }
-
-    /// Every scalar slot of the structure, perturbed one at a time, is caught.
-    ///
-    /// Both directions are asserted: the walk must be non-empty (an empty
-    /// control is indistinguishable from a passing one), and the UNperturbed
-    /// value must pass both checks (a checker that always fails would satisfy
-    /// the first half and measure nothing).
-    #[test]
-    fn every_perturbation_of_every_slot_is_caught_by_the_audit_alone() {
-        let d = ring();
-        assert!(audit(&d).is_ok(), "positive control: the real one passes");
-        assert!(is_the_assembly_of_its_own_labelling(&d));
-
-        let ps = d.parts().perturbations();
-        assert!(
-            ps.len() > 200,
-            "the walk found only {} slots; it is not covering the structure",
-            ps.len()
-        );
-
-        let mut by_audit = 0usize;
-        for (_family, name, f) in &ps {
-            let mut parts = d.parts().clone();
-            f(&mut parts);
-            if parts == *d.parts() {
-                // A no-op perturbation is not a test of anything, and it must
-                // not be counted as a pass. There are none, and this asserts
-                // it rather than assuming it.
-                panic!("perturbation {name} changed nothing");
-            }
-            let broken = d.clone().with_parts(parts);
-            assert!(
-                audit(&broken).is_err(),
-                "perturbation {name} was accepted by the audit. RT5-A1 is what an unchecked slot                  costs: a field no predicate reads passes 530 tests, four MET clauses and a                  byte-identical artifact"
-            );
-            by_audit += 1;
-        }
-        println!("slots {} | caught by audit {}", ps.len(), by_audit);
-        assert_eq!(
-            by_audit,
-            ps.len(),
-            "the audit must catch EVERY real perturbation. `assembly equality is total` used to              stand here and it was a theorem (RT5-A2), so it certified nothing"
-        );
-    }
-
-    /// **RT5-A11: a field must be EXERCISED, not merely mentioned.**
-    ///
-    /// The exhaustive destructuring in `Parts::perturbations` is judged by the
-    /// compiler — but what the compiler judges is that every field is NAMED.
-    /// The red team measured the bypass literally: a new field with a public
-    /// reader, corrupted above 16 px, plus one line `face_area_px: _` in the
-    /// pattern — clippy clean, gate EXIT 0, four MET, **and the slot count did
-    /// not move**. The compensation delta-1 claimed through `PartialEq` is nil
-    /// twice over: the walk no longer calls assembly-equality (that WAS the
-    /// RT5-A2 fix), and `audit_every_labelling` compares two copies carrying
-    /// the same defect.
-    ///
-    /// So the site count is compared against a count derived from somewhere
-    /// the walk does not control: the number of scalar leaves of the SERIALIZED
-    /// `Parts`. That number comes from the `Serialize` derive, i.e. from the
-    /// struct definition. A field added as `extra: _` moves the leaf count and
-    /// not the site count, and this fails.
-    ///
-    /// Both directions: the count must also be non-trivial, because an empty
-    /// structure would satisfy `0 == 0`.
-    #[test]
-    fn every_scalar_leaf_of_parts_has_exactly_one_perturbation() {
-        fn leaves(v: &serde_json::Value) -> u64 {
-            match v {
-                serde_json::Value::Array(a) => a.iter().map(leaves).sum(),
-                serde_json::Value::Object(o) => o.values().map(leaves).sum(),
-                serde_json::Value::Null => 0,
-                _ => 1,
-            }
-        }
-        for d in [
-            ring(),
-            Dcel::assemble(
-                Labelling::new(9, 9, (0..81).map(|i| (i / 9) % 3 == 1).collect()),
-                ComplementaryConnectivity::arms()[1],
-            ),
-        ] {
-            let value = serde_json::to_value(d.parts()).expect("Parts serializes");
-            let n = leaves(&value);
-            assert!(n > 100, "only {n} scalar leaves; the walk covers nothing");
-            assert_eq!(
-                d.parts().perturbations().len() as u64,
-                n,
-                "one perturbation per SCALAR LEAF of the serialized structure. The leaf count \
-                 comes from the Serialize derive, so a field written `extra: _` in the walk's \
-                 pattern moves this side and not the other (RT5-A11)"
-            );
-        }
-    }
-
-    /// Every perturbation declares a family, and every family is exercised.
-    ///
-    /// RT5-A10: 96.34 % of the slots are one family, and for that family a
-    /// catch is guaranteed by the shape of the check. The decomposition is
-    /// published, so a family that silently went empty is visible as a zero
-    /// rather than absorbed into a total.
-    #[test]
-    fn every_slot_family_is_non_empty_and_declared() {
-        let d = ring();
-        let r = measure_audit_resolving_power(&d);
-        let total: u64 = r.by_family.iter().map(|f| f.slots).sum();
-        assert_eq!(total, r.slots, "the families must partition the walk");
-        for f in &r.by_family {
-            assert!(
-                SLOT_FAMILIES.contains(&f.family),
-                "unregistered family {:?}",
-                f.family
-            );
-            assert!(f.slots > 0, "family {:?} contributed no slot", f.family);
-            assert_eq!(
-                f.uncaught_by_audit, 0,
-                "family {:?} has an uncaught slot",
-                f.family
-            );
-        }
-        println!(
-            "families: {:?}",
-            r.by_family
-                .iter()
-                .map(|f| (f.family, f.slots))
-                .collect::<Vec<_>>()
-        );
-    }
-}
+// The tests for this file's instrument live where the instrument they measure
+// lives: the mutation walk's own tests moved to `walk.rs` in delta-3 when
+// `audit.rs` crossed the §4.1 size rule, and the anchor's controls are the
+// gate-level knockouts in `vice-bench` plus `crossing::tests` and
+// `loops::tests`, each beside the check it is about.

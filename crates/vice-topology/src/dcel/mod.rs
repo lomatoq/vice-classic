@@ -12,7 +12,8 @@
 //! | every half-edge has a twin | [`HalfEdgeId::twin`] flips one bit | no: there is no twin FIELD |
 //! | every interior boundary has two owners | [`Boundary::owners`] is a pair | no: two owners is the SHAPE of the record |
 //! | a border boundary has an interior and an exterior owner | the outside ring is background, so the exterior is an ordinary face produced by the ordinary walk | no |
-//! | face cycles are closed and oriented | a loop is stored as a cyclic sequence | no: a cycle traversed modulo its length has no open state |
+//! | face cycles are CLOSED | a loop is stored as a cyclic sequence | no: a cycle traversed modulo its length has no open state |
+//! | face cycles are ORIENTED | [`loops`] — this one IS a computation | **YES**, and it was unrepresented until delta-3 |
 //! | no dangling cracks | [`FacePair::new`] refuses equal ids, and it is the only mint | no |
 //! | Euler / cubical signature preserved | [`audit`] — this one IS a computation | YES, and that is why it is the audited one |
 //! | non-adjacent boundaries do not intersect | segments are unit steps of an integer lattice; two distinct ones meet only at a lattice point, and every lattice point of degree three or four is a vertex | no |
@@ -60,6 +61,7 @@ pub mod certificate;
 pub mod crossing;
 pub mod fixtures;
 pub mod lattice;
+pub mod loops;
 pub mod sweep;
 pub mod transaction;
 pub mod walk;
@@ -78,6 +80,7 @@ pub use certificate::{
 };
 pub use crossing::{face_map_agrees, face_map_from_boundaries, FaceMapDisagreement};
 pub use fixtures::{structural_fixtures, with_a_distant_witness, Fixture};
+pub use loops::{loop_length_profile, loops_agree_with_the_labelling, LoopDisagreement};
 pub use sweep::{audit_every_labelling, ExhaustiveReport};
 pub use transaction::{
     apply, Edit, Outcome, Roi, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
@@ -574,7 +577,7 @@ fn flood_faces(arr: &Arrangement<'_>) -> (Vec<u32>, Vec<bool>) {
 }
 
 /// The orbits of the successor permutation: one per boundary loop.
-fn orbits(arr: &Arrangement<'_>) -> Vec<Vec<Step>> {
+pub(crate) fn orbits(arr: &Arrangement<'_>) -> Vec<Vec<Step>> {
     let steps = arr.steps();
     let index: BTreeMap<Step, usize> = steps.iter().enumerate().map(|(i, s)| (*s, i)).collect();
     let mut seen = vec![false; steps.len()];

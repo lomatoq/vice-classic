@@ -431,7 +431,18 @@ impl DcelReport {
                 .met_by(u64::from(p.arrangements_probed))
             && cfg.min_slots_perturbed.met_by(p.slots_perturbed)
             && p.uncaught_by_audit == 0
-            && p.no_ops == 0;
+            && p.no_ops == 0
+            // REVIEW_M5_B N15. The branch probe was published and gated by
+            // NOTHING, so a commit deleting it and re-recording the artifact
+            // (which is not under §27.7) would silently return this row to
+            // stride-dependence — and stride-dependence is what made its green
+            // a property of arm ORDER in the first place. It is a conjunct now.
+            //
+            // EVERY branch the judge reported must have been probed, and there
+            // must be at least two, so a run that only ever took one branch
+            // cannot satisfy it by having nothing to miss.
+            && p.branches_seen.len() >= 2
+            && p.branches_seen.iter().all(|b| b.arms_probed > 0);
 
         vec![
             (
@@ -551,7 +562,22 @@ impl DcelReport {
                      printed and was misread - 5648 of 155 160 was offered as an honest weakness \
                      and what it said is that 96.4 % of the structure was checked by nothing, \
                      including `face_of_padded_px`, the largest field, which no predicate read at \
-                     all until the third construction of delta-1 (RT5-A1)",
+                     all until the third construction of delta-1 (RT5-A1). WHAT THIS NUMBER DOES \
+                     NOT COVER, said plainly because REDTEAM_M5 RT5-A14 measured it: switching the \
+                     LABELLING ANCHOR off entirely moves no slot count, no `by_family` entry and \
+                     no artifact byte. That is a property of the INSTRUMENT rather than a defect \
+                     in the anchor - this walk is made of perturbations of a CORRECT structure, \
+                     and the anchor's whole domain is defects INSIDE `assemble`, which are not \
+                     perturbations of anything (F-0066). The anchor is guarded by KNOCKOUTS rather \
+                     than measured here: RT5-A1 and RT5-A9 are both in the tree as gate-level \
+                     controls required to redden this row, and RT5-A9 is the corruption that \
+                     passed the whole of delta-1 with a byte-identical artifact. What the walk DOES \
+                     measure of the two map checks is that they are not redundant - on a 13x13 \
+                     annulus the rebuild alone catches 153 slots the anchor does not, the anchor \
+                     alone catches 3 the rebuild does not, and 160 fall to both - so citing both is \
+                     not citing one twice. The §12 ORIENTED clause is a third check, added in \
+                     delta-3: loops re-derived from the labelling, which is what a reordering of \
+                     one loop moves and neither of the other two can see (RT5-A13)",
                     self.arms_failing_the_audit,
                     self.arms_with_a_non_empty_arrangement,
                     self.arms_that_are_not_their_own_assembly,

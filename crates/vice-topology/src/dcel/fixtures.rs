@@ -62,6 +62,8 @@ pub fn structural_fixtures(n: usize) -> Vec<Fixture> {
     let r =
         |x: usize, y: usize| ((x as f64 + 0.5 - c).powi(2) + (y as f64 + 0.5 - c).powi(2)).sqrt();
     let unit = (n as f64 / 16.0).max(1.0);
+    let unit_px = unit as usize;
+    let _ = unit_px;
     let half = 2.0 * unit;
     let (left, right) = (c - 4.0 * unit, c + 4.0 * unit);
     let block = |x: usize, y: usize, cx: f64, cy: f64, hw: f64| {
@@ -101,6 +103,39 @@ pub fn structural_fixtures(n: usize) -> Vec<Fixture> {
             labelling: lab(&|x, y| block(x, y, left, c, half) || block(x, y, right, c, half)),
             class_fg4: (2, 0),
             class_fg8: (2, 0),
+        },
+        Fixture {
+            // RT5-A13's other half. The check for §12's ORIENTED clause is
+            // only exercised by loops long enough to HAVE an order, and
+            // neither M5 population had them: the corpus averages 1.082
+            // half-edges per loop with at most 55 of 1334 loops of length
+            // three or more, and this register had ZERO. A check whose
+            // population cannot exercise it is green for the reason the
+            // absent one was.
+            //
+            // A staircase of blocks touching corner to corner puts one
+            // degree-four vertex between each consecutive pair, so the loop
+            // that walks the whole run is split into that many chains. Four
+            // blocks give three junctions and loops of three or more
+            // half-edges BY CONSTRUCTION, at every size and under both arms.
+            name: "diagonal_staircase",
+            labelling: lab(&|x, y| {
+                let s = (unit as usize).max(2);
+                let k = 4usize;
+                let span = k * s;
+                let off = (n.saturating_sub(span)) / 2;
+                let (mut hit, mut i) = (false, 0usize);
+                while i < k {
+                    let (bx, by) = (off + i * s, off + i * s);
+                    if x >= bx && x < bx + s && y >= by && y < by + s {
+                        hit = true;
+                    }
+                    i += 1;
+                }
+                hit
+            }),
+            class_fg4: (4, 0),
+            class_fg8: (1, 0),
         },
         Fixture {
             name: "diagonal_pinch",

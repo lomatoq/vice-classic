@@ -89,7 +89,11 @@ fn the_structural_register_is_covered_by_construction() {
             }
         }
     }
-    assert_eq!(checked, FAST_SIZES_PX.len() * 5 * 2);
+    // DERIVED from the register rather than written as `5 * 2`: the register
+    // grew to six in delta-3 and a hard-coded count is the next line somebody
+    // appends (F-0048 Q1).
+    let per_size = structural_fixtures(FAST_SIZES_PX[0]).len();
+    assert_eq!(checked, FAST_SIZES_PX.len() * per_size * 2);
     assert!(
         classes.contains(&(1, 1)),
         "condition 51: the annulus class must be present by construction, saw {classes:?}"
@@ -100,10 +104,16 @@ fn the_structural_register_is_covered_by_construction() {
     assert!(classes.len() >= 4, "{classes:?}");
     // One fixture must answer differently under the two arms, or the whole
     // register would be blind to the convention it is supposed to exercise.
+    // Counted from the register, not asserted at a literal.
+    let expect_cd = structural_fixtures(FAST_SIZES_PX[0])
+        .iter()
+        .filter(|f| f.class_fg4 != f.class_fg8)
+        .count();
+    assert!(expect_cd > 0, "no fixture is convention-dependent");
     assert_eq!(
         convention_dependent,
-        FAST_SIZES_PX.len(),
-        "exactly one fixture per size is convention-dependent"
+        FAST_SIZES_PX.len() * expect_cd,
+        "every convention-dependent fixture must be so at every size"
     );
 }
 
@@ -143,12 +153,21 @@ fn the_audit_holds_on_the_structural_register_at_corpus_sizes() {
             }
         }
     }
-    assert_eq!(audited, FAST_SIZES_PX.len() * 5 * 2);
+    let per_size = structural_fixtures(FAST_SIZES_PX[0]).len();
+    assert_eq!(audited, FAST_SIZES_PX.len() * per_size * 2);
+    // The junction-bearing fixtures are those built around a critical 2x2: the
+    // pinch and, since delta-3, the staircase. COUNTED from the register rather
+    // than written as a literal, which is the line the sixth fixture would
+    // otherwise have broken (F-0048 Q1).
+    let junction_fixtures = structural_fixtures(FAST_SIZES_PX[0])
+        .iter()
+        .filter(|f| f.name.starts_with("diagonal_"))
+        .count();
+    assert!(junction_fixtures > 0, "no fixture carries a junction");
     assert_eq!(
         junctions_seen as usize,
-        FAST_SIZES_PX.len() * 2,
-        "exactly the diagonal pinch, at every size and under both arms, should carry a junction; \
-         a register with none would exercise only simple closed curves"
+        FAST_SIZES_PX.len() * junction_fixtures * 2,
+        "a register with no junction would exercise only simple closed curves"
     );
 }
 
@@ -313,4 +332,43 @@ fn the_audit_holds_on_the_structural_register_at_every_declared_size() {
             }
         }
     }
+}
+
+/// **RT5-A13's second half.** The structural register must contain loops long
+/// enough to HAVE an order, at every size and under both arms.
+///
+/// The §12 ORIENTED check is only exercised by loops of three or more
+/// half-edges. Neither M5 population had them — the corpus averages 1.082 per
+/// loop, and this register had zero — so a check written without a fixture
+/// would have been green for the reason the absent check was.
+#[test]
+fn the_register_carries_loops_long_enough_to_have_an_order() {
+    let mut sizes_with_long_loops = 0usize;
+    for n in FAST_SIZES_PX {
+        let mut longest_here = 0usize;
+        for f in structural_fixtures(n) {
+            for conn in arms() {
+                let d = Dcel::assemble(f.labelling.clone(), conn);
+                let (longest, _total, at_least_three) =
+                    vice_topology::dcel::loop_length_profile(&d);
+                longest_here = longest_here.max(longest);
+                if f.name == "diagonal_staircase" {
+                    assert!(
+                        at_least_three > 0,
+                        "{} at {n} px under fg-{}: no loop of three or more half-edges, so the                          §12 ORIENTED check is not exercised here at all",
+                        f.name,
+                        if conn.foreground() == PixelConnectivity::Four {
+                            4
+                        } else {
+                            8
+                        }
+                    );
+                }
+                assert!(vice_topology::dcel::loops_agree_with_the_labelling(&d).is_ok());
+            }
+        }
+        assert!(longest_here >= 3, "{n} px: longest loop is {longest_here}");
+        sizes_with_long_loops += 1;
+    }
+    assert_eq!(sizes_with_long_loops, FAST_SIZES_PX.len());
 }

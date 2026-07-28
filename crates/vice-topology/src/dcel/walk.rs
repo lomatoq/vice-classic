@@ -465,3 +465,284 @@ pub fn swap_two_face_labels_above(d: &Dcel, threshold_px: u32) -> Dcel {
     parts.faces[bg].label = true;
     d.clone().with_parts(parts)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cubical::Labelling;
+    use crate::dcel::audit::is_the_assembly_of_its_own_labelling;
+    use crate::dcel::Dcel;
+    use vice_ir::ComplementaryConnectivity;
+
+    fn ring() -> Dcel {
+        let (w, h) = (13usize, 13usize);
+        let inside: Vec<bool> = (0..w * h)
+            .map(|i| {
+                let (dx, dy) = ((i % w) as f64 - 6.0, (i / w) as f64 - 6.0);
+                let r2 = dx * dx + dy * dy;
+                (4.0..=30.0).contains(&r2)
+            })
+            .collect();
+        Dcel::assemble(
+            Labelling::new(w, h, inside),
+            ComplementaryConnectivity::arms()[0],
+        )
+    }
+
+    /// Every scalar slot of the structure, perturbed one at a time, is caught.
+    ///
+    /// Both directions are asserted: the walk must be non-empty (an empty
+    /// control is indistinguishable from a passing one), and the UNperturbed
+    /// value must pass both checks (a checker that always fails would satisfy
+    /// the first half and measure nothing).
+    #[test]
+    fn every_perturbation_of_every_slot_is_caught_by_the_audit_alone() {
+        let d = ring();
+        assert!(audit(&d).is_ok(), "positive control: the real one passes");
+        assert!(is_the_assembly_of_its_own_labelling(&d));
+
+        let ps = d.parts().perturbations();
+        assert!(
+            ps.len() > 200,
+            "the walk found only {} slots; it is not covering the structure",
+            ps.len()
+        );
+
+        let mut by_audit = 0usize;
+        for (_family, name, f) in &ps {
+            let mut parts = d.parts().clone();
+            f(&mut parts);
+            if parts == *d.parts() {
+                // A no-op perturbation is not a test of anything, and it must
+                // not be counted as a pass. There are none, and this asserts
+                // it rather than assuming it.
+                panic!("perturbation {name} changed nothing");
+            }
+            let broken = d.clone().with_parts(parts);
+            assert!(
+                audit(&broken).is_err(),
+                "perturbation {name} was accepted by the audit. RT5-A1 is what an unchecked slot                  costs: a field no predicate reads passes 530 tests, four MET clauses and a                  byte-identical artifact"
+            );
+            by_audit += 1;
+        }
+        println!("slots {} | caught by audit {}", ps.len(), by_audit);
+        assert_eq!(
+            by_audit,
+            ps.len(),
+            "the audit must catch EVERY real perturbation. `assembly equality is total` used to              stand here and it was a theorem (RT5-A2), so it certified nothing"
+        );
+    }
+
+    /// **RT5-A11: a field must be EXERCISED, not merely mentioned.**
+    ///
+    /// The exhaustive destructuring in `Parts::perturbations` is judged by the
+    /// compiler — but what the compiler judges is that every field is NAMED.
+    /// The red team measured the bypass literally: a new field with a public
+    /// reader, corrupted above 16 px, plus one line `face_area_px: _` in the
+    /// pattern — clippy clean, gate EXIT 0, four MET, **and the slot count did
+    /// not move**. The compensation delta-1 claimed through `PartialEq` is nil
+    /// twice over: the walk no longer calls assembly-equality (that WAS the
+    /// RT5-A2 fix), and `audit_every_labelling` compares two copies carrying
+    /// the same defect.
+    ///
+    /// So the site count is compared against a count derived from somewhere
+    /// the walk does not control: the number of scalar leaves of the SERIALIZED
+    /// `Parts`. That number comes from the `Serialize` derive, i.e. from the
+    /// struct definition. A field added as `extra: _` moves the leaf count and
+    /// not the site count, and this fails.
+    ///
+    /// Both directions: the count must also be non-trivial, because an empty
+    /// structure would satisfy `0 == 0`.
+    #[test]
+    fn every_scalar_leaf_of_parts_has_exactly_one_perturbation() {
+        fn leaves(v: &serde_json::Value) -> u64 {
+            match v {
+                serde_json::Value::Array(a) => a.iter().map(leaves).sum(),
+                serde_json::Value::Object(o) => o.values().map(leaves).sum(),
+                serde_json::Value::Null => 0,
+                _ => 1,
+            }
+        }
+        for d in [
+            ring(),
+            Dcel::assemble(
+                Labelling::new(9, 9, (0..81).map(|i| (i / 9) % 3 == 1).collect()),
+                ComplementaryConnectivity::arms()[1],
+            ),
+        ] {
+            let value = serde_json::to_value(d.parts()).expect("Parts serializes");
+            let n = leaves(&value);
+            assert!(n > 100, "only {n} scalar leaves; the walk covers nothing");
+            assert_eq!(
+                d.parts().perturbations().len() as u64,
+                n,
+                "one perturbation per SCALAR LEAF of the serialized structure. The leaf count \
+                 comes from the Serialize derive, so a field written `extra: _` in the walk's \
+                 pattern moves this side and not the other (RT5-A11)"
+            );
+        }
+    }
+
+    /// **RT5-A14: what each check uniquely carries, measured here rather than
+    /// quoted.**
+    ///
+    /// The mutation walk cannot see the labelling anchor at all, and that is a
+    /// property of the INSTRUMENT rather than a defect in the anchor: the walk
+    /// is made of perturbations of a CORRECT `Parts`, and the anchor's whole
+    /// domain is defects inside `assemble`, which are not perturbations of
+    /// anything (F-0066). Switching the anchor off moves no slot count and no
+    /// artifact byte.
+    ///
+    /// So the two checks are measured against each other directly, over the
+    /// same perturbations, and the numbers the clause-4 row cites come from
+    /// here. What this establishes is that they are NOT redundant: each catches
+    /// slots the other does not, so citing both is not double-counting one.
+    #[test]
+    fn the_anchor_and_the_rebuild_carry_disjoint_loads() {
+        let d = ring();
+        let (mut only_rebuild, mut only_anchor, mut both, mut neither) = (0, 0, 0, 0);
+        for (_family, _name, f) in d.parts().perturbations() {
+            let mut parts = d.parts().clone();
+            f(&mut parts);
+            if parts == *d.parts() {
+                continue;
+            }
+            let broken = d.clone().with_parts(parts);
+            let rebuild = crate::dcel::crossing::face_map_agrees(&broken).is_err();
+            let anchor = anchor_disagrees(&broken);
+            match (rebuild, anchor) {
+                (true, false) => only_rebuild += 1,
+                (false, true) => only_anchor += 1,
+                (true, true) => both += 1,
+                (false, false) => neither += 1,
+            }
+        }
+        println!(
+            "rebuild-only {only_rebuild} | anchor-only {only_anchor} | both {both} | neither \
+             {neither}"
+        );
+        assert!(
+            only_rebuild > 0,
+            "the rebuild carries nothing the anchor does not, so clause 4 would be citing one \
+             check twice"
+        );
+        // Whatever neither sees must still be caught by the rest of the audit,
+        // which `every_perturbation_of_every_slot_is_caught_by_the_audit_alone`
+        // asserts over the same population.
+    }
+
+    /// **RT5-A12 = M5B-N14: the leaf judge keys on the SERIALIZATION.**
+    ///
+    /// `every_scalar_leaf_of_parts_has_exactly_one_perturbation` compares the
+    /// site count against the scalar leaves of `serde_json::to_value(parts)`.
+    /// Two contexts found the same bypass by executing it: `#[serde(skip)]` on
+    /// the new field plus `extra: _` in the walk's pattern — **two lines**,
+    /// clippy `-D warnings` clean, every test green, the field invisible to the
+    /// walk, to the leaf count and to the artifact.
+    ///
+    /// The judge's key is the `Serialize` derive, which is an ATTRIBUTE ON THE
+    /// SAME SURFACE the attacker edits, in the same commit. B states the rule:
+    /// "a count the attacker does not control" is verified by ENUMERATING the
+    /// ways to control it, and a derive is a function of attributes on the
+    /// thing being checked rather than a constant of nature.
+    ///
+    /// So the ways to control it are enumerated, over the source of the struct
+    /// itself. Both directions: the scan must FIND the struct (an empty scan is
+    /// vacuously compliant, F-0039), and it must reject any serde attribute
+    /// inside it.
+    ///
+    /// **The honest residual**, at the cheapest known price: this is a text
+    /// scan, which F-0048 Q3 calls a habit rather than a judge. Renaming the
+    /// struct, moving it to another file, or writing the attribute in a form
+    /// this scan does not match all defeat it. What it does close is the
+    /// two-line bypass that was measured, and the leaf count keeps its own
+    /// independent job. A judge that does not share a surface with `Parts` at
+    /// all would need reflection Rust does not have; the price of the nearest
+    /// thing — a proc-macro deriving both the perturbation sites and the
+    /// count from one definition — is a new crate and is recorded in
+    /// `docs/STATUS_M5.md`.
+    #[test]
+    fn no_field_of_parts_can_hide_from_the_serializer() {
+        let src = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/dcel/audit.rs"),
+        )
+        .expect("audit.rs");
+        let start = src
+            .find("pub struct Parts {")
+            .expect("the struct this walk is about must be findable");
+        let end = start
+            + src[start..]
+                .find("\n}\n")
+                .expect("the struct must be closed");
+        let body = &src[start..end];
+        assert!(
+            body.lines().count() > 5,
+            "the scan found a {}-line body; it is not reading the struct",
+            body.lines().count()
+        );
+        for (i, line) in body.lines().enumerate() {
+            let t = line.trim();
+            assert!(
+                !t.starts_with("#[serde(") && !t.contains("serde(skip"),
+                "line {i} of `Parts` carries a serde attribute: {t:?}. The leaf-count judge is \
+                 keyed on the serialization, so an attribute here moves the judge's own ruler \
+                 (RT5-A12, M5B-N14)"
+            );
+        }
+        // And the positive control: the derive the judge depends on is present.
+        let head = &src[start.saturating_sub(200)..start];
+        assert!(
+            head.contains("Serialize"),
+            "`Parts` no longer derives Serialize, so the leaf count measures nothing"
+        );
+    }
+
+    /// Every perturbation declares a family, and every family is exercised.
+    ///
+    /// RT5-A10: 96.34 % of the slots are one family, and for that family a
+    /// catch is guaranteed by the shape of the check. The decomposition is
+    /// published, so a family that silently went empty is visible as a zero
+    /// rather than absorbed into a total.
+    #[test]
+    fn every_slot_family_is_non_empty_and_declared() {
+        let d = ring();
+        let r = measure_audit_resolving_power(&d);
+        let total: u64 = r.by_family.iter().map(|f| f.slots).sum();
+        assert_eq!(total, r.slots, "the families must partition the walk");
+        for f in &r.by_family {
+            assert!(
+                SLOT_FAMILIES.contains(&f.family),
+                "unregistered family {:?}",
+                f.family
+            );
+            assert!(f.slots > 0, "family {:?} contributed no slot", f.family);
+            assert_eq!(
+                f.uncaught_by_audit, 0,
+                "family {:?} has an uncaught slot",
+                f.family
+            );
+        }
+        println!(
+            "families: {:?}",
+            r.by_family
+                .iter()
+                .map(|f| (f.family, f.slots))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// The anchor, as a predicate, for the measurement above.
+    fn anchor_disagrees(d: &Dcel) -> bool {
+        let (w, h) = (d.width_px(), d.height_px());
+        for y in 0..h {
+            for x in 0..w {
+                let want = d.labelling().inside()[y as usize * w as usize + x as usize];
+                match d.faces().get(d.face_of_pixel(x, y).index()) {
+                    Some(f) if f.label == want => {}
+                    _ => return true,
+                }
+            }
+        }
+        false
+    }
+}

@@ -278,11 +278,14 @@ pub struct ResolvingPower {
     /// beside a large `arms_seen` rather than as silence.
     pub arms_seen: u64,
     pub arrangements_probed: u32,
-    /// Arms probed because they were the FIRST of a judge branch, not because
-    /// the stride happened to land on them. Both must be non-zero, or clause 4
-    /// stands on whichever branch the ordering happened to sample (N11).
-    pub empty_arms_probed: u32,
-    pub non_empty_arms_probed: u32,
+    /// Arms probed because they were the FIRST of a judge branch, by the name
+    /// the JUDGE gives that branch — not by a dichotomy this file computes.
+    ///
+    /// REVIEW_M5_B N15: these were published and gated by nothing, so a commit
+    /// deleting the branch probe and re-recording the artifact (which is not
+    /// under §27.7) would silently return clause 4 to stride-dependence. They
+    /// are conjuncts of the clause now.
+    pub branches_seen: Vec<BranchProbe>,
     pub slots_perturbed: u64,
     /// Perturbations the AUDIT rejected.
     pub caught_by_audit: u64,
@@ -303,6 +306,14 @@ pub struct ResolvingPower {
     /// as a coverage it is not. The decomposition belongs in the artifact
     /// rather than in a reviewer's reconstruction from it.
     pub by_family: Vec<FamilySlots>,
+}
+
+/// One branch of the judge, and how often it was seen and probed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct BranchProbe {
+    pub branch: &'static str,
+    pub arms_seen: u64,
+    pub arms_probed: u32,
 }
 
 /// One slot family's share of the walk, summed over probed arrangements.
@@ -554,7 +565,7 @@ fn arm_from_labelling(
     // one in `RESOLVING_POWER_STRIDE`, so the control's population grows with
     // the run instead of being a fixed list of places.
     power.arms_seen += 1;
-    // DETERMINISTIC per BRANCH, then a stride on top (REVIEW_M5_B N11).
+    // DETERMINISTIC per BRANCH, then a stride on top (REVIEW_M5_B N11, N15).
     //
     // The stride alone made clause 4's green a property of arm ORDER: the eight
     // empty `adv/sliver` arms sit at positions 87..96, the stride of 17 hits 86
@@ -562,23 +573,28 @@ fn arm_from_labelling(
     // to NOT MET without a line of code changing — reporting a real defect, by
     // luck. A probe population that depends on ordering is not a population.
     //
-    // So each branch of the judge — empty arrangement and non-empty — is probed
-    // the first time it is seen, and the counts are published so a branch that
-    // went unprobed is a zero rather than silence.
-    let empty = d.labelling().count_inside() == 0;
-    let first_of_branch = if empty {
-        let f = power.empty_arms_probed == 0;
-        if f {
-            power.empty_arms_probed += 1;
+    // The branch is the one the JUDGE reports, not a dichotomy computed here.
+    // N15: `empty` used to be `count_inside() == 0` in this file, so a new early
+    // return inside `audit` cost one line there and this probe would never have
+    // learned of it. Buckets are created by whatever name comes back, so a third
+    // branch is probed the first time it appears.
+    let branch = a.as_ref().map(|r| r.branch).unwrap_or("refused");
+    let slot = match power.branches_seen.iter().position(|b| b.branch == branch) {
+        Some(i) => i,
+        None => {
+            power.branches_seen.push(BranchProbe {
+                branch,
+                arms_seen: 0,
+                arms_probed: 0,
+            });
+            power.branches_seen.len() - 1
         }
-        f
-    } else {
-        let f = power.non_empty_arms_probed == 0;
-        if f {
-            power.non_empty_arms_probed += 1;
-        }
-        f
     };
+    power.branches_seen[slot].arms_seen += 1;
+    let first_of_branch = power.branches_seen[slot].arms_probed == 0;
+    if first_of_branch {
+        power.branches_seen[slot].arms_probed += 1;
+    }
     if first_of_branch || power.arms_seen % RESOLVING_POWER_STRIDE as u64 == 1 {
         probe_resolving_power(&d, power);
     }
