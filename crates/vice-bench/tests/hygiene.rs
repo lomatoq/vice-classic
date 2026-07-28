@@ -973,7 +973,21 @@ fn no_workflow_redirects_the_gate_file() {
     let mut gate_args = 0;
     for entry in std::fs::read_dir(&dir).expect("the workflow directory") {
         let path = entry.expect("a workflow entry").path();
-        if path.extension().and_then(|e| e.to_str()) != Some("yml") {
+        // BOTH extensions GitHub accepts. Condition 26(a) / M45-N24: reading
+        // only `*.yml` let a workflow named `*.yaml` walk around RT45-A18
+        // entirely, because the guard was scoped to a SPELLING.
+        //
+        // This half was written once and lost: restoring `hygiene.rs` from a
+        // backup during an unrelated knock-out took it out again, and nothing
+        // noticed until the reviewer looked for the word `yaml` and found it
+        // nowhere (condition 36). That is M45-N28's rule earning itself - each
+        // half of a condition is its own status line, and a half with no line
+        // of its own disappears in silence.
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or_default();
+        if ext != "yml" && ext != "yaml" {
             continue;
         }
         files += 1;
@@ -1152,6 +1166,12 @@ fn only_declared_modules_call_the_render_pipeline() {
         "vice-bench/src/topology/mod.rs",
         "vice-bench/src/topology/ambiguity.rs",
         "vice-bench/src/correlation.rs",
+        // The INDEPENDENT path of
+        // `every_published_class_came_from_the_envelope` (RT45-A28): it walks
+        // render, analyze and propose itself, on purpose, because asking
+        // `envelope_classes` to verify `envelope_classes` is F-0034 word for
+        // word. It renders, so it belongs here.
+        "vice-bench/src/topology/tests.rs",
     ];
     let mut found: Vec<String> = production_modules()
         .iter()

@@ -670,6 +670,45 @@ fn the_delta_clause_rows_equal_their_declared_keys_position_by_position() {
             .find(|l| l.starts_with(prefix.as_str()))
             .expect("the row exists");
         let numbers = row_numbers(row_line);
+        // WHOLE-CELL PARSE, applied to EVERY gate row whatever its tier.
+        //
+        // RT45-A29 is the fifth form of one attack (A4 -> A11 -> A17 -> A22 ->
+        // A29), and every previous answer repaired the TIER rather than what the
+        // tier reads. `row_numbers` extracts ASCII digits, so a quantity written
+        // any other way is invisible to it: fullwidth `５６`, a vulgar fraction,
+        // a Roman numeral. The attack put "recall ５６ из １３２" into `T1` - a
+        // POSITIONAL row carrying the verdict of spec clause 1 under PASS - and
+        // six mechanisms said nothing, because none of them was looking at the
+        // characters that were actually there.
+        //
+        // So the criterion is not "does this contain a digit" but "is the whole
+        // cell accounted for". Every character of the evidence column must be
+        // one this file can classify: a letter, whitespace, markup punctuation,
+        // or an ASCII digit that the positional binding then consumes. Anything
+        // else is UNPARSED, and unparsed is an error rather than a pass. That
+        // needs no table of notations and no list of alphabets - `is_numeric`
+        // covers every Unicode numeric category, and the catch-all covers what
+        // it does not.
+        let evidence = table_cells(row_line)
+            .and_then(|c| c.get(4).cloned())
+            .unwrap_or_default();
+        for (i, ch) in evidence.char_indices() {
+            // ASCII digits are the notation `row_numbers` parses: it already
+            // separates a QUANTITY (`56`) from an identifier that contains
+            // digits (`§11.4`, `RT45-A29`, `C217`), and the tier check below
+            // uses it. Every OTHER numeric character in Unicode - fullwidth
+            // `５６`, a vulgar fraction, a Roman numeral - is a notation this
+            // file does not parse, so whatever it says is published under no
+            // mechanism at all.
+            if ch.is_ascii_digit() || !ch.is_numeric() {
+                continue;
+            }
+            panic!(
+                "{doc}: row {prefix:?} carries the UNPARSED numeric character {ch:?} (U+{:04X})                  at byte {i}. The criterion is not \"does this contain a digit\" but \"is the                  whole cell accounted for\": a quantity in a notation nothing reads is published                  under no mechanism, which is how `recall ５６ из １３２` went into a PASS row                  that reports a spec clause (RT45-A29)",
+                ch as u32
+            );
+        }
+
         // ALL unchecked tiers, not just `unit-test`. Condition 28 covered one
         // of the two and RT45-A22 simply declared the other: `membership` does
         // not bind a number to a key either, it only requires the number to

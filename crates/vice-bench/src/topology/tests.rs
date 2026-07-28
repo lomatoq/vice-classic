@@ -721,18 +721,10 @@ fn every_published_class_came_from_the_envelope() {
             if published.is_empty() {
                 continue;
             }
-            let recomputed = crate::topology::ambiguity::envelope_classes(
-                scene,
-                &pair.collapse_cell,
-                &vice_topology::TOPOLOGY_CONFIG_V1,
-            )
-            .expect("the envelope recomputes");
+            let recomputed = classes_by_an_independent_path(scene, &pair.collapse_cell);
             assert_eq!(
                 published, &recomputed,
-                "pair {} publishes {published:?} and its envelope produces {recomputed:?}. A \
-                 class in a published list that the envelope did not produce is a threshold \
-                 turned unfalsifiable, and no plausibility bound can tell the two apart \
-                 (RT45-A24)",
+                "pair {} publishes {published:?} and an INDEPENDENT reading of the same                  observation produces {recomputed:?}. A class in a published list that the                  envelope did not produce is a threshold turned unfalsifiable (RT45-A24)",
                 row.group_id
             );
             checked += 1;
@@ -740,7 +732,46 @@ fn every_published_class_came_from_the_envelope() {
     }
     assert!(
         checked >= 2,
-        "only {checked} published class lists were recomputed; this test would be checking \
-         nothing"
+        "only {checked} published class lists were recomputed; this test would be checking          nothing"
     );
+}
+
+/// The envelope's classes, computed WITHOUT calling `envelope_classes`.
+///
+/// RT45-A28, and it is F-0034 / RT45-A2 word for word: delta-5 asked "did this
+/// class come out of the envelope?" by calling the very function that had
+/// produced it. An injection INSIDE `envelope_classes` cancels between the two
+/// sides and is invisible - ten topology tests green, clause 2 MET, hygiene
+/// 11/11, 504 passing. What noticed it at all was the frozen artifact, which is
+/// a NUMBER rather than a property, and which noticed it before delta-5 too.
+///
+/// So the chain is walked here instead: render, canonicalize, analyze, observe,
+/// `propose`. Same inputs, same config, no shared wrapper - the same shape as
+/// `independent.rs` for the GT signature, and for the same reason. A change to
+/// `envelope_classes` now has to be made identically in two places that do not
+/// call each other, and a change made in only one of them is what this test is.
+fn classes_by_an_independent_path(
+    scene: &crate::gt::GtScene,
+    cell: &crate::gt::degradation::DegradationCell,
+) -> Vec<(u32, u32)> {
+    use vice_evidence::analysis::{analyze_full, ANALYSIS_CONFIG_V1};
+    use vice_image::{CanonicalImage, IccAssumption};
+
+    let fixture = crate::gt::degradation::render_cell(scene, cell, 2).expect("the render");
+    let img = CanonicalImage::from_straight_srgb8(
+        fixture.width_px,
+        fixture.height_px,
+        fixture.rgba8,
+        true,
+        IccAssumption::NoProfileAssumedSrgb,
+    )
+    .expect("canonical image");
+    let out = analyze_full(&img, &ANALYSIS_CONFIG_V1, None);
+    let ev = out.chosen.expect("a coverage field");
+    let obs = crate::topology::observations_for(&ev, "ambiguity");
+    let proposed = vice_topology::propose(
+        std::slice::from_ref(&obs),
+        &vice_topology::TOPOLOGY_CONFIG_V1,
+    );
+    proposed.envelope.signature_classes().into_iter().collect()
 }
