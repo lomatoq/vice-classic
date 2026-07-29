@@ -1,5 +1,20 @@
 use super::*;
 
+#[test]
+fn the_geometry_intervention_config_binds_the_model_and_pricing_versions() {
+    let config = GeometryOracleConfig::default();
+    assert_eq!(
+        config.model_universe_hash,
+        model_universe_hash(&SupportedModelUniverseV1::v1())
+    );
+    assert_eq!(
+        config.geometry_pricing_sha256,
+        sha256_hex(vice_fit::pricing_surface_v1().as_bytes())
+    );
+    assert_eq!(config.model_universe_hash.len(), 64);
+    assert_eq!(config.geometry_pricing_sha256.len(), 64);
+}
+
 fn one_boundary_measurement() -> GeometryMeasurements {
     let config = GeometryOracleConfig::default();
     let key = CompatibilityKey {

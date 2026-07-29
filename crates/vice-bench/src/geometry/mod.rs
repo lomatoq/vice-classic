@@ -35,6 +35,7 @@ use crate::gates::GatesFile;
 use crate::gt::corpus::Platform;
 use crate::hashing::sha256_hex;
 use crate::oracle::key::{CandidateBudget, CompatibilityKey};
+use crate::universe::{model_universe_hash, SupportedModelUniverseV1};
 
 pub const GEOMETRY_M6_SCHEMA: &str = "vice-classic/m6-geometry-oracle/v1";
 const INTERVENTION_SCHEMA: &str = "vice-classic/m6-geometry-interventions/v1";
@@ -65,6 +66,11 @@ pub struct GeometryOracleConfig {
     pub truth_chord_tolerance_px: f64,
     pub candidate_budget: usize,
     pub k_discrete_paths: usize,
+    /// Bind the intervention key to the exact finite grammar and every
+    /// load-bearing price used by the automatic selector. Without these, a
+    /// model-version change can retain the old compatibility fingerprint.
+    pub model_universe_hash: String,
+    pub geometry_pricing_sha256: String,
 }
 
 impl Default for GeometryOracleConfig {
@@ -80,6 +86,8 @@ impl Default for GeometryOracleConfig {
             truth_chord_tolerance_px: TRUTH_CHORD_TOLERANCE_PX,
             candidate_budget: FIT_BUDGET_V1.cap(),
             k_discrete_paths: K_DISCRETE_PATHS,
+            model_universe_hash: model_universe_hash(&SupportedModelUniverseV1::v1()),
+            geometry_pricing_sha256: sha256_hex(vice_fit::pricing_surface_v1().as_bytes()),
         }
     }
 }
