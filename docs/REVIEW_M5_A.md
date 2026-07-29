@@ -1479,3 +1479,89 @@ The artifact re-record is shape-only and I verified it key by key; D5-N1 is answ
 **The M6 ledger against this milestone is unchanged and none of it is topology:** limitation 36 (52b/53b), limitation 37 (55b), the two narrowed index/order freedoms (64b), and CI (54c) — yours.
 
 **GATE §28 M5: MET**
+
+---
+
+# REVIEW_M5_A — addendum 7 (delta-7, confirmatory)
+
+Reviewer A, independent cold review, Opus 5. Signed §0–§9 and addenda 1–6 untouched.
+Object: **`bb2ae20`**, commits **C278–C279** on top of `d43b5a4`. Confirmatory pass, not a full review.
+
+## §G0. Hygiene and reproduction
+
+```
+main repo  start / end   git status --porcelain → (empty)   HEAD = bb2ae20de615aa373b3f031b3466eaadd72603d0
+clone …/m5a-delta7-rev-qc94v   clean before and after the reported run   HEAD = bb2ae20
+git worktree list → one entry, the main tree.  No git worktree used.
+```
+
+| command | result |
+|---|---|
+| `cargo fmt --all --check` | `FMT_EXIT=0` |
+| `cargo clippy --workspace --all-targets -- -D warnings` | `CLIPPY_EXIT=0`, zero diagnostics, full 31 s compile from an empty target dir |
+| `cargo test --locked --release --workspace` | `RELEASE_EXIT=0` — **551 passed, 0 failed, 15 ignored** |
+| `gt-corpus dcel --scope full` | `GATE_EXIT=0`, **four `[MET]`**; 480 arms, 30 probes, 179 253 slots, UNCAUGHT 0 |
+| artifact | `36875DDC…15CB3496` — byte-identical, **and the same hash as delta-6** |
+| `git log d43b5a4..bb2ae20 -- docs/gt/DCEL_M5.json configs/GATES_V1.toml` | **empty** |
+
+Your claim checks out exactly: every edit was in the **judge**, none in the **measurement**. The artifact hash is unchanged from delta-6, which is a stronger statement than "reproduces".
+
+## §G1. My two MAJORs
+
+**D6-N1 — CLOSED, in the named form.** One source: `structural_sizes(scope)` resolves `TOPOLOGY_CELL_IDS` through the degradation matrix to a `BTreeSet` of `size_px`. `run()` calls it (`dcel/mod.rs:352`) and so does `the_oriented_floor_equals_what_the_register_produces` (`dcel_harness.rs:348`). The literal is gone and the comment that described a derivation the code did not perform is corrected.
+
+**D6-N2 — CLOSED, in the named form.** `every_field_of_dcel_is_in_parts_or_declared` takes the subject set from the **struct's own source** and requires every field to be `parts` or an exception with a reason. That is the side an attacker does not silently edit, which is what I asked for.
+
+**Neither closure created a new finding.** I checked both for the defect each was fixing:
+- the floor derivation's own inputs are now all derived — no literal survives in it;
+- the `Dcel` rule's residual is stated at *its* cheapest price (rename or move the struct — one line), and it is consolidated in `surface.rs` with the two other source scans that share that limit, rather than repeated as three separate half-statements.
+
+## §G2. Q1 on the new exception list, as you asked
+
+`OUTSIDE_PARTS` is a literal of four entries, so **Q1 = YES**. But the question that decides the class is Q2 — *what happens at the next finding?* — and here the answer is **a red test forces a decision**, not *append a line silently*:
+
+- the **subject** set is read from the struct, not from the list;
+- a new field on `Dcel` fails the test until somebody classifies it;
+- the list may not rot in either direction — an entry naming a field that no longer exists fails, and `why.len() > 30` rejects a reason that does not say anything.
+
+That is the `every_status_document_is_classified_or_excepted_with_a_reason` shape: a list of **decisions**, not of subjects. It is the correct form, and the report that it **failed on its author's own too-short reason for `parts` on the first run** is the best evidence that the guard is real — a mechanism that fires against its creator before it ever sees an attacker is one that was not tuned to pass.
+
+The residual I would name if pressed: nothing checks a reason is *true*, only that it is present and long enough. That is unclosable by a test and correctly left alone.
+
+## §G3. Limitation 53, judged as a claim
+
+**Honest boundary with a correct price.** The obstruction is real and correctly diagnosed: `FAST_SIZES_PX` is a literal inside `vice-topology`'s own test target, the harness's sizes come from `vice-bench`'s degradation cells, and `vice-topology` cannot read `vice-bench` because the dependency runs the other way. The named fix — move the size list into the crate that owns the register — is the right one, and it is right *because* the cheap alternative (have the crate's test read the harness's list) is the one the dependency direction forbids.
+
+Two things I will say plainly rather than inflate:
+
+1. **The price is small** — a `const` moves from a test file into `vice-topology`'s library beside `structural_fixtures`, plus one assertion in `vice-bench` that the cell sizes match it. Deferring five lines to M6 is a judgement call, not a necessity.
+2. **The consequence is correctly stated**, and it is the same class I raised as D6-N1: a new harness size would get floor coverage and gate coverage while the crate's own property tests silently went on testing a different set. That is drift with no alarm.
+
+It is named, priced, owned, and found **by the author's own sweep rather than by a reviewer** — which is the part that matters. I record it as a real open item, not as a deferral dressed up, and I would not hold a gate for it.
+
+## §G4. Limitation 52 — my untested case, now measured
+
+The case I labelled *"same shape, not run"* in addendum 5 and ran in addendum 6 (E28) is now run by the author too and holds: permuting two loops of a face leaves every judge silent. It is a measurement rather than my symmetry argument, and the test states what would have to change for the limitation to lift. That closes the specific risk I flagged in addendum 6 §F6 — a reviewer's unverified claim becoming a milestone's declared limitation.
+
+## §G5. Conditions
+
+| | status |
+|---|---|
+| **52–63** | as recorded in addendum 6 — **CLOSED** |
+| **64** (a) floor derived, `==` · (b) index/order freedoms checked or narrowed | **CLOSED · CLOSED** |
+| **65** (a) floor test's size list from the cell matrix · (b) clause-4 negative claim extended to the location axis | **CLOSED · CLOSED** |
+| **open against M6, none of it topology** | limitation 36 (52b/53b), limitation 37 (55b), limitation 52 (loop/face index order), **limitation 53** (two size declarations), the four F-0048 rows the author declares non-passing, and CI (54c) — **yours** |
+
+## §G6. F-0048 on my own method
+
+Short, because this pass was short. Q1: my subjects were your two questions plus one I added — checking each closure for the defect it was fixing. Q3: the judge was the test binary and the artifact hash, except for §G3, which is an argument about a dependency direction and is labelled as such. Q5: I have no red direction this round — I found nothing, and that is a weaker epistemic position than five deltas of findings, so I say it rather than manufacture a residual to look thorough.
+
+The one thing I would flag about my own record across this milestone: **three of my seven findings were residuals priced above their true cost**, and I found all three by running the cheap bypass rather than by reading the price. That is the only reviewing habit here I would carry to another milestone.
+
+## §G7. Verdict
+
+**VERDICT (addendum 7): ACCEPT — no findings.**
+
+Both of my MAJORs are closed in the exact form I named, neither closure introduced a new one, the new exception list is a list of decisions rather than subjects and has already fired against its author, and the one gap the derivation sweep turned up is named with the correct obstruction and the correct price. The judge changed, the measurement did not, and the artifact hash proves it.
+
+**GATE §28 M5: MET**
