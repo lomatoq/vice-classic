@@ -41,6 +41,8 @@
 //! missing capability — remain unmet. Stated because it bounds every number
 //! this crate produces.
 
+#![forbid(unsafe_code)]
+
 pub mod schedule;
 pub mod span;
 
