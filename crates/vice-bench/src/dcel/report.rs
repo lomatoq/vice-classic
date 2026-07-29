@@ -46,7 +46,7 @@ pub const MIN_TRANSACTIONS: u32 = 50;
 pub const MIN_UNRELATED_CHAIN_POPULATION: u32 = 40;
 pub const MIN_RESOLVING_POWER_PROBES: u32 = 10;
 pub const MIN_SLOTS_PERTURBED: u32 = 40000;
-pub const MIN_REGISTER_ARMS_WITH_A_LONG_LOOP: u32 = 4;
+pub const MIN_REGISTER_ARMS_WITH_A_LONG_LOOP: u32 = 6;
 
 /// The population thresholds of the §28 M5 rows, LOADED from the frozen gate
 /// file.

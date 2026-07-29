@@ -121,12 +121,26 @@ pub enum FaceMapKnockout {
 /// Whether the structural register keeps the fixture that carries long loops.
 ///
 /// The red side of the ORIENTED clause's population floor: with the staircase
-/// gone the register's share falls to zero and clause 4 must go NOT MET. Q5's
-/// three directions for this floor are red (here), empty (the same run - the
-/// population IS zero, which is what a floor is for) and idle (the count comes
-/// from `loop_length_profile` over real loops, so it cannot be satisfied by a
-/// constant; `the_oriented_clause_has_a_population_and_it_is_split_by_source`
-/// asserts the longest loop is genuinely >= 3).
+/// gone the register's share falls to zero and clause 4 must go NOT MET.
+///
+/// **TWO legs, not three, and delta-4 claimed three** (REDTEAM_M5 RT5-A19,
+/// REVIEW_M5_A D4-N2). With a floor above zero, `count == 0` ANALYTICALLY
+/// implies `!row`, so "red" and "empty" are one demonstration wearing two
+/// names — the RT5-A2 shape moved from a gate row onto its own control.
+///
+/// - **red / empty (one leg):** this knockout. The population goes to zero and
+///   the row goes NOT MET;
+/// - **idle (independent, and it holds):** the count comes from
+///   `loop_length_profile` over real loop lengths rather than from a constant,
+///   so it cannot be satisfied without loops;
+///   `the_oriented_clause_has_a_population_and_it_is_split_by_source` asserts
+///   the longest is genuinely three or more.
+///
+/// A third leg would need a run where the population is NON-zero and still
+/// below the floor. That is now reachable — the floor is six and the register
+/// produces exactly six — but only by removing a size from the register, which
+/// is a change to the register rather than a knockout over it. Recorded as what
+/// it is instead of counted as a leg it is not.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RegisterKnockout {
     Off,

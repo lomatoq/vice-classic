@@ -91,7 +91,10 @@ pub use certificate::{
 };
 pub use crossing::{face_map_agrees, face_map_from_boundaries, FaceMapDisagreement};
 pub use fixtures::{structural_fixtures, with_a_distant_witness, Fixture};
-pub use loops::{loop_length_profile, loops_agree_with_the_labelling, LoopDisagreement};
+pub use loops::{
+    loop_length_profile, loops_agree_with_the_labelling, vertices_agree_with_the_labelling,
+    vertices_of_the_labelling, LoopDisagreement, VertexDisagreement,
+};
 pub use sweep::{audit_every_labelling, ExhaustiveReport};
 pub use transaction::{
     apply, Edit, Outcome, Roi, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,

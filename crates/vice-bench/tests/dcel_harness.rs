@@ -270,16 +270,17 @@ fn the_oriented_clause_has_a_population_and_it_is_split_by_source() {
     );
 }
 
-/// **The ORIENTED floor, in the three directions F-0059 requires.**
+/// **The ORIENTED floor: TWO legs, and delta-4 claimed three.**
 ///
-/// RED: with the fixture that carries long loops dropped from the register, the
-/// register's share falls to zero, the floor is unmet and clause 4 goes NOT MET.
-/// EMPTY: that same run IS the empty population — which is what a floor exists
-/// to notice, and what delta-3 had no way to notice.
-/// IDLE: the count comes from `loop_length_profile` over real loops rather than
-/// from a constant, so it cannot be satisfied without loops;
-/// `the_oriented_clause_has_a_population_and_it_is_split_by_source` asserts the
-/// longest is genuinely three or more.
+/// REDTEAM_M5 RT5-A19 and REVIEW_M5_A D4-N2, independently: with a floor above
+/// zero, `count == 0` analytically implies `!row`, so RED and EMPTY are one
+/// demonstration under two names. That is the RT5-A2 shape — a conjunct that
+/// cannot be false — moved from a gate row onto its own control.
+///
+/// - **red / empty (ONE leg):** this test. The register's share goes to zero
+///   and clause 4 goes NOT MET;
+/// - **idle (independent, and it holds):** the count comes from real loop
+///   lengths, asserted separately.
 #[test]
 #[ignore = "walks the corpus; wired into CI in release"]
 fn dropping_the_long_loop_fixture_reddens_clause_four() {

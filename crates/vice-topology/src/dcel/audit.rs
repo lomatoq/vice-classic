@@ -123,15 +123,8 @@ pub enum InvariantViolation {
     },
     #[error("the exterior face {0:?} is not a background face")]
     ExteriorIsNotBackground(FaceId),
-    #[error(
-        "boundary {boundary} passes through vertex {vertex:?} at interior position {position} of          {length}; §12 asks for MAXIMAL shared boundary chains, and a chain that contains a vertex          is two chains"
-    )]
-    ChainIsNotMaximal {
-        boundary: usize,
-        vertex: (u32, u32),
-        position: usize,
-        length: usize,
-    },
+    #[error("§12 asks for MAXIMAL shared boundary chains: {0}")]
+    ChainsAreNotMaximal(String),
     #[error("the face loops disagree with the loops of the labelling: {0}")]
     LoopsDisagreeWithTheLabelling(String),
     #[error(
@@ -188,10 +181,29 @@ pub struct AuditReport {
     /// and the harness buckets by whatever it reports — a third branch
     /// creates a third bucket without anyone remembering to add one.
     ///
-    /// N17: the label carries its own RETURN SITE, via `line!()`. A hand
-    /// label alone let a new branch reuse an existing name and hide from the
-    /// probe for zero lines; two returns cannot share a line number, so the
-    /// name is unique whether or not its author wanted it to be.
+    /// N17 asked for uniqueness by construction, and delta-4 bought it with
+    /// `line!()`. REDTEAM_M5 RT5-A18: that put SOURCE LINE NUMBERS into a
+    /// signed Tier A artifact — `docs/gt/DCEL_M5.json` carried
+    /// `arrangement@649` and `empty@400` — so the bytes of a file compared
+    /// byte-for-byte became a function of one source file's LAYOUT. A comment
+    /// added above line 400 breaks `dcel-check`, and §27.1 makes rewriting a
+    /// signed artifact a separate reviewed change. The red team found it
+    /// because its own bypass was caught by the wrong thing: the artifact
+    /// diverged in two leaves, both line numbers, shifted by exactly the nine
+    /// lines it had inserted.
+    ///
+    /// Uniqueness by construction does not require a source POSITION, and that
+    /// is the choice taken here: the labels are stable literals, and
+    /// `every_judge_branch_has_a_distinct_label` requires them to be pairwise
+    /// distinct. A new branch reusing an existing name fails that test, which
+    /// is what N17 asked for, while the artifact depends on the judge's
+    /// behaviour rather than on where its returns happen to sit.
+    ///
+    /// Price of the alternative: keeping `line!()` costs an artifact rewrite —
+    /// a §27.1 reviewed change — on every edit above either return site, in
+    /// perpetuity. Price of this one: the distinctness check is a source scan,
+    /// so a label built at run time rather than written as a literal would
+    /// escape it. That is named in the test.
     pub branch: &'static str,
     pub vertices: u32,
     pub boundaries: u32,
@@ -306,36 +318,22 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
         }
     }
 
-    // (A2) MAXIMALITY. §12 asks for "maximal shared boundary chains", and
-    // nothing bound the word.
+    // (A2) MAXIMALITY, in BOTH directions.
     //
-    // REVIEW_M5_A D3-N2: splitting one chain at an interior degree-two point
-    // leaves `audit()` returning None, `loops_agree` true, `face_map_agrees`
-    // true, and V and B growing together so Euler is preserved. Reviewer A
-    // rated it MINOR because clause 3 catches it on the corpus by comparing
-    // lattice PATHS, and found it by publishing two refuted assumptions of
-    // their own.
+    // §12 asks for "maximal shared boundary chains". Delta-4 checked that no
+    // junction lies INSIDE a chain and called the finding closed; two contexts
+    // then showed, independently and both by execution, that a chain END which
+    // is not a junction passed untouched — the other half of the same word.
     //
-    // It is one comparison, so it is closed here rather than carried: a chain
-    // is maximal exactly when none of its INTERIOR points is a vertex. The
-    // vertex set is built from lattice degree, which is a function of the
-    // labelling, so this does not share a provenance with the chain splitting
-    // it judges.
-    {
-        let verts: std::collections::BTreeSet<(u32, u32)> = d.vertices().iter().copied().collect();
-        for (i, b) in d.boundaries().iter().enumerate() {
-            let n = b.path.len();
-            for (k, p) in b.path.iter().enumerate().take(n.saturating_sub(1)).skip(1) {
-                if verts.contains(p) {
-                    return Err(InvariantViolation::ChainIsNotMaximal {
-                        boundary: i,
-                        vertex: *p,
-                        position: k,
-                        length: n,
-                    });
-                }
-            }
-        }
+    // The cause was provenance, a fourth time: the delta-4 check read
+    // `d.vertices()`, the STORED set, while the comment beside it said the
+    // vertex set comes from lattice degree and so shares no provenance. That
+    // described how `assemble` BUILDS the set, not what the check READ.
+    //
+    // The legal vertex set is derived from the labelling instead, and compared.
+    // Equality fails in both directions at once.
+    if let Err(e) = crate::dcel::loops::vertices_agree_with_the_labelling(d) {
+        return Err(InvariantViolation::ChainsAreNotMaximal(e.to_string()));
     }
 
     // (B) THE ORIENTED HALF of §12's "face cycles closed and oriented".
@@ -397,7 +395,7 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
             });
         }
         return Ok(AuditReport {
-            branch: concat!("empty@", line!()),
+            branch: "empty",
             vertices: 0,
             boundaries: 0,
             segments: 0,
@@ -646,7 +644,7 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
     }
 
     Ok(AuditReport {
-        branch: concat!("arrangement@", line!()),
+        branch: "arrangement",
         vertices: v as u32,
         boundaries: bnd as u32,
         segments: d.segment_count() as u32,

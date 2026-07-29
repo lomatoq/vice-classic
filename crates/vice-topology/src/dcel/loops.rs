@@ -215,6 +215,121 @@ pub fn loops_agree_with_the_labelling(d: &Dcel) -> Result<usize, LoopDisagreemen
     Ok(stored.len())
 }
 
+/// Where the stored vertex set and the vertex set of the labelling differ.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VertexDisagreement {
+    /// Points the structure calls vertices and the labelling does not: a chain
+    /// was split where nothing meets. OVER-splitting.
+    pub stored_only: Vec<(u32, u32)>,
+    /// Points the labelling makes vertices and the structure does not: a
+    /// junction swallowed inside a chain. UNDER-splitting.
+    pub derived_only: Vec<(u32, u32)>,
+    pub stored: usize,
+    pub derived: usize,
+}
+
+impl std::fmt::Display for VertexDisagreement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} stored vertices against {} the labelling requires; {} point(s) are vertices only \
+             in the structure (a chain split where nothing meets: {:?}) and {} only in the \
+             labelling (a junction swallowed inside a chain: {:?})",
+            self.stored,
+            self.derived,
+            self.stored_only.len(),
+            self.stored_only.first(),
+            self.derived_only.len(),
+            self.derived_only.first()
+        )
+    }
+}
+
+/// The vertex set §12's MAXIMAL chains require, computed from the labelling.
+///
+/// A lattice point is a vertex exactly when it is a junction — degree other
+/// than two — and, for a loop that carries no junction at all, the canonical
+/// smallest point on it, because a chain needs endpoints.
+///
+/// This is the same rule `assemble` follows, run again from the INPUT. That is
+/// the whole point of it existing: see [`vertices_agree_with_the_labelling`].
+pub fn vertices_of_the_labelling(d: &Dcel) -> Vec<(u32, u32)> {
+    let arr = Arrangement::new(
+        d.labelling().inside(),
+        d.width_px(),
+        d.height_px(),
+        d.connectivity(),
+    );
+    let mut set: std::collections::BTreeSet<Lat> = std::collections::BTreeSet::new();
+    for lp in orbits(&arr) {
+        let mut has_junction = false;
+        for s in &lp {
+            if arr.degree(s.from) != 2 {
+                set.insert(s.from);
+                has_junction = true;
+            }
+        }
+        if !has_junction {
+            if let Some(v) = lp.iter().map(|s| s.from).min() {
+                set.insert(v);
+            }
+        }
+    }
+    set.into_iter().map(|v| (v.x, v.y)).collect()
+}
+
+/// **§12's MAXIMAL chains, in BOTH directions.**
+///
+/// ## What delta-4 closed and what it did not
+///
+/// Non-maximality has two directions and delta-4's check saw one:
+///
+/// | | violation | delta-4 |
+/// |---|---|---|
+/// | **under-splitting** | a junction lies INSIDE a chain | caught |
+/// | **over-splitting** | a chain END is not a junction | **not caught** |
+///
+/// Two contexts refuted the closure claim independently and neither by reading:
+/// reviewer A re-ran their delta-3 experiment verbatim against the delta-4 HEAD
+/// and got `audit -> None`, `loops_agree -> true` at a break point of lattice
+/// degree two; reviewer B rebuilt the split independently on 9x9 and repeated it
+/// at 512 px with the same result. The in-tree test that was recorded as closing
+/// it performed a PROMOTION — raising an interior point to a vertex while
+/// leaving the chain whole — which is a different transformation from the one
+/// it was written about.
+///
+/// ## The cause, and it is the fourth repetition of one class
+///
+/// The delta-4 check read `d.vertices()` — the STORED set, an output of the same
+/// `assemble` — while the comment beside it said the vertex set comes from
+/// lattice degree and therefore shares no provenance. That sentence described
+/// how `assemble` BUILDS the set, not what the check READS. It is RT5-A9's form
+/// a fourth time, inside the fix for a finding whose entire content was
+/// provenance, and it is why Q4 must be read off the CODE rather than off the
+/// intention.
+///
+/// ## What this does instead
+///
+/// The legal vertex set is derived from the labelling by
+/// [`vertices_of_the_labelling`] and compared with the stored one. Equality
+/// fails in both directions at once: an added vertex is over-splitting, a
+/// missing one is under-splitting. Nothing here reads `d.vertices()` except as
+/// the side being judged.
+pub fn vertices_agree_with_the_labelling(d: &Dcel) -> Result<usize, VertexDisagreement> {
+    let derived: std::collections::BTreeSet<(u32, u32)> =
+        vertices_of_the_labelling(d).into_iter().collect();
+    let stored: std::collections::BTreeSet<(u32, u32)> = d.vertices().iter().copied().collect();
+    if derived == stored {
+        return Ok(derived.len());
+    }
+    Err(VertexDisagreement {
+        stored_only: stored.difference(&derived).copied().collect(),
+        derived_only: derived.difference(&stored).copied().collect(),
+        stored: stored.len(),
+        derived: derived.len(),
+    })
+}
+
 /// The longest stored loop, in HALF-EDGES, and the mean.
 ///
 /// Published because the check above is only exercised by loops long enough to
@@ -368,17 +483,8 @@ mod maximality_tests {
     use crate::cubical::Labelling;
     use vice_ir::ComplementaryConnectivity;
 
-    /// **M5A-D3-N2: splitting a chain at an interior degree-two point.**
-    ///
-    /// It passed everything before delta-4: `audit()` returned no violation,
-    /// `loops_agree_with_the_labelling` returned true — the WALK is unchanged,
-    /// only its chunking is — `face_map_agrees` returned true, and V and B grew
-    /// together so the Euler identity was preserved.
-    ///
-    /// Both directions: the intact structure is maximal, the split one is not.
-    #[test]
-    fn a_chain_split_at_an_interior_point_is_not_maximal() {
-        let d = super::super::Dcel::assemble(
+    fn square() -> super::super::Dcel {
+        super::super::Dcel::assemble(
             Labelling::new(
                 9,
                 9,
@@ -387,36 +493,200 @@ mod maximality_tests {
                     .collect(),
             ),
             ComplementaryConnectivity::arms()[0],
-        );
-        assert!(super::super::audit(&d).is_ok(), "positive control");
-        let b0 = &d.boundaries()[0];
-        assert!(
-            b0.path.len() > 4,
-            "the fixture needs a chain with an interior"
-        );
+        )
+    }
 
-        // Split boundary 0 in the middle by promoting an interior point to a
-        // vertex — the chain still walks the same lattice cycle, it is simply
-        // no longer maximal.
+    /// **M5A-D4-N1 = M5B-N18: a REAL split, not a promotion.**
+    ///
+    /// Delta-4's test raised an interior point to a vertex and left the chain
+    /// whole. That is a different transformation from the one it was recorded
+    /// as closing, and reviewer A named the method rule against themselves: a
+    /// finding shipped as PROSE loses whichever half the prose did not
+    /// distinguish. So this performs the corruption the reviewers performed —
+    /// the chain is actually CUT in two at a point of lattice degree two, with
+    /// every index kept consistent.
+    ///
+    /// Both directions, and the negative one is the point: every check that
+    /// shipped before delta-5 reproduces this.
+    #[test]
+    fn a_chain_cut_at_a_degree_two_point_is_over_split_and_is_caught() {
+        let d = square();
+        assert!(super::super::audit(&d).is_ok(), "positive control");
+        assert_eq!(d.boundaries().len(), 1, "the square is one closed chain");
+
         let mut parts = d.parts().clone();
-        let mid = parts.boundaries[0].path.len() / 2;
-        let pt = parts.boundaries[0].path[mid];
-        parts.vertices.push(pt);
-        parts.vertices.sort_unstable();
+        let path = parts.boundaries[0].path.clone();
+        let mid = path.len() / 2;
+        let cut = path[mid];
+        // A genuine SPLIT: one chain becomes two, meeting at `cut`, which the
+        // labelling does not make a vertex.
+        let v_new = parts.vertices.len() as u32;
+        parts.vertices.push(cut);
+        let (first, second) = (path[..=mid].to_vec(), path[mid..].to_vec());
+        let ends = (
+            parts.boundaries[0].start,
+            parts.boundaries[0].end,
+            parts.boundaries[0].owners,
+        );
+        parts.boundaries[0].path = first;
+        parts.boundaries[0].end = super::super::VertexId(v_new);
+        parts.boundaries.push(super::super::Boundary {
+            owners: ends.2,
+            start: super::super::VertexId(v_new),
+            end: ends.1,
+            path: second,
+        });
+        let _ = ends.0;
+        // Keep the loops and the site index consistent with the new chain, so
+        // this is a defect in MAXIMALITY and not a corrupt index that some
+        // other check would catch for the wrong reason.
+        let h_new_f = super::super::HalfEdgeId::new(super::super::BoundaryId(1), true);
+        let h_new_b = super::super::HalfEdgeId::new(super::super::BoundaryId(1), false);
+        for f in parts.faces.iter_mut() {
+            for lp in f.loops.iter_mut() {
+                let mut out = Vec::new();
+                for h in lp.iter() {
+                    out.push(*h);
+                    if h.boundary().0 == 0 {
+                        out.push(if h.is_forward() { h_new_f } else { h_new_b });
+                    }
+                }
+                *lp = out;
+            }
+        }
+        parts.site.resize(parts.boundaries.len() * 2, (0, 0, 0));
+        for (f_i, f) in parts.faces.iter().enumerate() {
+            for (l_i, lp) in f.loops.iter().enumerate() {
+                for (p, h) in lp.iter().enumerate() {
+                    parts.site[h.0 as usize] = (f_i as u32, l_i as u32, p as u32);
+                }
+            }
+        }
         let broken = d.clone().with_parts(parts);
 
-        // The loop walk is untouched: same steps, same cycle.
+        // Everything that shipped before delta-5 reproduces it.
+        assert!(
+            super::super::face_map_agrees(&broken).is_ok(),
+            "the rebuild walks segments, and a cut adds no segment"
+        );
         assert!(
             loops_agree_with_the_labelling(&broken).is_ok(),
-            "a chain's chunking is not its walk, so this check cannot see it - which is why              maximality needed its own comparison"
+            "the WALK is unchanged; only its chunking is - which is exactly why delta-4's              interior-point test could not see this"
         );
-        let e = super::super::audit(&broken).expect_err("§12 asks for MAXIMAL chains");
+
+        // The derived vertex set does not.
+        let e = vertices_agree_with_the_labelling(&broken)
+            .expect_err("the cut point is a vertex the labelling does not make one");
+        assert_eq!(e.stored_only.len(), 1);
+        assert_eq!(e.stored_only[0], cut);
         assert!(
-            matches!(
-                e,
-                super::super::InvariantViolation::ChainIsNotMaximal { .. }
+            e.derived_only.is_empty(),
+            "nothing was swallowed, only added"
+        );
+        assert!(super::super::audit(&broken).is_err());
+    }
+
+    /// The other direction: a junction swallowed INSIDE a chain. Delta-4 caught
+    /// this one, and it must stay caught.
+    #[test]
+    fn a_junction_swallowed_inside_a_chain_is_under_split_and_is_caught() {
+        let d = super::super::Dcel::assemble(
+            Labelling::new(
+                6,
+                6,
+                (0..36)
+                    .map(|i| {
+                        let (x, y) = (i % 6, i / 6);
+                        (x < 3 && y < 3) || (x >= 3 && y >= 3)
+                    })
+                    .collect(),
             ),
-            "{e}"
+            ComplementaryConnectivity::arms()[0],
+        );
+        assert!(super::super::audit(&d).is_ok(), "positive control");
+        assert!(
+            !d.vertices().is_empty(),
+            "the diagonal pinch must produce a junction"
+        );
+
+        let mut parts = d.parts().clone();
+        let removed = parts.vertices.remove(0);
+        let broken = d.clone().with_parts(parts);
+        let e = vertices_agree_with_the_labelling(&broken)
+            .expect_err("a junction the labelling requires was removed");
+        assert_eq!(e.derived_only, vec![removed]);
+    }
+
+    /// The vertex set the labelling requires is the one `assemble` produces, on
+    /// every fixture of the structural register at every fast size.
+    #[test]
+    fn the_derived_vertex_set_matches_the_assembled_one_across_the_register() {
+        for n in [32usize, 64, 128] {
+            for f in crate::dcel::structural_fixtures(n) {
+                for conn in ComplementaryConnectivity::arms() {
+                    let d = super::super::Dcel::assemble(f.labelling.clone(), conn);
+                    assert!(
+                        vertices_agree_with_the_labelling(&d).is_ok(),
+                        "{} at {n}",
+                        f.name
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod branch_label_tests {
+    /// **RT5-A18 / N17: labels unique by construction, without source position.**
+    ///
+    /// N17 wanted a new branch reusing an existing label to be impossible.
+    /// Delta-4 bought that with `line!()`, which put source line numbers into a
+    /// signed Tier A artifact and made its bytes a function of one file's
+    /// layout. Uniqueness does not need a position: the labels are literals and
+    /// this requires them to be pairwise distinct.
+    ///
+    /// Both directions: the scan must FIND the labels (an empty scan is
+    /// vacuously distinct, F-0039), and duplicates must fail.
+    ///
+    /// **Residual, named where the strength is claimed:** this reads source
+    /// text, so a label computed at run time rather than written as a literal
+    /// escapes it — the same class as the serde-attribute scan, and closed the
+    /// same way if it ever needs closing.
+    #[test]
+    fn every_judge_branch_has_a_distinct_label() {
+        let src = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/dcel/audit.rs"),
+        )
+        .expect("audit.rs");
+        let mut labels: Vec<&str> = Vec::new();
+        for line in src.lines() {
+            let t = line.trim();
+            if let Some(rest) = t.strip_prefix("branch: \"") {
+                if let Some(end) = rest.find('"') {
+                    labels.push(&rest[..end]);
+                }
+            }
+        }
+        assert!(
+            labels.len() >= 2,
+            "found {} branch labels; the scan is not reading the judge",
+            labels.len()
+        );
+        let mut sorted = labels.clone();
+        sorted.sort_unstable();
+        let before = sorted.len();
+        sorted.dedup();
+        assert_eq!(
+            sorted.len(),
+            before,
+            "two branches of the judge share a label: {labels:?}. A branch reusing an existing \
+             name hides from the probe for zero lines, which is what N17 was about"
+        );
+        assert!(
+            !labels.iter().any(|l| l.contains('@')),
+            "a branch label carries a source position: {labels:?}. That lands in the signed \
+             artifact and makes its bytes a function of source layout (RT5-A18)"
         );
     }
 }
