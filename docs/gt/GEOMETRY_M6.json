@@ -21,45 +21,45 @@
       "k_discrete_paths": 8,
       "max_canonical_cuts": 4,
       "model_universe_hash": "47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097",
-      "geometry_pricing_sha256": "a8df2e99b1f22ff0288f44f7256059c9f481a2565254eb16bff0b83bd5195360",
-      "backend_source_sha256": "d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8"
+      "geometry_pricing_sha256": "e8cd9a8a7d04ebb0dcacf0696ba38342b40216625d43c4331055d89a6094c38a",
+      "backend_source_sha256": "aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f"
     },
-    "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
-    "fixture_set_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+    "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+    "fixture_set_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
     "compatibility_key": {
-      "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-      "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+      "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+      "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
       "candidate_budget": {
         "kind": "candidates",
         "max": 65536
       },
-      "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+      "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
       "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
     },
-    "source_groups": 25,
-    "scenes": 25,
-    "boundaries_attempted": 18,
-    "boundaries_measured": 6,
+    "source_groups": 26,
+    "scenes": 26,
+    "boundaries_attempted": 19,
+    "boundaries_measured": 7,
     "exact_gt_reference_max_px": 0.0,
-    "oracle_candidate_injections": 11,
+    "oracle_candidate_injections": 16,
     "oracle_selector_changes": 2,
     "injection_selector_changes": 4,
     "forced_selector_changes": 1,
-    "raster_derived_rows": 6,
-    "multi_span_rows": 6,
+    "raster_derived_rows": 7,
+    "multi_span_rows": 7,
     "multi_family_rows": 2,
     "arc_rows": 1,
     "quad_rows": 1,
-    "cubic_rows": 2,
-    "forced_multi_candidate_rows": 2,
-    "forced_smooth_rows": 2,
+    "cubic_rows": 3,
+    "forced_multi_candidate_rows": 3,
+    "forced_smooth_rows": 3,
     "relation_selected_rows": 3,
-    "primitive_selected_rows": 2,
+    "primitive_selected_rows": 3,
     "exclusions": [
       {
         "fixture_id": "adv/ambiguous/hole-or-not#holed/face:1/loop:0/stage-f-chain:0",
         "stage": "five_arm_common_population",
-        "reason": "G20 forced discrete fit refused: NoAcceptedModel { paths: 1, not_representable: 0, refused: [(\"smooth_join_between_two_lines\", 1)] }"
+        "reason": "G20 forced discrete fit refused: NoPath"
       },
       {
         "fixture_id": "adv/ambiguous/one-face-or-two#split/stage-f-chain:0",
@@ -69,7 +69,7 @@
       {
         "fixture_id": "adv/checker-corner#a/face:1/loop:0/stage-f-chain:0",
         "stage": "five_arm_common_population",
-        "reason": "G20 forced discrete fit refused: NoAcceptedModel { paths: 1, not_representable: 0, refused: [(\"smooth_join_between_two_lines\", 1)] }"
+        "reason": "G20 forced discrete fit refused: NoPath"
       },
       {
         "fixture_id": "adv/sliver#a",
@@ -84,12 +84,12 @@
       {
         "fixture_id": "authored/pennant#a/face:1/loop:0/stage-f-chain:0",
         "stage": "five_arm_common_population",
-        "reason": "G20 forced discrete fit refused: NoAcceptedModel { paths: 1, not_representable: 0, refused: [(\"smooth_join_between_two_lines\", 1)] }"
+        "reason": "G20 forced discrete fit refused: NoPath"
       },
       {
         "fixture_id": "proc/polygon/001#a/face:1/loop:0/stage-f-chain:0",
         "stage": "five_arm_common_population",
-        "reason": "G20 forced discrete fit refused: NoAcceptedModel { paths: 1, not_representable: 0, refused: [(\"smooth_join_between_two_lines\", 1)] }"
+        "reason": "G20 forced discrete fit refused: NoPath"
       },
       {
         "fixture_id": "proc/polygon/002#a/face:1/loop:1/stage-f-chain:0",
@@ -165,43 +165,43 @@
     "aggregates": [
       {
         "arm": "G00",
-        "boundaries": 6,
-        "mean_symmetric_max_px": 0.6978803254970272,
+        "boundaries": 7,
+        "mean_symmetric_max_px": 0.5873306656735853,
         "worst_symmetric_max_px": 1.6679802261534027,
-        "selected_auto": 6,
+        "selected_auto": 7,
         "selected_forced": 0
       },
       {
         "arm": "G10",
-        "boundaries": 6,
-        "mean_symmetric_max_px": 0.2626356431601813,
+        "boundaries": 7,
+        "mean_symmetric_max_px": 0.23213905571435967,
         "worst_symmetric_max_px": 0.6218945873399995,
-        "selected_auto": 2,
+        "selected_auto": 3,
         "selected_forced": 4
       },
       {
         "arm": "G01",
-        "boundaries": 6,
-        "mean_symmetric_max_px": 0.6978803254970272,
+        "boundaries": 7,
+        "mean_symmetric_max_px": 0.5873306656735853,
         "worst_symmetric_max_px": 1.6679802261534027,
-        "selected_auto": 6,
+        "selected_auto": 7,
         "selected_forced": 0
       },
       {
         "arm": "G11",
-        "boundaries": 6,
-        "mean_symmetric_max_px": 0.2622747938478014,
+        "boundaries": 7,
+        "mean_symmetric_max_px": 0.23182975630374836,
         "worst_symmetric_max_px": 0.6218945873399995,
         "selected_auto": 0,
-        "selected_forced": 6
+        "selected_forced": 7
       },
       {
         "arm": "G20",
-        "boundaries": 6,
-        "mean_symmetric_max_px": 0.26263564316018956,
+        "boundaries": 7,
+        "mean_symmetric_max_px": 0.23213905571436677,
         "worst_symmetric_max_px": 0.6218945873399995,
         "selected_auto": 0,
-        "selected_forced": 6
+        "selected_forced": 7
       }
     ],
     "rows": [
@@ -231,13 +231,13 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 7,
@@ -280,13 +280,13 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 8,
@@ -329,13 +329,13 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 7,
@@ -378,13 +378,13 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 1,
@@ -424,13 +424,13 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 1,
@@ -487,7 +487,7 @@
         ],
         "stage_f_truth_match_px": 0.08141950537479883,
         "render_cell": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-        "injected_models": 5,
+        "injected_models": 2,
         "oracle_selector_changed": false,
         "injection_selector_changed": false,
         "forced_selector_changed": false,
@@ -495,13 +495,13 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 8,
@@ -517,7 +517,7 @@
             ],
             "smooth": [
               false,
-              true
+              false
             ],
             "closure_smooth": true,
             "relations_considered": 0,
@@ -538,16 +538,16 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 13,
+            "candidate_models": 10,
             "selected_source": "automatic",
             "families": [
               "circular_arc",
@@ -560,7 +560,7 @@
             ],
             "smooth": [
               false,
-              true
+              false
             ],
             "closure_smooth": true,
             "relations_considered": 0,
@@ -581,13 +581,13 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 8,
@@ -603,7 +603,7 @@
             ],
             "smooth": [
               false,
-              true
+              false
             ],
             "closure_smooth": true,
             "relations_considered": 0,
@@ -624,16 +624,16 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 5,
+            "candidate_models": 2,
             "selected_source": "forced_gt",
             "families": [
               "circular_arc",
@@ -647,9 +647,9 @@
               378
             ],
             "smooth": [
-              true,
               false,
-              true
+              true,
+              false
             ],
             "closure_smooth": true,
             "relations_considered": 0,
@@ -670,16 +670,16 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 5,
+            "candidate_models": 2,
             "selected_source": "forced_gt",
             "families": [
               "circular_arc",
@@ -693,9 +693,9 @@
               378
             ],
             "smooth": [
-              true,
               false,
-              true
+              true,
+              false
             ],
             "closure_smooth": true,
             "relations_considered": 0,
@@ -741,71 +741,77 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 2,
+            "candidate_models": 4,
             "selected_source": "automatic",
             "families": [
               "line",
+              "circular_arc",
+              "line",
               "line",
               "quadratic_bezier",
-              "cubic_bezier",
               "line",
               "cubic_bezier",
-              "line"
+              "circular_arc",
+              "circular_arc"
             ],
             "breakpoints": [
               1,
-              127,
-              256,
-              386,
-              394,
-              522
+              66,
+              82,
+              92,
+              222,
+              348,
+              475,
+              491
             ],
             "smooth": [
-              false,
-              false,
-              false,
               true,
+              false,
+              false,
+              false,
+              false,
+              false,
               false,
               false
             ],
-            "closure_smooth": false,
+            "closure_smooth": true,
             "relations_considered": 24,
-            "relations_selected": 1,
+            "relations_selected": 0,
             "primitives_considered": 16,
             "primitive_selected": false,
             "selected_geometry": "typed_chain",
-            "geometry_sha256": "df0f050f5454abb07cd4b09766e099432434083393420a520217fd534bee15ba",
-            "code_bits": 825.8077055201572,
-            "proposal_cost_px": 80.2959045896758,
+            "geometry_sha256": "282e07d2554f4212b5d8befe620c4fe19d3bc21cffed7ef6ea010b142dfef3e7",
+            "code_bits": 815.1950940508668,
+            "proposal_cost_px": 96.86080210634381,
             "error": {
-              "symmetric_max_px": 0.5988552947068067,
-              "symmetric_mean_px": 0.2449302679792205,
-              "truth_to_model_max_px": 0.5988552947068067,
-              "model_to_truth_max_px": 0.5687367678081008
+              "symmetric_max_px": 0.6090417746032143,
+              "symmetric_mean_px": 0.12389183912167975,
+              "truth_to_model_max_px": 0.6090417746032143,
+              "model_to_truth_max_px": 0.171133840784977
             }
           },
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 3,
+            "candidate_models": 5,
             "selected_source": "forced_gt",
             "families": [
               "line",
@@ -842,68 +848,74 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 2,
+            "candidate_models": 4,
             "selected_source": "automatic",
             "families": [
               "line",
+              "circular_arc",
+              "line",
               "line",
               "quadratic_bezier",
-              "cubic_bezier",
               "line",
               "cubic_bezier",
-              "line"
+              "circular_arc",
+              "circular_arc"
             ],
             "breakpoints": [
               1,
-              127,
-              256,
-              386,
-              394,
-              522
+              66,
+              82,
+              92,
+              222,
+              348,
+              475,
+              491
             ],
             "smooth": [
-              false,
-              false,
-              false,
               true,
+              false,
+              false,
+              false,
+              false,
+              false,
               false,
               false
             ],
-            "closure_smooth": false,
+            "closure_smooth": true,
             "relations_considered": 24,
-            "relations_selected": 1,
+            "relations_selected": 0,
             "primitives_considered": 16,
             "primitive_selected": false,
             "selected_geometry": "typed_chain",
-            "geometry_sha256": "df0f050f5454abb07cd4b09766e099432434083393420a520217fd534bee15ba",
-            "code_bits": 825.8077055201572,
-            "proposal_cost_px": 80.2959045896758,
+            "geometry_sha256": "282e07d2554f4212b5d8befe620c4fe19d3bc21cffed7ef6ea010b142dfef3e7",
+            "code_bits": 815.1950940508668,
+            "proposal_cost_px": 96.86080210634381,
             "error": {
-              "symmetric_max_px": 0.5988552947068067,
-              "symmetric_mean_px": 0.2449302679792205,
-              "truth_to_model_max_px": 0.5988552947068067,
-              "model_to_truth_max_px": 0.5687367678081008
+              "symmetric_max_px": 0.6090417746032143,
+              "symmetric_mean_px": 0.12389183912167975,
+              "truth_to_model_max_px": 0.6090417746032143,
+              "model_to_truth_max_px": 0.171133840784977
             }
           },
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 1,
@@ -943,13 +955,13 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 1,
@@ -1014,16 +1026,16 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 1,
+            "candidate_models": 7,
             "selected_source": "automatic",
             "families": [
               "line",
@@ -1048,40 +1060,40 @@
               true,
               true,
               false,
-              true,
               false,
               true,
+              false,
               false
             ],
             "closure_smooth": true,
             "relations_considered": 4,
-            "relations_selected": 0,
+            "relations_selected": 1,
             "primitives_considered": 16,
             "primitive_selected": false,
             "selected_geometry": "typed_chain",
-            "geometry_sha256": "ab3b432dd291b35762c141bc0d18c8d4251641fcf1e582c98914fe5a48bafa48",
-            "code_bits": 1363.0260328325492,
+            "geometry_sha256": "3fea7412ff34b4315257f46688ce335cebe9b1877d6fe43dba780debb0d76f7c",
+            "code_bits": 1112.893163040318,
             "proposal_cost_px": 30.95840245052944,
             "error": {
-              "symmetric_max_px": 0.6334460739348374,
-              "symmetric_mean_px": 0.286377216440554,
-              "truth_to_model_max_px": 0.6334460739348374,
-              "model_to_truth_max_px": 0.5928215692477532
+              "symmetric_max_px": 0.49813276973193427,
+              "symmetric_mean_px": 0.17914674759661608,
+              "truth_to_model_max_px": 0.4772927616299601,
+              "model_to_truth_max_px": 0.49813276973193427
             }
           },
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 3,
+            "candidate_models": 9,
             "selected_source": "forced_gt",
             "families": [
               "quadratic_bezier",
@@ -1106,7 +1118,7 @@
             "primitive_selected": false,
             "selected_geometry": "typed_chain",
             "geometry_sha256": "fce0bc719dde722e9aa67827480aa902e57ede40156c2804266e56368c654290",
-            "code_bits": 813.7404286771623,
+            "code_bits": 805.2258556771621,
             "proposal_cost_px": 15.66409731559331,
             "error": {
               "symmetric_max_px": 0.05413709240244054,
@@ -1118,16 +1130,16 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
-            "candidate_models": 1,
+            "candidate_models": 7,
             "selected_source": "automatic",
             "families": [
               "line",
@@ -1152,37 +1164,37 @@
               true,
               true,
               false,
-              true,
               false,
               true,
+              false,
               false
             ],
             "closure_smooth": true,
             "relations_considered": 4,
-            "relations_selected": 0,
+            "relations_selected": 1,
             "primitives_considered": 16,
             "primitive_selected": false,
             "selected_geometry": "typed_chain",
-            "geometry_sha256": "ab3b432dd291b35762c141bc0d18c8d4251641fcf1e582c98914fe5a48bafa48",
-            "code_bits": 1363.0260328325492,
+            "geometry_sha256": "3fea7412ff34b4315257f46688ce335cebe9b1877d6fe43dba780debb0d76f7c",
+            "code_bits": 1112.893163040318,
             "proposal_cost_px": 30.95840245052944,
             "error": {
-              "symmetric_max_px": 0.6334460739348374,
-              "symmetric_mean_px": 0.286377216440554,
-              "truth_to_model_max_px": 0.6334460739348374,
-              "model_to_truth_max_px": 0.5928215692477532
+              "symmetric_max_px": 0.49813276973193427,
+              "symmetric_mean_px": 0.17914674759661608,
+              "truth_to_model_max_px": 0.4772927616299601,
+              "model_to_truth_max_px": 0.49813276973193427
             }
           },
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 2,
@@ -1210,7 +1222,7 @@
             "primitive_selected": false,
             "selected_geometry": "typed_chain",
             "geometry_sha256": "fdec87e7ba1ea4d41a7b571b262f17e860c829de1e14e75799bfc120fdcb2f74",
-            "code_bits": 821.9942424344318,
+            "code_bits": 813.4796694344318,
             "proposal_cost_px": 15.66409731559331,
             "error": {
               "symmetric_max_px": 0.051971996528111575,
@@ -1222,13 +1234,13 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 2,
@@ -1256,13 +1268,277 @@
             "primitive_selected": false,
             "selected_geometry": "typed_chain",
             "geometry_sha256": "fce0bc719dde722e9aa67827480aa902e57ede40156c2804266e56368c654290",
-            "code_bits": 813.7404286771623,
+            "code_bits": 805.2258556771621,
             "proposal_cost_px": 15.66409731559331,
             "error": {
               "symmetric_max_px": 0.05413709240244054,
               "symmetric_mean_px": 0.01987458787469097,
               "truth_to_model_max_px": 0.04354941412898645,
               "model_to_truth_max_px": 0.05413709240244054
+            }
+          }
+        ]
+      },
+      {
+        "fixture_id": "m6-witness/smooth-cubic-loop/face:1/loop:0/stage-f-chain:0",
+        "scene_id": "m6-witness/smooth-cubic-loop",
+        "boundary_id": 1,
+        "samples": 530,
+        "gt_families": [
+          "cubic_bezier",
+          "cubic_bezier",
+          "cubic_bezier",
+          "cubic_bezier"
+        ],
+        "gt_breakpoints": [
+          133,
+          265,
+          398
+        ],
+        "stage_f_truth_match_px": 0.0833120648843011,
+        "render_cell": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+        "injected_models": 8,
+        "oracle_selector_changed": false,
+        "injection_selector_changed": false,
+        "forced_selector_changed": false,
+        "arms": [
+          {
+            "arm": "G00",
+            "compatibility_key": {
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "candidate_budget": {
+                "kind": "candidates",
+                "max": 65536
+              },
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
+              "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
+            },
+            "candidate_models": 7,
+            "selected_source": "automatic",
+            "families": [
+              "cubic_bezier",
+              "cubic_bezier",
+              "cubic_bezier",
+              "line",
+              "cubic_bezier"
+            ],
+            "breakpoints": [
+              132,
+              264,
+              396,
+              398
+            ],
+            "smooth": [
+              true,
+              true,
+              true,
+              true
+            ],
+            "closure_smooth": true,
+            "relations_considered": 0,
+            "relations_selected": 0,
+            "primitives_considered": 16,
+            "primitive_selected": true,
+            "selected_geometry": "loop_primitive",
+            "geometry_sha256": "624c06194e0ddcd359d4fddc621a242d9f7f645b42775cb21a43b1426a98257e",
+            "code_bits": 633.7386839181363,
+            "proposal_cost_px": 12.045013424048799,
+            "error": {
+              "symmetric_max_px": 0.04915953103943001,
+              "symmetric_mean_px": 0.027691460432761904,
+              "truth_to_model_max_px": 0.04915953103943001,
+              "model_to_truth_max_px": 0.03356931783543063
+            }
+          },
+          {
+            "arm": "G10",
+            "compatibility_key": {
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "candidate_budget": {
+                "kind": "candidates",
+                "max": 65536
+              },
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
+              "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
+            },
+            "candidate_models": 15,
+            "selected_source": "automatic",
+            "families": [
+              "cubic_bezier",
+              "cubic_bezier",
+              "cubic_bezier",
+              "line",
+              "cubic_bezier"
+            ],
+            "breakpoints": [
+              132,
+              264,
+              396,
+              398
+            ],
+            "smooth": [
+              true,
+              true,
+              true,
+              true
+            ],
+            "closure_smooth": true,
+            "relations_considered": 0,
+            "relations_selected": 0,
+            "primitives_considered": 16,
+            "primitive_selected": true,
+            "selected_geometry": "loop_primitive",
+            "geometry_sha256": "624c06194e0ddcd359d4fddc621a242d9f7f645b42775cb21a43b1426a98257e",
+            "code_bits": 633.7386839181363,
+            "proposal_cost_px": 12.045013424048799,
+            "error": {
+              "symmetric_max_px": 0.04915953103943001,
+              "symmetric_mean_px": 0.027691460432761904,
+              "truth_to_model_max_px": 0.04915953103943001,
+              "model_to_truth_max_px": 0.03356931783543063
+            }
+          },
+          {
+            "arm": "G01",
+            "compatibility_key": {
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "candidate_budget": {
+                "kind": "candidates",
+                "max": 65536
+              },
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
+              "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
+            },
+            "candidate_models": 7,
+            "selected_source": "automatic",
+            "families": [
+              "cubic_bezier",
+              "cubic_bezier",
+              "cubic_bezier",
+              "line",
+              "cubic_bezier"
+            ],
+            "breakpoints": [
+              132,
+              264,
+              396,
+              398
+            ],
+            "smooth": [
+              true,
+              true,
+              true,
+              true
+            ],
+            "closure_smooth": true,
+            "relations_considered": 0,
+            "relations_selected": 0,
+            "primitives_considered": 16,
+            "primitive_selected": true,
+            "selected_geometry": "loop_primitive",
+            "geometry_sha256": "624c06194e0ddcd359d4fddc621a242d9f7f645b42775cb21a43b1426a98257e",
+            "code_bits": 633.7386839181363,
+            "proposal_cost_px": 12.045013424048799,
+            "error": {
+              "symmetric_max_px": 0.04915953103943001,
+              "symmetric_mean_px": 0.027691460432761904,
+              "truth_to_model_max_px": 0.04915953103943001,
+              "model_to_truth_max_px": 0.03356931783543063
+            }
+          },
+          {
+            "arm": "G11",
+            "compatibility_key": {
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "candidate_budget": {
+                "kind": "candidates",
+                "max": 65536
+              },
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
+              "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
+            },
+            "candidate_models": 8,
+            "selected_source": "forced_gt",
+            "families": [
+              "cubic_bezier",
+              "cubic_bezier",
+              "cubic_bezier",
+              "cubic_bezier"
+            ],
+            "breakpoints": [
+              133,
+              265,
+              398
+            ],
+            "smooth": [
+              true,
+              true,
+              true
+            ],
+            "closure_smooth": true,
+            "relations_considered": 0,
+            "relations_selected": 0,
+            "primitives_considered": 16,
+            "primitive_selected": true,
+            "selected_geometry": "loop_primitive",
+            "geometry_sha256": "d36052aafaf3152ae4049c92d66c71aef03b99726b0bc5621167a77bc8c01ffd",
+            "code_bits": 633.7386839181374,
+            "proposal_cost_px": 12.170953157028325,
+            "error": {
+              "symmetric_max_px": 0.04915953103943001,
+              "symmetric_mean_px": 0.027691460432762133,
+              "truth_to_model_max_px": 0.04915953103943001,
+              "model_to_truth_max_px": 0.03356931783543063
+            }
+          },
+          {
+            "arm": "G20",
+            "compatibility_key": {
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "candidate_budget": {
+                "kind": "candidates",
+                "max": 65536
+              },
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
+              "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
+            },
+            "candidate_models": 8,
+            "selected_source": "forced_gt",
+            "families": [
+              "cubic_bezier",
+              "cubic_bezier",
+              "cubic_bezier",
+              "cubic_bezier"
+            ],
+            "breakpoints": [
+              133,
+              265,
+              398
+            ],
+            "smooth": [
+              true,
+              true,
+              true
+            ],
+            "closure_smooth": true,
+            "relations_considered": 0,
+            "relations_selected": 0,
+            "primitives_considered": 16,
+            "primitive_selected": true,
+            "selected_geometry": "loop_primitive",
+            "geometry_sha256": "d36052aafaf3152ae4049c92d66c71aef03b99726b0bc5621167a77bc8c01ffd",
+            "code_bits": 633.7386839181374,
+            "proposal_cost_px": 12.170953157028325,
+            "error": {
+              "symmetric_max_px": 0.04915953103943001,
+              "symmetric_mean_px": 0.027691460432762133,
+              "truth_to_model_max_px": 0.04915953103943001,
+              "model_to_truth_max_px": 0.03356931783543063
             }
           }
         ]
@@ -1291,13 +1567,13 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 8,
@@ -1352,13 +1628,13 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 9,
@@ -1395,13 +1671,13 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 8,
@@ -1456,13 +1732,13 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 1,
@@ -1499,13 +1775,13 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 1,
@@ -1571,13 +1847,13 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 2,
@@ -1638,13 +1914,13 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 3,
@@ -1690,13 +1966,13 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 2,
@@ -1757,13 +2033,13 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 1,
@@ -1809,13 +2085,13 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8",
-              "config_hash": "e81723d8ad1897850232f16c611692650b39d285b2a4b0de8275329fa8f00fae",
+              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
+              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
               },
-              "fixture_hash": "0cf639e429012d7a8557fd2f147cf9c5918323f8fda9193dd541a2b243ea2d15",
+              "fixture_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
               "intervention_schema_version": "vice-classic/m6-geometry-interventions/v2"
             },
             "candidate_models": 1,
@@ -1868,13 +2144,13 @@
       {
         "clause": "published_aggregates_rederive_from_rows",
         "met": true,
-        "measured": "DerivedCoverage { candidate_injections: 11, oracle_selector_changes: 2, injection_selector_changes: 4, forced_selector_changes: 1, raster_derived_rows: 6, multi_span_rows: 6, multi_family_rows: 2, arc_rows: 1, quad_rows: 1, cubic_rows: 2, forced_multi_candidate_rows: 2, forced_smooth_rows: 2, relation_selected_rows: 3, primitive_selected_rows: 2 }; aggregates [GeometryArmAggregate { arm: \"G00\", boundaries: 6, mean_symmetric_max_px: 0.6978803254970272, worst_symmetric_max_px: 1.6679802261534027, selected_auto: 6, selected_forced: 0 }, GeometryArmAggregate { arm: \"G10\", boundaries: 6, mean_symmetric_max_px: 0.2626356431601813, worst_symmetric_max_px: 0.6218945873399995, selected_auto: 2, selected_forced: 4 }, GeometryArmAggregate { arm: \"G01\", boundaries: 6, mean_symmetric_max_px: 0.6978803254970272, worst_symmetric_max_px: 1.6679802261534027, selected_auto: 6, selected_forced: 0 }, GeometryArmAggregate { arm: \"G11\", boundaries: 6, mean_symmetric_max_px: 0.2622747938478014, worst_symmetric_max_px: 0.6218945873399995, selected_auto: 0, selected_forced: 6 }, GeometryArmAggregate { arm: \"G20\", boundaries: 6, mean_symmetric_max_px: 0.26263564316018956, worst_symmetric_max_px: 0.6218945873399995, selected_auto: 0, selected_forced: 6 }]",
+        "measured": "DerivedCoverage { candidate_injections: 16, oracle_selector_changes: 2, injection_selector_changes: 4, forced_selector_changes: 1, raster_derived_rows: 7, multi_span_rows: 7, multi_family_rows: 2, arc_rows: 1, quad_rows: 1, cubic_rows: 3, forced_multi_candidate_rows: 3, forced_smooth_rows: 3, relation_selected_rows: 3, primitive_selected_rows: 3 }; aggregates [GeometryArmAggregate { arm: \"G00\", boundaries: 7, mean_symmetric_max_px: 0.5873306656735853, worst_symmetric_max_px: 1.6679802261534027, selected_auto: 7, selected_forced: 0 }, GeometryArmAggregate { arm: \"G10\", boundaries: 7, mean_symmetric_max_px: 0.23213905571435967, worst_symmetric_max_px: 0.6218945873399995, selected_auto: 3, selected_forced: 4 }, GeometryArmAggregate { arm: \"G01\", boundaries: 7, mean_symmetric_max_px: 0.5873306656735853, worst_symmetric_max_px: 1.6679802261534027, selected_auto: 7, selected_forced: 0 }, GeometryArmAggregate { arm: \"G11\", boundaries: 7, mean_symmetric_max_px: 0.23182975630374836, worst_symmetric_max_px: 0.6218945873399995, selected_auto: 0, selected_forced: 7 }, GeometryArmAggregate { arm: \"G20\", boundaries: 7, mean_symmetric_max_px: 0.23213905571436677, worst_symmetric_max_px: 0.6218945873399995, selected_auto: 0, selected_forced: 7 }]",
         "required": "exact row-derived counts, selector-change flags, means, worsts and source totals"
       },
       {
         "clause": "common_geometry_population",
         "met": true,
-        "measured": "6",
+        "measured": "7",
         "required": ">= 6"
       },
       {
@@ -1886,13 +2162,13 @@
       {
         "clause": "no_subtraction_across_incompatible_arms",
         "met": true,
-        "measured": "30 arm measurements share key 41e56f75eb1f9e3d7cd1bf64c10ca112ce45e3e4506061361aacc4979f16ae30",
+        "measured": "35 arm measurements share key 5cb7ce787c5098ab9e0b9d80e4bb7f452bb4691ca99ccea07ad7b1821eea54ee",
         "required": "one identical five-component §27.6 key"
       },
       {
         "clause": "oracle_candidate_injection_is_exercised",
         "met": true,
-        "measured": "11",
+        "measured": "16",
         "required": ">= 10"
       },
       {
@@ -1916,13 +2192,13 @@
       {
         "clause": "fit_inputs_are_raster_derived_stage_f_rows",
         "met": true,
-        "measured": "6",
+        "measured": "7",
         "required": ">= 6"
       },
       {
         "clause": "multi_span_breakpoint_rows_are_measured",
         "met": true,
-        "measured": "6",
+        "measured": "7",
         "required": ">= 6"
       },
       {
@@ -1946,19 +2222,19 @@
       {
         "clause": "cubic_GT_rows_are_measured",
         "met": true,
-        "measured": "2",
+        "measured": "3",
         "required": ">= 2"
       },
       {
         "clause": "G20_has_multiple_join_candidates",
         "met": true,
-        "measured": "2",
+        "measured": "3",
         "required": ">= 2"
       },
       {
         "clause": "G20_selects_smooth_joint_models",
         "met": true,
-        "measured": "2",
+        "measured": "3",
         "required": ">= 2"
       },
       {
@@ -1970,7 +2246,7 @@
       {
         "clause": "Stage_H_primitives_are_selected",
         "met": true,
-        "measured": "2",
+        "measured": "3",
         "required": ">= 1"
       }
     ]
