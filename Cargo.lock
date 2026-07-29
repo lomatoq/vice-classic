@@ -869,6 +869,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vice-fit"
+version = "0.0.1"
+dependencies = [
+ "serde",
+ "vice-evidence",
+ "vice-geom",
+ "vice-ir",
+]
+
+[[package]]
 name = "vice-geom"
 version = "0.0.1"
 dependencies = [

@@ -4,6 +4,7 @@ members = [
     "crates/vice-bench",
     "crates/vice-cli",
     "crates/vice-evidence",
+    "crates/vice-fit",
     "crates/vice-geom",
     "crates/vice-image",
     "crates/vice-ir",
@@ -33,6 +34,14 @@ exclude = ["runs", "baselines-work"]
 # the candidate envelope with its three pruning tiers. It carries no API for
 # M5+: the DCEL half of §11.4 is a TYPED REFUSAL over data this crate
 # computes, not an interface waiting to be filled.
+# M6: vice-fit — the crate §4 lists as "line/arc/quad/cubic/primitive
+# candidates + global DP/MDL", created in the milestone that gives it its
+# first executable responsibility (§14.2, §28 M6 bullets 1 and 2): the
+# hierarchical span-candidate schedule and the candidate-generation budget
+# over the boundary chains M4 observes. It is created HERE and not earlier
+# because §4.1 forbids empty crates for the future and §32 rule 7 forbids
+# placeholder APIs; it carries nothing for the k-best DP, the joint refit or
+# the MDL code table, which are §28 M6 bullets 3-5 and are NOT STARTED.
 
 [workspace.package]
 edition = "2021"

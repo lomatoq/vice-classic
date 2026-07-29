@@ -1,0 +1,15 @@
+[package]
+name = "vice-fit"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "vice-classic M6 Stage G: hierarchical span candidates and candidate-generation budgets over boundary chains"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+vice-evidence = { path = "../vice-evidence" }
+vice-geom = { path = "../vice-geom" }
+vice-ir = { path = "../vice-ir" }
