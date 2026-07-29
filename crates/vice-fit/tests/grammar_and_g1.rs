@@ -409,19 +409,32 @@ fn exact_g1_holds_on_every_model_the_solver_accepts() {
 
 #[test]
 fn the_invariance_clause_has_every_registered_leg() {
-    let legs = [
-        "sample_step",
-        "duplicate_samples",
-        "cyclic_cut",
-        "translation",
-        "reflection",
-        "uniform_scale",
+    let legs: [(&str, fn()); 6] = [
+        ("sample_step", the_selection_is_invariant_to_the_sample_step),
+        (
+            "duplicate_samples",
+            the_selection_is_invariant_to_duplicate_samples,
+        ),
+        (
+            "cyclic_cut",
+            the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected,
+        ),
+        ("translation", the_selection_is_invariant_to_translation),
+        ("reflection", the_selection_is_invariant_to_reflection),
+        ("uniform_scale", the_selection_is_invariant_to_uniform_scale),
     ];
-    assert!(
-        legs.len() >= GATE_MIN_INVARIANCE_LEGS,
-        "only {} invariance legs are registered against a gate floor of {}",
+    assert_eq!(
+        legs.len(),
+        GATE_MIN_INVARIANCE_LEGS,
+        "{} executable invariance legs are registered against an exact gate of {}",
         legs.len(),
         GATE_MIN_INVARIANCE_LEGS
+    );
+    let names: std::collections::BTreeSet<&str> = legs.iter().map(|(name, _)| *name).collect();
+    assert_eq!(
+        names.len(),
+        legs.len(),
+        "an invariance leg is registered twice"
     );
 }
 
