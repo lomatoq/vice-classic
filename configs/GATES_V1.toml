@@ -312,14 +312,25 @@ gate_gt_majority_level = 0.5
 # exactly, in the file §27.7 exists to keep reviewable, and limitation 36's
 # owner is M6.
 #
-# IS, measured at M6 on the full scope, with the compound transactions of §28
-# M5 attempted for the first time (C282):
+# IS, measured at M6 delta-1 against DCEL_M5.json at HEAD (C317, the C283
+# class of correction, FIFTH occurrence of this block's own drift class):
 #
 #   arms 480 (444 corpus, 36 structural), groups 240, convention-dependent 13,
-#   transaction shapes 2, transactions 678 of 960 committed, of which 172
-#   COMPOUND and all 172 committed, max declared steps 4,
-#   unrelated chains 556, probes 30, slots perturbed 179 253,
+#   transaction shapes 3, transactions 750 of 1032 committed, of which 178
+#   COMPOUND and all 178 committed, max declared steps 4,
+#   unrelated chains 610, probes 30, slots perturbed 179 253,
 #   classes [(0,0), (1,0), (1,1), (2,0), (2,1), (3,0), (3,1), (5,0)]
+#
+# WAS (the C283 text, correct when written, stale from C287): "transaction
+# shapes 2, transactions 678 of 960 committed, of which 172 COMPOUND and all
+# 172 committed, unrelated chains 556". The third edit shape (C287, hole fill)
+# moved four of those quantities and three later gate-file edits (C289, C291,
+# C308) did not bring the comment along - the exact C261/C269 pattern this
+# block itself narrates, in the milestone that recorded its third occurrence
+# and predicted the fourth. Reviewer B measured it (M6B-N1, ledger F-0093);
+# limitation 56's mechanism - binding this prose to the run - remains unbuilt
+# and its price unchanged, now with five occurrences behind it. The FLOORS were
+# never wrong: every value moved AWAY from its floor, the safe direction.
 #
 # NO FLOOR IS CHANGED BY THIS COMMIT, and none is added. Every floor below
 # still sits under the measurement, and each is now further under it than it
