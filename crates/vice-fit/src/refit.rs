@@ -122,6 +122,18 @@ pub enum RefitRefusal {
     ArcIsALine { segment: usize },
     /// A non-finite parameter reached the lowering.
     NonFinite { segment: usize },
+    /// A shared Bezier handle has no representable positive length.
+    ///
+    /// A zero handle has a zero derivative. Treating its chord as a fallback
+    /// direction would make a declared smooth join writable with a visible
+    /// kink, so lowering refuses it before a canonical curve exists.
+    NonPositiveSharedHandle { segment: usize, length_px: f64 },
+    /// A lowered smooth join does not agree with its shared declaration.
+    ///
+    /// This is a representation assertion, not a tolerance-based way to
+    /// manufacture G1. The threshold only covers floating-point roundoff after
+    /// the two incident controls were derived from the same parameter.
+    G1Violation { node: usize, spread_rad: f64 },
     /// More free scalars than [`crate::solve::MAX_JOINT_PARAMETERS`].
     ///
     /// Its own name, because until delta-1 this case was reported as
@@ -276,10 +288,30 @@ impl RefitChain {
         match handle {
             Handle::Free(p) => Some(p),
             Handle::Shared { length_px } => {
+                if !(length_px.is_finite() && length_px > 0.0) {
+                    return None;
+                }
                 let u = self.node_dir(i)?;
-                Some(self.nodes[i].pos + u * (sign * length_px))
+                let control = self.nodes[i].pos + u * (sign * length_px);
+                (control.is_finite() && control != self.nodes[i].pos).then_some(control)
             }
         }
+    }
+
+    fn validate_shared_handle(
+        &self,
+        handle: Handle,
+        node: usize,
+        segment: usize,
+    ) -> Result<(), RefitRefusal> {
+        let Handle::Shared { length_px } = handle else {
+            return Ok(());
+        };
+        let control = self.control(handle, node, 1.0);
+        if control.is_none() {
+            return Err(RefitRefusal::NonPositiveSharedHandle { segment, length_px });
+        }
+        Ok(())
     }
 
     /// Lower to the canonical IR: absolute control points, and the node's ONE
@@ -302,6 +334,16 @@ impl RefitChain {
             let (p0, p1) = (self.nodes[k].pos, self.nodes[k + 1].pos);
             if (p1 - p0).length_sq() <= 0.0 {
                 return Err(RefitRefusal::DegenerateSpan { segment: k });
+            }
+            match *seg {
+                RefitSegment::Quad { ctrl } => {
+                    self.validate_shared_handle(ctrl, k, k)?;
+                }
+                RefitSegment::Cubic { head, tail } => {
+                    self.validate_shared_handle(head, k, k)?;
+                    self.validate_shared_handle(tail, k + 1, k)?;
+                }
+                RefitSegment::Line | RefitSegment::Arc(_) => {}
             }
             let out = match *seg {
                 RefitSegment::Line => Segment::Line,
@@ -396,10 +438,20 @@ impl RefitChain {
                 join,
             });
         }
-        Ok(CurveChain {
+        let lowered = CurveChain {
             interior_nodes,
             segments,
-        })
+        };
+        if let Some(reading) = g1_readings(&lowered, self.start(), self.end())
+            .into_iter()
+            .find(|reading| reading.spread_rad > crate::GATE_MAX_G1_SPREAD_RAD)
+        {
+            return Err(RefitRefusal::G1Violation {
+                node: reading.interior_node + 1,
+                spread_rad: reading.spread_rad,
+            });
+        }
+        Ok(lowered)
     }
 
     pub fn start(&self) -> Pt {
@@ -647,6 +699,26 @@ mod tests {
             (*a_in - *b_in).length() > 1e-6 && (*a_out - *b_out).length() > 1e-6,
             "changing the node angle moved only one side: there are two copies of the direction"
         );
+    }
+
+    /// A zero shared handle has no tangent. The old witness silently replaced
+    /// that derivative with the span chord, so an independently chosen chord
+    /// could disagree with the declared angle while `lower()` still accepted
+    /// the chain.
+    #[test]
+    fn a_zero_shared_handle_is_not_a_smooth_representation() {
+        let mut c = cubic_chain(0.6, -0.3);
+        c.segments[0] = RefitSegment::Cubic {
+            head: Handle::Free(Pt::new(3.0, -2.0)),
+            tail: Handle::Shared { length_px: 0.0 },
+        };
+        assert!(matches!(
+            c.lower(),
+            Err(RefitRefusal::NonPositiveSharedHandle {
+                segment: 0,
+                length_px: 0.0
+            })
+        ));
     }
 
     /// A corner node is the deliberate absence of sharing, and the instrument

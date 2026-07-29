@@ -11,8 +11,8 @@
 
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
-    fit, flattening_error_px, hierarchical_schedule, proposal_cost, span_candidates, FitRefusal,
-    SpanFamily, Support, DEVIATION_CHORD_TOLERANCE_PX, FITTED_FAMILIES, FIT_BUDGET_V1,
+    fit, flattening_error_px, hierarchical_schedule, models_at_cut, proposal_cost, span_candidates,
+    FitRefusal, SpanFamily, Support, DEVIATION_CHORD_TOLERANCE_PX, FITTED_FAMILIES, FIT_BUDGET_V1,
     MIN_SUPPORT_SAMPLES, PARAMETER_REFINEMENT_PASSES,
 };
 use vice_geom::Pt;
@@ -90,6 +90,23 @@ fn line_points(from: Pt, to: Pt, n: usize) -> Vec<Pt> {
 
 fn whole_run(chain: &BoundaryChain) -> Support {
     Support::new(0, chain.samples.len() - 1).expect("chain has two samples")
+}
+
+#[test]
+fn a_public_cut_outside_the_chain_is_a_refusal_not_a_panic() {
+    let points = line_points(Pt::new(0.0, 0.0), Pt::new(20.0, 0.0), 20);
+    let mut chain = chain_from(&points);
+    chain.closed = true;
+    assert!(matches!(
+        models_at_cut(&chain, chain.samples.len(), &FIT_BUDGET_V1, 256.0, 4),
+        Err(FitRefusal::CutOutOfRange { .. })
+    ));
+
+    chain.samples.clear();
+    assert!(matches!(
+        models_at_cut(&chain, 0, &FIT_BUDGET_V1, 256.0, 4),
+        Err(FitRefusal::ChainTooShort { samples: 0, .. })
+    ));
 }
 
 // ---------------------------------------------------------------------------

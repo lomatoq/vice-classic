@@ -367,6 +367,37 @@ pub fn residual_bits(d_n_px: f64, halfwidth_px: f64, precision_px: f64) -> f64 {
         + (halfwidth_px * std::f64::consts::TAU.sqrt() / precision_px).log2()
 }
 
+/// Recompute the physical residual code on the geometry that will actually be
+/// ranked and delivered.
+///
+/// The grammar DP prices independently fitted spans to find discrete paths.
+/// Joint refit then moves their shared nodes and handles, so retaining the DP
+/// residual would rank a different geometry. Every accepted model replaces
+/// that proposal residual with this value before Stage H or final sorting.
+pub(crate) fn chain_residual_bits(
+    chain: &crate::refit::RefitChain,
+    samples: &[vice_evidence::BoundarySample],
+    table: &GeometryCodeTable,
+) -> f64 {
+    let Ok(poly) = crate::solve::flatten_chain(chain) else {
+        return f64::INFINITY;
+    };
+    let precision = table.coordinate_precision_px();
+    samples
+        .iter()
+        .map(|sample| {
+            let deviation = crate::cost::normal_deviation(sample.p, sample.normal, &poly)
+                .map_or_else(
+                    || crate::cost::euclidean_deviation(sample.p, &poly),
+                    f64::abs,
+                );
+            let weight =
+                independent_observations(sample.weight_ds, sample.corr_length_px).unwrap_or(0.0);
+            weight * residual_bits(deviation, sample.halfwidth, precision)
+        })
+        .sum()
+}
+
 /// The explicit code length of one grammar path over one chain, term by term.
 ///
 /// Every field is a real number of bits and they are published separately,

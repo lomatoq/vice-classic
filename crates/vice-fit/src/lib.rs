@@ -159,6 +159,8 @@ pub enum FitRefusal {
     /// This guard now covers every field of `BoundarySample` this crate reads:
     /// `p`, `normal`, `weight_ds`, `halfwidth`, `corr_length_px`.
     NonPositiveCorrLength { sample: usize, corr_length_px: f64 },
+    /// A public single-cut request named a sample that does not exist.
+    CutOutOfRange { cut: usize, samples: usize },
 }
 
 /// Everything the candidate stage produced for one chain, including the

@@ -117,6 +117,25 @@ fn best(chain: &BoundaryChain, canvas: f64) -> BoundaryModel {
     run.models.into_iter().next().expect("non-empty")
 }
 
+fn physical_residual_bits(model: &BoundaryModel, chain: &BoundaryChain) -> f64 {
+    let poly = vice_fit::solve::flatten_chain(&model.chain).expect("accepted model flattens");
+    let precision = GEOMETRY_CODE_TABLE_V1.coordinate_precision_px();
+    chain
+        .samples
+        .iter()
+        .map(|sample| {
+            let deviation = vice_fit::normal_deviation(sample.p, sample.normal, &poly).map_or_else(
+                || vice_fit::cost::euclidean_deviation(sample.p, &poly),
+                f64::abs,
+            );
+            let weight =
+                vice_fit::code::independent_observations(sample.weight_ds, sample.corr_length_px)
+                    .expect("valid correlation length");
+            weight * vice_fit::residual_bits(deviation, sample.halfwidth, precision)
+        })
+        .sum()
+}
+
 /// The signature a transform must not change: which families, how many
 /// breakpoints, and where they sit as a FRACTION of the chain.
 fn signature(m: &BoundaryModel, n_samples: usize) -> (Vec<SpanFamily>, Vec<bool>, Vec<f64>) {
@@ -133,6 +152,22 @@ fn signature(m: &BoundaryModel, n_samples: usize) -> (Vec<SpanFamily>, Vec<bool>
 // ---------------------------------------------------------------------------
 // G20's typed forced-discrete injection
 // ---------------------------------------------------------------------------
+
+#[test]
+fn final_mdl_codes_the_jointly_refitted_geometry() {
+    let chain = chain_from(&s_curve(1.0), false);
+    let model = best(&chain, CANVAS_PX);
+    assert!(
+        (model.residual_before - model.residual_after).abs() > 1e-6,
+        "control did not move, so retaining the pre-refit residual would be invisible"
+    );
+    let measured = physical_residual_bits(&model, &chain);
+    assert!(
+        (model.code.residual_bits - measured).abs() < 1e-10,
+        "model codes {} residual bits but its delivered refitted chain measures {measured}",
+        model.code.residual_bits
+    );
+}
 
 #[test]
 fn a_forced_gt_path_fixes_only_families_and_breakpoints() {

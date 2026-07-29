@@ -191,6 +191,8 @@ fn refusal_name(r: &RefitRefusal) -> &'static str {
         RefitRefusal::DegenerateSpan { .. } => "degenerate_span",
         RefitRefusal::ArcIsALine { .. } => "arc_is_a_line",
         RefitRefusal::NonFinite { .. } => "non_finite",
+        RefitRefusal::NonPositiveSharedHandle { .. } => "non_positive_shared_handle",
+        RefitRefusal::G1Violation { .. } => "g1_violation",
         RefitRefusal::OutsideCorridor { .. } => "outside_corridor",
         RefitRefusal::SmoothJoinBetweenTwoLines { .. } => "smooth_join_between_two_lines",
         RefitRefusal::SmoothNodeUnread { .. } => "smooth_node_unread",
@@ -332,12 +334,18 @@ pub fn fit_forced_boundary_models(
                     .iter()
                     .map(|r| r.spread_rad)
                     .fold(0.0f64, f64::max);
+                let mut code = path.code;
+                code.residual_bits = crate::code::chain_residual_bits(&out.chain, samples, table);
+                if !code.residual_bits.is_finite() {
+                    bump(&mut refused, "non_finite_post_refit_code");
+                    continue;
+                }
                 let mut model = BoundaryModel {
                     chain: out.chain,
                     families: families.to_vec(),
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),
-                    code: path.code,
+                    code,
                     proposal_cost_px: path.proposal_cost_px,
                     worst_g1_spread_rad: worst_g1,
                     worst_normal_deviation_px: out.worst_normal_deviation_px,
@@ -444,7 +452,15 @@ pub fn models_at_cut(
     canvas_dim_px: f64,
     k: usize,
 ) -> Result<ModelRun, FitRefusal> {
-    let rotated = rotate(&dedup_coincident(chain), cut);
+    crate::validate_chain(chain)?;
+    let chain = dedup_coincident(chain);
+    if cut >= chain.samples.len() {
+        return Err(FitRefusal::CutOutOfRange {
+            cut,
+            samples: chain.samples.len(),
+        });
+    }
+    let rotated = rotate(&chain, cut);
     models_for_open_chain(
         &rotated,
         budget,
@@ -588,12 +604,18 @@ fn models_for_open_chain(
                     .iter()
                     .map(|r| r.spread_rad)
                     .fold(0.0f64, f64::max);
+                let mut code = path.code;
+                code.residual_bits = crate::code::chain_residual_bits(&out.chain, samples, table);
+                if !code.residual_bits.is_finite() {
+                    bump(&mut refused, "non_finite_post_refit_code");
+                    continue;
+                }
                 let mut m = BoundaryModel {
                     chain: out.chain,
                     families,
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),
-                    code: path.code,
+                    code,
                     proposal_cost_px: path.proposal_cost_px,
                     worst_g1_spread_rad: worst_g1,
                     worst_normal_deviation_px: out.worst_normal_deviation_px,
