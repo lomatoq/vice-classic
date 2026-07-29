@@ -152,7 +152,7 @@ bits_per_relation = 2.584963
 # which is the loss's one structural feature.
 [geometry_pricing]
 status = "frozen"
-pricing_surface_sha256 = "4d90681d4b77129d9017ddfe5809ee249611e9c3dc7f8a56f908e40ca2b81d42"
+pricing_surface_sha256 = "a8df2e99b1f22ff0288f44f7256059c9f481a2565254eb16bff0b83bd5195360"
 
 # --- Observation noise (§17.1; measured in M4) -------------------------------
 # MEASURED, not chosen, on the development split by
@@ -546,11 +546,12 @@ gate_max_g1_spread_rad = 1e-9
 gate_min_g1_nodes = 1
 gate_min_g1_positive_control_rad = 0.4
 gate_max_breakpoint_fraction_delta = 0.06
-gate_min_cut_nontrivial_spread_bits = 1.0
 gate_max_cut_rotation_delta_bits = 1.0
 gate_max_translation_delta_bits = 1e-6
 gate_min_invariance_legs = 6
 gate_min_no_bic_extra_segments = 1
+candidate_budget_per_chain = 65536
+k_discrete_paths = 8
 gate_min_geometry_boundaries = 100
 gate_min_geometry_arms_per_boundary = 5
 gate_min_oracle_candidate_injections = 100
