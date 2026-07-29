@@ -262,11 +262,46 @@ gate_gt_majority_level = 0.5
 #
 # MEASURED, not chosen. Every number below is a floor read off the full-scope
 # run - `dcel_harness::the_full_scope_population_is_what_the_thresholds_were_read_from`
-# prints it and a reviewer repeats it:
+# prints it and a reviewer repeats it.
+#
+# WAS, and it was STALE BY TWO DELTAS at the moment M5 closed:
 #
 #   arms 474 (444 corpus, 30 structural), groups 237, convention-dependent 10,
-#   transactions 159 of 167 committed, unrelated chains 127, probes 28,
+#   transactions 159 of 167 committed, unrelated chains 127, probes 28
+#
+# Six of those eight numbers were false against `docs/gt/DCEL_M5.json` at
+# `c4fc903`. The population moved at C261 (delta-3), when the structural
+# register grew; this file was last edited at C269 (delta-5) and its provenance
+# comment was not brought along. Only "444 corpus" survived.
+#
+# This is the THIRD occurrence of the class in this one comment block. RT5-A4
+# and REVIEW_M5_A N8b found it when the text said 159 and the artifact said
+# 167; the WAS/IS note below records that correction; and at the very next
+# delta the same number drifted again, 167 -> 170, with nothing to catch it.
+# Nothing catches it because it is a COMMENT: the test named above PRINTS the
+# population and asserts none of it, and `every_frozen_value_agrees_with_the_
+# code_that_uses_it` compares KEYS, not prose. That is limitation 36's class
+# exactly, in the file §27.7 exists to keep reviewable, and limitation 36's
+# owner is M6.
+#
+# IS, measured at M6 on the full scope, with the compound transactions of §28
+# M5 attempted for the first time (C282):
+#
+#   arms 480 (444 corpus, 36 structural), groups 240, convention-dependent 13,
+#   transaction shapes 2, transactions 678 of 960 committed, of which 172
+#   COMPOUND and all 172 committed, max declared steps 4,
+#   unrelated chains 556, probes 30, slots perturbed 179 253,
 #   classes [(0,0), (1,0), (1,1), (2,0), (2,1), (3,0), (3,1), (5,0)]
+#
+# NO FLOOR IS CHANGED BY THIS COMMIT, and none is added. Every floor below
+# still sits under the measurement, and each is now further under it than it
+# was, which is the safe direction. The floor this population NEEDS and does
+# not have is `gate_min_compound_transactions`: without it a future harness
+# could lose the annulus shape and `transactions_compound` would fall to zero
+# with every row still MET. Adding it is a three-commit sequence under §27.7
+# (key as placeholder, then the consumer, then the freeze) because a frozen
+# number with no consumer is not a gate; it is recorded in `docs/STATUS_M6.md`
+# as an open item with that price rather than half-added here.
 #
 # The floors are set BELOW the measurement on purpose. A threshold equal to
 # today's count is a threshold that fails the first time the corpus changes for
