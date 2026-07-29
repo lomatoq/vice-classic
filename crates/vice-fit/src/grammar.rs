@@ -108,6 +108,24 @@ fn tangent_is_free(f: SpanFamily) -> bool {
     !matches!(f, SpanFamily::Line)
 }
 
+/// Whether a smooth transition can be materialized by [`RefitChain`].
+///
+/// This is checked in the DP, before an unrepresentable path can consume one
+/// of the frozen K slots. The post-DP [`path_is_representable`] check remains
+/// as a defence for paths supplied by other callers.
+fn smooth_transition_is_representable(
+    incoming: SpanFamily,
+    incoming_head_shared: bool,
+    outgoing: SpanFamily,
+) -> bool {
+    match incoming {
+        SpanFamily::Quad => false,
+        SpanFamily::CircularArc => !incoming_head_shared,
+        SpanFamily::Line => outgoing != SpanFamily::Line,
+        SpanFamily::Cubic => true,
+    }
+}
+
 /// Scalars a family still has to code, given which of its ends read a shared
 /// tangent.
 ///
@@ -369,6 +387,11 @@ pub fn k_best_paths(
                 let e = edges[ei];
                 for smooth in [false, true] {
                     if smooth && !jet_compatible(key.exit_class, e.entry_class) {
+                        continue;
+                    }
+                    if smooth
+                        && !smooth_transition_is_representable(f_in, key.head_shared, e.family)
+                    {
                         continue;
                     }
                     let angle_free = smooth && tangent_is_free(f_in) && tangent_is_free(e.family);
@@ -662,5 +685,23 @@ mod tests {
         assert_eq!(free_scalars(Cubic, false, false), 4);
         assert_eq!(free_scalars(Cubic, true, false), 3);
         assert_eq!(free_scalars(Cubic, true, true), 2);
+    }
+
+    #[test]
+    fn unmaterializable_smooth_transitions_cannot_consume_a_k_best_slot() {
+        use SpanFamily::*;
+        assert!(!smooth_transition_is_representable(Quad, false, Cubic));
+        assert!(!smooth_transition_is_representable(
+            CircularArc,
+            true,
+            Cubic
+        ));
+        assert!(!smooth_transition_is_representable(Line, false, Line));
+        assert!(smooth_transition_is_representable(
+            CircularArc,
+            false,
+            Cubic
+        ));
+        assert!(smooth_transition_is_representable(Cubic, true, Line));
     }
 }
