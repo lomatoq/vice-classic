@@ -40,8 +40,11 @@ use serde::Serialize;
 use vice_evidence::{BoundaryChain, BoundarySample};
 
 use crate::code::{ChainCode, GeometryCodeTable};
-use crate::grammar::{build_edges, k_best_paths, materialize, path_is_representable, GrammarPath};
-use crate::refit::{g1_readings, RefitChain, RefitRefusal};
+use crate::grammar::{
+    build_edges, k_best_paths, materialize, materialize_with_closure, path_is_representable,
+    GrammarPath,
+};
+use crate::refit::{closure_g1_spread_rad, g1_readings, RefitChain, RefitRefusal};
 use crate::schedule::{FitBudget, Support};
 use crate::solve::joint_constrained_refit;
 use crate::span::{NoFit, SpanCandidate, SpanFamily};
@@ -97,6 +100,8 @@ pub struct BoundaryModel {
     pub families: Vec<SpanFamily>,
     pub breakpoints: Vec<usize>,
     pub smooth: Vec<bool>,
+    /// The implicit join at the canonical seam of a closed chain.
+    pub closure_smooth: bool,
     /// The code length of the DISCRETE path, from the DP.
     pub code: ChainCode,
     /// §14.4's integral, carried separately and never summed into `code`.
@@ -394,6 +399,7 @@ pub fn fit_forced_boundary_models(
                     families: families.to_vec(),
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),
+                    closure_smooth: false,
                     code,
                     proposal_cost_px: path.proposal_cost_px,
                     worst_g1_spread_rad: worst_g1,
@@ -470,7 +476,8 @@ fn k_best_boundary_models_with_table(
     let mut best: Option<ModelRun> = None;
     for cut in cuts {
         let rotated = rotate(chain, cut);
-        let run = models_for_open_chain(&rotated, budget, table, canvas_dim_px, k)?;
+        let closure_smooth = chain.closed && cut_is_jet_smooth(chain, cut);
+        let run = models_for_open_chain(&rotated, budget, table, canvas_dim_px, k, closure_smooth)?;
         let better = match &best {
             None => true,
             Some(b) => match (b.models.first(), run.models.first()) {
@@ -511,12 +518,14 @@ pub fn models_at_cut(
         });
     }
     let rotated = rotate(&chain, cut);
+    let closure_smooth = chain.closed && cut_is_jet_smooth(&chain, cut);
     models_for_open_chain(
         &rotated,
         budget,
         &crate::GEOMETRY_CODE_TABLE_V1,
         canvas_dim_px,
         k,
+        closure_smooth,
     )
 }
 
@@ -582,19 +591,39 @@ pub const DUPLICATE_EPSILON_PX: f64 = 1e-6;
 
 /// The points a closed chain is opened at.
 ///
-/// Sample zero plus the corner anchors: a cut at a corner is the one place a
-/// grammar has no join to lose, and sample zero is included so a chain with no
-/// corner is still cut somewhere. Derived from the chain, never a fixed list.
+/// Sample zero plus the corner anchors, all derived from the chain.
+///
+/// Whether the implicit join is corner or smooth is decided separately by the
+/// same finite jet classes as the grammar. A smooth cut receives one aliased
+/// endpoint tangent; a corner cut has no G1 declaration to lose.
 pub fn canonical_cuts(chain: &BoundaryChain) -> Vec<usize> {
-    let proposals = crate::corner::corner_proposals(&chain.samples);
     let mut cuts = vec![0usize];
-    cuts.extend(crate::corner::corner_anchors(
-        &proposals,
-        crate::CORNER_ANCHOR_HALF_WINDOW,
-    ));
+    cuts.extend(closed_corner_cuts(chain));
     cuts.sort_unstable();
     cuts.dedup();
     cuts
+}
+
+fn closed_corner_cuts(chain: &BoundaryChain) -> Vec<usize> {
+    let proposals = crate::corner::corner_proposals(&chain.samples);
+    crate::corner::corner_anchors(&proposals, crate::CORNER_ANCHOR_HALF_WINDOW)
+}
+
+fn cut_is_jet_smooth(chain: &BoundaryChain, cut: usize) -> bool {
+    let n = chain.samples.len();
+    if n < 3 || cut >= n {
+        return false;
+    }
+    let point = chain.samples[cut].p;
+    let incoming = point - chain.samples[(cut + n - 1) % n].p;
+    let outgoing = chain.samples[(cut + 1) % n].p - point;
+    if incoming.length_sq() <= 0.0 || outgoing.length_sq() <= 0.0 {
+        return false;
+    }
+    crate::grammar::jet_compatible(
+        crate::grammar::jet_class(incoming.y.atan2(incoming.x)),
+        crate::grammar::jet_class(outgoing.y.atan2(outgoing.x)),
+    )
 }
 
 /// Rotate a closed chain so that `cut` becomes its first sample, and repeat
@@ -620,6 +649,7 @@ fn models_for_open_chain(
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
+    closure_smooth: bool,
 ) -> Result<ModelRun, FitRefusal> {
     let cands = span_candidates(chain, budget)?;
     let samples = &chain.samples;
@@ -640,21 +670,44 @@ fn models_for_open_chain(
             not_representable += 1;
             continue;
         }
-        let Some(init) = materialize(path, &edges, &cands.candidates, samples) else {
+        let Some(init) =
+            materialize_with_closure(path, &edges, &cands.candidates, samples, closure_smooth)
+                .or_else(|| materialize(path, &edges, &cands.candidates, samples))
+        else {
             not_representable += 1;
             continue;
         };
+        let closure_is_represented = init.has_closed_tangent_alias();
         match joint_constrained_refit(&init, samples) {
             Ok(out) => {
                 let Ok(lowered) = out.chain.lower() else {
                     bump(&mut refused, "malformed");
                     continue;
                 };
-                let worst_g1 = g1_readings(&lowered, out.chain.start(), out.chain.end())
+                let mut worst_g1 = g1_readings(&lowered, out.chain.start(), out.chain.end())
                     .iter()
                     .map(|r| r.spread_rad)
                     .fold(0.0f64, f64::max);
+                if closure_smooth && closure_is_represented {
+                    let Some(declared) = out.chain.nodes[0].tangent_rad else {
+                        bump(&mut refused, "closure_tangent_missing");
+                        continue;
+                    };
+                    let Some(spread) = closure_g1_spread_rad(
+                        &lowered,
+                        out.chain.start(),
+                        out.chain.end(),
+                        declared,
+                    ) else {
+                        bump(&mut refused, "closure_g1_unread");
+                        continue;
+                    };
+                    worst_g1 = worst_g1.max(spread);
+                }
                 let mut code = path.code;
+                if chain.closed {
+                    code.topology_bits += (crate::JOIN_KINDS as f64).log2();
+                }
                 code.residual_bits = crate::code::chain_residual_bits(&out.chain, samples, table);
                 if !code.residual_bits.is_finite() {
                     bump(&mut refused, "non_finite_post_refit_code");
@@ -665,6 +718,7 @@ fn models_for_open_chain(
                     families,
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),
+                    closure_smooth,
                     code,
                     proposal_cost_px: path.proposal_cost_px,
                     worst_g1_spread_rad: worst_g1,
@@ -678,6 +732,13 @@ fn models_for_open_chain(
                     relation_kept_indices: Vec::new(),
                 };
                 apply_stage_h(&mut m, samples, table, canvas_dim_px, chain.closed);
+                if closure_smooth
+                    && !closure_is_represented
+                    && matches!(m.geometry, SelectedBoundaryGeometry::TypedChain { .. })
+                {
+                    bump(&mut refused, "smooth_closure_unrepresented");
+                    continue;
+                }
                 models.push(m);
             }
             Err(why) => bump(&mut refused, refusal_name(&why)),

@@ -145,7 +145,12 @@ fn pack(chain: &RefitChain) -> Vec<f64> {
         v.push(n.pos.x);
         v.push(n.pos.y);
     }
-    for n in &chain.nodes {
+    let tangent_nodes = if chain.has_closed_tangent_alias() {
+        &chain.nodes[..chain.nodes.len() - 1]
+    } else {
+        &chain.nodes[..]
+    };
+    for n in tangent_nodes {
         if let Some(t) = n.tangent_rad {
             v.push(t);
         }
@@ -186,11 +191,17 @@ fn unpack(chain: &mut RefitChain, v: &[f64]) {
         n.pos = Pt::new(v[i], v[i + 1]);
         i += 2;
     }
-    for n in &mut chain.nodes {
+    let closed_alias = chain.has_closed_tangent_alias();
+    let tangent_end = chain.nodes.len() - usize::from(closed_alias);
+    for n in &mut chain.nodes[..tangent_end] {
         if n.tangent_rad.is_some() {
             n.tangent_rad = Some(v[i]);
             i += 1;
         }
+    }
+    if closed_alias {
+        let angle = chain.nodes[0].tangent_rad;
+        chain.nodes[last].tangent_rad = angle;
     }
     for s in &mut chain.segments {
         match s {

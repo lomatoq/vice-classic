@@ -218,6 +218,18 @@ fn arc_from_tangent(p0: Pt, p1: Pt, u: Pt) -> Option<(f64, bool, bool)> {
 }
 
 impl RefitChain {
+    /// Whether the repeated endpoint of a closed chain shares one tangent
+    /// parameter with its canonical start.
+    pub fn has_closed_tangent_alias(&self) -> bool {
+        self.nodes.len() >= 2
+            && self
+                .nodes
+                .first()
+                .is_some_and(|first| self.nodes.last().is_some_and(|last| first.pos == last.pos))
+            && self.nodes[0].tangent_rad.is_some()
+            && self.nodes[self.nodes.len() - 1].tangent_rad.is_some()
+    }
+
     /// The direction the node's shared tangent actually has.
     ///
     /// **This is not simply `dir(tangent_rad)`, and the reason is a defect this
@@ -238,6 +250,10 @@ impl RefitChain {
             let l = v.length();
             (l > 0.0 && v.is_finite()).then(|| v * (1.0 / l))
         };
+        let last = self.nodes.len().checked_sub(1)?;
+        if i == last && self.has_closed_tangent_alias() {
+            return self.node_dir(0);
+        }
         if i > 0 && matches!(self.segments.get(i - 1), Some(RefitSegment::Line)) {
             return unit(self.nodes[i].pos - self.nodes[i - 1].pos);
         }
@@ -438,6 +454,48 @@ impl RefitChain {
                 join,
             });
         }
+        let closure_angle = if self.nodes[0].pos != self.nodes[self.nodes.len() - 1].pos {
+            None
+        } else {
+            match (
+                self.nodes[0].tangent_rad,
+                self.nodes[self.nodes.len() - 1].tangent_rad,
+            ) {
+                (None, None) => None,
+                (Some(first), Some(last)) => {
+                    let spread = canonical_angle(first - last).abs();
+                    if spread > crate::GATE_MAX_G1_SPREAD_RAD {
+                        return Err(RefitRefusal::G1Violation {
+                            node: 0,
+                            spread_rad: spread,
+                        });
+                    }
+                    let last_segment = self.segments.len() - 1;
+                    if matches!(self.segments[0], RefitSegment::Line)
+                        && matches!(self.segments[last_segment], RefitSegment::Line)
+                    {
+                        return Err(RefitRefusal::SmoothJoinBetweenTwoLines { node: 0 });
+                    }
+                    if !self.end_reads_node(last_segment, false) {
+                        return Err(RefitRefusal::SmoothNodeUnread {
+                            node: 0,
+                            segment: last_segment,
+                        });
+                    }
+                    if !self.end_reads_node(0, true) {
+                        return Err(RefitRefusal::SmoothNodeUnread {
+                            node: 0,
+                            segment: 0,
+                        });
+                    }
+                    Some(
+                        self.declared_angle(0)
+                            .ok_or(RefitRefusal::NonFinite { segment: 0 })?,
+                    )
+                }
+                _ => return Err(RefitRefusal::Malformed),
+            }
+        };
         let lowered = CurveChain {
             interior_nodes,
             segments,
@@ -450,6 +508,19 @@ impl RefitChain {
                 node: reading.interior_node + 1,
                 spread_rad: reading.spread_rad,
             });
+        }
+        if let Some(declared) = closure_angle {
+            let spread = closure_g1_spread_rad(&lowered, self.start(), self.end(), declared)
+                .ok_or(RefitRefusal::G1Violation {
+                    node: 0,
+                    spread_rad: f64::INFINITY,
+                })?;
+            if spread > crate::GATE_MAX_G1_SPREAD_RAD {
+                return Err(RefitRefusal::G1Violation {
+                    node: 0,
+                    spread_rad: spread,
+                });
+            }
         }
         Ok(lowered)
     }
@@ -529,6 +600,32 @@ pub fn g1_readings(chain: &CurveChain, start: Pt, end: Pt) -> Vec<G1Reading> {
         });
     }
     out
+}
+
+/// Measure the implicit join between the last and first segment of a closed
+/// chain. The canonical IR stores that join at the shared graph vertex rather
+/// than in `interior_nodes`, so it needs an explicit witness.
+pub fn closure_g1_spread_rad(
+    chain: &CurveChain,
+    start: Pt,
+    end: Pt,
+    declared_rad: f64,
+) -> Option<f64> {
+    if chain.segments.len() < 2 || start != end {
+        return None;
+    }
+    let points = chain.node_positions(start, end);
+    let last = chain.segments.len() - 1;
+    let arrive = arrive_dir(&chain.segments[last], points[last], points[last + 1])?;
+    let leave = leave_dir(&chain.segments[0], points[0], points[1])?;
+    let arrive_rad = arrive.y.atan2(arrive.x);
+    let leave_rad = leave.y.atan2(leave.x);
+    let delta = |a: f64, b: f64| canonical_angle(a - b).abs();
+    Some(
+        delta(arrive_rad, leave_rad)
+            .max(delta(arrive_rad, declared_rad))
+            .max(delta(leave_rad, declared_rad)),
+    )
 }
 
 fn nonzero(v: Pt) -> Option<Pt> {
@@ -718,6 +815,46 @@ mod tests {
                 segment: 0,
                 length_px: 0.0
             })
+        ));
+    }
+
+    #[test]
+    fn a_closed_smooth_seam_aliases_one_tangent_and_is_measured() {
+        let mut chain = RefitChain {
+            nodes: vec![
+                RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: Some(0.0),
+                },
+                RefitNode {
+                    pos: Pt::new(10.0, 10.0),
+                    tangent_rad: Some(std::f64::consts::PI),
+                },
+                RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: Some(0.0),
+                },
+            ],
+            segments: vec![
+                RefitSegment::Cubic {
+                    head: Handle::Shared { length_px: 3.0 },
+                    tail: Handle::Shared { length_px: 3.0 },
+                },
+                RefitSegment::Cubic {
+                    head: Handle::Shared { length_px: 3.0 },
+                    tail: Handle::Shared { length_px: 3.0 },
+                },
+            ],
+        };
+        let lowered = chain.lower().expect("closed shared seam lowers");
+        let spread = closure_g1_spread_rad(&lowered, chain.start(), chain.end(), 0.0)
+            .expect("closure witness");
+        assert!(spread < crate::GATE_MAX_G1_SPREAD_RAD);
+
+        chain.nodes[2].tangent_rad = Some(0.2);
+        assert!(matches!(
+            chain.lower(),
+            Err(RefitRefusal::G1Violation { node: 0, .. })
         ));
     }
 

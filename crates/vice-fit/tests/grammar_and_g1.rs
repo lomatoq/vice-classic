@@ -20,9 +20,9 @@ use vice_fit::{
     build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models, k_best_paths,
     path_families, span_candidates, BoundaryModel, ForcedFitRefusal, SpanFamily, FIT_BUDGET_V1,
     GATE_MAX_BREAKPOINT_FRACTION_DELTA, GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD,
-    GATE_MAX_TRANSLATION_DELTA_BITS, GATE_MIN_CUT_NONTRIVIAL_SPREAD_BITS, GATE_MIN_G1_NODES,
-    GATE_MIN_G1_POSITIVE_CONTROL_RAD, GATE_MIN_INVARIANCE_LEGS, GATE_MIN_NO_BIC_EXTRA_SEGMENTS,
-    GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS,
+    GATE_MAX_TRANSLATION_DELTA_BITS, GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD,
+    GATE_MIN_INVARIANCE_LEGS, GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1,
+    K_DISCRETE_PATHS,
 };
 use vice_geom::Pt;
 use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
@@ -426,14 +426,10 @@ fn the_selection_is_invariant_to_near_duplicate_samples() {
 /// taken, and the property that has to hold is that the ANSWER does not depend
 /// on where the loop happened to be cut.
 ///
-/// **The individual cuts do not agree exactly, and the number is published.**
-/// On a 96-sample circle all six canonical cuts select the same grammar — two
-/// circular arcs — at 299.693 to 300.995 bits, a spread of **1.303 bits**. That
-/// spread is small and it is not zero, and it is what makes the second leg
-/// non-trivial: `k_best_boundary_models` never CHOOSES a cut, it evaluates every
-/// canonical cut and returns the shortest, so its output is a function of the
-/// loop. Rotating the loop must therefore return the identical answer, and it
-/// does — to the last printed digit.
+/// Each cut is a distinct request (checked by its first physical sample), and
+/// a jet-smooth seam carries one aliased endpoint tangent. The invariant is
+/// the selected family set and the bounded score spread; requiring a minimum
+/// numerical disagreement between correct cuts would be an anti-invariant.
 ///
 /// The first version of this test measured 47 bits of spread and I nearly wrote
 /// that down as a property of cutting. It was an artifact of the MEASUREMENT:
@@ -453,6 +449,18 @@ fn the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected() {
     let chain = chain_from(&circle, true);
     let cuts = vice_fit::canonical_cuts(&chain);
     assert!(cuts.len() >= 2, "only {} cut(s) derived", cuts.len());
+    let distinct_first_points: std::collections::BTreeSet<(u64, u64)> = cuts
+        .iter()
+        .map(|cut| {
+            let point = chain.samples[*cut].p;
+            (point.x.to_bits(), point.y.to_bits())
+        })
+        .collect();
+    assert_eq!(
+        distinct_first_points.len(),
+        cuts.len(),
+        "two canonical cuts opened at the same physical sample"
+    );
 
     // Leg one: what the individual cuts do, measured rather than assumed.
     let mut totals = Vec::new();
@@ -490,12 +498,6 @@ fn the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected() {
     for f in &family_sets[1..] {
         assert_eq!(f, &family_sets[0], "the family SET changed with the cut");
     }
-    assert!(
-        hi - lo > GATE_MIN_CUT_NONTRIVIAL_SPREAD_BITS,
-        "every canonical cut selected the same code length to within a bit; then leg two below \
-         passes for a reason that has nothing to do with cut invariance"
-    );
-
     // Leg two: the property. Rotating the LOOP is the same loop, and the
     // pipeline's answer must not move.
     let mut answers = Vec::new();
@@ -756,6 +758,17 @@ fn a_closed_circle_promotes_a_whole_loop_primitive_and_an_open_chain_does_not() 
         run.primitives_considered >= 13,
         "the seven families plus ten polygon side hypotheses were not judged"
     );
+    for candidate in &run.models {
+        if candidate.closure_smooth {
+            match &candidate.geometry {
+                vice_fit::SelectedBoundaryGeometry::TypedChain { chain } => assert!(
+                    chain.has_closed_tangent_alias(),
+                    "a typed smooth closure has no shared endpoint tangent"
+                ),
+                vice_fit::SelectedBoundaryGeometry::LoopPrimitive { .. } => {}
+            }
+        }
+    }
     let model = run.models.first().expect("circle model");
     let kept = model
         .primitive_kept

@@ -478,6 +478,18 @@ pub fn materialize(
     candidates: &[SpanCandidate],
     samples: &[BoundarySample],
 ) -> Option<RefitChain> {
+    materialize_with_closure(path, edges, candidates, samples, false)
+}
+
+/// Materialize one path and, when requested, make the repeated endpoint of a
+/// closed chain read the same tangent parameter at both incident segments.
+pub(crate) fn materialize_with_closure(
+    path: &GrammarPath,
+    edges: &[GrammarEdge],
+    candidates: &[SpanCandidate],
+    samples: &[BoundarySample],
+    closure_smooth: bool,
+) -> Option<RefitChain> {
     let ids: Vec<usize> = path
         .candidates
         .iter()
@@ -506,10 +518,22 @@ pub fn materialize(
             tangent_rad: tangent,
         });
     }
+    if closure_smooth {
+        if nodes.first()?.pos != nodes.last()?.pos || es.len() < 2 {
+            return None;
+        }
+        let arrive = es.last()?.exit_rad;
+        let leave = es.first()?.entry_rad;
+        let shared = crate::refit::canonical_angle(
+            arrive + crate::refit::canonical_angle(leave - arrive) * 0.5,
+        );
+        nodes.first_mut()?.tangent_rad = Some(shared);
+        nodes.last_mut()?.tangent_rad = Some(shared);
+    }
 
     let mut segments = Vec::with_capacity(es.len());
     for (i, e) in es.iter().enumerate() {
-        let head_shared = i > 0 && nodes[i].tangent_rad.is_some();
+        let head_shared = nodes[i].tangent_rad.is_some();
         let tail_shared = nodes[i + 1].tangent_rad.is_some();
         let cand = &candidates[e.candidate];
         let (p0, p1) = (samples[e.from].p, samples[e.to].p);
