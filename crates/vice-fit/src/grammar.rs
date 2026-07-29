@@ -47,6 +47,9 @@ use crate::code::{ChainCode, GeometryCodeTable};
 use crate::refit::{ArcAnchor, Handle, RefitChain, RefitNode, RefitSegment};
 use crate::span::{SpanCandidate, SpanFamily};
 
+mod control;
+pub use control::{k_best_proposal_control_paths, ProposalControlPath};
+
 /// Buckets the endpoint tangent direction is quantized into for the DP state.
 ///
 /// Thirty-two over the full turn: 11.25 degrees each, and compatibility admits
@@ -181,20 +184,6 @@ pub struct GrammarPath {
     /// Sum of §14.4's integrals over the path's spans. Separate from `code`
     /// and never added to it (§14.4).
     pub proposal_cost_px: f64,
-}
-
-/// A differential control that ranks the same admissible grammar by the
-/// non-negative §14.4 proposal integral alone.
-///
-/// This is not a production code and cannot be injected into
-/// `k_best_boundary_models`. It exists so the no-BIC gate can remove the
-/// physical parameter code without manufacturing negative "bits".
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct ProposalControlPath {
-    pub candidates: Vec<usize>,
-    pub breakpoints: Vec<usize>,
-    pub smooth: Vec<bool>,
-    pub residual_cost_px: f64,
 }
 
 impl GrammarPath {
@@ -335,41 +324,13 @@ pub fn k_best_paths(
     )
 }
 
-/// Rank the same discrete grammar by its finite non-negative proposal
-/// residual, with every geometry/topology code term removed.
-///
-/// The production selector cannot call this through its API. This is the
-/// explicit knockout side of the no-BIC differential.
-pub fn k_best_proposal_control_paths(
-    edges: &[GrammarEdge],
-    samples: &[BoundarySample],
-    k: usize,
-) -> Vec<ProposalControlPath> {
-    k_best_paths_for_objective(
-        edges,
-        samples,
-        &crate::GEOMETRY_CODE_TABLE_V1,
-        crate::REFERENCE_CANVAS_DIM_PX,
-        k,
-        PathObjective::ProposalResidual,
-    )
-    .into_iter()
-    .map(|path| ProposalControlPath {
-        candidates: path.candidates,
-        breakpoints: path.breakpoints,
-        smooth: path.smooth,
-        residual_cost_px: path.proposal_cost_px,
-    })
-    .collect()
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PathObjective {
+pub(super) enum PathObjective {
     PhysicalCode,
     ProposalResidual,
 }
 
-fn k_best_paths_for_objective(
+pub(super) fn k_best_paths_for_objective(
     edges: &[GrammarEdge],
     samples: &[BoundarySample],
     table: &GeometryCodeTable,
