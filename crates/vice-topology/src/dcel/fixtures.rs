@@ -36,6 +36,34 @@
 
 use crate::cubical::Labelling;
 
+/// The sizes the structural register is built at on the default test path:
+/// **the single declaration**, and the reason it lives here rather than in the
+/// test that reads it.
+///
+/// This closes STATUS_M5 limitation 53 (REVIEW_M5_A A7.2, REVIEW_M5_B N-sizes,
+/// found independently). The list existed twice: as `FAST_SIZES_PX` in this
+/// crate's `dcel_props`, and as the distinct `size_px` of the frozen
+/// degradation cells the `vice-bench` harness runs (`dcel::structural_sizes`).
+/// Two declarations of one list is the form F-0078 names: **a derivation is
+/// only as derived as its least-derived input.** Grow the harness's cell list
+/// and the crate's tests keep checking the stale three, silently narrowing
+/// their own domain.
+///
+/// It is a `const` and not a derivation because the dependency runs one way:
+/// `vice-topology` does not depend on `vice-bench` and must not. So the
+/// arrangement is the one the frozen gate constants already use — one
+/// declaration here, and a mechanism on the consuming side that REDDENS when
+/// the harness disagrees (`the_harness_structural_sizes_are_the_registers`,
+/// verified by knockout: shortened to `[32, 64]` it fails with `left: [32, 64,
+/// 128], right: [32, 64]`). The literal is not removed; it is reduced to one,
+/// with a judge over the gap that used to be silent.
+///
+/// The two large sizes are deliberately absent: 256 and 512 run under
+/// `--ignored` in release, and `dcel_props::SIZES_PX` is the axis that carries
+/// them. This const is the FAST axis, which is the one the harness's cells
+/// match.
+pub const STRUCTURAL_SIZES_PX: [usize; 3] = [32, 64, 128];
+
 /// One structural fixture: its name, its labelling, and the class it is BUILT
 /// to have under each convention arm.
 ///

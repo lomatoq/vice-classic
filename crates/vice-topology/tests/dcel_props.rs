@@ -41,7 +41,7 @@ use vice_topology::dcel::{
 };
 use vice_topology::{
     audit_every_labelling, signature, structural_fixtures, with_a_distant_witness, Dcel, Labelling,
-    TX_CONFIG_V1,
+    STRUCTURAL_SIZES_PX, TX_CONFIG_V1,
 };
 
 /// The sizes the corpus uses, plus the two the size list declares and no
@@ -51,7 +51,13 @@ pub const SIZES_PX: [usize; 5] = [32, 64, 128, 256, 512];
 /// The sizes cheap enough for the default test path. The two large ones run
 /// under `--ignored` in release, which is where the corpus-wide measurements
 /// already live.
-pub const FAST_SIZES_PX: [usize; 3] = [32, 64, 128];
+///
+/// **Not a declaration any more.** STATUS_M5 limitation 53: this list and the
+/// `vice-bench` harness's structural cell sizes were two independent copies of
+/// one axis. The declaration now lives beside the generator it describes, in
+/// `vice_topology::STRUCTURAL_SIZES_PX`, and the harness is checked against it
+/// from the `vice-bench` side (the dependency cannot run the other way).
+pub const FAST_SIZES_PX: [usize; 3] = STRUCTURAL_SIZES_PX;
 
 fn arms() -> [ComplementaryConnectivity; 2] {
     ComplementaryConnectivity::arms()

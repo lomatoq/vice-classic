@@ -111,7 +111,7 @@ pub use certificate::{
     curve_replacement_isotopy, degree_multiset, junction_count, IsotopyRefusal, TopologyCertificate,
 };
 pub use crossing::{face_map_agrees, face_map_from_boundaries, FaceMapDisagreement};
-pub use fixtures::{structural_fixtures, with_a_distant_witness, Fixture};
+pub use fixtures::{structural_fixtures, with_a_distant_witness, Fixture, STRUCTURAL_SIZES_PX};
 pub use loops::{
     loop_length_profile, loops_agree_with_the_labelling, vertices_agree_with_the_labelling,
     vertices_of_the_labelling, LoopDisagreement, VertexDisagreement,

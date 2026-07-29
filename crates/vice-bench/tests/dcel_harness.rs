@@ -373,6 +373,48 @@ fn the_oriented_floor_equals_what_the_register_produces() {
     );
 }
 
+/// **Limitation 53.** The register's declared size axis and the sizes the
+/// harness actually runs are ONE list, and this is the judge over the gap.
+///
+/// The two used to be independent copies: `dcel_props::FAST_SIZES_PX` and the
+/// distinct `size_px` of the frozen degradation cells. Nothing compared them,
+/// so growing the cell list narrowed the crate's own property domain in
+/// silence — F-0078's class, and the reason reviewer A priced this at five
+/// lines and called deferring it "a judgement call, not a necessity".
+///
+/// The declaration now lives once, in `vice_topology::STRUCTURAL_SIZES_PX`,
+/// beside the generator it describes. It cannot be DERIVED from the harness:
+/// `vice-topology` does not depend on `vice-bench` and must not, so the
+/// arrangement is the one the frozen gate constants already use — one
+/// declaration, and a mechanism on the consuming side that reddens on
+/// disagreement. Add a cell at 256 px and this test fails until the register's
+/// axis is widened to match.
+///
+/// Both directions, because an equality between two empty lists passes
+/// (F-0039): the harness must produce a non-empty axis, and it must equal the
+/// register's.
+#[test]
+fn the_harness_structural_sizes_are_the_registers() {
+    let from_the_harness = dcel::structural_sizes(TopologyScope::Full).expect("structural sizes");
+    assert!(
+        !from_the_harness.is_empty(),
+        "the harness resolved no structural sizes at all, so the equality below would compare \
+         two empty lists and pass while measuring nothing"
+    );
+
+    let from_the_register: Vec<u32> = vice_topology::STRUCTURAL_SIZES_PX
+        .iter()
+        .map(|n| *n as u32)
+        .collect();
+    assert_eq!(
+        from_the_harness, from_the_register,
+        "the sizes the M5 harness builds structural arms at and the sizes the register declares \
+         have diverged. These are one axis with one declaration \
+         (`vice_topology::STRUCTURAL_SIZES_PX`); whichever side moved, the other is now testing \
+         a domain it does not describe"
+    );
+}
+
 /// **The three COMPOUND conjuncts each have a world in which they are false.**
 ///
 /// §32's rule: before adding a conjunct, exhibit a world where it is false. The

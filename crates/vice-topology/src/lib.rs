@@ -76,7 +76,7 @@ pub use dcel::{
 };
 pub use dcel::{
     face_map_agrees, face_map_from_boundaries, structural_fixtures, with_a_distant_witness,
-    FaceMapDisagreement,
+    FaceMapDisagreement, STRUCTURAL_SIZES_PX,
 };
 pub use envelope::{
     prune, ApproximationRisk, Envelope, EnvelopeConfig, LostMassEstimate, PruningRecord,
