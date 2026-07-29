@@ -317,12 +317,26 @@ impl SupportedModelUniverseV1 {
             },
             relations: RelationUniverse {
                 families: vec![
-                    Family::planned("equal_radius", "M6", "two arcs share one radius parameter"),
-                    Family::planned("concentric", "M6", "two arcs share one centre parameter"),
-                    Family::planned("axis_aligned", "M6", "a line is horizontal or vertical"),
-                    Family::planned("collinear", "M6", "two lines share one direction parameter"),
-                    Family::planned("mirror_symmetry", "M6", "a reflection maps the scene to itself"),
-                    Family::planned("repetition", "M6", "a translation maps a sub-scene to itself"),
+                    Family::admissible("equal_radius", "two arcs share one radius parameter"),
+                    Family::admissible("concentric", "two arcs share one centre parameter"),
+                    Family::admissible("axis_aligned", "a line is horizontal or vertical"),
+                    Family::admissible("collinear", "two lines share one direction parameter"),
+                    // Both remaining families are properties of a SCENE, not of
+                    // a boundary: Stage G is handed one chain at a time and has
+                    // no scene to reflect or to translate. Their owner is the
+                    // milestone with a scene-level discrete search (§26), which
+                    // is M7 — retargeted here rather than left pointing at a
+                    // milestone that finished without them.
+                    Family::planned(
+                        "mirror_symmetry",
+                        "M7",
+                        "a reflection maps the scene to itself; needs the scene-level compound search of §26",
+                    ),
+                    Family::planned(
+                        "repetition",
+                        "M7",
+                        "a translation maps a sub-scene to itself; needs the scene-level compound search of §26",
+                    ),
                 ],
             },
             formation: FormationUniverse {
@@ -498,251 +512,4 @@ pub fn model_universe_hash(u: &SupportedModelUniverseV1) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn v1_is_finite_and_versioned() {
-        let u = SupportedModelUniverseV1::v1();
-        u.check_finite().expect("V1 must be a finite universe");
-        assert_eq!(u.schema, MODEL_UNIVERSE_SCHEMA);
-        assert_eq!(u.version, "v1");
-    }
-
-    #[test]
-    fn the_finiteness_check_is_not_vacuous() {
-        // Every clause is exercised by a universe that violates exactly it,
-        // so "check_finite passed" means something (meta-rule M-2: a green
-        // check must not be green because nothing could make it red).
-        let mut u = SupportedModelUniverseV1::v1();
-        u.geometry.segment_families.clear();
-        assert!(u.check_finite().is_err(), "empty family list");
-
-        let mut u = SupportedModelUniverseV1::v1();
-        u.geometry.abs_coord_px.hi = f64::INFINITY;
-        assert!(u.check_finite().is_err(), "infinite coordinate range");
-
-        let mut u = SupportedModelUniverseV1::v1();
-        u.geometry.arc_radius_px = Range {
-            lo: 10.0,
-            hi: 1.0,
-            unit: "px",
-        };
-        assert!(u.check_finite().is_err(), "inverted range");
-
-        let mut u = SupportedModelUniverseV1::v1();
-        u.topology.max_visible_faces = 0;
-        assert!(u.check_finite().is_err(), "zero cap");
-
-        let mut u = SupportedModelUniverseV1::v1();
-        u.search.truncation_rules.clear();
-        assert!(u.check_finite().is_err(), "no truncation rule stated");
-
-        let mut u = SupportedModelUniverseV1::v1();
-        u.paint.families.push(u.paint.families[0].clone());
-        assert!(u.check_finite().is_err(), "duplicate family name");
-
-        let mut u = SupportedModelUniverseV1::v1();
-        u.version = "";
-        assert!(u.check_finite().is_err(), "unversioned");
-    }
-
-    /// The universe cannot drift away from the IR it describes.
-    ///
-    /// The `ir_*_family` helpers match exhaustively, so a new IR variant is
-    /// a compile error there; this test closes the other direction — every
-    /// name those helpers can produce must be declared in the universe.
-    #[test]
-    fn every_ir_family_is_declared_in_the_universe() {
-        let u = SupportedModelUniverseV1::v1();
-        let declared = |fams: &[Family], name: &str| fams.iter().any(|f| f.name == name);
-
-        for seg in [
-            Segment::Line,
-            Segment::CircularArc {
-                radius_px: 1.0,
-                large_arc: false,
-                ccw: true,
-            },
-            Segment::EllipticArc {
-                rx_px: 1.0,
-                ry_px: 1.0,
-                x_axis_rotation_rad: 0.0,
-                large_arc: false,
-                ccw: true,
-            },
-            Segment::Quad {
-                ctrl: vice_geom::Pt::new(0.0, 0.0),
-            },
-            Segment::Cubic {
-                ctrl1: vice_geom::Pt::new(0.0, 0.0),
-                ctrl2: vice_geom::Pt::new(1.0, 1.0),
-            },
-        ] {
-            let name = ir_segment_family(&seg);
-            assert!(
-                declared(&u.geometry.segment_families, name),
-                "IR segment family {name} is not declared in the universe"
-            );
-        }
-        for j in [
-            JoinKind::Corner,
-            JoinKind::SmoothG1 {
-                tangent_angle_rad: 0.0,
-            },
-        ] {
-            assert!(declared(&u.geometry.join_kinds, ir_join_family(&j)));
-        }
-        for b in [BlendSpace::LinearLight, BlendSpace::EncodedSrgb] {
-            assert!(declared(&u.formation.blend_spaces, ir_blend_family(&b)));
-        }
-        for f in [
-            PixelFilter::Box,
-            PixelFilter::Triangle,
-            PixelFilter::Gaussian { sigma_px: 0.5 },
-        ] {
-            assert!(declared(&u.formation.pixel_filters, ir_filter_family(&f)));
-        }
-        for e in [ExteriorModel::Transparent, ExteriorModel::Opaque] {
-            assert!(declared(
-                &u.formation.exterior_models,
-                ir_exterior_family(&e)
-            ));
-        }
-        for p in [
-            Paint::OpaqueSolid(vice_ir::LinearRgb {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-            }),
-            Paint::TransparentExterior,
-        ] {
-            assert!(declared(&u.paint.families, ir_paint_family(&p)));
-        }
-        assert!(declared(
-            &u.paint.quantization,
-            ir_quantization_family(&QuantizationModel::Uint8)
-        ));
-    }
-
-    /// What the M2 renderer can actually execute must be exactly what the
-    /// universe calls admissible today — otherwise "admissible" is a wish.
-    #[test]
-    fn the_admissible_subset_matches_what_the_core_executes_today() {
-        let u = SupportedModelUniverseV1::v1();
-        assert_eq!(
-            SupportedModelUniverseV1::admissible_names(&u.formation.pixel_filters),
-            vec!["box"],
-            "the renderer refuses Triangle/Gaussian with UnsupportedPixelFilter"
-        );
-        assert!(
-            SupportedModelUniverseV1::admissible_names(&u.relations.families).is_empty(),
-            "no relation is activated before M6"
-        );
-        assert_eq!(u.search.unexplored_mass_bound, BoundStatus::Unknown);
-        assert_eq!(u.search.retained_mass_bound, BoundStatus::Unknown);
-    }
-
-    /// The hash is the version. Freezing it here is what makes "changing
-    /// the universe is a separate model-version change" enforceable rather
-    /// than aspirational: any edit above turns this test red.
-    #[test]
-    fn model_universe_hash_is_frozen() {
-        let u = SupportedModelUniverseV1::v1();
-        let h = model_universe_hash(&u);
-        assert_eq!(h.len(), 64);
-        assert_eq!(
-            h, FROZEN_V1_HASH,
-            "the supported model universe changed; that is a model-version change \
-             requiring recalibration (spec §1.5), not a routine edit"
-        );
-
-        // Sensitivity: a one-character change in any section moves it.
-        let mut other = SupportedModelUniverseV1::v1();
-        other.topology.max_visible_faces += 1;
-        assert_ne!(model_universe_hash(&other), h);
-    }
-
-    const FROZEN_V1_HASH: &str = "fed2af8642ee3bdd6be85fead97f5ae834622ad0f68525cad9889d17845b8f5d";
-
-    /// **The default is "an admissible segment family has a fitter".**
-    ///
-    /// `vice_fit::FITTED_FAMILIES` is a literal enumerating its subjects, and
-    /// `span.rs` says so at its true price: the cheapest bypass is one family
-    /// nobody wrote a fitter for. A literal cannot be argued out of being one,
-    /// but the DEFAULT around it can be inverted, and that is what this does —
-    /// the same move `doc_claims` made when it stopped listing the documents it
-    /// checked and started walking `docs/` and stopping on anything
-    /// unclassified.
-    ///
-    /// This test lives in `vice-bench` because it is the only crate that can
-    /// see both sides: `vice-fit` must not depend on the declared universe (it
-    /// is a consumer of geometry, not of the benchmark), and the universe must
-    /// not depend on the fitter. Neither side can hold the invariant alone.
-    ///
-    /// Adding an admissible geometry family and no fitter is now RED, and
-    /// closing it needs either a fitter or a line in
-    /// `FAMILIES_DELIBERATELY_NOT_FITTED` carrying a reason. That is weaker
-    /// than a type and stronger than a list: the exception must be WRITTEN, and
-    /// what it costs to write is a sentence a reviewer reads.
-    #[test]
-    fn every_admissible_segment_family_has_a_fitter_or_a_declared_reason() {
-        let u = SupportedModelUniverseV1::v1();
-        let admissible = SupportedModelUniverseV1::admissible_names(&u.geometry.segment_families);
-        assert!(
-            !admissible.is_empty(),
-            "the declared universe admits no segment family at all, so the loop below would \
-             compare nothing and pass (F-0039)"
-        );
-
-        let fitted: Vec<&str> = vice_fit::FITTED_FAMILIES
-            .iter()
-            .map(|f| f.universe_name())
-            .collect();
-        let excused: Vec<&str> = vice_fit::FAMILIES_DELIBERATELY_NOT_FITTED
-            .iter()
-            .map(|(name, _)| *name)
-            .collect();
-
-        for name in &admissible {
-            assert!(
-                fitted.contains(name) || excused.contains(name),
-                "the declared universe admits segment family `{name}`, `vice-fit` has no fitter \
-                 for it, and `FAMILIES_DELIBERATELY_NOT_FITTED` does not say why. Either write \
-                 the fitter or write the reason; a family that is admissible and unfitted with \
-                 nobody saying so is a hole in the candidate stage that no run reports"
-            );
-        }
-
-        // The other direction. A fitter for a family the universe does NOT
-        // admit produces candidates that cannot legally be selected, and it
-        // would move `model_universe_hash` to make them legal — a §1.5
-        // model-version change, not a routine edit.
-        for name in &fitted {
-            assert!(
-                admissible.contains(name),
-                "`vice-fit` fits `{name}`, which the declared universe does not admit"
-            );
-        }
-
-        // And the excuses are about real families rather than about names
-        // nobody uses, which is how an exception list rots (F-0047).
-        for (name, reason) in vice_fit::FAMILIES_DELIBERATELY_NOT_FITTED {
-            assert!(
-                admissible.contains(&name),
-                "`FAMILIES_DELIBERATELY_NOT_FITTED` excuses `{name}`, which is not an admissible \
-                 family: the exception is about nothing and is now permanently green"
-            );
-            assert!(
-                !fitted.contains(&name),
-                "`{name}` is both fitted and excused from being fitted"
-            );
-            assert!(
-                reason.len() > 40,
-                "the reason given for not fitting `{name}` is {} characters; an exception whose \
-                 reason is a word is a list entry wearing a justification",
-                reason.len()
-            );
-        }
-    }
-}
+mod tests;
