@@ -17,8 +17,9 @@
 
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
-    build_edges, g1_readings, k_best_boundary_models, k_best_paths, path_families, span_candidates,
-    BoundaryModel, SpanFamily, FIT_BUDGET_V1, GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS,
+    build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models, k_best_paths,
+    path_families, span_candidates, BoundaryModel, ForcedFitRefusal, SpanFamily, FIT_BUDGET_V1,
+    GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS,
 };
 use vice_geom::Pt;
 use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
@@ -124,6 +125,58 @@ fn signature(m: &BoundaryModel, n_samples: usize) -> (Vec<SpanFamily>, Vec<bool>
             .map(|b| *b as f64 / (n_samples - 1) as f64)
             .collect(),
     )
+}
+
+// ---------------------------------------------------------------------------
+// G20's typed forced-discrete injection
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_forced_gt_path_fixes_only_families_and_breakpoints() {
+    let points: Vec<Pt> = (0..=20).map(|i| Pt::new(10.0 + i as f64, 40.0)).collect();
+    let chain = chain_from(&points, false);
+    let run = fit_forced_boundary_models(
+        &chain,
+        &[SpanFamily::Line],
+        &[],
+        CANVAS_PX,
+        K_DISCRETE_PATHS,
+    )
+    .expect("the GT-equivalent path fits");
+    assert_eq!(run.candidates, 1);
+    assert_eq!(run.edges, 1);
+    assert!(!run.models.is_empty());
+    assert!(
+        run.models
+            .iter()
+            .all(|model| model.families == [SpanFamily::Line] && model.breakpoints.is_empty()),
+        "G20 changed the forced discrete structure"
+    );
+    assert!(
+        run.models
+            .iter()
+            .all(|model| model.worst_normal_deviation_px < 1e-9),
+        "the forced line was not fitted by the production parameter solve"
+    );
+}
+
+#[test]
+fn a_malformed_forced_gt_path_is_a_typed_refusal() {
+    let points: Vec<Pt> = (0..=20).map(|i| Pt::new(10.0 + i as f64, 40.0)).collect();
+    let chain = chain_from(&points, false);
+    assert!(matches!(
+        fit_forced_boundary_models(
+            &chain,
+            &[SpanFamily::Line, SpanFamily::Line],
+            &[],
+            CANVAS_PX,
+            K_DISCRETE_PATHS,
+        ),
+        Err(ForcedFitRefusal::ShapeMismatch {
+            families: 2,
+            breakpoints: 0
+        })
+    ));
 }
 
 // ---------------------------------------------------------------------------

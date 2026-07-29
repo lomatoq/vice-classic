@@ -42,9 +42,9 @@ use vice_evidence::{BoundaryChain, BoundarySample};
 use crate::code::{ChainCode, GeometryCodeTable};
 use crate::grammar::{build_edges, k_best_paths, materialize, path_is_representable, GrammarPath};
 use crate::refit::{g1_readings, RefitChain, RefitRefusal};
-use crate::schedule::FitBudget;
+use crate::schedule::{FitBudget, Support};
 use crate::solve::joint_constrained_refit;
-use crate::span::SpanFamily;
+use crate::span::{NoFit, SpanCandidate, SpanFamily};
 use crate::{span_candidates, FitRefusal};
 
 /// One accepted boundary model: a discrete grammar path that survived the joint
@@ -98,6 +98,49 @@ pub struct ModelRun {
     pub relations_accepted: usize,
 }
 
+/// Why an oracle-forced discrete path could not be fitted.
+///
+/// G20 fixes only the GT-equivalent family sequence and breakpoints. It still
+/// uses the production proposal fits, joint solver, physical code and
+/// relation pass. Every failure is typed because "the oracle arm produced no
+/// model" is otherwise indistinguishable from a conveniently empty knockout.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "forced_fit_refusal", rename_all = "snake_case")]
+pub enum ForcedFitRefusal {
+    Input {
+        refusal: FitRefusal,
+    },
+    ShapeMismatch {
+        families: usize,
+        breakpoints: usize,
+    },
+    BreakpointOutOfRange {
+        breakpoint: usize,
+        previous: usize,
+        last_sample: usize,
+    },
+    FamilyNoFit {
+        span: usize,
+        family: SpanFamily,
+        refusal: NoFit,
+    },
+    CostRefused {
+        span: usize,
+        family: SpanFamily,
+        refusal: crate::CostRefusal,
+    },
+    EdgeMissing {
+        span: usize,
+        family: SpanFamily,
+    },
+    NoPath,
+    NoAcceptedModel {
+        paths: usize,
+        not_representable: usize,
+        refused: Vec<(&'static str, usize)>,
+    },
+}
+
 fn refusal_name(r: &RefitRefusal) -> &'static str {
     match r {
         RefitRefusal::Malformed => "malformed",
@@ -128,6 +171,167 @@ pub fn k_best_boundary_models(
         canvas_dim_px,
         k,
     )
+}
+
+/// Fit models while forcing the GT-equivalent family sequence and breakpoints.
+///
+/// This is the G20 injection point from §27.6. It deliberately does **not**
+/// accept segments, parameters, joins, a code table or a selector:
+///
+/// - each forced span is fitted from the same observations as production;
+/// - corner/smooth remains an automatic discrete choice subject to the same
+///   jet compatibility and representability rules;
+/// - parameters come from the same joint constrained solve;
+/// - code and relations use the frozen production table.
+///
+/// Thus the arm removes discrete family/breakpoint search and nothing else.
+pub fn fit_forced_boundary_models(
+    chain: &BoundaryChain,
+    families: &[SpanFamily],
+    breakpoints: &[usize],
+    canvas_dim_px: f64,
+    k: usize,
+) -> Result<ModelRun, ForcedFitRefusal> {
+    crate::validate_chain(chain).map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
+    if families.len() != breakpoints.len() + 1 {
+        return Err(ForcedFitRefusal::ShapeMismatch {
+            families: families.len(),
+            breakpoints: breakpoints.len(),
+        });
+    }
+    let samples = &chain.samples;
+    let last = samples.len() - 1;
+    let mut previous = 0usize;
+    for &breakpoint in breakpoints {
+        if breakpoint <= previous || breakpoint >= last {
+            return Err(ForcedFitRefusal::BreakpointOutOfRange {
+                breakpoint,
+                previous,
+                last_sample: last,
+            });
+        }
+        previous = breakpoint;
+    }
+
+    let mut bounds = Vec::with_capacity(breakpoints.len() + 2);
+    bounds.push(0usize);
+    bounds.extend_from_slice(breakpoints);
+    bounds.push(last);
+
+    let mut candidates = Vec::with_capacity(families.len());
+    for (span, (window, &family)) in bounds.windows(2).zip(families).enumerate() {
+        let support =
+            Support::new(window[0], window[1]).ok_or(ForcedFitRefusal::BreakpointOutOfRange {
+                breakpoint: window[1],
+                previous: window[0],
+                last_sample: last,
+            })?;
+        let segment = crate::fit(samples, support, family).map_err(|refusal| {
+            ForcedFitRefusal::FamilyNoFit {
+                span,
+                family,
+                refusal,
+            }
+        })?;
+        let cost = crate::proposal_cost(samples, support, &segment).map_err(|refusal| {
+            ForcedFitRefusal::CostRefused {
+                span,
+                family,
+                refusal,
+            }
+        })?;
+        candidates.push(SpanCandidate {
+            support,
+            family,
+            segment,
+            cost,
+        });
+    }
+
+    let table = &crate::GEOMETRY_CODE_TABLE_V1;
+    let edges = build_edges(&candidates, samples, table, canvas_dim_px);
+    if edges.len() != candidates.len() {
+        let missing = candidates
+            .iter()
+            .enumerate()
+            .find(|(candidate, _)| !edges.iter().any(|e| e.candidate == *candidate))
+            .expect("edge count differs, so a candidate is absent");
+        return Err(ForcedFitRefusal::EdgeMissing {
+            span: missing.0,
+            family: missing.1.family,
+        });
+    }
+    let paths = k_best_paths(&edges, samples, table, canvas_dim_px, k);
+    if paths.is_empty() {
+        return Err(ForcedFitRefusal::NoPath);
+    }
+
+    let mut models = Vec::new();
+    let mut refused = Vec::new();
+    let mut not_representable = 0usize;
+    for path in &paths {
+        if !path_is_representable(path, families) {
+            not_representable += 1;
+            continue;
+        }
+        let Some(init) = materialize(path, &edges, &candidates, samples) else {
+            not_representable += 1;
+            continue;
+        };
+        match joint_constrained_refit(&init, samples) {
+            Ok(out) => {
+                let Ok(lowered) = out.chain.lower() else {
+                    bump(&mut refused, "malformed");
+                    continue;
+                };
+                let worst_g1 = g1_readings(&lowered, out.chain.start(), out.chain.end())
+                    .iter()
+                    .map(|r| r.spread_rad)
+                    .fold(0.0f64, f64::max);
+                let mut model = BoundaryModel {
+                    chain: out.chain,
+                    families: families.to_vec(),
+                    breakpoints: path.breakpoints.clone(),
+                    smooth: path.smooth.clone(),
+                    code: path.code,
+                    proposal_cost_px: path.proposal_cost_px,
+                    worst_g1_spread_rad: worst_g1,
+                    worst_normal_deviation_px: out.worst_normal_deviation_px,
+                    residual_before: out.residual_before,
+                    residual_after: out.residual_after,
+                    relations: Vec::new(),
+                    relations_kept: 0,
+                };
+                let hypotheses =
+                    crate::relation::relation_hypotheses(&model, samples, table, canvas_dim_px);
+                model.relations_kept = crate::relation::apply_accepted(&mut model, &hypotheses);
+                model.relations = hypotheses;
+                models.push(model);
+            }
+            Err(why) => bump(&mut refused, refusal_name(&why)),
+        }
+    }
+    if models.is_empty() {
+        return Err(ForcedFitRefusal::NoAcceptedModel {
+            paths: paths.len(),
+            not_representable,
+            refused,
+        });
+    }
+    models.sort_by(compare_model_rank);
+    refused.sort_unstable();
+    let relations_considered = models.iter().map(|m| m.relations.len()).sum();
+    let relations_accepted = models.iter().map(|m| m.relations_kept).sum();
+    Ok(ModelRun {
+        relations_considered,
+        relations_accepted,
+        models,
+        candidates: candidates.len(),
+        edges: edges.len(),
+        discrete_paths: paths.len(),
+        refused,
+        not_representable,
+    })
 }
 
 /// Internal injection point for the no-BIC knockout. Production callers cannot

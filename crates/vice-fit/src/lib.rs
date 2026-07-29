@@ -69,8 +69,8 @@ pub use grammar::{
     JET_CLASSES, K_DISCRETE_PATHS,
 };
 pub use models::{
-    canonical_cuts, k_best_boundary_models, models_at_cut, path_families, BoundaryModel, ModelRun,
-    DUPLICATE_EPSILON_PX,
+    canonical_cuts, fit_forced_boundary_models, k_best_boundary_models, models_at_cut,
+    path_families, BoundaryModel, ForcedFitRefusal, ModelRun, DUPLICATE_EPSILON_PX,
 };
 pub use refit::{
     canonical_angle, g1_readings, ArcAnchor, G1Reading, Handle, RefitChain, RefitNode,
@@ -226,37 +226,7 @@ pub fn span_candidates(
     let samples = &chain.samples;
     let n = samples.len();
 
-    for (i, s) in samples.iter().enumerate() {
-        if !s.p.is_finite() || !s.normal.is_finite() || !s.weight_ds.is_finite() {
-            return Err(FitRefusal::NonFiniteSample { sample: i });
-        }
-        if !(s.halfwidth.is_finite() && s.halfwidth > 0.0) {
-            return Err(FitRefusal::NonPositiveHalfwidth {
-                sample: i,
-                halfwidth_px: s.halfwidth,
-            });
-        }
-        let len = s.normal.length();
-        if (len - 1.0).abs() > UNIT_NORMAL_TOLERANCE {
-            return Err(FitRefusal::NonUnitNormal {
-                sample: i,
-                length: len,
-            });
-        }
-        if !(s.corr_length_px.is_finite() && s.corr_length_px > 0.0) {
-            return Err(FitRefusal::NonPositiveCorrLength {
-                sample: i,
-                corr_length_px: s.corr_length_px,
-            });
-        }
-    }
-
-    if n < MIN_SUPPORT_SAMPLES {
-        return Err(FitRefusal::ChainTooShort {
-            samples: n,
-            minimum: MIN_SUPPORT_SAMPLES,
-        });
-    }
+    validate_chain(chain)?;
 
     let corners = corner_proposals(samples);
     let anchors = corner_anchors(&corners, CORNER_ANCHOR_HALF_WINDOW);
@@ -329,6 +299,45 @@ pub fn span_candidates(
         corners,
         anchors,
     })
+}
+
+/// Validate the complete public input contract before either automatic or
+/// oracle-forced candidate generation. Keeping one guard is important: G20
+/// must not reopen RT6-A2 merely because it bypasses the automatic schedule.
+pub(crate) fn validate_chain(chain: &BoundaryChain) -> Result<(), FitRefusal> {
+    let samples = &chain.samples;
+    for (i, s) in samples.iter().enumerate() {
+        if !s.p.is_finite() || !s.normal.is_finite() || !s.weight_ds.is_finite() {
+            return Err(FitRefusal::NonFiniteSample { sample: i });
+        }
+        if !(s.halfwidth.is_finite() && s.halfwidth > 0.0) {
+            return Err(FitRefusal::NonPositiveHalfwidth {
+                sample: i,
+                halfwidth_px: s.halfwidth,
+            });
+        }
+        let len = s.normal.length();
+        if (len - 1.0).abs() > UNIT_NORMAL_TOLERANCE {
+            return Err(FitRefusal::NonUnitNormal {
+                sample: i,
+                length: len,
+            });
+        }
+        if !(s.corr_length_px.is_finite() && s.corr_length_px > 0.0) {
+            return Err(FitRefusal::NonPositiveCorrLength {
+                sample: i,
+                corr_length_px: s.corr_length_px,
+            });
+        }
+    }
+
+    if samples.len() < MIN_SUPPORT_SAMPLES {
+        return Err(FitRefusal::ChainTooShort {
+            samples: samples.len(),
+            minimum: MIN_SUPPORT_SAMPLES,
+        });
+    }
+    Ok(())
 }
 
 fn bump<T: PartialEq>(acc: &mut Vec<(&'static str, T, usize)>, family: &'static str, why: T) {
