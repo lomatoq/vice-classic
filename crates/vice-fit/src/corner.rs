@@ -106,6 +106,19 @@ pub fn signed_turning(samples: &[BoundarySample], i: usize, k: usize) -> Option<
     Some(back.cross(fwd).atan2(back.dot(fwd)))
 }
 
+pub(crate) fn cyclic_turning(samples: &[BoundarySample], i: usize, k: usize) -> Option<f64> {
+    let n = samples.len();
+    if n < 3 || k == 0 || 2 * k >= n {
+        return None;
+    }
+    let back = samples[i].p - samples[(i + n - k) % n].p;
+    let forward = samples[(i + k) % n].p - samples[i].p;
+    if back.length_sq() <= 0.0 || forward.length_sq() <= 0.0 {
+        return None;
+    }
+    Some(back.cross(forward).atan2(back.dot(forward)))
+}
+
 /// Least-squares line through points, as (unit direction, point on the line),
 /// plus the RMS orthogonal residual. `None` for fewer than two points.
 fn fit_line(pts: &[Pt]) -> Option<(Pt, Pt, f64)> {
@@ -201,6 +214,58 @@ pub fn corner_proposals(samples: &[BoundarySample]) -> Vec<CornerProposal> {
             line_support_rms_px: rms,
             intersection_offset_px: offset,
             saliency,
+        });
+    }
+    out
+}
+
+/// Closed-loop counterpart of [`corner_proposals`].
+///
+/// Every turning and both line-support arms wrap across the input seam, so a
+/// cyclic shift produces proposals at the same physical samples.
+pub(crate) fn cyclic_corner_proposals(samples: &[BoundarySample]) -> Vec<CornerProposal> {
+    let n = samples.len();
+    let scales = turning_scales(n);
+    let arm = scales.last().copied().unwrap_or(1);
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let Some(turning) = cyclic_turning(samples, i, 1) else {
+            continue;
+        };
+        let mut persistent = turning.abs();
+        for &scale in &scales {
+            if let Some(value) = cyclic_turning(samples, i, scale) {
+                persistent = persistent.min(value.abs());
+            }
+        }
+        let left: Vec<Pt> = (0..=arm)
+            .map(|offset| samples[(i + n - arm + offset) % n].p)
+            .collect();
+        let right: Vec<Pt> = (0..=arm)
+            .map(|offset| samples[(i + offset) % n].p)
+            .collect();
+        let (rms, offset) = match (fit_line(&left), fit_line(&right)) {
+            (Some(a), Some(b)) => {
+                let rms = 0.5 * (a.2 + b.2);
+                let offset = line_intersection((a.0, a.1), (b.0, b.1))
+                    .map_or(f64::INFINITY, |point| (point - samples[i].p).length());
+                (rms, offset)
+            }
+            _ => (f64::INFINITY, f64::INFINITY),
+        };
+        let halfwidth = samples[i].halfwidth;
+        let attenuation = if halfwidth > 0.0 && (rms + offset).is_finite() {
+            1.0 / (1.0 + (rms + offset) / halfwidth)
+        } else {
+            0.0
+        };
+        out.push(CornerProposal {
+            sample: i,
+            turning_rad: turning,
+            persistent_turning_rad: persistent,
+            line_support_rms_px: rms,
+            intersection_offset_px: offset,
+            saliency: (persistent / std::f64::consts::PI).clamp(0.0, 1.0) * attenuation,
         });
     }
     out

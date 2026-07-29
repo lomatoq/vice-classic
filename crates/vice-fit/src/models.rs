@@ -29,8 +29,9 @@
 //! §14.3: "Closed loops решаются cyclic k-best search либо несколькими
 //! canonical cuts с доказанным cut-invariance test." The second is taken.
 //! [`k_best_boundary_models`] cuts a closed chain at each of a structurally
-//! derived set of points — the corner anchors, plus sample zero — solves each
-//! cut independently, and returns the best. The cut-invariance TEST is
+//! derived set of points — a cyclicly canonical root plus persistent-turning
+//! corner anchors — solves each cut independently, and returns the best. The
+//! cut-invariance TEST is
 //! `the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected`, and
 //! the spread it measures is published rather than asserted to be zero.
 

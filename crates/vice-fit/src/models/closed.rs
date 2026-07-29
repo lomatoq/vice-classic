@@ -1,5 +1,7 @@
 //! Physical-loop normalization and the bounded canonical-opening policy.
 
+use std::cmp::Ordering;
+
 use vice_evidence::{BoundaryChain, BoundarySample};
 
 /// Collapse coincident observations before any index-based schedule is built.
@@ -37,33 +39,92 @@ pub const DUPLICATE_EPSILON_PX: f64 = 1e-6;
 
 /// Maximum canonical openings evaluated for one closed chain.
 ///
-/// Sample zero is always present; remaining slots go to the strongest
-/// persistent corner anchors. All cuts share one candidate budget.
+/// The cyclicly canonical root is always present; remaining slots go to the
+/// strongest cyclic persistent-turning anchors. All cuts share one candidate
+/// budget.
 pub const MAX_CANONICAL_CUTS: usize = 4;
 
-/// Sample zero plus the strongest persistent corner anchors.
+fn descriptor(samples: &[BoundarySample], i: usize) -> [f64; 3] {
+    let n = samples.len();
+    let incoming = (samples[i].p - samples[(i + n - 1) % n].p).length();
+    let outgoing = (samples[(i + 1) % n].p - samples[i].p).length();
+    [
+        -crate::corner::cyclic_turning(samples, i, 1).map_or(0.0, f64::abs),
+        incoming,
+        outgoing,
+    ]
+}
+
+fn compare_cyclic_roots(samples: &[BoundarySample], a: usize, b: usize) -> Ordering {
+    let n = samples.len();
+    for offset in 0..n {
+        let left = descriptor(samples, (a + offset) % n);
+        let right = descriptor(samples, (b + offset) % n);
+        for field in 0..left.len() {
+            let ordering = left[field].total_cmp(&right[field]);
+            if ordering != Ordering::Equal {
+                return ordering;
+            }
+        }
+    }
+    Ordering::Equal
+}
+
+fn canonical_root(samples: &[BoundarySample]) -> usize {
+    (1..samples.len()).fold(0usize, |best, candidate| {
+        if compare_cyclic_roots(samples, candidate, best) == Ordering::Less {
+            candidate
+        } else {
+            best
+        }
+    })
+}
+
+/// Openings immediately before a cyclicly canonical root and the strongest
+/// persistent corner anchors.
+///
+/// Neither the root nor an anchor depends on which sample the caller happened
+/// to put at index zero. Descriptor sequences break physical ties around the
+/// full loop; anchor windows wrap across the seam. Perfectly symmetric loops,
+/// where every root is equivalent, also receive a diametrically separated
+/// second cut so the cut-invariance gate remains load-bearing.
 pub fn canonical_cuts(chain: &BoundaryChain) -> Vec<usize> {
-    let proposals = crate::corner::corner_proposals(&chain.samples);
-    let anchors = crate::corner::corner_anchors(&proposals, crate::CORNER_ANCHOR_HALF_WINDOW);
-    let mut ranked: Vec<(usize, f64)> = anchors
-        .into_iter()
-        .filter(|sample| *sample != 0)
-        .map(|sample| {
-            let saliency = proposals
-                .iter()
-                .find(|proposal| proposal.sample == sample)
-                .map_or(0.0, |proposal| proposal.saliency);
-            (sample, saliency)
+    let n = chain.samples.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    let root = canonical_root(&chain.samples);
+    let proposals = crate::corner::cyclic_corner_proposals(&chain.samples);
+    let mut saliencies = vec![0.0; n];
+    for proposal in proposals {
+        saliencies[proposal.sample] = proposal.saliency;
+    }
+    let window = crate::CORNER_ANCHOR_HALF_WINDOW.min(n.saturating_sub(1) / 2);
+    let mut ranked: Vec<(usize, f64)> = (0..n)
+        .filter(|sample| *sample != root && saliencies[*sample] > 0.0)
+        .filter(|sample| {
+            (1..=window).all(|offset| {
+                saliencies[(sample + n - offset) % n] < saliencies[*sample]
+                    && saliencies[(sample + offset) % n] < saliencies[*sample]
+            })
         })
+        .map(|sample| (sample, saliencies[sample]))
         .collect();
-    ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
-    let mut cuts = vec![0usize];
+    ranked.sort_by(|a, b| {
+        b.1.total_cmp(&a.1)
+            .then(((a.0 + n - root) % n).cmp(&((b.0 + n - root) % n)))
+    });
+    let opening_before = |anchor: usize| (anchor + n - 1) % n;
+    let mut cuts = vec![opening_before(root)];
     cuts.extend(
         ranked
             .into_iter()
             .take(MAX_CANONICAL_CUTS.saturating_sub(1))
             .map(|(sample, _)| sample),
     );
+    if cuts.len() < 2 && n > 1 {
+        cuts.push(opening_before((root + n / 2) % n));
+    }
     cuts.sort_unstable();
     cuts.dedup();
     cuts
