@@ -519,7 +519,12 @@ pub fn materialize(
                 radius_px,
                 large_arc,
                 ccw,
-            } => RefitSegment::Arc(if head_shared {
+            } => RefitSegment::Arc(if head_shared && tail_shared {
+                // Not representable: an anchor reads one end (RT6-A1). The
+                // caller filters via `path_is_representable`; this is the
+                // defence for callers that do not.
+                return None;
+            } else if head_shared {
                 ArcAnchor::FromHeadTangent
             } else if tail_shared {
                 ArcAnchor::FromTailTangent
@@ -530,19 +535,23 @@ pub fn materialize(
                     ccw,
                 }
             }),
-            vice_ir::Segment::Quad { ctrl } => RefitSegment::Quad {
-                ctrl: if head_shared {
-                    Handle::Shared {
-                        length_px: (ctrl - p0).length(),
-                    }
-                } else if tail_shared {
-                    Handle::Shared {
-                        length_px: (ctrl - p1).length(),
-                    }
-                } else {
-                    Handle::Free(ctrl)
-                },
-            },
+            vice_ir::Segment::Quad { ctrl } => {
+                if tail_shared {
+                    // The representation anchors a quad's control point at its
+                    // HEAD node only; a tail-smooth quad would not read the
+                    // node that claims it (RT6-A1's class). Not representable.
+                    return None;
+                }
+                RefitSegment::Quad {
+                    ctrl: if head_shared {
+                        Handle::Shared {
+                            length_px: (ctrl - p0).length(),
+                        }
+                    } else {
+                        Handle::Free(ctrl)
+                    },
+                }
+            }
             vice_ir::Segment::Cubic { ctrl1, ctrl2 } => RefitSegment::Cubic {
                 head: if head_shared {
                     Handle::Shared {
@@ -567,25 +576,33 @@ pub fn materialize(
 
 /// Discrete paths the shared-tangent representation cannot carry.
 ///
-/// Two shapes, each for a reason about the representation rather than about
-/// the evidence:
+/// Per shape, the reason is about the REPRESENTATION rather than the evidence,
+/// and the list mirrors `RefitChain::end_reads_node` — a segment end that does
+/// not read its smooth node's angle would leave the declaration unbound
+/// (RT6-A1):
 ///
-/// - a QUADRATIC smooth at both ends: its single control point is then the
-///   intersection of the two tangent lines, which is not a handle length;
-/// - a smooth join between two LINES: their directions are their chords, so
-///   there is no shared parameter, and the join is G1 only when the two chords
-///   are collinear.
+/// - a QUADRATIC smooth at its tail: its one control point is anchored at the
+///   head node, so a tail-smooth quad reads nothing at the node that claims it
+///   (smooth at both ends is the special case where the control point would be
+///   the intersection of two tangent lines, which is not a handle length);
+/// - an ARC smooth at BOTH ends: an anchor reads exactly one end, and the
+///   arrival direction at the other is determined by the circle, not by the
+///   node — the configuration the red team drove to a 4.224 deg accepted G1
+///   violation through this very function;
+/// - a smooth join between two LINES: their directions are their chords, and
+///   two collinear lines are one line.
 pub fn path_is_representable(path: &GrammarPath, families: &[SpanFamily]) -> bool {
-    let quad_ok = families.iter().enumerate().all(|(i, f)| {
-        let head = i > 0 && path.smooth.get(i - 1).copied().unwrap_or(false);
-        let tail = path.smooth.get(i).copied().unwrap_or(false);
-        !(matches!(f, SpanFamily::Quad) && head && tail)
-    });
-    let lines_ok = path.smooth.iter().enumerate().all(|(i, s)| {
-        !(*s && matches!(families.get(i), Some(SpanFamily::Line))
-            && matches!(families.get(i + 1), Some(SpanFamily::Line)))
-    });
-    quad_ok && lines_ok
+    let smooth_at = |i: usize| path.smooth.get(i).copied().unwrap_or(false);
+    families.iter().enumerate().all(|(i, f)| {
+        let head = i > 0 && smooth_at(i - 1);
+        let tail = smooth_at(i);
+        match f {
+            SpanFamily::Quad => !tail,
+            SpanFamily::CircularArc => !(head && tail),
+            SpanFamily::Line => !(tail && matches!(families.get(i + 1), Some(SpanFamily::Line))),
+            SpanFamily::Cubic => true,
+        }
+    })
 }
 
 #[cfg(test)]

@@ -128,6 +128,26 @@ pub enum RefitRefusal {
     /// the grammar is refused rather than lowered into a node whose declaration
     /// can agree with at most one side.
     SmoothJoinBetweenTwoLines { node: usize },
+    /// A smooth node whose declared tangent one of its incident segments does
+    /// not READ — so the declaration and that segment's geometry would be two
+    /// independent values, which is exactly the disagreement this
+    /// representation exists to make unwritable.
+    ///
+    /// **This variant is RT6-A1's closure, and the history is the reason it is
+    /// a CLASS check rather than another special case.** F-0087 found the hole
+    /// for `Line` (its direction is its chord) and was closed by deriving the
+    /// angle from the line — an ADDRESS. The red team then measured the same
+    /// hole one family over: an arc anchored `FromHeadTangent` reads only its
+    /// HEAD node, so an arc smooth at BOTH ends left the tail node's declared
+    /// tangent a free parameter, and the standard pipeline produced accepted
+    /// models with a G1 spread of 4.224 deg — seven orders over the gate line —
+    /// while the DP priced the broken variant identically to the honest ones
+    /// (`free_scalars(Arc, true, true) = 0`: the cost function already knew the
+    /// tail constraint was not held). The class is "geometry that does not read
+    /// the declared tangent at its own end", and this refusal enumerates the
+    /// READERS per family and end, exhaustively, so a new family without a
+    /// reader is refused rather than silently unbound.
+    SmoothNodeUnread { node: usize, segment: usize },
     /// §14.3: exact G1 holds by construction, but the refit could not bring the
     /// chain inside the evidence corridor, so this discrete path is INVALID and
     /// the next one is considered. Carries what it reached.
@@ -208,6 +228,32 @@ impl RefitChain {
         self.nodes.get(i)?.tangent_rad.map(dir)
     }
 
+    /// Whether segment `k`'s end at a node READS that node's shared direction
+    /// (`head = true` for the segment's head node `k`, `false` for its tail
+    /// node `k + 1`).
+    ///
+    /// The judge behind [`RefitRefusal::SmoothNodeUnread`]. A `Line` counts as
+    /// reading because the node's angle is DERIVED from its chord
+    /// (`node_dir`), so declaration and geometry cannot disagree; every other
+    /// family reads only where its parameterisation actually consumes the
+    /// node's angle. Exhaustive over families and anchors on purpose: a new
+    /// variant fails to compile here rather than silently not reading.
+    fn end_reads_node(&self, k: usize, head: bool) -> bool {
+        match self.segments[k] {
+            RefitSegment::Line => true,
+            RefitSegment::Arc(ArcAnchor::FromHeadTangent) => head,
+            RefitSegment::Arc(ArcAnchor::FromTailTangent) => !head,
+            RefitSegment::Arc(ArcAnchor::Radius { .. }) => false,
+            // A quad's one control point is anchored at its HEAD node (see
+            // `control`), so only the head is ever read.
+            RefitSegment::Quad { ctrl } => head && matches!(ctrl, Handle::Shared { .. }),
+            RefitSegment::Cubic { head: h, tail: t } => {
+                let handle = if head { h } else { t };
+                matches!(handle, Handle::Shared { .. })
+            }
+        }
+    }
+
     /// The angle a node DECLARES once lowered: the same value its incident
     /// segments were built from, so the declaration cannot drift from the
     /// geometry.
@@ -235,7 +281,11 @@ impl RefitChain {
     /// This is the only place a shared tangent becomes two absolute control
     /// points, so it is the only place a G1 disagreement could enter — and it
     /// enters only as the floating-point round trip, because both control
-    /// points are built from the same `dir(angle)` value.
+    /// points are built from the same `dir(angle)` value **and every smooth
+    /// node is checked to be READ by both incident ends** (`end_reads_node`).
+    /// Before that check the sentence above was false as a class statement:
+    /// RT6-A1 wrote the disagreement down through an arc anchored at its other
+    /// end, and the solver accepted it.
     pub fn lower(&self) -> Result<CurveChain, RefitRefusal> {
         if self.segments.is_empty() || self.nodes.len() != self.segments.len() + 1 {
             return Err(RefitRefusal::Malformed);
@@ -310,6 +360,21 @@ impl RefitChain {
                     && matches!(self.segments[i], RefitSegment::Line)
                 {
                     return Err(RefitRefusal::SmoothJoinBetweenTwoLines { node: i });
+                }
+                // RT6-A1: BOTH incident ends must read this node's angle, or
+                // the declaration and the unreading side's geometry are two
+                // independent values and the violation is writable.
+                if !self.end_reads_node(i - 1, false) {
+                    return Err(RefitRefusal::SmoothNodeUnread {
+                        node: i,
+                        segment: i - 1,
+                    });
+                }
+                if !self.end_reads_node(i, true) {
+                    return Err(RefitRefusal::SmoothNodeUnread {
+                        node: i,
+                        segment: i,
+                    });
                 }
                 JoinKind::SmoothG1 {
                     tangent_angle_rad: self

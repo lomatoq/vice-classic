@@ -674,3 +674,150 @@ fn a_relation_is_accepted_only_when_it_shortens_the_code() {
          acceptance is not a statement about the shape"
     );
 }
+
+// ---------------------------------------------------------------------------
+// RT6-A1: the configurations the red team drove through the G1 clause
+// ---------------------------------------------------------------------------
+
+/// **RT6-A1's first measurement, replayed as a refusal.** The hand-built chain
+/// [Cubic — Arc(FromHeadTangent) — Cubic] with BOTH joins smooth and the tail
+/// node's angle set 0.5 rad away from the arc's arrival direction lowered to an
+/// accepted `SmoothG1` declaration 0.5 rad from the geometry — the violation
+/// this representation claims is unwritable, written down. It must now be
+/// REFUSED at lowering, with the unreading segment named, because an arc's
+/// anchor reads exactly one end and the tail node's declaration is bound to
+/// nothing.
+#[test]
+fn an_arc_smooth_at_both_ends_cannot_be_written_down() {
+    use vice_fit::{ArcAnchor, Handle, RefitChain, RefitNode, RefitRefusal, RefitSegment};
+    let chain = RefitChain {
+        nodes: vec![
+            RefitNode {
+                pos: Pt::new(0.0, 0.0),
+                tangent_rad: None,
+            },
+            RefitNode {
+                pos: Pt::new(10.0, 0.0),
+                tangent_rad: Some(0.3),
+            },
+            RefitNode {
+                pos: Pt::new(20.0, 6.0),
+                // 0.5 rad away from wherever the arc actually arrives: the
+                // free parameter RT6-A1 exploited.
+                tangent_rad: Some(1.1),
+            },
+            RefitNode {
+                pos: Pt::new(30.0, 6.0),
+                tangent_rad: None,
+            },
+        ],
+        segments: vec![
+            RefitSegment::Cubic {
+                head: Handle::Free(Pt::new(3.0, -2.0)),
+                tail: Handle::Shared { length_px: 3.0 },
+            },
+            RefitSegment::Arc(ArcAnchor::FromHeadTangent),
+            RefitSegment::Cubic {
+                head: Handle::Shared { length_px: 3.0 },
+                tail: Handle::Free(Pt::new(27.0, 5.0)),
+            },
+        ],
+    };
+    assert_eq!(
+        chain.lower().err(),
+        Some(RefitRefusal::SmoothNodeUnread {
+            node: 2,
+            segment: 1
+        }),
+        "the arc's tail node declares a tangent the arc does not read; lowering this is writing \
+         the G1 violation down"
+    );
+
+    // Positive control: the same shape with the tail join a CORNER lowers
+    // fine — the refusal is about the unread declaration, not about arcs.
+    let mut honest = chain.clone();
+    honest.nodes[2].tangent_rad = None;
+    honest.segments[2] = RefitSegment::Cubic {
+        head: Handle::Free(Pt::new(22.0, 6.5)),
+        tail: Handle::Free(Pt::new(27.0, 5.0)),
+    };
+    assert!(honest.lower().is_ok());
+}
+
+/// A chain sampled from a G1-by-construction cubic-arc-cubic (curvature
+/// 0 -> 0.045 -> 0, step 0.5 px — RT6-A1's rt6_a1c fixture). Before the class
+/// closure, the pipeline returned accepted models with G1 spreads up to
+/// 4.224 deg on this chain — seven orders over the clause line — because the
+/// DP offered arc-smooth-at-both-ends at the same price as the honest
+/// variants. Every accepted model must now hold the clause.
+#[test]
+fn the_red_team_chain_no_longer_produces_an_accepted_g1_violation() {
+    // Heading integration of the curvature profile.
+    let (l1, l2, l3, kmax, ds) = (30.0f64, 40.0, 30.0, 0.045, 0.5);
+    let mut pts = vec![Pt::new(20.0, 120.0)];
+    let mut theta = 0.0f64;
+    let mut s = 0.0f64;
+    let total = l1 + l2 + l3;
+    while s + ds <= total {
+        let kappa = if s < l1 {
+            kmax * s / l1
+        } else if s < l1 + l2 {
+            kmax
+        } else {
+            kmax * (total - s) / l3
+        };
+        theta += kappa * ds;
+        let last = *pts.last().expect("non-empty");
+        pts.push(last + Pt::new(theta.cos(), theta.sin()) * ds);
+        s += ds;
+    }
+    let chain = chain_from(&pts, false);
+    let run = k_best_boundary_models(
+        &chain,
+        &FIT_BUDGET_V1,
+        &GEOMETRY_CODE_TABLE_V1,
+        CANVAS_PX,
+        K_DISCRETE_PATHS,
+    )
+    .expect("well formed");
+    assert!(
+        !run.models.is_empty(),
+        "no model survived at all: candidates {}, refused {:?}, not representable {}",
+        run.candidates,
+        run.refused,
+        run.not_representable
+    );
+    let mut nodes = 0usize;
+    let mut worst = 0.0f64;
+    for m in &run.models {
+        let lowered = m.chain.lower().expect("an accepted model lowers");
+        let r = g1_readings(&lowered, m.chain.start(), m.chain.end());
+        nodes += r.len();
+        for x in &r {
+            worst = worst.max(x.spread_rad);
+        }
+    }
+    println!(
+        "red-team chain: {} models, {} smooth nodes, worst G1 spread {:.3e} rad, not \
+         representable {}",
+        run.models.len(),
+        nodes,
+        worst,
+        run.not_representable
+    );
+    assert!(
+        nodes > 0,
+        "no accepted model on this chain has a smooth join; the clause would be measured over \
+         nothing exactly as it was on the corpus (F-0039)"
+    );
+    assert!(
+        worst < 1e-9,
+        "an accepted model on the red team's own chain has a G1 spread of {worst} rad"
+    );
+    assert!(
+        run.not_representable > 0,
+        "no path was dropped as non-representable on a chain built to elicit \
+         arc-smooth-at-both-ends; then the class closure is not being exercised here and the \
+         green above proves nothing about it"
+    );
+}
