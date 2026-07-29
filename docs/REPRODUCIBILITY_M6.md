@@ -13,9 +13,9 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - model universe:
   `47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097`;
 - geometry pricing surface:
-  `932c083e0a330ca2983a6cf3d96d9e8d6e80fffc93d7c1a3874f7e15670e418e`;
+  `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;
 - Stage G/H backend source:
-  `3992a614bce47af59332ee847d8fe5e780b9047845e01ebfac1339c59ebaf588`;
+  `56f3be2b4fb057d2702004ed9d803cf80a53569480ae3055fe3221074a6bfd7f`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -99,7 +99,7 @@ Expected population and gate witnesses:
 |---|---|---|
 | common population | 11 of 19 observed closed chains complete all five arms | `>= 6` |
 | exact arm set | G00, G10, G01, G11, G20 on every boundary | exactly 5 |
-| compatibility | 55 arm rows share key `eaf43a1f…b21ed93` | one identical five-component key |
+| compatibility | 55 arm rows share key `ea52f89f…db13e7a` | one identical five-component key |
 | raster provenance | 11 rows from independent ExactClip raster → production Stage F | `>= 6` |
 | oracle candidate injection | 27 forced-discrete fits | `>= 10` |
 | material selector changes | G01/G10/G11 = 3/6/1 geometry hashes | `>= 1/1/1` |
@@ -169,6 +169,12 @@ The relevant sequence is intentionally split:
     the resulting 11-boundary, 55-arm Tier-A artifact alone.
 17. C390 restores the 800-line production-module bound without changing
     behavior, and C391 separately records its content-bound backend identity.
+18. C393 makes both exported grammar stages typed-refuse invalid observation
+    mass and finite derived residual-code overflow.
+19. C394 removes the unidentifiable adjacent `SharedBaseline` duplicate; C395
+    freezes that changed eligibility/pricing surface alone.
+20. C396 separately records and replays the resulting 11-boundary, 55-arm
+    Tier-A artifact.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 

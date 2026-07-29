@@ -1313,9 +1313,9 @@ a regression hidden by changing the metric.
 The current identities are:
 
 - model universe `47903d73…0f097`;
-- pricing surface `932c083e…70e418e`;
-- backend source `3992a614…ebaf588`;
-- five-arm compatibility fingerprint `eaf43a1f…b21ed93`.
+- pricing surface `1060cc13…0dfc691`;
+- backend source `56f3be2b…a6bfd7f`;
+- five-arm compatibility fingerprint `ea52f89f…db13e7a`.
 
 C349 is the config-only freeze of the measured floors. C351 keeps every
 production module under 800 lines. C363 extends the source digest over every
@@ -1327,8 +1327,10 @@ Tier-A geometry record. C382 restores the module-size bound by splitting tests,
 and C383 records the split backend. C385/C386 close the final physical-code and
 cyclic-search blockers, C387 is their config-only pricing freeze, and C388 is
 the first 11-boundary artifact. C390 restores the production-module size gate,
-and C391 is the current content-bound Tier-A artifact, reproduced byte-for-byte
-on `windows-x86_64`.
+and C391 records that content-bound Tier-A artifact. C393 closes the exported
+grammar validation/derived-overflow gap; C394 excludes the duplicate adjacent
+baseline relation, C395 freezes that pricing change alone, and C396 is the
+current Tier-A artifact, reproduced byte-for-byte on `windows-x86_64`.
 
 ## A5.3 Materialized broad-corpus population
 
@@ -1369,10 +1371,10 @@ The §28 M6 gate is **MET as a completion candidate**:
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
-passes every one of the 80 commits from `origin/main` through this candidate.
+passes every one of the 85 commits from `origin/main` through this candidate.
 
-`REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-11. Defect classes
-F-0108…F-0128 record the final repair rather than letting Addendum 4’s invalid
+`REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-12. Defect classes
+F-0108…F-0130 record the final repair rather than letting Addendum 4’s invalid
 claim disappear.
 
 ## A5.5 Boundary of the stop
@@ -1384,3 +1386,56 @@ verification. Those are successor milestones.
 
 The sealed audit remains unopened. M7 is not started until the required
 independent verdicts accept this exact HEAD.
+
+# Addendum 6 — second exact-SHA review delta
+
+Two independent cold reviews and the separate safety/correctness audit all
+blocked exact SHA `1d299477525a8610e12d5538234b03fc9c4e0864`. They agreed
+that the earlier public-input closure omitted the exported grammar stages; the
+separate audit also found an independent Stage-H undercoding case. No M7 work
+began.
+
+## A6.1 Exported grammar refusal is now typed
+
+`build_edges` and `k_best_paths` now return `Result` and run the same complete
+sample validation as the high-level model APIs. Invalid negative mass and a
+finite-positive ratio that overflows are refusals, not an absent edge or a
+zero-evidence source transition. A second derived guard checks the weighted
+per-observation residual and its running sum; finite inputs whose product
+overflows return `FitRefusal::NonFiniteResidualCode` with the sample, weight,
+one-observation bits and accumulated bits.
+
+The direct regression matrix calls both exported functions with negative
+weight, `f64::MAX / f64::MIN_POSITIVE`, and `f64::MAX / 1`. It also requires
+the high-level model path to surface the same typed class instead of reporting
+`candidates > 0, edges = 0, paths = 0, refused = []`.
+
+## A6.2 Adjacent shared baseline is not a second relation
+
+For adjacent line spans the second line already starts at the first line's
+endpoint. `SharedBaseline` therefore materialized exactly the same constrained
+chain as `Parallel` while claiming two determined scalars instead of one.
+Stage H could select that duplicate label on a nonexistent extra saving.
+
+C394 makes pair topology part of relation eligibility: adjacent
+`SharedBaseline` is not formed, while the non-adjacent family remains present.
+The canonical pricing surface serializes this eligibility bit. C395 freezes
+the resulting hash in a config-only commit, and C396 records the artifact
+alone.
+
+## A6.3 Current exact measurements and identities
+
+The row-derived geometry measurements did not move: 11 common boundaries,
+55 arms, 27 injections, selector changes 3/6/1, four relation-selected rows,
+five primitive-selected rows, and all 18 clauses MET. Exact replay succeeds on
+`windows-x86_64`.
+
+- model universe `47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097`;
+- pricing surface `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;
+- backend source `56f3be2b4fb057d2702004ed9d803cf80a53569480ae3055fe3221074a6bfd7f`;
+- five-arm compatibility fingerprint
+  `ea52f89f00c32dd4e35d7d275dfc0c253da37165a4486d7733ef509cddb13e7a`.
+
+This remains an M6 completion candidate, not a self-certification. Fresh
+two-cold-review plus separate safety/correctness verdicts are required on one
+unchanged final SHA before M7 starts.

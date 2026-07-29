@@ -4616,10 +4616,11 @@ the field. A high-level guard is not a proof for separately exported
 lower-level functions, and invalid evidence is never equivalent to zero
 evidence.
 
-**Status.** Closed in C385. Shared sample validation feeds typed `Input`
-variants at both low-level entries; every residual path returns non-finite on
-invalid observation mass instead of zero; the exact direct-call exploits are
-permanent regressions.
+**Status.** C385 closed `proposal_cost` and `joint_constrained_refit`, but the
+next exact-SHA reviews proved that its "every public boundary" regression had
+not called exported `build_edges` or `k_best_paths`; the latter still used
+`unwrap_or(0.0)`. C393 closes the whole exported grammar boundary with typed
+`Result` APIs and direct negative/overflow regressions.
 
 ## F-0124 — Finite operands can have a non-finite physical ratio (M6 final red team, 2026-07-29)
 
@@ -4634,10 +4635,12 @@ residual and returned an empty graph with no refusal.
 contract names them; finiteness of every operand does not prove finiteness of
 the operation.
 
-**Status.** Closed in C385 with
-`FitRefusal::NonFiniteIndependentWeight`. The quotient is checked explicitly,
-the exact high-level graph-emptiness witness is typed-refused, and the overflow
-probe is part of the frozen pricing surface.
+**Status.** C385 added `FitRefusal::NonFiniteIndependentWeight` for quotient
+overflow. The next exact-SHA reviews found the neighbouring finite quotient
+`f64::MAX / 1`, whose multiplication by a finite residual still overflowed and
+silently emptied the graph. C393 adds `NonFiniteResidualCode`, checks each
+weighted contribution and running sum, and directly requires high- and
+low-level typed refusal for both overflow forms.
 
 ## F-0125 — Relation savings were debited from a code component that never owned the scalar (M6 final red team, 2026-07-29)
 
@@ -4709,3 +4712,45 @@ already certain.
 **Status.** Closed in C386. Every closed one-span path is rejected in the final
 transition before branch/global truncation. The exact corner K=1 witness
 requires the more expensive two-span loop to survive.
+
+## F-0129 — An "every public entry" regression omitted two exported stages (M6 second exact-SHA review, 2026-07-29)
+
+**Found by.** Both independent cold reviews and the separate
+safety/correctness audit on C392.
+
+**What happened.** `build_edges` converted invalid or overflowed weighted
+residuals into missing edges, while `k_best_paths` converted the first sample's
+invalid independent weight into zero. The regression named
+`a_negative_arclength_weight_is_refused_by_every_public_entry` did not call
+either exported function. Valid candidates therefore became an empty DAG, or
+negative evidence became a finite accepted path identical to zero evidence,
+without a refusal.
+
+**Class rule.** A quantified test name is not coverage. Enumerate the actual
+export surface, make failure part of every signature, and include derived
+arithmetic overflow rather than checking only fields and one quotient.
+
+**Status.** Closed in C393. Both exported stages return typed `Result`, share
+sample/canvas validation, and use checked weighted residual accumulation. The
+direct matrix covers negative mass, quotient overflow and product overflow;
+the high-level path must propagate the same refusal.
+
+## F-0130 — Pair topology can make a claimed relation scalar nonexistent (M6 second exact-SHA audit, 2026-07-29)
+
+**Found by.** Separate safety/correctness audit on C392.
+
+**What happened.** For adjacent line spans, the second line's base is already
+the first line's endpoint. `Parallel` and `SharedBaseline` therefore
+materialized the identical constrained chain, but `SharedBaseline` claimed two
+determined scalars and twice the saving. Stage H selected the duplicate label
+on 15.514573 bits that no free symbol had encoded.
+
+**Class rule.** Relation savings depend on the topology of the bound pair, not
+only its family label. Two labels that materialize the same constraint cannot
+claim different removed symbols.
+
+**Status.** Closed in C394. Adjacent `SharedBaseline` is not identifiable and
+is not formed; a direct regression retains `Parallel` for the adjacent pair
+and retains `SharedBaseline` for a non-adjacent pair. C395 freezes the
+eligibility bit in the pricing surface, and C396 records the resulting Tier-A
+artifact alone.
