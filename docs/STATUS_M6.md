@@ -886,7 +886,7 @@ code that did not exist. Three are green, one is NOT MET.
 | **exact G1 after joint solve** | **GREEN**, with a positive control | `refit::g1_readings` on every smooth node of every SELECTED model | corpus **2.776e-15 rad** over 8 nodes; synthetic **2.220e-16 rad** over 9 nodes; **positive control 0.7136 rad (40.89°)** through the same instrument |
 | **sample / cut / transform invariance** | **GREEN**, six of six | `crates/vice-fit/tests/grammar_and_g1.rs` | sample step 0.25/0.5/1.0 px: identical families and join kinds, breakpoints within 6 % of the chain; duplicate samples: identical; cyclic cut: the pipeline's answer identical to the last printed digit under loop rotation, per-cut spread **1.303 bits** published; translation: identical to 1e-6 bits; reflection: identical; uniform scale ×1/×2/×4: identical selection, deciding residual within **1 bit** |
 | **oracle G00–G20 decomposition** | **NOT MET** | `oracle::design` | **0 of 5 arms producible**; price in A3.7 |
-| **no BIC-only promotion** | **GREEN**, as a differential with a knockout | `crates/vice-fit/tests/grammar_and_g1.rs` | frozen table selects **1 arc** for an arc at 106.8 bits; the same DP with the parameter code divided by a thousand selects **64 quadratics**. No `k log n` exists anywhere in `vice-fit` |
+| **no BIC-only promotion** | **GREEN**, as a differential with a knockout | `crates/vice-fit/tests/grammar_and_g1.rs` | frozen table selects **1 arc**; the same admissible DAG ranked by the finite non-negative §14.4 proposal residual alone selects **64 arcs** at `0.000 px`. No negative pseudo-bits and no `k log n` exist anywhere in `vice-fit` |
 
 **What the green clauses do NOT say.** The G1 clause was evaluated over **8
 smooth nodes** on the corpus — the corpus is largely polygonal and most joins the
@@ -1134,7 +1134,7 @@ The §28 M6 gate is now **MET as a completion candidate**:
 | exact G1 after joint solve | **MET** | `6.661e-15 rad` worst over 18 selected smooth joins; 18/18 measured, zero lowering failures; the inconsistent IR fixture reads above the `0.4 rad` positive-control floor |
 | sample/cut/transform invariance | **MET** | all six registered legs; non-zero single-cut spread `1.303 bits`; rotations stay within `1 bit`; translation below `1e-6 bit`; duplicate and near-duplicate legs exercise the declared physical equivalence |
 | oracle G00–G20 decomposition | **MET** | 205/205 development boundaries, five arms each, 205 forced candidate injections, 14 oracle-selector changes, zero exclusions |
-| no BIC-only promotion | **MET** | frozen physical code selects the compact family while the cheap-code knockout adds at least one segment |
+| no BIC-only promotion | **MET** | frozen physical code selects the compact family while the non-negative proposal-residual-only knockout adds at least one segment |
 
 `docs/gt/GEOMETRY_M6.json` is the five-arm artifact. All 1,025 arm rows share
 compatibility fingerprint `c74a63c…e2888`. C333 made this key depend on both the
@@ -1347,9 +1347,9 @@ The §28 M6 gate is **MET as a completion candidate**:
 | clause group | result | non-vacuity |
 |---|---|---|
 | exact G1 after joint solve | **MET** | every selected smooth node, including the closure seam, is read from materialized geometry; inconsistent controls fail |
-| sample/cut/transform invariance | **MET** | six registered legs, multiple bounded canonical cuts and an explicit closed seam |
+| sample/cut/transform invariance | **MET** | six executable function-pointer-registered legs, cyclicly stable bounded cuts and an explicit closed seam |
 | G00/G10/G01/G11/G20 decomposition | **MET** | 6 raster-derived common rows, all five arms, geometry-hash changes 2/4/1 |
-| no BIC-only promotion | **MET** | physical-code winner changes under the registered cheap-code knockout |
+| no BIC-only promotion | **MET** | physical-code winner changes under the registered finite non-negative proposal-residual-only knockout |
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
