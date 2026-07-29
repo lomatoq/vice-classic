@@ -44169,11 +44169,10 @@
         "detail": {
           "what": "G00",
           "missing": [
-            "candidate_generation",
-            "selector"
+            "geometry_pipeline_arm"
           ],
-          "owner_milestone": "M6",
-          "reason": "G00 cannot be produced honestly: the harness has no candidate_generation (M6), selector (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44188,10 +44187,11 @@
         "detail": {
           "what": "G10",
           "missing": [
-            "selector"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G10 cannot be produced honestly: the harness has no selector (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G10 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44206,10 +44206,11 @@
         "detail": {
           "what": "G01",
           "missing": [
-            "candidate_generation"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G01 cannot be produced honestly: the harness has no candidate_generation (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G01 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44224,10 +44225,11 @@
         "detail": {
           "what": "G11",
           "missing": [
-            "parameter_fit"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G11 cannot be produced honestly: the harness has no parameter_fit (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G11 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44242,10 +44244,11 @@
         "detail": {
           "what": "G20",
           "missing": [
-            "parameter_fit"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G20 cannot be produced honestly: the harness has no parameter_fit (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G20 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44518,11 +44521,11 @@
         "detail": {
           "what": "G10-G00",
           "missing": [
-            "candidate_generation",
-            "selector"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G10-G00 cannot be produced honestly: the harness has no candidate_generation (M6), selector (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G10-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44534,11 +44537,11 @@
         "detail": {
           "what": "G01-G00",
           "missing": [
-            "candidate_generation",
-            "selector"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G01-G00 cannot be produced honestly: the harness has no candidate_generation (M6), selector (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G01-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44550,12 +44553,11 @@
         "detail": {
           "what": "G11-G00",
           "missing": [
-            "candidate_generation",
-            "selector",
-            "parameter_fit"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G11-G00 cannot be produced honestly: the harness has no candidate_generation (M6), selector (M6), parameter_fit (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G11-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44567,10 +44569,11 @@
         "detail": {
           "what": "G20-G30",
           "missing": [
-            "parameter_fit"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G20-G30 cannot be produced honestly: the harness has no parameter_fit (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G20-G30 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44582,11 +44585,11 @@
         "detail": {
           "what": "G10-G00",
           "missing": [
-            "candidate_generation",
-            "selector"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G10-G00 cannot be produced honestly: the harness has no candidate_generation (M6), selector (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G10-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44598,11 +44601,11 @@
         "detail": {
           "what": "G01-G00",
           "missing": [
-            "candidate_generation",
-            "selector"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G01-G00 cannot be produced honestly: the harness has no candidate_generation (M6), selector (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G01-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44614,12 +44617,11 @@
         "detail": {
           "what": "G11-G00",
           "missing": [
-            "candidate_generation",
-            "selector",
-            "parameter_fit"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G11-G00 cannot be produced honestly: the harness has no candidate_generation (M6), selector (M6), parameter_fit (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G11-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44631,10 +44633,11 @@
         "detail": {
           "what": "G20-G30",
           "missing": [
-            "parameter_fit"
+            "geometry_pipeline_arm",
+            "oracle_injection"
           ],
-          "owner_milestone": "M6",
-          "reason": "G20-G30 cannot be produced honestly: the harness has no parameter_fit (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M7",
+          "reason": "G20-G30 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     }
