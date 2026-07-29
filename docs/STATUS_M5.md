@@ -1364,3 +1364,49 @@ price is honest and that it **must not be deferred twice**. That obligation now
 falls on the milestone that actually exists.
 
 — governor, recorded after the gate, before M6 is dispatched
+
+---
+
+## Erratum to the erratum — the ladder printed above is itself incomplete
+
+The erratum immediately above prints the §28 ladder as
+
+```
+M0 M1 M2 M3 M3.5 M4 M4.5 M5 M6 M7 M8 M9 M10 M11 M12
+```
+
+**§28 has sixteen headings, not fifteen.** Between `M8` and `M9` stands
+`## P1 — Partition correction API/editor`. The correct list, read as every `##`
+heading in §28's line range with no predicate about the name:
+
+```
+M0 M1 M2 M3 M3.5 M4 M4.5 M5 M6 M7 M8 P1 M9 M10 M11 M12
+```
+
+**Why the instrument could not find it.** The governor read the headings with
+`awk '/^## /&&/M[0-9]/'`. The second condition is a LITERAL ABOUT THE SHAPE OF
+THE ANSWER — it presumes every milestone's name begins with `M`. `P1` was
+unfindable by construction, and the instrument's silence read as the absence of a
+subject. That is F-0048 Q1 applied to a verification procedure, and M-4 in one
+line: an instrument must be measured, not assumed.
+
+So the document written to correct a false claim about the ladder printed a
+second false claim about the ladder, using a tool with the same defect as the
+error it was correcting. Found by the next fresh author context, at its first
+measurement, exactly as the first one was. `docs/STATUS_M6.md` addendum 1 carries
+the same omission, transcribed rather than counted.
+
+**What does not change.** `M5.5` still does not appear in §28 anywhere. The
+successor of M5 is still M6, and the successor of M6 is still M7 — P1 sits after
+M8 and touches neither. No verdict, gate, clause or artifact depends on it. What
+changes is only the enumeration, and the lesson attached to it.
+
+**The rule that follows.** Take a subject set from a BOUNDARY — a section's line
+range, a directory, a type definition — and not from a predicate about the
+subjects' names. Where a name predicate is unavoidable, it needs a positive
+control on an element whose name does NOT match the pattern; otherwise the
+control tests the pattern against itself.
+
+Recorded as F-0086.
+
+— governor
