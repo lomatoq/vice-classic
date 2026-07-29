@@ -93,12 +93,40 @@ p95_px = 0.35
 p99_px = 0.60
 max_px = 1.50
 
+# --- Geometry code table (§14.5; DERIVED in M6) ------------------------------
+# §14.5's minimal explicit code: a prefix code over families and a parameter
+# code `log2(range / calibrated precision)`. Every value below is DERIVED from
+# something this file or the model universe already froze, and the derivation is
+# checked by
+# `universe::tests::the_geometry_code_table_agrees_with_the_universe_it_codes_over`,
+# which lives in `vice-bench` because that is the only crate that can see the
+# universe and `[identifiability]` at once.
+#
+#   bits_per_anchor         = 2 * log2(canvas_dim_px.hi / observability_floor_px)
+#                           = 2 * log2(16384 / 0.35)
+#   bits_per_segment_family = log2(5 admissible segment families)
+#   bits_per_relation       = log2(6 relation families)
+#
+# The range for an anchor is the universe's MAXIMUM canvas; the code
+# `vice_fit::code::GeometryCodeTable::anchor_bits` applies the image's own canvas
+# by exact arithmetic on the number below, so the number below is what governs
+# behaviour rather than a rounded copy of something recomputed elsewhere.
+#
+# The calibrated precision is NOT repeated as a fourth key. It is recovered by
+# inverting `bits_per_anchor`, so a guard cannot share a key with its mechanism
+# (FAILURE_LEDGER F-0048 Q4) and there is exactly one length constant.
+#
+# Consumers: `vice_fit::code::GEOMETRY_CODE_TABLE_V1`, which prices every edge
+# and node of the §14.3 grammar DAG, and every §15 relation hypothesis.
+#
+# WAS: `status = "placeholder"`, `set_by_milestone = "M6"`, all three values
+# `0.0`. A table of zeros prices an unbounded grammar at nothing;
+# `GeometryCodeTable::new` now refuses to mint one.
 [geometry_code_table]
-status = "placeholder"
-set_by_milestone = "M6"
-bits_per_anchor = 0.0
-bits_per_segment_family = 0.0
-bits_per_relation = 0.0
+status = "frozen"
+bits_per_anchor = 31.029146
+bits_per_segment_family = 2.321928
+bits_per_relation = 2.584963
 
 # --- Observation noise (§17.1; measured in M4) -------------------------------
 # MEASURED, not chosen, on the development split by
