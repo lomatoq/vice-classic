@@ -1073,6 +1073,16 @@ fn every_status_document_is_classified_or_excepted_with_a_reason() {
              REPRODUCIBILITY_M5.md are all missing. Limitation 36",
             "M6",
         ),
+        (
+            "docs/STATUS_M6.md",
+            "same cause as STATUS_M5 and the same missing machinery: limitation 36 is still open \
+             and M6 did not close it. This document carries a table of measured transaction \
+             quantities (attempted, committed, compound, max steps) bound to nothing, which is \
+             the cheapest bypass limitation 36 names, and STATUS_M6 §4.3 records a THIRD live \
+             instance of the class in the frozen gate file. Excepted with the class named rather \
+             than classified under a tier that does not yet exist for it. Limitation 36",
+            "M7",
+        ),
     ];
 
     let mut classified: Vec<String> = CLAUSE_ROWS.iter().map(|(d, _)| (*d).to_string()).collect();
