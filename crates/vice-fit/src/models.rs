@@ -178,12 +178,13 @@ fn apply_stage_h(
     canvas_dim_px: f64,
     closed: bool,
 ) {
-    let relations = crate::relation::relation_hypotheses(model, samples, table, canvas_dim_px);
+    let relations =
+        crate::relation::relation_hypotheses(model, samples, table, canvas_dim_px, closed);
     let primitives =
         crate::primitive::loop_primitive_hypotheses(model, samples, table, canvas_dim_px, closed);
 
     let mut relation_sibling = model.clone();
-    let relations_kept = crate::relation::apply_accepted(&mut relation_sibling, &relations);
+    let relations_kept = crate::relation::apply_accepted(&mut relation_sibling, &relations, closed);
     let mut primitive_sibling = model.clone();
     let primitive_kept =
         crate::primitive::apply_best_primitive(&mut primitive_sibling, &primitives);

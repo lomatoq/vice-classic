@@ -18,6 +18,10 @@ use crate::models::BoundaryModel;
 use crate::refit::{ArcAnchor, RefitChain, RefitSegment};
 use crate::solve::flatten_chain;
 
+mod topology;
+pub use topology::apply_accepted;
+use topology::closure_matches;
+
 /// Relation hypotheses are independently evaluated against one free sibling.
 /// Selecting more than one would require a newly evaluated joint constrained
 /// sibling, so M6 keeps the single best admissible one.
@@ -164,13 +168,14 @@ pub fn relation_hypotheses(
     samples: &[BoundarySample],
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
+    closed: bool,
 ) -> Vec<RelationHypothesis> {
     let Some(free_chain) = model.geometry.typed_chain() else {
         return Vec::new();
     };
     let cb = table.coordinate_bits(canvas_dim_px);
     let n_seg = free_chain.segments.len();
-    if n_seg == 0 {
+    if n_seg == 0 || !closure_matches(free_chain, closed) {
         return Vec::new();
     }
     let pair_code = if n_seg >= 2 {
@@ -206,13 +211,14 @@ pub fn relation_hypotheses(
                     }
                 }
                 (RefitSegment::Line, RefitSegment::Line) => {
+                    let adjacent = j == i + 1 || (closed && i == 0 && j == n_seg.saturating_sub(1));
                     for kind in [
                         RelationKind::Parallel,
                         RelationKind::Perpendicular,
                         RelationKind::SharedBaseline,
                         RelationKind::RepeatedTransform,
                     ] {
-                        if j == i + 1 && !kind.identifiable_for_adjacent_segments() {
+                        if adjacent && !kind.identifiable_for_adjacent_segments() {
                             continue;
                         }
                         let mut constrained = free_chain.clone();
@@ -221,7 +227,7 @@ pub fn relation_hypotheses(
                         } else {
                             bind_lines(&mut constrained, i, j, kind)
                         };
-                        if !bound {
+                        if !bound || !closure_matches(&constrained, closed) {
                             continue;
                         }
                         out.push(evaluate(
@@ -244,20 +250,22 @@ pub fn relation_hypotheses(
         }
     }
     if let Some((constrained, determined)) = bind_mirror_loop(free_chain) {
-        let segments: Vec<usize> = (0..n_seg).collect();
-        out.push(evaluate(
-            RelationKind::MirrorSymmetry,
-            segments,
-            constrained,
-            table.bits_per_relation(),
-            cb,
-            determined,
-            model.code.geometry_bits,
-            model.code.topology_bits,
-            base_residual,
-            samples,
-            table,
-        ));
+        if closure_matches(&constrained, closed) {
+            let segments: Vec<usize> = (0..n_seg).collect();
+            out.push(evaluate(
+                RelationKind::MirrorSymmetry,
+                segments,
+                constrained,
+                table.bits_per_relation(),
+                cb,
+                determined,
+                model.code.geometry_bits,
+                model.code.topology_bits,
+                base_residual,
+                samples,
+                table,
+            ));
+        }
     }
     out
 }
@@ -512,35 +520,6 @@ fn arc_centre_in_frame(chain: &RefitChain, seg: usize, origin: Pt) -> Option<Pt>
     )
     .ok()
     .map(|c| c.center)
-}
-
-/// The relations a model actually keeps, and what they do to its code length.
-///
-/// Only ACCEPTED hypotheses enter `relation_bits`, and a model with none pays
-/// nothing — a `L_relations` of zero is a real statement about a chain with no
-/// relation, not an absence.
-pub fn apply_accepted(model: &mut BoundaryModel, hypotheses: &[RelationHypothesis]) -> usize {
-    let best = hypotheses
-        .iter()
-        .enumerate()
-        .filter_map(|(i, h)| h.accepted.then_some(i))
-        .max_by(|&a, &b| hypotheses[a].net_bits.total_cmp(&hypotheses[b].net_bits));
-    let Some(index) = best else {
-        model.relation_kept_indices.clear();
-        return 0;
-    };
-    let hypothesis = &hypotheses[index];
-    model.code.relation_bits += hypothesis.cost_bits;
-    model.code.geometry_bits -= hypothesis.geometry_saving_bits;
-    model.code.topology_bits -= hypothesis.topology_saving_bits;
-    model.code.residual_bits += hypothesis.residual_penalty_bits;
-    model.geometry = crate::models::SelectedBoundaryGeometry::TypedChain {
-        chain: hypothesis.constrained_chain.clone(),
-    };
-    model.worst_normal_deviation_px = hypothesis.worst_normal_deviation_px;
-    model.worst_model_to_evidence_px = hypothesis.worst_model_to_evidence_px;
-    model.relation_kept_indices = vec![index];
-    1
 }
 
 #[cfg(test)]

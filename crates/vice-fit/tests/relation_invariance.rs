@@ -1,7 +1,8 @@
 use vice_evidence::BoundarySample;
 use vice_fit::{
-    relation_hypotheses, ArcAnchor, BoundaryModel, ChainCode, RefitChain, RefitNode, RefitSegment,
-    RelationHypothesis, RelationKind, SelectedBoundaryGeometry, SpanFamily, GEOMETRY_CODE_TABLE_V1,
+    apply_accepted, relation_hypotheses, ArcAnchor, BoundaryModel, ChainCode, Handle, RefitChain,
+    RefitNode, RefitSegment, RelationHypothesis, RelationKind, SelectedBoundaryGeometry,
+    SpanFamily, GEOMETRY_CODE_TABLE_V1,
 };
 use vice_geom::Pt;
 
@@ -108,6 +109,7 @@ fn translated_concentric_candidate_keeps_the_stage_h_decision() {
             &observations(chain),
             &GEOMETRY_CODE_TABLE_V1,
             16_384.0,
+            false,
         )
     };
     assert_eq!(
@@ -126,6 +128,7 @@ fn shared_baseline_is_not_formed_for_the_adjacent_pair_it_cannot_identify() {
         &observations(chain),
         &GEOMETRY_CODE_TABLE_V1,
         16_384.0,
+        false,
     );
     assert!(hypotheses
         .iter()
@@ -146,7 +149,68 @@ fn shared_baseline_is_not_formed_for_the_adjacent_pair_it_cannot_identify() {
         &observations(chain),
         &GEOMETRY_CODE_TABLE_V1,
         16_384.0,
+        false,
     )
     .iter()
     .any(|h| h.kind == RelationKind::SharedBaseline && h.segments == [0, 2]));
+}
+
+#[test]
+fn closed_wrap_relations_cannot_open_the_canonical_seam() {
+    let mut model = line_model(&[
+        Pt::new(0.0, 0.0),
+        Pt::new(4.0, 0.0),
+        Pt::new(4.0, 3.0),
+        Pt::new(0.0, 0.0),
+    ]);
+    let mut chain = model.geometry.typed_chain().expect("typed chain").clone();
+    chain.segments[1] = RefitSegment::Quad {
+        ctrl: Handle::Free(Pt::new(5.0, 1.5)),
+    };
+    model.geometry = SelectedBoundaryGeometry::TypedChain { chain };
+    model.families[1] = SpanFamily::Quad;
+
+    let chain = model.geometry.typed_chain().expect("typed chain");
+    let hypotheses = relation_hypotheses(
+        &model,
+        &observations(chain),
+        &GEOMETRY_CODE_TABLE_V1,
+        16_384.0,
+        true,
+    );
+    assert!(
+        !hypotheses
+            .iter()
+            .any(|h| h.kind == RelationKind::SharedBaseline && h.segments == [0, 2]),
+        "the first/last pair is adjacent on a closed chain"
+    );
+    assert!(
+        hypotheses.iter().all(|hypothesis| {
+            hypothesis.constrained_chain.start() == hypothesis.constrained_chain.end()
+        }),
+        "a formed closed-chain relation opened the repeated seam node"
+    );
+
+    // `apply_accepted` is exported too: even a caller-constructed accepted
+    // hypothesis cannot smuggle an open sibling through the second boundary.
+    let mut opened = chain.clone();
+    opened.nodes.last_mut().expect("last node").pos = Pt::new(1.0, 1.0);
+    let injected = RelationHypothesis {
+        kind: RelationKind::RepeatedTransform,
+        segments: vec![0, 2],
+        constrained_chain: opened,
+        cost_bits: 0.0,
+        saving_bits: 1.0,
+        geometry_saving_bits: 1.0,
+        topology_saving_bits: 0.0,
+        residual_penalty_bits: 0.0,
+        net_bits: 1.0,
+        worst_normal_deviation_px: 0.0,
+        worst_model_to_evidence_px: 0.0,
+        allowed_px: 1.0,
+        accepted: true,
+    };
+    assert_eq!(apply_accepted(&mut model, &[injected], true), 0);
+    let selected = model.geometry.typed_chain().expect("typed chain");
+    assert_eq!(selected.start(), selected.end());
 }
