@@ -38,8 +38,8 @@ use vice_evidence::analysis::{analyze_full, ANALYSIS_CONFIG_V1};
 use vice_evidence::boundary::{observe_boundaries, BOUNDARY_CONFIG_V1};
 use vice_evidence::corridor::CORRIDOR_CONFIG_V1;
 use vice_fit::{
-    g1_readings, k_best_boundary_models, span_candidates, FitRefusal, NoFit, FIT_BUDGET_V1,
-    K_DISCRETE_PATHS,
+    closure_g1_spread_rad, g1_readings, k_best_boundary_models, span_candidates, FitRefusal, NoFit,
+    FIT_BUDGET_V1, K_DISCRETE_PATHS,
 };
 use vice_image::{CanonicalImage, IccAssumption};
 
@@ -119,8 +119,12 @@ pub struct FitRun {
     pub chains_with_no_model: u64,
     /// Chains the entry contract refused (`FitRefusal`), by name.
     pub chains_refused_at_entry: Vec<(&'static str, u64)>,
-    /// Segments in the SELECTED model, summed over chains, and how many of the
-    /// joins between them are smooth.
+    /// Which materialized geometry sibling won on each chain.
+    pub selected_typed_chains: u64,
+    pub selected_loop_primitives: u64,
+    /// Segments in selected TYPED chains, summed over chains, and how many of
+    /// their interior or closure joins are smooth. Primitive winners have no
+    /// free-chain joins and cannot inflate this population.
     pub selected_segments: u64,
     pub selected_smooth_joins: u64,
     /// Family names present in selected models, MEASURED.
@@ -269,33 +273,67 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                             match mr.models.first() {
                                 Some(m) => {
                                     run.chains_with_a_model += 1;
-                                    run.selected_segments += m.families.len() as u64;
-                                    run.selected_smooth_joins +=
-                                        m.smooth.iter().filter(|s| **s).count() as u64;
-                                    for f in &m.families {
-                                        selected_families.insert(f.universe_name().to_string());
-                                    }
                                     run.worst_selected_deviation_px = run
                                         .worst_selected_deviation_px
                                         .max(m.worst_normal_deviation_px)
                                         .max(m.worst_model_to_evidence_px);
-                                    let Some(chain) = m.geometry.typed_chain() else {
-                                        continue;
-                                    };
-                                    match chain.lower() {
-                                        Ok(lowered) => {
-                                            let r =
-                                                g1_readings(&lowered, chain.start(), chain.end());
-                                            run.g1_nodes_measured += r.len() as u64;
-                                            for x in &r {
-                                                run.worst_g1_spread_rad =
-                                                    run.worst_g1_spread_rad.max(x.spread_rad);
+                                    match m.geometry.typed_chain() {
+                                        Some(chain) => {
+                                            run.selected_typed_chains += 1;
+                                            run.selected_segments += m.families.len() as u64;
+                                            run.selected_smooth_joins +=
+                                                m.smooth.iter().filter(|smooth| **smooth).count()
+                                                    as u64
+                                                    + u64::from(m.closure_smooth);
+                                            for family in &m.families {
+                                                selected_families
+                                                    .insert(family.universe_name().to_string());
+                                            }
+                                            match chain.lower() {
+                                                Ok(lowered) => {
+                                                    let readings = g1_readings(
+                                                        &lowered,
+                                                        chain.start(),
+                                                        chain.end(),
+                                                    );
+                                                    run.g1_nodes_measured += readings.len() as u64;
+                                                    for reading in &readings {
+                                                        run.worst_g1_spread_rad = run
+                                                            .worst_g1_spread_rad
+                                                            .max(reading.spread_rad);
+                                                    }
+                                                    if m.closure_smooth {
+                                                        match chain
+                                                            .nodes
+                                                            .first()
+                                                            .and_then(|node| node.tangent_rad)
+                                                            .and_then(|declared| {
+                                                                closure_g1_spread_rad(
+                                                                    &lowered,
+                                                                    chain.start(),
+                                                                    chain.end(),
+                                                                    declared,
+                                                                )
+                                                            }) {
+                                                            Some(spread) => {
+                                                                run.g1_nodes_measured += 1;
+                                                                run.worst_g1_spread_rad = run
+                                                                    .worst_g1_spread_rad
+                                                                    .max(spread);
+                                                            }
+                                                            None => {
+                                                                run.g1_lowering_failures += 1;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                // Not swallowed (M6B-N4): a selected
+                                                // model that cannot lower is a defect
+                                                // of the measurement, not a skip.
+                                                Err(_) => run.g1_lowering_failures += 1,
                                             }
                                         }
-                                        // Not swallowed (M6B-N4): a selected
-                                        // model that cannot lower is a defect
-                                        // of the measurement, not a skip.
-                                        Err(_) => run.g1_lowering_failures += 1,
+                                        None => run.selected_loop_primitives += 1,
                                     }
                                 }
                                 None => run.chains_with_no_model += 1,
@@ -451,7 +489,11 @@ mod tests {
             run.chains_with_a_model, run.chains_with_no_model, run.chains_refused_at_entry
         );
         println!(
-            "selected segments           {} ({} smooth joins), families {:?}",
+            "selected geometry           {} typed chains / {} loop primitives",
+            run.selected_typed_chains, run.selected_loop_primitives
+        );
+        println!(
+            "typed-chain segments        {} ({} smooth joins), families {:?}",
             run.selected_segments, run.selected_smooth_joins, run.selected_families
         );
         println!("path refusals               {:?}", run.path_refusals);
@@ -500,6 +542,11 @@ mod tests {
             run.chains_with_a_model > 0,
             "no chain on the corpus produced a model that survived the joint solve; every number \
              about the grammar above is then about nothing (F-0039)"
+        );
+        assert_eq!(
+            run.selected_typed_chains + run.selected_loop_primitives,
+            run.chains_with_a_model,
+            "a selected model was not classified by its materialized geometry"
         );
         assert!(
             run.g1_nodes_measured > 0,
