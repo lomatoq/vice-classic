@@ -132,6 +132,19 @@ pub enum FitRefusal {
     /// The tolerance is on a value the producer DECLARES to be one, so it is a
     /// contract check rather than a geometric threshold.
     NonUnitNormal { sample: usize, length: f64 },
+    /// A correlation length that is not strictly positive or not finite.
+    ///
+    /// **RT6-A2's closure, and the record of why it is here.** The guard above
+    /// was F-0088's fix, and it was a fix by ADDRESS: it checked the fields the
+    /// defect had used and not the CONTRACT the crate reads. The red team then
+    /// drove the same silent-emptiness through the NEIGHBOURING field of the
+    /// same struct: `corr_length_px = 0` made `independent_observations`
+    /// return `None`, `build_edges` silently dropped every edge, and the run
+    /// reported 1604 candidates, 0 paths, 0 models, refused [] — "no path, no
+    /// refusal", F-0088's published formula, at zero lines of attack cost.
+    /// This guard now covers every field of `BoundarySample` this crate reads:
+    /// `p`, `normal`, `weight_ds`, `halfwidth`, `corr_length_px`.
+    NonPositiveCorrLength { sample: usize, corr_length_px: f64 },
 }
 
 /// Everything the candidate stage produced for one chain, including the
@@ -223,6 +236,12 @@ pub fn span_candidates(
             return Err(FitRefusal::NonUnitNormal {
                 sample: i,
                 length: len,
+            });
+        }
+        if !(s.corr_length_px.is_finite() && s.corr_length_px > 0.0) {
+            return Err(FitRefusal::NonPositiveCorrLength {
+                sample: i,
+                corr_length_px: s.corr_length_px,
             });
         }
     }

@@ -466,3 +466,121 @@ fn a_degenerate_arc_is_counted_not_swallowed() {
          data does not choose"
     );
 }
+
+/// **The witness M6A-N3 found missing.** F-0088's guard could be reverted to
+/// finiteness-only with the entire workspace green: no test constructed a
+/// non-unit normal. Two legs, because a red without a green beside it cannot
+/// tell a working refusal from a refusal that fires on everything.
+#[test]
+fn a_zero_normal_is_refused_by_the_contract_check_and_a_unit_one_is_not() {
+    let mut chain = chain_from(&arc_points(40.0, 2.0, 0.5));
+    chain.samples[0].normal = Pt::new(0.0, 0.0);
+    match span_candidates(&chain, &FIT_BUDGET_V1) {
+        Err(vice_fit::FitRefusal::NonUnitNormal { sample, length }) => {
+            assert_eq!(sample, 0, "the refusal must name the malformed sample");
+            assert_eq!(length, 0.0);
+        }
+        other => panic!(
+            "a zero normal must be refused where it is malformed, got {other:?}; unrefused it \
+             empties the DAG downstream with no explanation (F-0088)"
+        ),
+    }
+    // Leg two: the same chain with the normal restored passes, so the guard
+    // is a contract check and not a refusal that fires on everything.
+    let healthy = chain_from(&arc_points(40.0, 2.0, 0.5));
+    assert!(span_candidates(&healthy, &FIT_BUDGET_V1).is_ok());
+    // And a normal within the declared tolerance is NOT refused: the check is
+    // about the contract, not about floating-point piety.
+    let mut nearly = chain_from(&arc_points(40.0, 2.0, 0.5));
+    let n = nearly.samples[3].normal;
+    nearly.samples[3].normal = n * (1.0 + 1e-12);
+    assert!(span_candidates(&nearly, &FIT_BUDGET_V1).is_ok());
+}
+
+/// **RT6-A2's corruption, replayed as a refusal.** `corr_length_px = 0` used to
+/// pass the guard and empty the DAG silently — 1604 candidates, 0 paths,
+/// 0 models, refused [] — through the field NEXT TO the one F-0088's fix
+/// checked. The guard now covers every field of the contract this crate reads.
+#[test]
+fn a_non_positive_correlation_length_is_refused_where_it_is_malformed() {
+    for bad in [0.0f64, -1.0, f64::NAN] {
+        let mut chain = chain_from(&arc_points(40.0, 2.0, 0.5));
+        chain.samples[5].corr_length_px = bad;
+        match span_candidates(&chain, &FIT_BUDGET_V1) {
+            Err(vice_fit::FitRefusal::NonPositiveCorrLength {
+                sample,
+                corr_length_px,
+            }) => {
+                assert_eq!(sample, 5);
+                assert!(corr_length_px == bad || (bad.is_nan() && corr_length_px.is_nan()));
+            }
+            other => panic!("corr_length_px = {bad} must be refused, got {other:?}"),
+        }
+    }
+    // Leg two, through the WHOLE pipeline: the red team's measurement was not
+    // "span_candidates admits it" but "the run ends with no path and no
+    // refusal". The typed refusal must now be what the pipeline reports.
+    let mut chain = chain_from(&arc_points(40.0, 2.0, 0.5));
+    chain.samples[0].corr_length_px = 0.0;
+    let r = vice_fit::k_best_boundary_models(
+        &chain,
+        &FIT_BUDGET_V1,
+        &vice_fit::GEOMETRY_CODE_TABLE_V1,
+        256.0,
+        vice_fit::K_DISCRETE_PATHS,
+    );
+    assert!(
+        matches!(
+            r,
+            Err(vice_fit::FitRefusal::NonPositiveCorrLength { sample: 0, .. })
+        ),
+        "the pipeline must surface the typed refusal, got {r:?}"
+    );
+}
+
+/// **M6B-N3's probe, kept as the regression test.** An empty CLOSED chain
+/// panicked in `rotate` (index out of bounds) while every other degenerate
+/// input was refused by name — in the milestone that recorded F-0088's rule.
+#[test]
+fn an_empty_closed_chain_is_refused_not_a_panic() {
+    use vice_evidence::BoundaryChain;
+    for n_samples in [0usize, 1, 2, 3] {
+        // Built by hand rather than through `chain_from`, whose own contract
+        // requires two points — the subject here is precisely the chains no
+        // honest builder makes, arriving through the public constructor.
+        let samples: Vec<vice_evidence::BoundarySample> = arc_points(40.0, 2.0, 0.5)
+            .into_iter()
+            .take(n_samples)
+            .map(|p| vice_evidence::BoundarySample {
+                p,
+                normal: Pt::new(0.0, -1.0),
+                halfwidth: HALFWIDTH_PX,
+                confidence: 1.0,
+                weight_ds: 0.5,
+                corr_length_px: 1.0,
+            })
+            .collect();
+        let chain = BoundaryChain {
+            vertices: samples.len() as u64,
+            samples,
+            closed: true,
+            length_px: 0.0,
+            corr_length_px: 1.0,
+        };
+        match vice_fit::k_best_boundary_models(
+            &chain,
+            &FIT_BUDGET_V1,
+            &vice_fit::GEOMETRY_CODE_TABLE_V1,
+            256.0,
+            vice_fit::K_DISCRETE_PATHS,
+        ) {
+            Err(vice_fit::FitRefusal::ChainTooShort { samples, minimum }) => {
+                assert_eq!(samples, n_samples);
+                assert_eq!(minimum, MIN_SUPPORT_SAMPLES);
+            }
+            other => {
+                panic!("a {n_samples}-sample closed chain must be ChainTooShort, got {other:?}")
+            }
+        }
+    }
+}

@@ -155,6 +155,7 @@ fn refusal_name(r: &FitRefusal) -> &'static str {
         FitRefusal::NonPositiveHalfwidth { .. } => "non_positive_halfwidth",
         FitRefusal::NonFiniteSample { .. } => "non_finite_sample",
         FitRefusal::NonUnitNormal { .. } => "non_unit_normal",
+        FitRefusal::NonPositiveCorrLength { .. } => "non_positive_corr_length",
     }
 }
 

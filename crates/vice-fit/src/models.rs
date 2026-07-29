@@ -119,6 +119,19 @@ pub fn k_best_boundary_models(
     canvas_dim_px: f64,
     k: usize,
 ) -> Result<ModelRun, FitRefusal> {
+    // M6B-N3: an empty CLOSED chain reached `rotate`, which indexes
+    // `samples[cut]`, and PANICKED — while every other degenerate input is
+    // refused by name. The refusal has to precede `canonical_cuts`/`rotate`,
+    // which is F-0088's rule: an input is refused where it is malformed, not
+    // where its consequences surface. `< MIN_SUPPORT_SAMPLES` rather than
+    // `is_empty`, because `span_candidates` would refuse those lengths anyway
+    // and a rotate on a two-sample closed chain has nothing to select over.
+    if chain.samples.len() < crate::MIN_SUPPORT_SAMPLES {
+        return Err(FitRefusal::ChainTooShort {
+            samples: chain.samples.len(),
+            minimum: crate::MIN_SUPPORT_SAMPLES,
+        });
+    }
     let chain = &dedup_coincident(chain);
     let cuts = if chain.closed {
         canonical_cuts(chain)
