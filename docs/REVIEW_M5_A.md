@@ -1188,3 +1188,153 @@ CI execution (yours). Cross-platform / A7.1. Donor sources (D-3). Whether a `cou
 **The date remains the one I named in addendum 2 and it has not moved:** M6/§14.2 consumes the chain decomposition, and 63(a) is owed before it does.
 
 **GATE §28 M5: MET**
+
+---
+
+# REVIEW_M5_A — addendum 5 (delta-5)
+
+Reviewer A, independent cold review, Opus 5. Signed §0–§9 and addenda 1–4 untouched.
+Object: **`66b07d0`**, commits **C269–C272** on top of `120eb2a`.
+
+## §E0. Hygiene
+
+```
+start / end:  main repo  git status --porcelain → (empty)   HEAD = 66b07d0fff70d191c9832a36c1b28cad2450d1c2
+              measuring clone …/m5a-delta5-rev-tb70x  (empty)  HEAD = 66b07d0
+              experiment clone …/m5a-delta5-exp-tb70x  M walk.rs  (deliberately dirty)
+              git worktree list → one entry, the main tree
+```
+
+`CARGO_TARGET_DIR=…/tgt-m5a-delta5-tb70x` asserted **not to exist** before the first command. Every cargo call blocking. No `git worktree`.
+
+**§27.7 verified:** C269 → `configs/GATES_V1.toml` only; C271 → `docs/gt/DCEL_M5.json` only.
+
+## §E1. Reproduced
+
+| command | result |
+|---|---|
+| `cargo fmt --all --check` | `FMT_EXIT=0` |
+| `cargo clippy --workspace --all-targets -- -D warnings`, **cold target** | `CLIPPY_EXIT=0`, zero diagnostics |
+| `cargo test --locked --workspace` | `DEBUG_EXIT=0` — **547 passed, 0 failed, 15 ignored** |
+| `cargo test --locked --release --workspace` | `RELEASE_EXIT=0` — **547 passed, 0 failed, 15 ignored** |
+| `gt-corpus dcel --scope full` | `GATE_EXIT=0`, **four `[MET]`**; 480 arms, 30 probes, 179 253 slots, UNCAUGHT 0 |
+| artifact | `50FB36EA…6C04ECA` — **byte-identical** |
+| `dcel_props -- --ignored` | 2 passed |
+| `dcel_harness -- --ignored` | **8 passed**; `20 (14 corpus, 6 register); longest 8; total such loops 28` |
+
+## §E2. D4-N1 verified closed — in the direction my experiment demonstrated
+
+I re-ran my over-split verbatim against this HEAD:
+
+```
+REV-A E22 over-split: audit -> Some("§12 asks for MAXIMAL shared boundary chains:
+  3 stored vertices against 2 the labelling requires; 1 point(s) are vertices only in
+  the structure (a chain split where nothing meets: Some((30, 17))) and 0 only in the
+  labelling (a junction swallowed inside a chain: None)")
+```
+
+Caught, and the message names which of the two directions fired. **62(c) and 63(a) are genuinely closed.** The knockout now performs a real cut with every index consistent and asserts that `face_map_agrees` and `loops_agree` *reproduce* it — i.e. it encodes the blindness that made delta-4's test miss my case, rather than only the case.
+
+I also want to record that the author confirmed **both** directions himself before editing, and wrote the cause as *"these two sentences look the same; therefore Q4 is now asked of the call site."* That is the correct generalisation of what I caught, and it is stronger than the finding.
+
+## §E3. Your three questions
+
+### E3.1 — Q4 on the new vertex check, **by code**
+
+`vertices_of_the_labelling(d)` reads exactly:
+
+| read | provenance |
+|---|---|
+| `d.labelling().inside()` | **the input** |
+| `d.width_px()`, `d.height_px()` | `self.labelling.{width,height}_px()` — **the input** |
+| `d.connectivity()` | `self.conn` — the second **input**, stored verbatim from `assemble`'s argument |
+
+It reads **no derived field**. Not `vertices`, not `boundaries`, not `faces`, not the map. `vertices_agree_with_the_labelling` then compares that derived set against `d.vertices()` as sets. **Q4 passes on the data, by code and not by comment.**
+
+What it shares is the **algorithm**: `orbits(&arr)`, `arr.degree()`, and the `min`-of-the-loop rule for junction-free loops are byte-identical to `assemble`'s. That is the same residual `loops.rs` already declares for the loop comparison, and it is declared consistently here. Against that residual stand the exhaustive sweep and the owner/site predicate — whose reach I measured in addendum 3 (`w = 4`) and which the file now states with that bound.
+
+### E3.2 — What the new check does **not** bind: the residual class, stated exactly
+
+The comparison is between **sets**. So it binds *which lattice points are vertices*. It does not bind **which index each one has**. Generalising across the whole structure, and this is the class:
+
+> **Everything anchored to the input is anchored as a SET or as a CYCLIC SEQUENCE. Every remaining freedom is a choice of INDEX or ORDER, and those are bound only to themselves.**
+
+Three instances. Two verified by execution:
+
+**(a) the order of `vertices`, and the `start`/`end` indices that reference it.**
+```
+REV-A E21 vertices sorted before: true
+REV-A E21 vertices sorted after : false
+REV-A E21 audit -> None          parts changed? true
+```
+Swap two entries of `vertices`, remap every `start`/`end` consistently: the set is unchanged, `verts[b.start]` still equals `b.path[0]`, `V` is unchanged so Euler holds — and the audit accepts a structure whose vertex list is no longer in lattice order.
+
+**(b) face ids among faces carrying the same label.**
+```
+REV-A E21b face labels: [false, true, true]
+REV-A E21b audit -> None          parts changed? true
+```
+The per-pixel anchor compares **labels**, not ids. Swapping two same-label faces consistently through the map, the owners and the loops passes everything. (In addendum 2 the same swap was *caught* — because those two faces had **different** labels. This is the surviving half of that finding, and it survives the anchor by construction.)
+
+**(c) the order of `loops` within a face, and the `site.1` values referencing it** — same shape, **not run**, stated as untested.
+
+**What this costs.** None of the three is a §12 invariant, and none moves a count, so none moves the artifact. What they do contradict is `dcel/mod.rs`'s Determinism paragraph — *"every scan is in a fixed lattice order … every face id comes from raster order of its first pixel … §5.5 Tier A is a byte comparison for this structure"*. That claim holds only if `assemble` emits the canonical order, and **nothing checks that it does**. A defect inside `assemble` that permuted either would be self-consistent, pass every check, and leave the artifact byte-identical — the D1-N1 shape, moved from correctness onto canonicalisation. **M5A-D5-N1, MINOR**, because the property at risk is Tier A determinism rather than topology, and because §5.5's Tier A promise is a same-binary byte comparison that a permuting `assemble` would still satisfy against itself.
+
+### E3.3 — The floor of six, the other side
+
+**Your premise does not hold for this implementation, and I checked it rather than assumed it.** `Threshold::met_by` is `measured >= self.0` (`topology/gate.rs:49-51`). A floor of six therefore reddens on **loss** and passes on **growth**: eight register arms would still be MET. Nothing in the tree asserts equality, so the floor is not brittle upward. The gate-file comment claims only the loss direction — *"lose any size, or any arm, and the row goes NOT MET"* — and that claim is exact.
+
+**The real other side is the one the comment names and nothing enforces.** The floor encodes "every size" *only while the size list has three entries*. Add a fourth size: the register produces eight, the floor stays six, and one whole size can drop out silently — exactly the slack D4-N3 was about, restored. The author writes the cost — *"this floor now moves whenever the register's size list does"* — but the coupling is manual. F-0048 Q2's answer here is **"somebody remembers to bump the number"**, which is the form this project has rejected eight times.
+
+The closure is the project's own pattern, one comparison: **derive the expected count from the register** (fixtures carrying a long loop × sizes × arms) and require the floor to **equal** it, the way `every_frozen_value_agrees_with_the_code_that_uses_it` already ties file to code. That makes the row red on loss *and* on unbumped growth, and the number stops being a hand-maintained transcription of a list. **M5A-D5-N2, MINOR.**
+
+## §E4. Conditions, by halves (condition 38)
+
+| | half | status |
+|---|---|---|
+| **52** | (a) swapped args · (b) rows bound positionally | **CLOSED** · **OPEN**, limitation 36, M6 |
+| **53** | (a) eight stale numbers · (b) numbers derived | **CLOSED** · **OPEN**, M6 |
+| **54** | (a) CI steps · (b) claim derived from `ci.yml` · (c) CI observed green | **CLOSED · CLOSED · OPEN — yours** |
+| **55** | (a) excluded count published · (b) compound transactions attempted | **CLOSED** · **OPEN**, limitation 37, M6 |
+| **56** | tautological conjunct removed | **CLOSED** |
+| **57** | (a) degree multiset · (b) junction detection | **CLOSED · CLOSED** |
+| **58** | (a) `path[j].1` · (b) leaf-count judge | **CLOSED · CLOSED** |
+| **59** | (a) range guards · (b) residual priced | **CLOSED · CLOSED** |
+| **60** | (a) knockout non-emptiness · (b) traceability · (c) saddle axis | **CLOSED · CLOSED · CLOSED** |
+| **61** | (a) §12 claim · (b) ORIENTED anchored · (c) row states guarded-not-measured | **CLOSED · CLOSED · CLOSED** |
+| **62** | (a) population floor gated · (b) profile in the artifact · (c) chain maximality | **CLOSED · CLOSED · CLOSED** (both directions, verified E22) |
+| **63** | (a) vertex set re-derived from the labelling | **CLOSED** — Q4 passes by code |
+| | (b) `DropLongLoops` third leg | **CLOSED AS NARROWED** — recorded as two legs in STATUS §A5.3 with what a real third would require. Correct response to that finding |
+| | (c) floor raised to match its standard | **CLOSED for the current size list**; the coupling is manual — D5-N2 |
+| **64** *(new)* | (a) the floor derived from the register instead of transcribed | **OPEN** — D5-N2 |
+| | (b) canonical order of `vertices`, face ids among same-label faces, loop order within a face — checked, or the Determinism paragraph narrowed to what is held | **OPEN** — D5-N1 |
+
+## §E5. F-0048 on my own method
+
+**Q1 — literal enumerating my subjects?** Your three questions again, and this time I can name what broke the pattern: I answered E3.3 by *reading `met_by`* instead of accepting the premise in the question. The premise was wrong, and had I taken it I would have written a finding that does not exist. **The reviewer's own brief is an untrusted input, and Q4 applies to it.**
+
+**Q2 — what happens at the next finding?** Unchanged.
+
+**Q3 — who was my judge?** The test binary for E21, E21b, E22. For E3.1 the judge was the function body — I listed every expression it reads, which is the check I invented in addendum 4 after being burned by a comment. For E3.3 the judge was `met_by`'s two lines.
+
+**Q4 — did my guard share a key with the mechanism?** For E21/E21b the verdict is `audit()` returning `Ok`, the mechanism judging itself — legitimate, since the question is "does it accept". The independent facts are `vertices sorted after: false` and `face labels [false, true, true]`, both computed from the value rather than from the audit.
+
+**Q5 — both directions?** E22 red (the closure works), E21/E21b green-where-they-should-be-red (the residual), baseline green.
+
+**What I got right that I did not, last time.** My addendum 4 finding was half my own fault — I shipped prose and the reproduction lost the half prose does not distinguish. This time every claim in §E3.2 arrived with the twenty lines that produce it, and the author has taken that rule into the ledger. That is the only method change I have made across five deltas that I would defend as an improvement rather than as luck.
+
+## §E6. What I could not verify
+
+CI execution (yours). Cross-platform / A7.1. Donor sources (D-3). Residual instance (c) — loop order within a face — named by symmetry and not run. Whether a permuting `assemble` would survive `dcel-check` on a *second machine*; on one machine it agrees with itself by construction.
+
+## §E7. Verdict
+
+**VERDICT (addendum 5): ACCEPT WITH CONDITIONS — two minor (D5-N1, D5-N2), no major, no blocker.**
+
+D4-N1 is closed in the direction my experiment demonstrated, verified by re-running it; the new vertex derivation passes Q4 by code and not by comment; the floor is raised to the value that makes it mean what its comment says; and the D4-N2 overstatement is narrowed rather than papered over. This is the first delta in which nothing I found is a claim that the tree does not keep.
+
+The two minors are both of the same shape and both small: a number that must be bumped by hand, and a canonicalisation claim wider than what is checked. Neither touches a §28 M5 clause, neither moves a count, and neither needs a blocker to be worth closing.
+
+**The M6/§14.2 date I have carried since addendum 2 is now clear.** Chain decomposition is bound in both directions, so the thing M6 consumes is anchored. What remains open against M6 is unchanged and unrelated: limitation 36 (52b/53b), limitation 37 (55b), and CI (54c) — yours.
+
+**GATE §28 M5: MET**
