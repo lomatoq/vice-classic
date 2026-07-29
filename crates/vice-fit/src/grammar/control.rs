@@ -21,8 +21,10 @@ pub fn k_best_proposal_control_paths(
     edges: &[GrammarEdge],
     samples: &[BoundarySample],
     k: usize,
-) -> Vec<ProposalControlPath> {
-    super::k_best_paths_for_objective(
+) -> Result<Vec<ProposalControlPath>, crate::FitRefusal> {
+    crate::validate_samples(samples)?;
+    super::validate_grammar_edges(edges, samples)?;
+    Ok(super::k_best_paths_for_objective(
         edges,
         samples,
         &crate::GEOMETRY_CODE_TABLE_V1,
@@ -38,5 +40,5 @@ pub fn k_best_proposal_control_paths(
         smooth: path.smooth,
         residual_cost_px: path.proposal_cost_px,
     })
-    .collect()
+    .collect())
 }

@@ -17,13 +17,13 @@
 
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
-    build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models,
-    k_best_proposal_control_paths, span_candidates, BoundaryModel, FitBudget, FitRefusal,
-    ForcedFitRefusal, SpanFamily, FITTED_FAMILIES, FIT_BUDGET_V1,
-    GATE_MAX_BREAKPOINT_FRACTION_DELTA, GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD,
-    GATE_MAX_TRANSLATION_DELTA_BITS, GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD,
-    GATE_MIN_INVARIANCE_LEGS, GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1,
-    K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
+    build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models, k_best_paths,
+    k_best_proposal_control_paths, materialize, span_candidates, BoundaryModel, ChainCode,
+    FitBudget, FitRefusal, ForcedFitRefusal, GrammarEdge, GrammarPath, ProposalCost, SpanCandidate,
+    SpanFamily, Support, FITTED_FAMILIES, FIT_BUDGET_V1, GATE_MAX_BREAKPOINT_FRACTION_DELTA,
+    GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD, GATE_MAX_TRANSLATION_DELTA_BITS,
+    GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD, GATE_MIN_INVARIANCE_LEGS,
+    GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
 };
 use vice_geom::Pt;
 use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
@@ -32,8 +32,126 @@ const HALFWIDTH_PX: f64 = 0.35;
 const CORR_LENGTH_PX: f64 = 1.0;
 const CANVAS_PX: f64 = 256.0;
 
+fn direct_line_edge(from: usize, to: usize) -> GrammarEdge {
+    GrammarEdge {
+        candidate: 0,
+        from,
+        to,
+        family: SpanFamily::Line,
+        entry_class: 0,
+        exit_class: 0,
+        entry_rad: 0.0,
+        exit_rad: 0.0,
+        residual_bits: 0.0,
+        proposal_cost_px: 0.0,
+    }
+}
+
+fn zero_proposal_cost() -> ProposalCost {
+    ProposalCost {
+        cost_px: 0.0,
+        max_normal_deviation_px: 0.0,
+        max_euclidean_deviation_px: 0.0,
+        worst_ratio: None,
+        material_samples: 0,
+    }
+}
+
 fn chain_from(points: &[Pt], closed: bool) -> BoundaryChain {
     chain_scaled(points, closed, 1.0)
+}
+
+#[test]
+fn exported_grammar_boundaries_refuse_structurally_foreign_inputs() {
+    let observation = chain_from(&[Pt::new(0.0, 0.0), Pt::new(1.0, 0.0)], false);
+    let foreign_candidate = SpanCandidate {
+        support: Support::new(0, 2).expect("non-empty support"),
+        family: SpanFamily::Line,
+        segment: Segment::Line,
+        cost: zero_proposal_cost(),
+    };
+    assert!(matches!(
+        build_edges(
+            &[foreign_candidate],
+            &observation.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            CANVAS_PX
+        ),
+        Err(FitRefusal::CandidateSupportOutOfRange {
+            candidate: 0,
+            lo: 0,
+            hi: 2,
+            samples: 2
+        })
+    ));
+
+    let foreign_edge = direct_line_edge(2, 3);
+    assert!(matches!(
+        k_best_paths(
+            &[foreign_edge],
+            &observation.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            CANVAS_PX,
+            1
+        ),
+        Err(FitRefusal::InvalidGrammarEdgeTopology {
+            edge: 0,
+            from: 2,
+            to: 3,
+            samples: 2
+        })
+    ));
+    assert!(matches!(
+        k_best_proposal_control_paths(&[foreign_edge], &observation.samples, 1),
+        Err(FitRefusal::InvalidGrammarEdgeTopology { edge: 0, .. })
+    ));
+
+    let empty_path = GrammarPath {
+        candidates: Vec::new(),
+        breakpoints: Vec::new(),
+        smooth: Vec::new(),
+        closed: false,
+        closure_smooth: false,
+        code: ChainCode::default(),
+        proposal_cost_px: 0.0,
+    };
+    assert_eq!(materialize(&empty_path, &[], &[], &[]), None);
+}
+
+#[test]
+fn exported_grammar_boundaries_refuse_non_physical_edge_values() {
+    let observation = chain_from(&[Pt::new(0.0, 0.0), Pt::new(1.0, 0.0)], false);
+    for residual_bits in [-100.0, f64::INFINITY, f64::MAX] {
+        let mut edge = direct_line_edge(0, 1);
+        edge.residual_bits = residual_bits;
+        assert!(matches!(
+            k_best_paths(
+                &[edge],
+                &observation.samples,
+                &GEOMETRY_CODE_TABLE_V1,
+                CANVAS_PX,
+                1
+            ),
+            Err(FitRefusal::InvalidGrammarEdgeCost { edge: 0, .. })
+        ));
+        assert!(matches!(
+            k_best_proposal_control_paths(&[edge], &observation.samples, 1),
+            Err(FitRefusal::InvalidGrammarEdgeCost { edge: 0, .. })
+        ));
+    }
+
+    let mut edge = direct_line_edge(0, 1);
+    edge.entry_class = vice_fit::JET_CLASSES;
+    assert!(matches!(
+        k_best_paths(
+            &[edge],
+            &observation.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            CANVAS_PX,
+            1
+        ),
+        Err(FitRefusal::InvalidGrammarEdgeJet { edge: 0, .. })
+    ));
 }
 
 /// A chain whose corridor and correlation length scale with the geometry — a
@@ -834,7 +952,8 @@ fn the_lower_residual_model_does_not_win_when_its_code_is_longer() {
         CANVAS_PX,
     )
     .expect("validated candidates");
-    let paths = k_best_proposal_control_paths(&edges, &chain.samples, K_DISCRETE_PATHS);
+    let paths = k_best_proposal_control_paths(&edges, &chain.samples, K_DISCRETE_PATHS)
+        .expect("validated control grammar");
     let cheapest = paths.first().expect("a discrete path");
     let cheap_families: Vec<SpanFamily> = cheapest
         .candidates

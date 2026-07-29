@@ -193,6 +193,48 @@ pub enum FitRefusal {
         residual_bits_per_observation: f64,
         accumulated_bits: f64,
     },
+    /// A caller supplied a fitted candidate whose support belongs to a
+    /// different sample slice. `Support` proves only `hi > lo`; it cannot prove
+    /// which chain owns those indices.
+    CandidateSupportOutOfRange {
+        candidate: usize,
+        lo: usize,
+        hi: usize,
+        samples: usize,
+    },
+    /// A public candidate carries a proposal integral that is not a finite
+    /// non-negative physical cost.
+    InvalidCandidateCost {
+        candidate: usize,
+        proposal_cost_px: f64,
+    },
+    /// A public candidate's declared family does not name the segment variant
+    /// it carries, so pricing that declaration would code a different model.
+    CandidateFamilyMismatch { candidate: usize },
+    /// A caller-constructed grammar edge is not a forward edge inside this
+    /// sample slice.
+    InvalidGrammarEdgeTopology {
+        edge: usize,
+        from: usize,
+        to: usize,
+        samples: usize,
+    },
+    /// A caller-constructed grammar edge carries a class outside the frozen
+    /// jet alphabet or a non-finite direction.
+    InvalidGrammarEdgeJet {
+        edge: usize,
+        entry_class: usize,
+        exit_class: usize,
+        entry_rad: f64,
+        exit_rad: f64,
+    },
+    /// A caller-constructed grammar edge carries a negative/non-finite cost, or
+    /// a finite cost too large to accumulate over this DAG without overflow.
+    InvalidGrammarEdgeCost {
+        edge: usize,
+        residual_bits: f64,
+        proposal_cost_px: f64,
+    },
     /// A public single-cut request named a sample that does not exist.
     CutOutOfRange { cut: usize, samples: usize },
     /// The physical coordinate range used by the code is not finite and

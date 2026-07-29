@@ -49,8 +49,11 @@ use crate::span::{SpanCandidate, SpanFamily};
 
 mod closure;
 mod control;
+mod surface;
 use closure::{close_finished_path, ClosureMode, ClosureState};
 pub use control::{k_best_proposal_control_paths, ProposalControlPath};
+pub use surface::{candidate_jets, free_scalars};
+use surface::{validate_candidate, validate_grammar_edges};
 
 /// Buckets the endpoint tangent direction is quantized into for the DP state.
 ///
@@ -90,21 +93,6 @@ pub fn jet_compatible(a: usize, b: usize) -> bool {
     d <= 1 || d == JET_CLASSES - 1
 }
 
-/// Directions a candidate leaves its first sample with and arrives at its last
-/// sample with, in radians.
-pub fn candidate_jets(c: &SpanCandidate, samples: &[BoundarySample]) -> Option<(f64, f64)> {
-    let p0 = samples[c.support.lo()].p;
-    let p1 = samples[c.support.hi()].p;
-    let (poly, _) = crate::span::flatten(&c.segment, p0, p1)?;
-    if poly.len() < 2 {
-        return None;
-    }
-    let entry = poly[1] - poly[0];
-    let exit = poly[poly.len() - 1] - poly[poly.len() - 2];
-    (entry.length_sq() > 0.0 && exit.length_sq() > 0.0)
-        .then(|| (entry.y.atan2(entry.x), exit.y.atan2(exit.x)))
-}
-
 /// Whether a family's endpoint tangent can take an arbitrary value.
 ///
 /// A line's cannot: it is the chord, fixed by the two nodes. So a smooth join
@@ -130,27 +118,6 @@ fn smooth_transition_is_representable(
         SpanFamily::CircularArc => !incoming_head_shared,
         SpanFamily::Line => outgoing != SpanFamily::Line,
         SpanFamily::Cubic => true,
-    }
-}
-
-/// Scalars a family still has to code, given which of its ends read a shared
-/// tangent.
-///
-/// Exact, family by family, rather than a saving applied uniformly:
-/// - a line has none either way;
-/// - a circle through two points with a prescribed tangent at EITHER end is
-///   determined, so one shared end takes its radius to zero free scalars and a
-///   second one takes nothing further;
-/// - a quadratic's single control point loses one scalar per shared end, and
-///   with both shared it is the intersection of the two tangent lines;
-/// - a cubic loses one scalar per shared end, keeping a handle length.
-pub fn free_scalars(f: SpanFamily, head_shared: bool, tail_shared: bool) -> usize {
-    let shared = usize::from(head_shared) + usize::from(tail_shared);
-    match f {
-        SpanFamily::Line => 0,
-        SpanFamily::CircularArc => usize::from(shared == 0),
-        SpanFamily::Quad => 2 - shared.min(2),
-        SpanFamily::Cubic => 4 - shared.min(2),
     }
 }
 
@@ -213,6 +180,7 @@ pub fn build_edges(
     let precision = table.coordinate_precision_px();
     let mut out = Vec::with_capacity(candidates.len());
     for (i, c) in candidates.iter().enumerate() {
+        validate_candidate(c, i, samples)?;
         let Some((entry_rad, exit_rad)) = candidate_jets(c, samples) else {
             continue;
         };
@@ -332,6 +300,7 @@ pub fn k_best_paths(
     k: usize,
 ) -> Result<Vec<GrammarPath>, crate::FitRefusal> {
     let first_sample_bits = crate::code::first_sample_residual_bits(samples, table, canvas_dim_px)?;
+    validate_grammar_edges(edges, samples)?;
     Ok(k_best_paths_for_objective(
         edges,
         samples,
@@ -352,6 +321,7 @@ pub(crate) fn k_best_paths_with_closure(
     closed: bool,
 ) -> Result<Vec<GrammarPath>, crate::FitRefusal> {
     let first_sample_bits = crate::code::first_sample_residual_bits(samples, table, canvas_dim_px)?;
+    validate_grammar_edges(edges, samples)?;
     if !closed {
         return Ok(k_best_paths_for_objective(
             edges,
@@ -651,6 +621,13 @@ pub fn materialize(
     candidates: &[SpanCandidate],
     samples: &[BoundarySample],
 ) -> Option<RefitChain> {
+    if path.candidates.is_empty()
+        || path.breakpoints.len() + 1 != path.candidates.len()
+        || path.smooth.len() != path.breakpoints.len()
+        || (path.closure_smooth && !path.closed)
+    {
+        return None;
+    }
     materialize_with_closure(path, edges, candidates, samples)
 }
 
@@ -668,7 +645,24 @@ pub(crate) fn materialize_with_closure(
         .iter()
         .map(|c| edges.iter().position(|e| e.candidate == *c))
         .collect::<Option<Vec<_>>>()?;
+    if ids.is_empty() {
+        return None;
+    }
     let es: Vec<&GrammarEdge> = ids.iter().map(|i| &edges[*i]).collect();
+    if es.iter().enumerate().any(|(i, edge)| {
+        edge.from >= edge.to
+            || edge.to >= samples.len()
+            || edge.candidate >= candidates.len()
+            || candidates[edge.candidate].support.lo() != edge.from
+            || candidates[edge.candidate].support.hi() != edge.to
+            || candidates[edge.candidate].family != edge.family
+            || (i > 0 && es[i - 1].to != edge.from)
+            || (i > 0 && path.breakpoints[i - 1] != edge.from)
+    }) || es.first()?.from != 0
+        || es.last()?.to + 1 != samples.len()
+    {
+        return None;
+    }
 
     let mut nodes: Vec<RefitNode> = Vec::with_capacity(es.len() + 1);
     nodes.push(RefitNode {
