@@ -196,11 +196,21 @@ pub fn models_at_cut(
 /// coincident samples, which is exactly why this had to be measured rather than
 /// assumed: the defect is invisible on the population the pipeline actually
 /// sees, and §14.5 asks for the property anyway.
+///
+/// **Collapse is by [`DUPLICATE_EPSILON_PX`], not by bit-identity — RT6-A6.**
+/// The first version compared `prev.p == s.p`, and the red team re-ran F-0089's
+/// mechanism through it: near-duplicates offset by 1e-9 px — the same physical
+/// point of the same observation — did not collapse, the index schedule
+/// shifted, and the SELECTION changed (five segments became six, 329.465 to
+/// 353.213 bits). "Identical under duplication" held only for byte-identical
+/// duplicates, a class narrower than the invariance the test's name claims.
 pub fn dedup_coincident(chain: &BoundaryChain) -> BoundaryChain {
     let mut samples: Vec<BoundarySample> = Vec::with_capacity(chain.samples.len());
     for s in &chain.samples {
         match samples.last_mut() {
-            Some(prev) if prev.p == s.p => prev.weight_ds += s.weight_ds,
+            Some(prev) if (prev.p - s.p).length() <= DUPLICATE_EPSILON_PX => {
+                prev.weight_ds += s.weight_ds
+            }
             _ => samples.push(*s),
         }
     }
@@ -214,6 +224,20 @@ pub fn dedup_coincident(chain: &BoundaryChain) -> BoundaryChain {
         ..chain.clone()
     }
 }
+
+/// Below this separation, in px, two consecutive samples are ONE observation.
+///
+/// A threshold, and what it hides is stated: two genuinely distinct
+/// observations closer than a millionth of a pixel collapse into one, with
+/// their arclength summed. A millionth of a pixel is five orders below the
+/// frozen observability floor (0.35 px — the smallest length whose parameters
+/// the calibration says are recoverable at all) and three orders above the
+/// f64 rounding of coordinates in a 10^4-px canvas, so everything it can hide
+/// is unresolvable and everything it must catch (RT6-A6's 1e-9 px
+/// near-duplicates) is caught with three orders of margin. It is part of the
+/// frozen pricing surface's world only indirectly; what binds it is the
+/// duplicate-invariance test, which now runs at 1e-9 px offsets.
+pub const DUPLICATE_EPSILON_PX: f64 = 1e-6;
 
 /// The points a closed chain is opened at.
 ///

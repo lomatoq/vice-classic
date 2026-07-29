@@ -69,7 +69,9 @@ pub use grammar::{
     build_edges, jet_class, jet_compatible, k_best_paths, materialize, GrammarEdge, GrammarPath,
     JET_CLASSES, K_DISCRETE_PATHS,
 };
-pub use models::{canonical_cuts, k_best_boundary_models, BoundaryModel, ModelRun};
+pub use models::{
+    canonical_cuts, k_best_boundary_models, BoundaryModel, ModelRun, DUPLICATE_EPSILON_PX,
+};
 pub use refit::{
     canonical_angle, g1_readings, ArcAnchor, G1Reading, Handle, RefitChain, RefitNode,
     RefitRefusal, RefitSegment, FEASIBLE_HALFWIDTHS,

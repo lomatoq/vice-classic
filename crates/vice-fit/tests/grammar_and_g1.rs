@@ -270,6 +270,56 @@ fn the_selection_is_invariant_to_duplicate_samples() {
     assert_eq!(a.smooth, b.smooth);
 }
 
+/// **RT6-A6's corruption, replayed.** The duplicate invariance held only on
+/// BIT-identical duplicates: near-duplicates offset by 1e-9 px — the same
+/// physical point of the same observation — did not collapse under the old
+/// `==` comparison, the index schedule shifted, and the selection changed
+/// (five segments became six, 329.465 to 353.213 bits). The collapse is now by
+/// `DUPLICATE_EPSILON_PX`, and this replays the red team's exact offsets.
+#[test]
+fn the_selection_is_invariant_to_near_duplicate_samples() {
+    let pts = s_curve(0.5);
+    let plain = chain_from(&pts, false);
+    let a = best(&plain, CANVAS_PX);
+
+    // Every third sample repeated at a 1e-9 px offset — the red team's probe.
+    let mut nearly: Vec<Pt> = Vec::new();
+    for (i, p) in pts.iter().enumerate() {
+        nearly.push(*p);
+        if i % 3 == 0 {
+            nearly.push(*p + Pt::new(1e-9, -1e-9));
+        }
+    }
+    let dup = chain_from(&nearly, false);
+    let b = best(&dup, CANVAS_PX);
+    println!(
+        "plain {:?} {:9.3} bits | near-duplicated {:?} {:9.3} bits",
+        a.families,
+        a.code.total_bits(),
+        b.families,
+        b.code.total_bits()
+    );
+    assert_eq!(
+        a.families, b.families,
+        "1e-9 px near-duplicates changed the family sequence: the invariance holds only on bit          identity, which is RT6-A6 verbatim"
+    );
+    assert_eq!(a.smooth, b.smooth);
+    // And a separation well ABOVE the epsilon still counts as two samples:
+    // the collapse must not merge what the resampling genuinely produced.
+    let eps = vice_fit::DUPLICATE_EPSILON_PX;
+    let spread: Vec<Pt> = pts
+        .iter()
+        .flat_map(|p| [*p, *p + Pt::new(100.0 * eps, 0.0)])
+        .collect();
+    let wide = chain_from(&spread, false);
+    let deduped = vice_fit::models::dedup_coincident(&wide);
+    assert_eq!(
+        deduped.samples.len(),
+        wide.samples.len(),
+        "samples 100 epsilon apart were merged; the epsilon is eating real observations"
+    );
+}
+
 /// §14.3's cut-invariance test for closed loops, in the form the spec's own
 /// wording requires and in the form that is actually true.
 ///
