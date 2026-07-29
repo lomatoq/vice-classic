@@ -257,8 +257,19 @@ fn the_candidate_cap_applies_to_the_physical_loop_not_each_cut() {
     let per_cut_max = cuts
         .iter()
         .map(|cut| {
-            let rotated = vice_fit::models::rotate(&chain, *cut);
-            span_candidates(&rotated, &FIT_BUDGET_V1)
+            let n = chain.samples.len();
+            let mut samples: Vec<_> = (0..n)
+                .map(|index| chain.samples[(cut + index) % n])
+                .collect();
+            let mut seam = chain.samples[*cut];
+            seam.normal = chain.samples[(cut + n - 1) % n].normal;
+            seam.weight_ds = 0.0;
+            samples.push(seam);
+            let opened = BoundaryChain {
+                samples,
+                ..chain.clone()
+            };
+            span_candidates(&opened, &FIT_BUDGET_V1)
                 .expect("single cut fits the default budget")
                 .supports
                 * FITTED_FAMILIES.len()
@@ -273,6 +284,50 @@ fn the_candidate_cap_applies_to_the_physical_loop_not_each_cut() {
             ..
         })
     ));
+}
+
+#[test]
+fn public_model_entry_points_refuse_invalid_canvas_dimensions() {
+    let points: Vec<Pt> = (0..=8).map(|x| Pt::new(x as f64, 0.0)).collect();
+    let chain = chain_from(&points, false);
+    for canvas_dim_px in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        let expected = FitRefusal::InvalidCanvasDimension { canvas_dim_px };
+        let run = k_best_boundary_models(&chain, &FIT_BUDGET_V1, canvas_dim_px, K_DISCRETE_PATHS);
+        assert!(
+            matches!(
+                run,
+                Err(FitRefusal::InvalidCanvasDimension { canvas_dim_px: got })
+                    if got.to_bits() == canvas_dim_px.to_bits()
+            ),
+            "k-best accepted {canvas_dim_px:?}: {run:?}"
+        );
+        let cut =
+            vice_fit::models_at_cut(&chain, 0, &FIT_BUDGET_V1, canvas_dim_px, K_DISCRETE_PATHS);
+        assert!(
+            matches!(
+                cut,
+                Err(FitRefusal::InvalidCanvasDimension { canvas_dim_px: got })
+                    if got.to_bits() == canvas_dim_px.to_bits()
+            ),
+            "single-cut accepted {canvas_dim_px:?}: {cut:?}"
+        );
+        let forced = fit_forced_boundary_models(
+            &chain,
+            &[SpanFamily::Line],
+            &[],
+            canvas_dim_px,
+            K_DISCRETE_PATHS,
+        );
+        assert!(
+            matches!(
+                forced,
+                Err(ForcedFitRefusal::Input {
+                    refusal: FitRefusal::InvalidCanvasDimension { canvas_dim_px: got }
+                }) if got.to_bits() == canvas_dim_px.to_bits()
+            ),
+            "forced fit accepted {canvas_dim_px:?}: {forced:?}; expected {expected:?}"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -52,10 +52,8 @@ use crate::span::{NoFit, SpanCandidate, SpanFamily};
 use crate::{span_candidates, FitRefusal};
 
 mod closed;
-use closed::cut_is_jet_smooth;
-pub use closed::{
-    canonical_cuts, dedup_coincident, rotate, DUPLICATE_EPSILON_PX, MAX_CANONICAL_CUTS,
-};
+pub use closed::{canonical_cuts, dedup_coincident, DUPLICATE_EPSILON_PX, MAX_CANONICAL_CUTS};
+use closed::{cut_is_jet_smooth, rotate};
 
 /// The geometry selected by Stage H.
 ///
@@ -277,6 +275,7 @@ pub fn k_best_boundary_models(
     canvas_dim_px: f64,
     k: usize,
 ) -> Result<ModelRun, FitRefusal> {
+    crate::validate_canvas_dimension(canvas_dim_px)?;
     k_best_boundary_models_with_table(
         chain,
         budget,
@@ -306,6 +305,8 @@ pub fn fit_forced_boundary_models(
     k: usize,
 ) -> Result<ModelRun, ForcedFitRefusal> {
     crate::validate_chain(chain).map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
+    crate::validate_canvas_dimension(canvas_dim_px)
+        .map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
     let closed = chain.closed;
     let base_chain = dedup_coincident(chain);
     let closure_smooth = closed && cut_is_jet_smooth(&base_chain, 0);
@@ -580,6 +581,7 @@ pub fn models_at_cut(
     k: usize,
 ) -> Result<ModelRun, FitRefusal> {
     crate::validate_chain(chain)?;
+    crate::validate_canvas_dimension(canvas_dim_px)?;
     let chain = dedup_coincident(chain);
     if cut >= chain.samples.len() {
         return Err(FitRefusal::CutOutOfRange {

@@ -171,6 +171,17 @@ pub enum FitRefusal {
     NonPositiveCorrLength { sample: usize, corr_length_px: f64 },
     /// A public single-cut request named a sample that does not exist.
     CutOutOfRange { cut: usize, samples: usize },
+    /// The physical coordinate range used by the code is not finite and
+    /// strictly positive. Logarithmic anchor costs are undefined otherwise.
+    InvalidCanvasDimension { canvas_dim_px: f64 },
+}
+
+pub(crate) fn validate_canvas_dimension(canvas_dim_px: f64) -> Result<(), FitRefusal> {
+    if canvas_dim_px.is_finite() && canvas_dim_px > 0.0 {
+        Ok(())
+    } else {
+        Err(FitRefusal::InvalidCanvasDimension { canvas_dim_px })
+    }
 }
 
 /// Everything the candidate stage produced for one chain, including the

@@ -149,7 +149,7 @@ pub(super) fn cut_is_jet_smooth(chain: &BoundaryChain, cut: usize) -> bool {
 
 /// Rotate a closed chain so `cut` is first and repeat it once as an unweighted
 /// geometric endpoint. The final copy carries the incoming-side normal.
-pub fn rotate(chain: &BoundaryChain, cut: usize) -> BoundaryChain {
+pub(super) fn rotate(chain: &BoundaryChain, cut: usize) -> BoundaryChain {
     if cut == 0 && !chain.closed {
         return chain.clone();
     }
