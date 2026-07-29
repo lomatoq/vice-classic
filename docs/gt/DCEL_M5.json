@@ -19572,12 +19572,12 @@
     "arrangements_probed": 30,
     "branches_seen": [
       {
-        "branch": "arrangement@649",
+        "branch": "arrangement",
         "arms_seen": 472,
         "arms_probed": 1
       },
       {
-        "branch": "empty@400",
+        "branch": "empty",
         "arms_seen": 8,
         "arms_probed": 1
       }
