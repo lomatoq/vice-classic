@@ -463,3 +463,281 @@ than a closure, and it is named at its true price rather than above it.
   not change.
 
 **STOPPED AFTER M6 — the successor under §28 is M7, and M7 IS NOT STARTED.**
+
+---
+
+# Addendum 2 — §28 M6 bullets 1 and 2 (C294–C299)
+
+A fresh author context. The governor directed §28 M6 and forbade M7 and
+beyond. **§28 M6's six bullets were NOT STARTED when this pass began**; two of
+them are started and finished now, four are not, and the gate has not been
+evaluated because none of the code it evaluates exists.
+
+## A2.1 The ladder, measured, with a positive control
+
+Not inherited from the body above or from addendum 1 — a STOP line is a claim
+about the ladder and F-0080 is the record of what inheriting one costs. Spec
+hash re-verified as the first action of the pass:
+
+```
+652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1   (matches)
+```
+
+Headings inside §28 (lines 1895–2045), read whole:
+
+```
+M0 M1 M2 M3 M3.5 M4 M4.5 M5 M6 M7 M8 P1 M9 M10 M11 M12
+```
+
+- **M6 EXISTS** — "Typed grammar + k-best DP + joint G1 + explicit MDL".
+- **Predecessor: M5.** **Successor: M7.**
+
+**Positive control**, same instrument, same line range: `M5` 1, `M6` 1, `M7` 1,
+`M3.5` 1, `M4.5` 1, `P1` 1 — against `M5.5` 0, `M6.5` 0, `M7.5` 0. An
+instrument returning zero for everything would have "confirmed" the ladder
+equally well.
+
+**One correction to addendum 1**, which is why this was re-run rather than
+copied: A1.1's ladder line reads `… M8 M9 M10 …` and omits **P1**, which is a
+§28 heading ("Partition correction API/editor", after M8). It changes nothing
+about M6's successor, and it is the same class of defect F-0080 records — a
+ladder transcribed rather than counted.
+
+## A2.2 §34 for M6, re-read
+
+Unchanged from §2 above and re-measured: §34 line 2254 requires a signature on
+`docs/REVIEW_<M>.md`; line 2256 names **M2, M5 and M7** for a separate
+red-team pass, and M6 is not among them. So §34 requires **one** independent
+review for M6. The governor has declared a stricter standard for this
+milestone — two cold reviews of different model families plus a red team — and
+named it as the governor's own rather than the spec's. **The gate is the
+governor's to declare; this document does not self-certify.**
+
+## A2.3 What was delivered
+
+### Scope, chosen from §28 M6 and stated as a choice
+
+§28 M6 is Stage G (§14) plus Stage H (§15). Bullets 1 and 2 are delivered
+whole. Bullets 3–6 are not started. The reason is §7's, unchanged, and the
+alternative — a partially built grammar whose gate row claims exact G1 — is
+what §38 names and §36 forbids.
+
+| §28 M6 bullet | status |
+|---|---|
+| hierarchical span candidates | **DELIVERED** |
+| candidate-generation budgets | **DELIVERED** |
+| k-best jet-compatible grammar paths | **NOT STARTED** |
+| joint constrained chain refit | **NOT STARTED** |
+| explicit code lengths | **NOT STARTED** |
+| primitive/relation hypotheses | **NOT STARTED** |
+| **Gate** (exact G1 after joint solve; sample/cut/transform invariance; oracle G00–G20; no BIC-only promotion) | **NOT EVALUATED** — none of the four is evaluable while bullets 3–6 do not exist |
+
+### The crate
+
+`vice-fit` exists (C296), created in the milestone that gives it its first
+real executable responsibility, per §4.1 and §32 rule 7. It consumes
+`vice_evidence::BoundaryChain` — the Stage F observation of §13, already
+resampled by physical arclength — and offers, per chain, one fitted primitive
+of each family on each interval of a hierarchical schedule, with a proposal
+cost (§14.4) to order them.
+
+### The design decision that is the whole of bullets 1 and 2
+
+§14.2 forbids full O(N²) all-pairs AND forbids losing long line/arc support to
+`max_candidate_support_px`. The obvious reconciliation — cap the LENGTH of a
+support — destroys exactly what the second sentence protects. **There is
+deliberately no length cap in this crate.** The budget is on the COUNT, and
+the count is bounded by a dyadic schedule that is sparse at coarse scales
+rather than short. The whole run is **level 0 of the recursion**, not a
+special case appended to satisfy the sentence: F-0048 Q2's distinction, where
+"what about scale k" is answered by "it is level log2(k)" rather than by
+another line.
+
+### Measured
+
+Synthetic sweep (`vice_fit::schedule`), both ratios printed so the claim is
+falsifiable by reading rather than by trusting the bound:
+
+```
+n      4   supports/sample 0.250   all-pairs/sample     1.5
+n    257   supports/sample 1.953   all-pairs/sample   128.0
+n   4096   supports/sample 1.604   all-pairs/sample  2047.5
+```
+
+Corpus (`vice_bench::fit`, 1 cell per scene, release, §27.1 respected):
+
+```
+arms 41 (13 without a boundary)     sealed-audit groups skipped 22
+chains 36                           longest chain 83 samples
+chain samples 1910                  supports 3173 (1.661 per sample)
+candidates 11157                    refusals none
+families present: circular_arc, cubic_bezier, line, quadratic_bezier
+min budget headroom 65018
+```
+
+Release timing, linear: 4097 samples to 8178 supports to 28 617 candidates in
+412 ms.
+
+### The G1 claim of §5, RUN rather than carried
+
+§5 above records a design decision — segments reading endpoint tangents from a
+shared node variable make exact G1 "a claim the compiler enforces" — and marks
+it **not verified**. It is now run (C294), and it is **half true**:
+
+- **Held.** The tangent is stored once, at the node. Neither segment carries a
+  declared tangent of its own.
+- **NOT held.** `Segment::Quad`/`Cubic` store absolute control points, and a
+  Bezier's endpoint tangent is `ctrl - p0`. Declaration and geometry are two
+  independent values, and nothing in the workspace compares them.
+
+Measured on `vice-ir`'s own canonical VALID fixture, not on an adversarial
+value I built: arrives −0.24498 rad (−14.04°), leaves 0.00000 rad (0°),
+**declared +0.25000 rad (+14.32°)** — a spread of **28.36°** at a node whose
+type is named `SmoothG1`, in a scene `valid_scenes_pass` has asserted valid
+since M1. Positive control in the same file: `validate` does read the field
+and rejects it outside `(−π, π]`, so "nothing rejected the inconsistent value"
+is a fact about what the judge checks and not about whether it ran.
+
+The claim in §5 therefore **does not become a declared property of this tree**.
+It is narrowed to what was measured, and the closure §14.3 demands is not a
+comparison but a representation in which the disagreement cannot be written
+down. Owner: bullet 4.
+
+## A2.4 Defects my own mechanisms found against me
+
+Five, all by measurement, none by re-reading.
+
+1. **The cubic missed a chain drawn from an exact cubic by 1.97 px.** Not the
+   normal equations — the parameterisation. Chord length ESTIMATES the Bezier
+   parameter and is not it. Bounded footpoint refinement, keeping the best
+   pass by geometric residual, brings it to 0.56 px at eight passes
+   (2.27 / 0.56 / 0.22 / 0.12 / 0.07 at 0 / 8 / 16 / 24 / 40 passes). The
+   remaining floor is **named as a property of the candidate stage, not of the
+   family**, and the test asserts it at its measured size rather than at a
+   zero the code does not deliver.
+2. **An assertion that was measuring the ruler.** The arc test required a
+   deviation under 0.05 px and the run reported 0.0599. The fit was exact; the
+   0.1 px chord tolerance of the flattener was showing through. The bound is
+   now the flattener's own certificate, with a second leg asserting the
+   certificate does not exceed the tolerance it was asked for — otherwise the
+   first bound is vacuous.
+3. **A doc comment said the schedule emits "about 1.4" supports per sample.**
+   The sweep says 1.6, peaking at 1.953. F-0028's class, in prose, found by
+   reading the instrument's own output.
+4. **`max_normal_departure_deg` reported exactly 90.000°** — the maximum the
+   range allows, which is the shape a SATURATED instrument has, not the shape
+   of a measurement. The max was taken over all samples, including ones
+   sitting on the curve whose closest-point direction is numerical noise.
+   F-0030: the predicate was named for one set and computed over another, in
+   an instrument built this milestone to keep me honest about an
+   approximation.
+5. **After restricting to material deviations it still reports 90.000°, now at
+   a deviation of 1.50281 px.** Four times the clean-corridor median
+   halfwidth, so finding 4's fix did not paper over finding 5 — it exposed it.
+   This one is real: `proposal_cost_px` uses the EUCLIDEAN deviation where
+   §14.4 writes `d_n` along the normal, and where the departure is a right
+   angle the normal ray does not meet the curve near that sample at all, so
+   §14.4's integrand there is unbounded rather than merely larger. The cost
+   agrees with §14.4 where a candidate is close to the chain and diverges
+   where the candidate is WRONG, **which flatters bad candidates.**
+
+A sixth, against my own prose: the module doc said a fit needing an iteration
+is "REFUSED rather than approximated". Finding 1 added an iteration and the
+sentence stayed true-sounding and false (F-0015). Corrected in place.
+
+Three of the workspace's own judges also caught this pass, and each was right
+to: `every_crate_forbids_unsafe_code`, and both sealed-population lists, which
+require every module able to see a corpus fixture or call the render pipeline
+to be a REVIEWED entry rather than an assumed one. `vice-bench/src/fit.rs` is
+declared in both with its reason, which is the act those tests exist to force.
+
+## A2.5 F-0048 over the mechanisms this addendum added
+
+| mechanism | Q1 literal | Q2 next finding | Q3 judge | Q4 provenance, by CODE | Q5 both ways | verdict |
+|---|---|---|---|---|---|---|
+| the dyadic schedule | no — spans are a recursion, not a list | the criterion covers every scale by construction | a sweep over chain lengths comparing against the all-pairs count | n/a — the schedule reads only `n` | bound asserted AND a floor on density, so returning nothing fails | **PASSES** |
+| the candidate budget | no — one integer, and it REFUSES rather than truncating | a chain that binds it produces a refusal naming four numbers | `FitBudget`, minted only by a checked constructor, with no arithmetic | cap from the const, counts from the schedule | tested binding and not binding; headroom published | **PASSES** |
+| `FITTED_FAMILIES` | **YES** | append a family | the `vice-bench` judge, which inverts the default to "must have a fitter" | universe names from `vice-bench`, fitters from `vice-fit` — neither derives the other | knockout RUN: emptying the excuse list reddens | **DOES NOT PASS Q1.** Residual exact. Bypass price: **one family nobody wrote a fitter for AND nobody declared** — now red, so the true price is one fitter or one written reason |
+| `max_normal_departure_deg` | no | the threshold's meaning changes | the run itself, over the corpus | departure from the sample normal, deviation from the flattened candidate | saturated at 90° twice; both published | **PASSES, and it caught itself twice** |
+| the family fits | no | a family needs its own solve | chains drawn from a known shape, each family required to FAIL on another's | fits from least squares, deviation from the certified flattener | each family checked against a shape it should not reproduce | **PASSES** |
+| `STRUCTURAL_SIZES_PX` (limitation 53) | **YES** — one literal, reduced from two | the harness grows a cell and the judge reddens | an equality in `vice-bench` against the frozen matrix | declaration in `vice-topology`, cells in `vice-bench` | knockout RUN: `[32, 64]` fails with both lists printed | **DOES NOT PASS Q1**, and says so: the literal is reduced to one, not removed |
+
+## A2.6 The backlog — what I took and what I left, explicitly
+
+The governor asked for this decision to be made and stated rather than
+inherited.
+
+| # | decision |
+|---|---|
+| **53** | **TAKEN and CLOSED** (C295). Five lines, as reviewer A priced it, and I verified the price myself rather than inheriting it: the direction is forced because `vice-topology` does not depend on `vice-bench`. One declaration, one judge, knockout run |
+| **36** | **NOT CLOSED, and NOT GROWN.** It is on my path — I emit numbers over a corpus population — so M-1 applies to the CLASS rather than to M5's rows: this pass adds **no gate row and no frozen key**, so it contributes no new positionally-bound row. Full closure is unchanged and unchanged in price. **Owner: still open** |
+| **56** | **NOT CLOSED, and NOT GROWN.** Same reasoning: `configs/GATES_V1.toml` is **untouched** by this pass, so no new provenance comment was added to the block whose comment is bound to nothing |
+| **48 / 49 / 50** | **LEFT.** Not on §28 M6's path: the proc-macro is about `vice-topology`'s leaf judges. The red team's "one door, three locks" warning stands, and the previous context's reading of `REVIEW_M5_A.md:1437` is unchanged — budget **two** mechanisms, not one. I did not re-measure it, so it remains a reading of two documents |
+| **51 / 52** | **LEFT.** Both are `vice-topology` internals. Reviewer A owed 52 "before M6 walks chains" — and this pass **does not walk DCEL chains**: Stage G consumes `vice_evidence::BoundaryChain`, produced by marching squares over the coverage field, not `Boundary::path`. That is why 52 did not bind here, and it is also limitation 57 below |
+
+## A2.7 New limitations
+
+57. **The chains Stage G fits are not bound to the DCEL.** §13 step 4 requires
+    a chain be tied to its DCEL endpoints and junctions; `BoundaryChain`
+    carries no boundary or vertex id, and `vice-fit` invents none. So a
+    candidate is a candidate for a curve on a CONTOUR OF THE COVERAGE FIELD,
+    not yet for a boundary of the arrangement, and
+    `curve_replacement_isotopy` still refuses with `fitted_curve` as its first
+    missing capability. **Owner: the milestone that closes bullets 3–4**;
+    price: a chain identity carried through `observe_boundaries` and matched
+    against `Dcel::boundaries` — which is where limitation 52 (loop and face
+    order) starts binding.
+58. **The proposal cost is a LOWER BOUND on §14.4's, and the bound is loose.**
+    Measured 90.000° departure at 1.503 px on the corpus. **Owner: bullet 3.**
+    Price: deviation along the sample's normal ray, plus a decision about what
+    a ray that misses the curve means — which is a statement about evidence
+    and belongs with the stage that consumes the cost.
+59. **The Bezier fits leave a 0.56 px parameterisation floor** on a chain drawn
+    from an exact cubic. **Owner: bullet 4.** Price: the joint refit, or a
+    Newton footpoint solve in place of the projection.
+60. **The corpus measurement is one cell per scene**, 41 arms, and it is a
+    COUNT, not a gate: no threshold is read and no clause is evaluated. A gate
+    row over this population needs §28 M6's gate to be evaluable, which needs
+    bullets 3–6. Price of the full-matrix population: `measure(matrix_v1()
+    .len())` — the same code at more cells.
+61. **The elliptic arc is admissible and unfitted**, by declared decision with
+    a reason (§14.2's "targeted evidence"). RED if the reason is deleted.
+62. **`FITTED_FAMILIES` and M5's edit-shape set are the same open class**: a
+    literal enumerating subjects, whose bypass is visible rather than closed.
+
+## A2.8 What §28 M6 still costs
+
+| not delivered | price |
+|---|---|
+| k-best jet-compatible grammar paths | the DAG over (breakpoint, family, corner state, tangent jet class) and k-shortest paths (§14.3, §24). Corner proposals (§14.1) do not exist either — no `corner`, `jet` or `breakpoint` anywhere in the tree |
+| joint constrained chain refit | shared node positions and shared tangent variables solved together. This is also the only honest closure for exact G1 (§14.3 forbids `angle < tolerance`), and C294 measured that the current types do not hold it |
+| explicit code lengths | §14.5's `L_total` in physical bits. Home already named and still a placeholder: `[geometry_code_table]`, `set_by_milestone = "M6"`, three values `0.0`, and `Threshold::from_gates` refuses to mint a threshold from a placeholder. Four commits under §27.7 |
+| primitive/relation hypotheses | §15 Stage H. **Verified price, not estimated**: the six relation families in `vice_bench::universe` are `Family::planned("M6", …)`, and promoting any to `admissible` moves `model_universe_hash`, which is frozen by a test and is a §1.5 model-version change requiring recalibration — not a routine edit |
+| the gate | exact G1 after joint solve (needs bullet 4); sample/cut/transform invariance (the sample-step leg is measured for the PROPOSAL COST only; the cut and transform legs are about the SELECTION, and there is no selection); oracle G00–G20 (a `vice-bench` harness over §27); no BIC-only promotion (nothing promotes anything yet) |
+
+## A2.9 What I could not verify
+
+- **CI.** Not run. T11/T12 remain "closed in code, not executed", unchanged
+  since M5.
+- **The M4.5, M4 and M5 harness artifacts.** Untouched and not re-run; every
+  number quoted from them here is quoted from their records rather than
+  re-measured.
+- **The "one door, three locks" cross-reference.** Still a reading of two
+  documents, not a measurement. I did not pay for the proc-macro.
+- **Whether the 90° departure is one candidate or many.** The run publishes the
+  worst and the deviation at which it occurred; the DISTRIBUTION is not
+  measured, and limitation 58's price does not include measuring it.
+
+## A2.10 Explicit statement of stopping
+
+The author does NOT self-certify M6.
+
+No number here is a statement about the reliability of the system. **§28 M6's
+gate has not been evaluated**, because four of its six bullets do not exist and
+none of its four clauses is evaluable without them. What is delivered is two
+bullets, measured on the corpus and on shapes whose truth is known, with six
+defects found against me by my own mechanisms, and every remaining gap named
+with a price and an owner.
+
+**STOPPED AFTER M6 BULLETS 1 AND 2 — the successor under §28 is M7, measured
+in A2.1, and M7 IS NOT STARTED. §28 M6 ITSELF IS NOT COMPLETE.**
