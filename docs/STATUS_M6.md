@@ -303,3 +303,163 @@ M4.5 or M4 harnesses, so their artifacts are untouched and their numbers here
 are quoted from their own records rather than re-measured.
 
 **STOPPED AFTER M6 — the successor under §28 is M7, and M7 IS NOT STARTED.**
+
+---
+
+# Addendum 1 — continuation (C287–C292)
+
+The governor confirmed the findings of §4.2 and §4.4 as F-0083, pushed
+C282–C285, and directed this same context to continue M6. This is what the
+continuation did. **§28 M6's six bullets are still NOT STARTED**, and §7's
+reason is unchanged.
+
+## A1.1 The ladder, re-measured
+
+Not inherited from the body above: a STOP line is a claim about the ladder
+(F-0080) and this addendum carries one. Same file, hash re-verified
+`652fd0b6…9bb1`:
+
+```
+§28 ladder .......... M0 M1 M2 M3 M3.5 M4 M4.5 M5 M6 M7 M8 M9 M10 M11 M12
+predecessor of M6 ... M5
+successor of M6 ..... M7
+positive control .... "M6.5" 0, "M7.5" 0, "M5.5" 0, against M6 and M7 present
+```
+
+## A1.2 `hole_fill` — the answer was a third thing
+
+The governor asked whether `hole_fill` is unreachable by construction or
+whether the population does not carry it, and said the first must be proved
+rather than assumed. **Both were false.** Measured on the artifact at
+`f559767`:
+
+```
+arms whose base arrangement carries a hole ....... 72 of 480
+declarations with a negative hole component ...... 0 of 960
+```
+
+The corpus carries holes in quantity, and `apply` fills them — a unit test
+commits a `HOLE_FILL`. What could not reach them was the **shape**: both
+existing shapes sit at the canvas centre, and a hole is wherever the scene put
+it. The deficiency was in the shape family, not the corpus and not the
+executor.
+
+A third shape — fill the lexicographically first hole, flooded under the
+COMPLEMENT connectivity — closed it. **All four named unit steps now occur**,
+where M5 had two:
+
+```
+identity 310, hole_open 308, gap_open 128, compound(c+1,h+1) 118,
+hole_fill 66, compound(c-1,h+1) 46, bridge_close 42,
+compound(c+0,h+2) 6, compound(c-1,h-1) 6, compound(c-3,h+1) 2
+```
+
+`66 + 6 = 72`, exactly the population, so no arm carrying a hole was dropped.
+The 6 are `compound(c-1,h-1)`: arms where filling the hole also merges two
+components, so the fill is itself compound there.
+
+**The third shape is arrangement-derived and the first two are not**, and that
+is stated rather than smuggled. Limitation 34 warns against a SEARCH over
+edits; this is not one. The hole is chosen by scan order, the shape is defined
+for every arm that has one, its population is published, and its delta is
+declared from the independent chain and checked by `apply` like the others.
+What would be forbidden is trying several edits and keeping whichever commits.
+
+## A1.3 The compound floor — four steps, not three
+
+The governor asked for the floor as a separate gate commit. It took four, and
+the reason is a mechanism refusing me:
+
+```
+gate dcel_compound.gate_min_compound_transactions: section "dcel_compound"
+is a PLACEHOLDER (set by M6): it is not a threshold and nothing may gate on it
+```
+
+`Threshold::from_gates` will not mint a threshold from a placeholder, so the
+consumer cannot precede the freeze; and the freeze cannot precede a claim, or
+the keys are unclaimed. The only order with no red commit is C289 (keys, gate
+file) → C290 (constants and claims, inert, code) → C291 (freeze, gate file) →
+C292 (consumer and row, code).
+
+**Three keys, not one**, because one is bypassable:
+
+| key | frozen | measured | why it exists |
+|---|---|---|---|
+| `gate_min_compound_transactions` | 100 | 178 | the count |
+| `gate_min_distinct_compound_deltas` | 3 | 4 | a count floor is met by ONE delta repeated — 118 copies of `(+1,+1)` clear 100 |
+| `gate_min_transaction_shapes` | 3 | 3 | the count is an EFFECT; losing a shape is the cheapest way to empty the population |
+
+The shape floor is set AT the measurement, and the exception is deliberate and
+priced: a floor of two would permit exactly the regression it guards. It now
+moves whenever the shape set does, which is a gate-file commit — the same
+reasoning that raised `gate_min_register_arms_with_a_long_loop` to six
+(REVIEW_M5_A D4-N3).
+
+`each_compound_floor_has_a_world_in_which_it_is_false` exercises the three
+**separately**, with the count held constant while the deltas collapse, because
+three conjuncts that only fail together are one conjunct wearing three names.
+
+## A1.4 Final measurement
+
+Full scope, exit 0, four §28 M5 clauses MET:
+
+```
+arms 480 (444 corpus, 36 structural)      edit shapes 3
+transactions 1032 attempted, 750 committed, 282 rolled back
+compound 178, ALL 178 committed, 4 distinct deltas, max 4 steps
+named unit steps exercised 4 of 4
+unrelated chains 610, moved 0     slots perturbed 179 253, uncaught 0
+refusals observed: EditIsANoOp 282
+```
+
+## A1.5 New limitations
+
+54. **The compound knockout mutates the REPORT, not the harness.** It proves
+    the row responds to an emptied population, not that the harness would
+    notice a deleted shape function. **Owner M7**, price: one `ShapeKnockout`
+    variant plus the arm threading it through `measure_arm`, and re-deriving
+    `RunKnockouts::one_per_clause`'s one-knockout-per-row invariant — which is
+    what stopped me spending it here.
+
+55. **Five of six refusals never fire on this population.** Only `EditIsANoOp`
+    does, 282 times. `NotTheDeclaredEdit` never firing now MEANS something —
+    the independent chain and the DCEL agree on all 1032 — but the branch is
+    exercised only by a unit test. **Owner M7.**
+
+56. **The gate file's provenance comment is still bound to the run by nothing.**
+    C283 corrected six false numbers; §4.3 records that this was the third
+    occurrence in that block. **The mechanism is not built**, and it is the
+    governor's item 2. **Owner M7**, price: the printing test asserts instead
+    of printing, which requires the comment's numbers to become a parsed
+    structure — that is limitation 36's machinery, not a separate thing.
+
+## A1.6 F-0048 over the mechanisms this addendum added
+
+| mechanism | Q1 literal | Q2 next finding | Q3 judge | Q4 provenance, by CODE | Q5 both ways | verdict |
+|---|---|---|---|---|---|---|
+| the three edit shapes | **YES** — three functions named at the call site | a fourth class needs a fourth shape | the declared/performed comparison, not the shape | no — declaration from `independent::signature_of`, check from `Dcel::assemble` | red per conjunct; empty covered by the floors | **DOES NOT PASS Q1.** Residual exact: the shape SET is a literal. Bypass price: one class of edit nobody wrote a shape for |
+| `first_hole` | no | criterion changes | flood fill under the complement connectivity | no — reads the labelling, not the DCEL | 72 found; none on arms without holes | **PASSES** |
+| the three compound floors | no — read from the frozen file | the test fails until the gate file moves | `Threshold`, which has no arithmetic | no — floors from the file, counts from the run | each reddens separately, count held constant for the delta leg | **PASSES** |
+| `refusals_never_observed` | no — complement of `ALL_NAMES` | a new variant appears without a line | exhaustive `match` plus a constructing test | no | observed set is measured | **PASSES** |
+| `EditKind` / `UNIT_STEPS` | **YES**, and stated | the criterion already covers Z^2 | computed predicate, swept over a box both ways | no | 4 named = 4 computed, exhaustively | **PASSES with the literal named** |
+
+**The row that does not pass is the shape set**, and it is F-0081's shape one
+level up: a literal enumerating subjects, whose bypass is a class of edit
+nobody wrote a shape for. What is different from M5 is that the bypass is now
+VISIBLE — `declared_kinds_exercised` publishes every delta that occurred, so an
+absent class shows as an absent name rather than as silence. That is weaker
+than a closure, and it is named at its true price rather than above it.
+
+## A1.7 What the governor asked for and did not get
+
+- **Item 4, two mechanisms for the "one door".** Not paid. The finding stands
+  as recorded in §6: `REVIEW_M5_A.md:1437` already says the TYPE-axis
+  proc-macro will not close the `Dcel`-field axis, so budget two. Still a
+  reading of two documents, not a measurement.
+- **Item 5, backlog 36 / 48 / 49 / 50 / 51 / 52 / 53.** None closed. 36's price
+  rose again (§4.3, limitation 56). 53 remains the cheapest at five lines and I
+  did not spend them.
+- **§28 M6's six bullets.** Not started, for §7's reason, which this pass did
+  not change.
+
+**STOPPED AFTER M6 — the successor under §28 is M7, and M7 IS NOT STARTED.**
