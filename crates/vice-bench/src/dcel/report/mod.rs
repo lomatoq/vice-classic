@@ -21,88 +21,15 @@ use serde::Serialize;
 
 use super::{DcelArm, DcelRun, ResolvingPower};
 use crate::artifact;
-use crate::gates::GatesFile;
-use crate::topology::gate::Threshold;
 
 pub const DCEL_REPORT_SCHEMA: &str = "vice-classic/dcel-report/v1";
 
-/// The six §28 M5 population floors, DECLARED here so that
-/// `gates::tests::every_frozen_value_agrees_with_the_code_that_uses_it` has a
-/// consumer to compare the frozen file against.
-///
-/// The rows do NOT read these — they read `DcelGateConfig`, which reads the
-/// file. That is RT45-A10 and it is the whole point: a constant the row
-/// compares against is a registration of the SPELLING, and `MIN / 20` keeps the
-/// spelling while changing the value. These exist only so that the file and the
-/// code must agree, so that:
-///
-/// - change one of these without the file, and the gates test fails;
-/// - change the file without these, and it fails for the same reason;
-/// - change both, and §27.7 refuses the commit.
-pub const MIN_ARMS: u32 = 200;
-pub const MIN_STRUCTURAL_ARMS: u32 = 20;
-pub const MIN_CONVENTION_DEPENDENT_GROUPS: u32 = 5;
-pub const MIN_TRANSACTIONS: u32 = 50;
-pub const MIN_UNRELATED_CHAIN_POPULATION: u32 = 40;
-pub const MIN_RESOLVING_POWER_PROBES: u32 = 10;
-pub const MIN_SLOTS_PERTURBED: u32 = 40000;
-pub const MIN_REGISTER_ARMS_WITH_A_LONG_LOOP: u32 = 6;
-
-/// The population thresholds of the §28 M5 rows, LOADED from the frozen gate
-/// file.
-///
-/// The same shape `TopologyGateConfig` uses and for the same reason (RT45-A10):
-/// the row compares against this struct, this struct has exactly one source,
-/// and `Threshold` has no arithmetic so `t / 20` is a type error rather than a
-/// value that passes a text check.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DcelGateConfig {
-    pub min_arms: Threshold,
-    pub min_structural_arms: Threshold,
-    pub min_convention_dependent_groups: Threshold,
-    pub min_transactions: Threshold,
-    pub min_unrelated_chain_population: Threshold,
-    pub min_resolving_power_probes: Threshold,
-    /// Slots the mutation walk must actually perturb. `slots_perturbed > 0`
-    /// stood here and was not a gate: a walk that visited one slot satisfied
-    /// it. A floor read off a run is (RT5-A2's neighbourhood).
-    pub min_slots_perturbed: Threshold,
-    /// Register arms carrying a face loop of three or more half-edges: the
-    /// population §12's ORIENTED clause stands on (RT5-A17, M5A-D3-N1).
-    pub min_register_arms_with_a_long_loop: Threshold,
-}
-
-impl DcelGateConfig {
-    /// The committed thresholds, for tests that need to evaluate a gate row.
-    ///
-    /// Goes through `load_for_a_gate_decision` exactly like the CLI does, so a
-    /// test cannot evaluate a row against a file `HEAD` does not carry.
-    pub fn for_tests_from_the_committed_file() -> Result<DcelGateConfig, String> {
-        // Resolved from the crate manifest rather than from the working
-        // directory: an integration test runs with the CRATE as its cwd, and
-        // `GATE_PATHS[0]` is workspace-relative.
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../..")
-            .join(crate::gates::GATE_PATHS[0]);
-        let g = GatesFile::load_for_a_gate_decision(&path)
-            .map_err(|e| format!("load {}: {e}", path.display()))?;
-        DcelGateConfig::from_gates(&g)
-    }
-
-    pub fn from_gates(g: &GatesFile) -> Result<DcelGateConfig, String> {
-        let t = |key: &str| Threshold::from_gates(g, "dcel", key);
-        Ok(DcelGateConfig {
-            min_arms: t("gate_min_arms")?,
-            min_structural_arms: t("gate_min_structural_arms")?,
-            min_convention_dependent_groups: t("gate_min_convention_dependent_groups")?,
-            min_transactions: t("gate_min_transactions")?,
-            min_unrelated_chain_population: t("gate_min_unrelated_chain_population")?,
-            min_resolving_power_probes: t("gate_min_resolving_power_probes")?,
-            min_slots_perturbed: t("gate_min_slots_perturbed")?,
-            min_register_arms_with_a_long_loop: t("gate_min_register_arms_with_a_long_loop")?,
-        })
-    }
-}
+mod config;
+pub use config::{
+    DcelGateConfig, MIN_ARMS, MIN_CONVENTION_DEPENDENT_GROUPS, MIN_REGISTER_ARMS_WITH_A_LONG_LOOP,
+    MIN_RESOLVING_POWER_PROBES, MIN_SLOTS_PERTURBED, MIN_STRUCTURAL_ARMS, MIN_TRANSACTIONS,
+    MIN_UNRELATED_CHAIN_POPULATION,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DcelReport {
@@ -168,7 +95,10 @@ pub struct DcelReport {
     /// M6, and one shape can only produce the deltas that shape produces:
     /// a filled square yields `(0,0)`, `(-1,0)` or `(+1,0)` and never a
     /// compound edit, which is why `transactions_compound` read zero the first
-    /// time it was published (STATUS_M5 limitation 34).
+    /// time it was published (STATUS_M5 limitation 34). The third shape exists
+    /// for the same reason one step lower: with two shapes, no declaration in
+    /// 960 had a negative hole component although 72 arms carried a hole, so
+    /// `hole_fill` was unreachable by SHAPE rather than by construction.
     pub transaction_shapes: u64,
     pub transactions_committed: u64,
     /// Committed transactions on arms whose arrangement is NOT empty. This is
@@ -281,7 +211,12 @@ pub fn build(run: &DcelRun) -> DcelReport {
     let all: Vec<&super::ArmTransaction> = run
         .arms
         .iter()
-        .flat_map(|a| a.transaction.iter().chain(a.transaction_ring.iter()))
+        .flat_map(|a| {
+            a.transaction
+                .iter()
+                .chain(a.transaction_ring.iter())
+                .chain(a.transaction_hole_fill.iter())
+        })
         .collect();
     let tx = |f: fn(&super::ArmTransaction) -> bool| all.iter().filter(|t| f(t)).count() as u64;
 
@@ -337,13 +272,18 @@ pub fn build(run: &DcelRun) -> DcelReport {
         // The rule it broke is the one this project keeps paying for: a
         // denominator and its numerator must come from the same population.
         transactions_attempted: all.len() as u64,
-        transaction_shapes: 2,
+        transaction_shapes: 3,
         transactions_committed: tx(|t| t.committed),
         transactions_committed_on_non_empty_arms: run
             .arms
             .iter()
             .filter(|a| a.audit.is_some_and(|x| x.directed_steps > 0))
-            .flat_map(|a| a.transaction.iter().chain(a.transaction_ring.iter()))
+            .flat_map(|a| {
+                a.transaction
+                    .iter()
+                    .chain(a.transaction_ring.iter())
+                    .chain(a.transaction_hole_fill.iter())
+            })
             .filter(|t| t.committed)
             .count() as u64,
         transactions_rolled_back: tx(|t| !t.committed),
