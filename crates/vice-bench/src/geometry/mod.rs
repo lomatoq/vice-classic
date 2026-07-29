@@ -120,8 +120,10 @@ fn backend_source_hash() -> String {
     let sources = [
         include_str!("../../../vice-fit/src/lib.rs"),
         include_str!("../../../vice-fit/src/models.rs"),
+        include_str!("../../../vice-fit/src/models/closed.rs"),
         include_str!("../../../vice-fit/src/grammar.rs"),
         include_str!("../../../vice-fit/src/refit.rs"),
+        include_str!("../../../vice-fit/src/refit/g1.rs"),
         include_str!("../../../vice-fit/src/solve.rs"),
         include_str!("../../../vice-fit/src/relation.rs"),
         include_str!("../../../vice-fit/src/primitive.rs"),

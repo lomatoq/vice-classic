@@ -1,8 +1,6 @@
 //! §14.3 / §24: the joint constrained chain refit, and **exact G1 by
 //! representation**.
 //!
-//! ## The decision this module makes, and the price of the one not taken
-//!
 //! §14.3: "Проверка `angle < tolerance` сама по себе **не является G1**." So a
 //! tolerance is not available, and there are exactly two ways to have the
 //! property:
@@ -23,7 +21,6 @@
 //! smooth node and no second copy: [`Handle::Shared`] stores a LENGTH, and the
 //! direction comes from the node. G1 at a smooth join is then a property of the
 //! type, and a corner is the deliberate absence of sharing.
-//!
 //! **The price of the choice taken**, stated rather than left to be found:
 //! `vice_ir::CurveChain` is unchanged, so it can still express an inconsistent
 //! chain, and anything that constructs one outside this module can still write
@@ -32,7 +29,6 @@
 //! floating-point round trip through absolute control points, which is MEASURED
 //! (`refit_holds_g1_where_the_ir_fixture_does_not`) rather than assumed
 //! negligible.
-//!
 //! **The price of the choice NOT taken** — making `vice_ir::Segment` store
 //! handle lengths instead of absolute control points, which would give the IR
 //! itself the property: every serialized scene, the M1 canonical serialization
@@ -52,6 +48,9 @@
 use serde::Serialize;
 use vice_geom::Pt;
 use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
+
+mod g1;
+pub use g1::{canonical_angle, closure_g1_spread_rad, g1_readings, G1Reading};
 
 /// A control point of a Bezier, at one end of one segment.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -531,154 +530,6 @@ impl RefitChain {
 
     pub fn end(&self) -> Pt {
         self.nodes[self.nodes.len() - 1].pos
-    }
-}
-
-/// Fold an angle into `vice_ir`'s canonical `(-pi, pi]`.
-///
-/// `validate` rejects anything outside it, and a refit that produced `pi + eps`
-/// would be rejected by the IR for a reason that has nothing to do with the
-/// geometry.
-pub fn canonical_angle(a: f64) -> f64 {
-    let two_pi = std::f64::consts::TAU;
-    let mut x = a % two_pi;
-    if x <= -std::f64::consts::PI {
-        x += two_pi;
-    }
-    if x > std::f64::consts::PI {
-        x -= two_pi;
-    }
-    x
-}
-
-/// What one node of a LOWERED chain says about its own G1, measured from the
-/// geometry rather than from the declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
-pub struct G1Reading {
-    pub interior_node: usize,
-    /// Direction the incoming segment ARRIVES with, radians.
-    pub arrive_rad: f64,
-    /// Direction the outgoing segment LEAVES with, radians.
-    pub leave_rad: f64,
-    /// The angle the node DECLARES, radians.
-    pub declared_rad: f64,
-    /// The largest pairwise difference among the three, radians. Zero is exact
-    /// G1; the M1 IR fixture reads 0.4949 rad (28.36 deg).
-    pub spread_rad: f64,
-}
-
-/// Measure G1 at every `SmoothG1` node of a lowered chain, from the absolute
-/// control points.
-///
-/// The instrument is deliberately blind to how the chain was built: it is the
-/// same function that reads 28.36° on `vice-ir`'s canonical fixture and reads
-/// the floating-point floor on a lowered [`RefitChain`], which is what makes
-/// the second number a measurement rather than a tautology.
-pub fn g1_readings(chain: &CurveChain, start: Pt, end: Pt) -> Vec<G1Reading> {
-    let pts = chain.node_positions(start, end);
-    let mut out = Vec::new();
-    for (i, node) in chain.interior_nodes.iter().enumerate() {
-        let JoinKind::SmoothG1 { tangent_angle_rad } = node.join else {
-            continue;
-        };
-        let arrive = arrive_dir(&chain.segments[i], pts[i], pts[i + 1]);
-        let leave = leave_dir(&chain.segments[i + 1], pts[i + 1], pts[i + 2]);
-        let (Some(a), Some(l)) = (arrive, leave) else {
-            continue;
-        };
-        let (ar, lr) = (a.y.atan2(a.x), l.y.atan2(l.x));
-        let d = |x: f64, y: f64| canonical_angle(x - y).abs();
-        let spread = d(ar, lr)
-            .max(d(ar, tangent_angle_rad))
-            .max(d(lr, tangent_angle_rad));
-        out.push(G1Reading {
-            interior_node: i,
-            arrive_rad: ar,
-            leave_rad: lr,
-            declared_rad: tangent_angle_rad,
-            spread_rad: spread,
-        });
-    }
-    out
-}
-
-/// Measure the implicit join between the last and first segment of a closed
-/// chain. The canonical IR stores that join at the shared graph vertex rather
-/// than in `interior_nodes`, so it needs an explicit witness.
-pub fn closure_g1_spread_rad(
-    chain: &CurveChain,
-    start: Pt,
-    end: Pt,
-    declared_rad: f64,
-) -> Option<f64> {
-    if chain.segments.len() < 2 || start != end {
-        return None;
-    }
-    let points = chain.node_positions(start, end);
-    let last = chain.segments.len() - 1;
-    let arrive = arrive_dir(&chain.segments[last], points[last], points[last + 1])?;
-    let leave = leave_dir(&chain.segments[0], points[0], points[1])?;
-    let arrive_rad = arrive.y.atan2(arrive.x);
-    let leave_rad = leave.y.atan2(leave.x);
-    let delta = |a: f64, b: f64| canonical_angle(a - b).abs();
-    Some(
-        delta(arrive_rad, leave_rad)
-            .max(delta(arrive_rad, declared_rad))
-            .max(delta(leave_rad, declared_rad)),
-    )
-}
-
-fn nonzero(v: Pt) -> Option<Pt> {
-    (v.length_sq() > 0.0 && v.is_finite()).then_some(v)
-}
-
-/// Direction a segment arrives at `p1` with.
-fn arrive_dir(seg: &Segment, p0: Pt, p1: Pt) -> Option<Pt> {
-    match *seg {
-        Segment::Line => nonzero(p1 - p0),
-        Segment::Quad { ctrl } => nonzero(p1 - ctrl).or_else(|| nonzero(p1 - p0)),
-        Segment::Cubic { ctrl2, .. } => nonzero(p1 - ctrl2).or_else(|| nonzero(p1 - p0)),
-        Segment::CircularArc {
-            radius_px,
-            large_arc,
-            ccw,
-        } => {
-            let c = vice_geom::flatten::circular_arc_center(p0, p1, radius_px, large_arc, ccw)
-                .ok()?
-                .center;
-            let r = p1 - c;
-            nonzero(if ccw {
-                Pt::new(-r.y, r.x)
-            } else {
-                Pt::new(r.y, -r.x)
-            })
-        }
-        Segment::EllipticArc { .. } => None,
-    }
-}
-
-/// Direction a segment leaves `p0` with.
-fn leave_dir(seg: &Segment, p0: Pt, p1: Pt) -> Option<Pt> {
-    match *seg {
-        Segment::Line => nonzero(p1 - p0),
-        Segment::Quad { ctrl } => nonzero(ctrl - p0).or_else(|| nonzero(p1 - p0)),
-        Segment::Cubic { ctrl1, .. } => nonzero(ctrl1 - p0).or_else(|| nonzero(p1 - p0)),
-        Segment::CircularArc {
-            radius_px,
-            large_arc,
-            ccw,
-        } => {
-            let c = vice_geom::flatten::circular_arc_center(p0, p1, radius_px, large_arc, ccw)
-                .ok()?
-                .center;
-            let r = p0 - c;
-            nonzero(if ccw {
-                Pt::new(-r.y, r.x)
-            } else {
-                Pt::new(r.y, -r.x)
-            })
-        }
-        Segment::EllipticArc { .. } => None,
     }
 }
 

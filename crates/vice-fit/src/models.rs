@@ -50,6 +50,12 @@ use crate::solve::joint_constrained_refit;
 use crate::span::{NoFit, SpanCandidate, SpanFamily};
 use crate::{span_candidates, FitRefusal};
 
+mod closed;
+use closed::cut_is_jet_smooth;
+pub use closed::{
+    canonical_cuts, dedup_coincident, rotate, DUPLICATE_EPSILON_PX, MAX_CANONICAL_CUTS,
+};
+
 /// The geometry selected by Stage H.
 ///
 /// There is deliberately no parallel free-chain field. A relation winner is
@@ -592,149 +598,6 @@ pub fn models_at_cut(
     )
 }
 
-/// Collapse runs of coincident samples into one, summing the arclength each
-/// stood for.
-///
-/// **This is what makes §14.5's "duplicate samples" invariance a property of
-/// the code rather than a hope**, and it was written because the property
-/// FAILED: a chain with every third sample repeated selected `[Cubic]` where
-/// the same boundary without the repeats selected `[CircularArc, Line]`. The
-/// residual code was already duplicate-invariant — it counts
-/// `weight_ds / corr_length_px`, and a repeat carries no arclength — but the
-/// SCHEDULE is over sample INDICES, so repeats move every dyadic support to a
-/// different place on the boundary and change which candidates exist at all.
-///
-/// Collapsing at the entry makes every stage downstream see the physical chain.
-/// `observe_boundaries` resamples by arclength and does not normally produce
-/// coincident samples, which is exactly why this had to be measured rather than
-/// assumed: the defect is invisible on the population the pipeline actually
-/// sees, and §14.5 asks for the property anyway.
-///
-/// **Collapse is by [`DUPLICATE_EPSILON_PX`], not by bit-identity — RT6-A6.**
-/// The first version compared `prev.p == s.p`, and the red team re-ran F-0089's
-/// mechanism through it: near-duplicates offset by 1e-9 px — the same physical
-/// point of the same observation — did not collapse, the index schedule
-/// shifted, and the SELECTION changed (five segments became six, 329.465 to
-/// 353.213 bits). "Identical under duplication" held only for byte-identical
-/// duplicates, a class narrower than the invariance the test's name claims.
-pub fn dedup_coincident(chain: &BoundaryChain) -> BoundaryChain {
-    let mut samples: Vec<BoundarySample> = Vec::with_capacity(chain.samples.len());
-    for s in &chain.samples {
-        match samples.last_mut() {
-            Some(prev) if (prev.p - s.p).length() <= DUPLICATE_EPSILON_PX => {
-                prev.weight_ds += s.weight_ds
-            }
-            _ => samples.push(*s),
-        }
-    }
-    if samples.len() == chain.samples.len() {
-        return chain.clone();
-    }
-    let vertices = samples.len() as u64;
-    BoundaryChain {
-        samples,
-        vertices,
-        ..chain.clone()
-    }
-}
-
-/// Below this separation, in px, two consecutive samples are ONE observation.
-///
-/// A threshold, and what it hides is stated: two genuinely distinct
-/// observations closer than a millionth of a pixel collapse into one, with
-/// their arclength summed. A millionth of a pixel is five orders below the
-/// frozen observability floor (0.35 px — the smallest length whose parameters
-/// the calibration says are recoverable at all) and three orders above the
-/// f64 rounding of coordinates in a 10^4-px canvas, so everything it can hide
-/// is unresolvable and everything it must catch (RT6-A6's 1e-9 px
-/// near-duplicates) is caught with three orders of margin. It is part of the
-/// frozen pricing surface's world only indirectly; what binds it is the
-/// duplicate-invariance test, which now runs at 1e-9 px offsets.
-pub const DUPLICATE_EPSILON_PX: f64 = 1e-6;
-
-/// Maximum canonical openings evaluated for one closed chain.
-///
-/// Sample zero is always present; the remaining slots go to the most salient
-/// persistent corner anchors. Four is a search budget, not a geometric
-/// threshold: it keeps the full candidate generation across cuts inside the
-/// per-chain candidate budget on the measured population while still testing
-/// several distinct seams as §14.3 requires.
-pub const MAX_CANONICAL_CUTS: usize = 4;
-
-/// The points a closed chain is opened at.
-///
-/// Sample zero plus the corner anchors, all derived from the chain.
-///
-/// Whether the implicit join is corner or smooth is decided separately by the
-/// same finite jet classes as the grammar. A smooth cut receives one aliased
-/// endpoint tangent; a corner cut has no G1 declaration to lose.
-pub fn canonical_cuts(chain: &BoundaryChain) -> Vec<usize> {
-    let proposals = crate::corner::corner_proposals(&chain.samples);
-    let anchors = crate::corner::corner_anchors(&proposals, crate::CORNER_ANCHOR_HALF_WINDOW);
-    let mut ranked: Vec<(usize, f64)> = anchors
-        .into_iter()
-        .filter(|sample| *sample != 0)
-        .map(|sample| {
-            let saliency = proposals
-                .iter()
-                .find(|proposal| proposal.sample == sample)
-                .map_or(0.0, |proposal| proposal.saliency);
-            (sample, saliency)
-        })
-        .collect();
-    ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
-    let mut cuts = vec![0usize];
-    cuts.extend(
-        ranked
-            .into_iter()
-            .take(MAX_CANONICAL_CUTS.saturating_sub(1))
-            .map(|(sample, _)| sample),
-    );
-    cuts.sort_unstable();
-    cuts.dedup();
-    cuts
-}
-
-fn cut_is_jet_smooth(chain: &BoundaryChain, cut: usize) -> bool {
-    let n = chain.samples.len();
-    if n < 3 || cut >= n {
-        return false;
-    }
-    let point = chain.samples[cut].p;
-    let incoming = point - chain.samples[(cut + n - 1) % n].p;
-    let outgoing = chain.samples[(cut + 1) % n].p - point;
-    if incoming.length_sq() <= 0.0 || outgoing.length_sq() <= 0.0 {
-        return false;
-    }
-    crate::grammar::jet_compatible(
-        crate::grammar::jet_class(incoming.y.atan2(incoming.x)),
-        crate::grammar::jet_class(outgoing.y.atan2(outgoing.x)),
-    )
-}
-
-/// Rotate a closed chain so that `cut` becomes its first sample, and repeat
-/// that sample at the end so the opened chain closes geometrically.
-pub fn rotate(chain: &BoundaryChain, cut: usize) -> BoundaryChain {
-    if cut == 0 && !chain.closed {
-        return chain.clone();
-    }
-    let n = chain.samples.len();
-    let mut samples: Vec<BoundarySample> = (0..n).map(|i| chain.samples[(cut + i) % n]).collect();
-    if chain.closed {
-        // The repeated endpoint closes geometry but is not a second physical
-        // observation. At a corner its incoming-side normal is represented by
-        // the predecessor, while the first copy keeps the outgoing side.
-        let mut seam = chain.samples[cut];
-        seam.normal = chain.samples[(cut + n - 1) % n].normal;
-        seam.weight_ds = 0.0;
-        samples.push(seam);
-    }
-    BoundaryChain {
-        samples,
-        ..chain.clone()
-    }
-}
-
 fn models_for_open_chain(
     chain: &BoundaryChain,
     budget: &FitBudget,
@@ -903,22 +766,4 @@ pub fn path_families(path: &GrammarPath, candidates: &[crate::SpanCandidate]) ->
 }
 
 #[cfg(test)]
-mod ranking_tests {
-    use std::cmp::Ordering;
-
-    use super::compare_rank_values;
-
-    #[test]
-    fn proposal_integral_is_load_bearing_on_an_exact_code_tie() {
-        assert_eq!(
-            compare_rank_values(100.0, 2.0, 100.0, 7.0),
-            Ordering::Less,
-            "removing the proposal leg must make this test red (RT6-A4)"
-        );
-        assert_eq!(
-            compare_rank_values(101.0, 0.0, 100.0, 1.0e9),
-            Ordering::Greater,
-            "proposal cost must never overrule the physical-bit selector"
-        );
-    }
-}
+mod ranking_tests;

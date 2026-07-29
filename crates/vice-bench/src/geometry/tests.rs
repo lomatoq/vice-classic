@@ -13,6 +13,8 @@ fn the_geometry_intervention_config_binds_the_model_and_pricing_versions() {
     );
     assert_eq!(config.model_universe_hash.len(), 64);
     assert_eq!(config.geometry_pricing_sha256.len(), 64);
+    assert_eq!(config.backend_source_sha256.len(), 64);
+    assert_eq!(config.max_canonical_cuts, vice_fit::MAX_CANONICAL_CUTS);
 }
 
 fn one_boundary_measurement() -> GeometryMeasurements {

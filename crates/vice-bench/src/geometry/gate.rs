@@ -85,9 +85,7 @@ pub(super) fn derive_coverage(
     rows: &[GeometryBoundaryRow],
     config: &GeometryOracleConfig,
 ) -> DerivedCoverage {
-    let has_family = |row: &GeometryBoundaryRow, family: &str| {
-        row.gt_families.iter().any(|candidate| *candidate == family)
-    };
+    let has_family = |row: &GeometryBoundaryRow, family: &str| row.gt_families.contains(&family);
     DerivedCoverage {
         candidate_injections: rows.iter().map(|row| row.injected_models).sum(),
         oracle_selector_changes: rows
