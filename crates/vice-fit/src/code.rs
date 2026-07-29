@@ -254,6 +254,11 @@ pub fn pricing_surface_v1() -> String {
         "join_kinds {JOIN_KINDS}
 "
     ));
+    out.push_str(&format!(
+        "path_order_policy {}
+",
+        crate::grammar::PATH_ORDER_POLICY
+    ));
     for u in [0.5f64, 1.0, 2.0, 4.0] {
         out.push_str(&format!(
             "huber_rho {} = {}
@@ -346,6 +351,8 @@ pub fn pricing_surface_v1() -> String {
             candidates: vec![0, 1],
             breakpoints: vec![1],
             smooth: vec![true],
+            closed: false,
+            closure_smooth: false,
             code: ChainCode::default(),
             proposal_cost_px: 0.0,
         };
@@ -361,7 +368,14 @@ pub fn pricing_surface_v1() -> String {
 ",
             f.universe_name(),
             f.universe_name(),
-            crate::grammar::path_is_representable_with_closure(&path, &[f, f], true)
+            crate::grammar::path_is_representable(
+                &crate::grammar::GrammarPath {
+                    closed: true,
+                    closure_smooth: true,
+                    ..path.clone()
+                },
+                &[f, f],
+            )
         ));
     }
     out

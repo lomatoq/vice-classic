@@ -150,23 +150,6 @@ pub fn canonical_cuts(chain: &BoundaryChain) -> Vec<usize> {
     cuts
 }
 
-pub(super) fn cut_is_jet_smooth(chain: &BoundaryChain, cut: usize) -> bool {
-    let n = chain.samples.len();
-    if n < 3 || cut >= n {
-        return false;
-    }
-    let point = chain.samples[cut].p;
-    let incoming = point - chain.samples[(cut + n - 1) % n].p;
-    let outgoing = chain.samples[(cut + 1) % n].p - point;
-    if incoming.length_sq() <= 0.0 || outgoing.length_sq() <= 0.0 {
-        return false;
-    }
-    crate::grammar::jet_compatible(
-        crate::grammar::jet_class(incoming.y.atan2(incoming.x)),
-        crate::grammar::jet_class(outgoing.y.atan2(outgoing.x)),
-    )
-}
-
 /// Rotate a closed chain so `cut` is first and repeat it once as an unweighted
 /// geometric endpoint. The final copy carries the incoming-side normal.
 pub(super) fn rotate(chain: &BoundaryChain, cut: usize) -> BoundaryChain {

@@ -74,6 +74,7 @@ pub use gate::{
 pub use grammar::{
     build_edges, jet_class, jet_compatible, k_best_paths, k_best_proposal_control_paths,
     materialize, GrammarEdge, GrammarPath, ProposalControlPath, JET_CLASSES, K_DISCRETE_PATHS,
+    PATH_ORDER_POLICY,
 };
 pub use models::{
     canonical_cuts, fit_forced_boundary_models, k_best_boundary_models, models_at_cut,

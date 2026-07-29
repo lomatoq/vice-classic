@@ -1,7 +1,7 @@
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
-    canonical_cuts, k_best_boundary_models, FIT_BUDGET_V1, GATE_MAX_CUT_ROTATION_DELTA_BITS,
-    K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
+    canonical_cuts, k_best_boundary_models, models_at_cut, FIT_BUDGET_V1,
+    GATE_MAX_CUT_ROTATION_DELTA_BITS, K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
 };
 use vice_geom::Pt;
 
@@ -178,6 +178,33 @@ fn periodic_geometry_cannot_hide_nonuniform_observation_attributes() {
             answer.0,
             reference.5,
             answer.5
+        );
+    }
+}
+
+#[test]
+fn every_cut_of_a_sparse_circle_searches_both_seam_join_kinds() {
+    let points = (0..19)
+        .map(|i| {
+            let angle = std::f64::consts::TAU * i as f64 / 19.0;
+            Pt::new(32.0 + 3.0 * angle.cos(), 32.0 + 3.0 * angle.sin())
+        })
+        .collect::<Vec<_>>();
+    let chain = chain(&points);
+    let mut answers = Vec::new();
+    for cut in canonical_cuts(&chain) {
+        let run = models_at_cut(&chain, cut, &FIT_BUDGET_V1, 256.0, K_DISCRETE_PATHS)
+            .expect("the sparse circle fits at every canonical cut");
+        let model = run.models.first().expect("a selected model");
+        let mut families = model.families.clone();
+        families.sort_by_key(|family| format!("{family:?}"));
+        answers.push((cut, families, model.closure_smooth));
+    }
+    let reference = &answers[0];
+    for answer in &answers[1..] {
+        assert_eq!(
+            answer.1, reference.1,
+            "the pre-DP seam label changed the grammar across cuts: {answers:?}"
         );
     }
 }

@@ -71,6 +71,8 @@ pub const JET_CLASSES: usize = 32;
 /// of the k the joint refit threw away, so a k that is too small shows up as a
 /// run where every path was refused rather than as a silently worse answer.
 pub const K_DISCRETE_PATHS: usize = 8;
+/// Exact order used at every K truncation, including cyclic seam branches.
+pub const PATH_ORDER_POLICY: &str = "physical_code_then_proposal_integral_v1";
 
 /// Which bucket a direction falls in.
 pub fn jet_class(dir_rad: f64) -> usize {
@@ -182,6 +184,11 @@ pub struct GrammarPath {
     /// `true` where the interior node is a SMOOTH join. One entry per
     /// breakpoint.
     pub smooth: Vec<bool>,
+    /// Whether the path covers a cyclic chain with a seam join.
+    pub closed: bool,
+    /// The seam join chosen by the cyclic DP. False means a corner when
+    /// `closed`, and has no meaning for an open path.
+    pub closure_smooth: bool,
     pub code: ChainCode,
     /// Sum of §14.4's integrals over the path's spans. Separate from `code`
     /// and never added to it (§14.4).
@@ -336,17 +343,39 @@ pub(crate) fn k_best_paths_with_closure(
     canvas_dim_px: f64,
     k: usize,
     closed: bool,
-    closure_smooth: bool,
 ) -> Vec<GrammarPath> {
-    k_best_paths_for_objective(
+    if !closed {
+        return k_best_paths_for_objective(
+            edges,
+            samples,
+            table,
+            canvas_dim_px,
+            k,
+            PathObjective::PhysicalCode,
+            ClosureMode::Open,
+        );
+    }
+    let mut paths = k_best_paths_for_objective(
         edges,
         samples,
         table,
         canvas_dim_px,
         k,
         PathObjective::PhysicalCode,
-        ClosureMode::for_chain(closed, closure_smooth),
-    )
+        ClosureMode::Corner,
+    );
+    paths.extend(k_best_paths_for_objective(
+        edges,
+        samples,
+        table,
+        canvas_dim_px,
+        k,
+        PathObjective::PhysicalCode,
+        ClosureMode::Smooth,
+    ));
+    paths.sort_by(compare_path_rank);
+    paths.truncate(k);
+    paths
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -538,7 +567,7 @@ fn k_best_paths_for_objective(
             )
         });
     }
-    finished.sort_by(|a, b| arena[*a].bits.total_cmp(&arena[*b].bits));
+    finished.sort_by(|a, b| compare_partial(&arena[*a], &arena[*b]));
     finished.truncate(k);
     finished
         .into_iter()
@@ -555,6 +584,8 @@ fn k_best_paths_for_objective(
                 candidates: walk.iter().map(|x| edges[x.edge].candidate).collect(),
                 breakpoints: walk[1..].iter().map(|x| edges[x.edge].from).collect(),
                 smooth: walk[1..].iter().map(|x| x.smooth_here).collect(),
+                closed: closure_mode.is_closed(),
+                closure_smooth: closure_mode.is_smooth(),
                 code: ChainCode {
                     geometry_bits: p.geometry,
                     topology_bits: p.topology,
@@ -592,8 +623,20 @@ fn push_state(
     };
     let v = slot.entry(key).or_default();
     v.push(idx);
-    v.sort_by(|a, b| arena[*a].bits.total_cmp(&arena[*b].bits));
+    v.sort_by(|a, b| compare_partial(&arena[*a], &arena[*b]));
     v.truncate(k);
+}
+
+fn compare_partial(a: &Partial, b: &Partial) -> std::cmp::Ordering {
+    a.bits
+        .total_cmp(&b.bits)
+        .then(a.proposal.total_cmp(&b.proposal))
+}
+
+fn compare_path_rank(a: &GrammarPath, b: &GrammarPath) -> std::cmp::Ordering {
+    a.total_bits()
+        .total_cmp(&b.total_bits())
+        .then(a.proposal_cost_px.total_cmp(&b.proposal_cost_px))
 }
 
 /// Turn a discrete path into the shared-parameter representation the joint
@@ -609,7 +652,7 @@ pub fn materialize(
     candidates: &[SpanCandidate],
     samples: &[BoundarySample],
 ) -> Option<RefitChain> {
-    materialize_with_closure(path, edges, candidates, samples, false)
+    materialize_with_closure(path, edges, candidates, samples)
 }
 
 /// Materialize one path and, when requested, make the repeated endpoint of a
@@ -619,8 +662,8 @@ pub(crate) fn materialize_with_closure(
     edges: &[GrammarEdge],
     candidates: &[SpanCandidate],
     samples: &[BoundarySample],
-    closure_smooth: bool,
 ) -> Option<RefitChain> {
+    let closure_smooth = path.closure_smooth;
     let ids: Vec<usize> = path
         .candidates
         .iter()
@@ -747,15 +790,7 @@ pub(crate) fn materialize_with_closure(
 /// - a smooth join between two LINES: their directions are their chords, and
 ///   two collinear lines are one line.
 pub fn path_is_representable(path: &GrammarPath, families: &[SpanFamily]) -> bool {
-    closure::path_is_representable(path, families, false)
-}
-
-pub(crate) fn path_is_representable_with_closure(
-    path: &GrammarPath,
-    families: &[SpanFamily],
-    closure_smooth: bool,
-) -> bool {
-    closure::path_is_representable(path, families, closure_smooth)
+    closure::path_is_representable(path, families)
 }
 
 #[cfg(test)]

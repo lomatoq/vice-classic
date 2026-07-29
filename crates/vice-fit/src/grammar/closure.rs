@@ -14,14 +14,6 @@ pub(super) enum ClosureMode {
 }
 
 impl ClosureMode {
-    pub(super) fn for_chain(closed: bool, smooth: bool) -> Self {
-        match (closed, smooth) {
-            (false, _) => Self::Open,
-            (true, false) => Self::Corner,
-            (true, true) => Self::Smooth,
-        }
-    }
-
     pub(super) fn is_closed(self) -> bool {
         self != Self::Open
     }
@@ -63,14 +55,12 @@ fn family_is_representable(family: SpanFamily, head: bool, tail: bool) -> bool {
     }
 }
 
-pub(super) fn path_is_representable(
-    path: &GrammarPath,
-    families: &[SpanFamily],
-    closure_smooth: bool,
-) -> bool {
+pub(super) fn path_is_representable(path: &GrammarPath, families: &[SpanFamily]) -> bool {
+    let closure_smooth = path.closure_smooth;
     if path.candidates.len() != families.len()
         || path.smooth.len() != families.len().saturating_sub(1)
-        || (closure_smooth && families.len() < 2)
+        || (path.closed && families.len() < 2)
+        || (closure_smooth && !path.closed)
     {
         return false;
     }
@@ -107,6 +97,9 @@ pub(super) fn close_finished_path(
     join_bits: f64,
     smooth: bool,
 ) -> bool {
+    if path.prev.is_none() {
+        return false;
+    }
     if !smooth {
         path.topology += join_bits;
         path.bits += join_bits;
@@ -115,9 +108,6 @@ pub(super) fn close_finished_path(
     let Some(first) = path.closure else {
         return false;
     };
-    if path.prev.is_none() {
-        return false;
-    }
     let last = edges[path.edge];
     let first_family = FAMILY_BY_ORD[first.first_family_ord];
     if !jet_compatible(last.exit_class, first.first_entry_class)
@@ -181,14 +171,14 @@ mod tests {
         edges.push(edge(8, 1, 2, SpanFamily::Quad));
         edges.push(edge(9, 1, 2, SpanFamily::Cubic));
         edges[9].residual_bits = 100.0;
-        let paths = k_best_paths_with_closure(
+        let paths = k_best_paths_for_objective(
             &edges,
             &samples(),
             &crate::GEOMETRY_CODE_TABLE_V1,
             256.0,
             8,
-            true,
-            true,
+            PathObjective::PhysicalCode,
+            ClosureMode::Smooth,
         );
         assert_eq!(paths.len(), 8);
         assert!(
@@ -207,9 +197,17 @@ mod tests {
         let open = k_best_paths(&edges, &samples(), table, 256.0, 1)
             .pop()
             .expect("open path");
-        let closed = k_best_paths_with_closure(&edges, &samples(), table, 256.0, 1, true, true)
-            .pop()
-            .expect("closed path");
+        let closed = k_best_paths_for_objective(
+            &edges,
+            &samples(),
+            table,
+            256.0,
+            1,
+            PathObjective::PhysicalCode,
+            ClosureMode::Smooth,
+        )
+        .pop()
+        .expect("closed path");
         let cb = table.coordinate_bits(256.0);
         let join = (crate::code::JOIN_KINDS as f64).log2();
         assert_eq!(
@@ -221,5 +219,28 @@ mod tests {
             open.code.topology_bits + join + cb
         );
         assert_eq!(closed.code.residual_bits, open.code.residual_bits);
+    }
+
+    #[test]
+    fn a_single_span_corner_loop_cannot_consume_the_global_k_slot() {
+        let mut edges = vec![edge(0, 0, 2, SpanFamily::Cubic)];
+        edges.push(edge(1, 0, 1, SpanFamily::Cubic));
+        edges.push(edge(2, 1, 2, SpanFamily::Cubic));
+        edges[1].residual_bits = 10.0;
+        edges[2].residual_bits = 10.0;
+        let path = k_best_paths_for_objective(
+            &edges,
+            &samples(),
+            &crate::GEOMETRY_CODE_TABLE_V1,
+            256.0,
+            1,
+            PathObjective::PhysicalCode,
+            ClosureMode::Corner,
+        )
+        .pop()
+        .expect("the valid two-span loop survives K=1");
+        assert_eq!(path.candidates, vec![1, 2]);
+        assert!(path.closed);
+        assert!(!path.closure_smooth);
     }
 }

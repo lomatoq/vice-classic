@@ -42,8 +42,8 @@ use vice_evidence::{BoundaryChain, BoundarySample};
 
 use crate::code::{ChainCode, GeometryCodeTable};
 use crate::grammar::{
-    build_edges, k_best_paths_with_closure, materialize_with_closure,
-    path_is_representable_with_closure, GrammarPath,
+    build_edges, k_best_paths_with_closure, materialize_with_closure, path_is_representable,
+    GrammarPath,
 };
 use crate::refit::{closure_g1_spread_rad, g1_readings, RefitChain, RefitRefusal};
 use crate::schedule::{FitBudget, Support};
@@ -52,8 +52,8 @@ use crate::span::{NoFit, SpanCandidate, SpanFamily};
 use crate::{span_candidates, FitRefusal};
 
 mod closed;
+use closed::rotate;
 pub use closed::{canonical_cuts, dedup_coincident, DUPLICATE_EPSILON_PX, MAX_CANONICAL_CUTS};
-use closed::{cut_is_jet_smooth, rotate};
 
 /// The geometry selected by Stage H.
 ///
@@ -310,7 +310,6 @@ pub fn fit_forced_boundary_models(
         .map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
     let closed = chain.closed;
     let base_chain = dedup_coincident(chain);
-    let closure_smooth = closed && cut_is_jet_smooth(&base_chain, 0);
     // The forced breakpoints are expressed from GT's canonical start. Open
     // that same physical loop exactly once; unlike G00 there is no cut search
     // to perform, but Stage H and the seam still need to know it is a loop.
@@ -387,15 +386,7 @@ pub fn fit_forced_boundary_models(
             family: missing.1.family,
         });
     }
-    let paths = k_best_paths_with_closure(
-        &edges,
-        samples,
-        table,
-        canvas_dim_px,
-        k,
-        closed,
-        closure_smooth,
-    );
+    let paths = k_best_paths_with_closure(&edges, samples, table, canvas_dim_px, k, closed);
     if paths.is_empty() {
         return Err(ForcedFitRefusal::NoPath);
     }
@@ -404,13 +395,12 @@ pub fn fit_forced_boundary_models(
     let mut refused = Vec::new();
     let mut not_representable = 0usize;
     for path in &paths {
-        if !path_is_representable_with_closure(path, families, closure_smooth) {
+        let closure_smooth = path.closure_smooth;
+        if !path_is_representable(path, families) {
             not_representable += 1;
             continue;
         }
-        let Some(init) =
-            materialize_with_closure(path, &edges, &candidates, samples, closure_smooth)
-        else {
+        let Some(init) = materialize_with_closure(path, &edges, &candidates, samples) else {
             not_representable += 1;
             continue;
         };
@@ -540,8 +530,7 @@ fn k_best_boundary_models_with_table(
     let mut cuts_evaluated = 0usize;
     for cut in cuts {
         let rotated = rotate(chain, cut);
-        let closure_smooth = chain.closed && cut_is_jet_smooth(chain, cut);
-        let run = models_for_open_chain(&rotated, budget, table, canvas_dim_px, k, closure_smooth)?;
+        let run = models_for_open_chain(&rotated, budget, table, canvas_dim_px, k)?;
         cuts_evaluated += 1;
         candidates_across_cuts = candidates_across_cuts.saturating_add(run.candidates);
         if candidates_across_cuts > budget.cap() {
@@ -556,7 +545,7 @@ fn k_best_boundary_models_with_table(
             Some(b) => match (b.models.first(), run.models.first()) {
                 (_, None) => false,
                 (None, Some(_)) => true,
-                (Some(x), Some(y)) => y.code.total_bits() < x.code.total_bits(),
+                (Some(x), Some(y)) => compare_model_rank(y, x).is_lt(),
             },
         };
         if better {
@@ -595,14 +584,12 @@ pub fn models_at_cut(
         });
     }
     let rotated = rotate(&chain, cut);
-    let closure_smooth = chain.closed && cut_is_jet_smooth(&chain, cut);
     models_for_open_chain(
         &rotated,
         budget,
         &crate::GEOMETRY_CODE_TABLE_V1,
         canvas_dim_px,
         k,
-        closure_smooth,
     )
 }
 
@@ -612,38 +599,28 @@ fn models_for_open_chain(
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
-    closure_smooth: bool,
 ) -> Result<ModelRun, FitRefusal> {
     let cands = span_candidates(chain, budget)?;
     let samples = &chain.samples;
     let edges = build_edges(&cands.candidates, samples, table, canvas_dim_px);
-    let paths = k_best_paths_with_closure(
-        &edges,
-        samples,
-        table,
-        canvas_dim_px,
-        k,
-        chain.closed,
-        closure_smooth,
-    );
+    let paths = k_best_paths_with_closure(&edges, samples, table, canvas_dim_px, k, chain.closed);
 
     let mut models = Vec::new();
     let mut refused: Vec<(&'static str, usize)> = Vec::new();
     let mut not_representable = 0usize;
 
     for path in &paths {
+        let closure_smooth = path.closure_smooth;
         let families: Vec<SpanFamily> = path
             .candidates
             .iter()
             .map(|c| cands.candidates[*c].family)
             .collect();
-        if !path_is_representable_with_closure(path, &families, closure_smooth) {
+        if !path_is_representable(path, &families) {
             not_representable += 1;
             continue;
         }
-        let Some(init) =
-            materialize_with_closure(path, &edges, &cands.candidates, samples, closure_smooth)
-        else {
+        let Some(init) = materialize_with_closure(path, &edges, &cands.candidates, samples) else {
             not_representable += 1;
             continue;
         };
