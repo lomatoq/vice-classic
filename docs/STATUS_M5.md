@@ -769,3 +769,148 @@ Four rows do not pass, each with a named residual and an owner. Two of them —
 and are kept because their measured contribution is real and now quantified.
 
 **STOPPED AFTER M5 DELTA-3 — M5.5 NOT STARTED.**
+
+
+---
+
+# Addendum 4 — delta-4 (C264–C267)
+
+`REDTEAM_M5` addendum 3 **FAIL** (2 MAJOR, **no live defect found in the shipped
+structure**), `REVIEW_M5_A` addendum 3 **ACCEPT WITH CONDITIONS / GATE MET**,
+`REVIEW_M5_B` addendum 3 **ACCEPT WITH CONDITIONS / GATE MET**. §34 makes a
+red-team pass mandatory for M5, so one FAIL is the gate.
+
+## A4.1 RT5-A17 / M5A-D3-N1: a fixture where a floor was owed
+
+The §12 ORIENTED check had no population floor and published no population.
+`loop_length_profile` was consumed by one test; neither the arm key nor the
+report carried the longest loop or the count of loops of three or more; no
+conjunct of clause 4 required such a loop to exist.
+
+`report.rs`'s own header states the rule: *"every row that stands on a
+population also PUBLISHES that population's size, and the row is false when the
+population is empty"*. This was the **fourth** such population of this gate —
+clause 1's convention-dependent groups, clause 3's unrelated chains, clause 4's
+slots and probes all have floors — and the only one that received a fixture
+instead. Reviewer A's distinction is the one to keep: **a fixture makes a check
+exercised today; a floor makes it exercised tomorrow.**
+
+Published per arm and in totals, floored on the REGISTER's share, because that
+is where condition 51's standard applies — coverage by construction at every
+size under both arms. **Measured, by me rather than quoted: 20 arms carry a loop
+of three or more half-edges, 14 from the corpus and 6 from the register; the
+longest is 8; 28 such loops in all.**
+
+Q5 in three directions, as F-0059 requires for a floor:
+
+| direction | how |
+|---|---|
+| **red** | `RegisterKnockout::DropLongLoops` takes the register's share to zero and clause 4 to NOT MET |
+| **empty** | the same run — the population IS zero, which is the state a floor exists to notice and delta-3 had no way to notice |
+| **idle** | excluded by construction: the count comes from `loop_length_profile` over real loops, so it cannot be satisfied by a constant, and the longest-loop assertion pins it above 2 |
+
+## A4.2 The sentence that argued for the fixture was false, and it is mine
+
+`loops.rs` and `fixtures.rs` said **"neither M5 population had them"**. The red
+team's figure was an **upper bound** — "at most 55 of 1334" — and I restated a
+bound as a measurement of absence. **The corpus carries 14 such arms**, which I
+measured rather than accepted.
+
+What was measured to be zero is the **structural register**, and that is what
+justifies the fixture: condition 51's standard is coverage BY CONSTRUCTION at
+every size under both arms, which fourteen incidental corpus arms are not. The
+fixture stands; the sentence that argued for it did not.
+
+## A4.3 §12's arithmetic, which no reviewer found
+
+Delta-3 split the "closed and oriented" row correctly and left **three counts of
+one table** standing:
+
+| site | said |
+|---|---|
+| `dcel/mod.rs` prose | "Six of the seven" |
+| `report.rs` clause-4 row | "Six of the seven … **The seventh IS a computation**" — four sentences before naming the second |
+| STATUS §A2.5 / A3.7 | "the **five** that remain after §12's ORIENTED clause left the column" |
+
+The table is **eight rows: six held by the representation, two computations**
+(ORIENTED and Euler). §12 lists seven invariants and one of them is a
+conjunction held two different ways. Corrected in all three places.
+
+This is the swapped-format-argument class of delta-1: the edit was right and the
+arithmetic around it was not recomputed. It sat in the gate's own most
+load-bearing text through three cold reviews.
+
+## A4.4 The `loops.rs` residual, rewritten along two dimensions
+
+Two reports looked contradictory — the red team's `succ` defect was invisible to
+the sweep, reviewer A's was caught by it. Reading both experiments resolves it,
+and the resolution is not what the residual claimed:
+
+- the **predicate** that fires in both is the same, and it is neither `loops.rs`
+  nor the Euler identity: it is the **owner/site check** in `audit`;
+- the **sweep** is that predicate's carrier, and its reach ends at `w = 4`. The
+  red team's defect fires at `w >= 16` and was never reached; reviewer A's is
+  unconditional and was caught on labelling 18 under foreground-4.
+
+That difference is **F-8**, and it is why the structural register runs to 512 px.
+The protection exists; the residual named the wrong mechanism and overstated its
+reach.
+
+## A4.5 Two scan bypasses, and they are not duplicates
+
+| | key | cost | closed? |
+|---|---|---|---|
+| **M5B-N16** | SPELLING — `#[cfg_attr(all(), serde(default, skip))]` matched neither predicate, because the comma breaks the substring | **3 lines** | **yes** — the scan rejects any attribute on a `Parts` field now |
+| **RT5-A16** | the field's **TYPE** — a newtype whose `Serialize` writes `serialize_none()`, so `leaves()` counts it as zero | 9 lines, **none inside the `Parts` block** | **no** |
+
+**What remains, stated plainly:** tightening the scan closes the orthographic
+class and does nothing to the type class, because the type class puts no text
+inside the region the scan reads. Counting `null` as one leaf would close the
+demonstrated instance and not the class — a type serializing to an empty array
+or object counts zero just as well. **Owner M6**, and the real closure is the one
+already named: a proc-macro deriving both the perturbation sites and the leaf
+count from one definition, which is a new crate.
+
+## A4.6 M5A-D3-N2, closed rather than carried
+
+§12 asks for **maximal** shared boundary chains and nothing bound the word:
+splitting a chain at an interior degree-two point left `audit()` green,
+`loops_agree` true, `face_map_agrees` true, and V and B growing together so
+Euler held. Reviewer A rated it MINOR because clause 3 catches it on the corpus
+by comparing lattice paths, and found it by publishing **two refuted assumptions
+of their own**.
+
+It is one comparison, so it is one now: no interior point of a chain may be a
+vertex. The vertex set comes from lattice degree, a function of the labelling,
+so the check does not share a provenance with the splitting it judges.
+
+## A4.7 New limitations
+
+48. **The leaf judge's TYPE class is open.** A4.5. **Owner M6.**
+49. **The serde-attribute scan is still a text scan.** Renaming the struct or
+    moving it defeats it. **Owner M6**, same closure as 48.
+
+## A4.8 F-0048 after delta-4
+
+| mechanism | Q1 literal | Q2 next finding | Q3 judge | Q4 provenance shared? | Q5 | verdict |
+|---|---|---|---|---|---|---|
+| the ORIENTED population floor **(new)** | no | criterion changes | a count from real loop lengths | no — lengths come from the labelling's arrangement | **red, empty and idle all three** | **PASSES** |
+| chain maximality **(new)** | no | criterion changes | vertex membership, from lattice degree | no | split caught, intact green | **PASSES** |
+| `loops_agree_with_the_labelling` | no | criterion changes | re-derivation from the input | no data; **YES algorithm**, both stated | RT5-A13 red, clean green | **PASSES on data-provenance** |
+| `audit`'s labelling anchor | no | criterion changes | per-pixel comparison | no | guarded by knockouts, not measured by the walk | **PASSES** |
+| `crossing::face_map_agrees` | no | criterion changes | independent traversal | **YES, through `owners`** | 153 unique slots measured | **DOES NOT PASS Q4**, residual exact |
+| `Parts::perturbations` | no | leaf count moves | compiler + derive + a source scan | **YES — the derive and the field TYPE** | red, empty, idle | **DOES NOT PASS Q4.** Spelling class closed, type class open |
+| `audit()` | **YES — hand-written blocks** | "append a block" | habit, bounded over perturbations only | — | domain of the bound named | **DOES NOT PASS** |
+| the branch probe | no — judge names its branches, with its return site | a new branch gets a bucket | the judge's own output + `line!()` | no | gated by clause 4 | **PASSES** |
+| `RunKnockouts` | no — counted against `gate_table()` | a clause without a knockout fails | the gate table | no | each reddens its own row | **PASSES** |
+| `transaction_for` | **YES — `_ => return None`** | "the fifth kind is dropped" | the outcome | yes | excluded count published | **DOES NOT PASS.** Limitation 37, owner M6 |
+| representation invariants (the six) | no | criterion changes | compiler | no | yes | **PASSES** |
+| `Threshold::from_gates` | no | type error | compiler | no | yes | **PASSES** |
+| CI claim checker | no | a claim without a step fails | the workflow file | no | both | **PASSES**, price named |
+| `doc_claims` doc set | exceptions only | forgetting is red | the file system | no | stale exceptions fail | **PASSES as a default** |
+
+Four rows do not pass; each has a named residual and an owner, and none of the
+four is a live defect in the shipped structure — the red team says so in its own
+words this pass.
+
+**STOPPED AFTER M5 DELTA-4 — M5.5 NOT STARTED.**

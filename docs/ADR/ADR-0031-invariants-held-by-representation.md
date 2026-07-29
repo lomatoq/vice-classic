@@ -218,3 +218,20 @@ were quoted back at me from three independent cold contexts.
    exists because §12's ORIENTED clause needs loops of three or more half-edges
    to have anything to say, and neither M5 population had them — the corpus
    averages 1.082 per loop and the register had zero.
+
+
+## Erratum 4 — delta-4 (C267)
+
+1. **The arithmetic around erratum 3 was not recomputed.** Splitting §12's
+   "closed and oriented" row made the table EIGHT rows — six held by the
+   representation, two computations — and three places went on saying "six of
+   the seven", "the seventh IS a computation" and "the five that remain"
+   (F-0072).
+2. **§5's proof-domain axes gained a floor, not only a fixture.** The ORIENTED
+   check's population — loops of three or more half-edges — is published per arm
+   and floored on the structural register's share (F-0070). The claim that
+   neither M5 population carried such loops was false and was mine: the corpus
+   carries 14 such arms, measured (F-0071).
+3. **§12's MAXIMAL chains are bound.** Splitting a chain at an interior
+   degree-two point passed every check; no interior point of a chain may be a
+   vertex.

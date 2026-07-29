@@ -29,7 +29,7 @@ cargo test --locked --workspace
 cargo test --locked --release --workspace
 ```
 
-Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-3: **543 passed,
+Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-4: **544 passed,
 0 failed** in each profile.
 
 **The `--ignored` run, and its EXIT CODE** — which is the thing that matters,
@@ -74,6 +74,7 @@ transactions 167 attempted, 167 committed, 0 rolled back
 unrelated chains 127, moved 0
 audit resolving power: 30 arrangements of 480 arms, 179 253 slots,
   caught by audit 179 253, UNCAUGHT 0, no-ops 0
+arms with a loop of >=3 half-edges: 20 (14 corpus, 6 register), longest 8
     vertices              82        boundaries.owners     90
     boundaries.endpoints  90        boundaries.path    10 058
     faces.label           67        faces.loops           90
