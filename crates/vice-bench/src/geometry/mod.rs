@@ -533,12 +533,16 @@ fn boundary_chain(points: &[Pt], config: &GeometryOracleConfig) -> BoundaryChain
     let mut samples = Vec::with_capacity(points.len());
     let mut length_px = 0.0f64;
     for i in 0..points.len() {
-        let back = (i > 0)
-            .then(|| (points[i] - points[i - 1]).length())
-            .unwrap_or(0.0);
-        let forward = (i + 1 < points.len())
-            .then(|| (points[i + 1] - points[i]).length())
-            .unwrap_or(0.0);
+        let back = if i > 0 {
+            (points[i] - points[i - 1]).length()
+        } else {
+            0.0
+        };
+        let forward = if i + 1 < points.len() {
+            (points[i + 1] - points[i]).length()
+        } else {
+            0.0
+        };
         let tangent = match (i > 0, i + 1 < points.len()) {
             (true, true) => points[i + 1] - points[i - 1],
             (false, true) => points[i + 1] - points[i],

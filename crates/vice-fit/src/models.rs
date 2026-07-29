@@ -665,6 +665,15 @@ fn bump(acc: &mut Vec<(&'static str, usize)>, name: &'static str) {
     }
 }
 
+/// The families of a path, for callers that want the discrete answer without
+/// the solve.
+pub fn path_families(path: &GrammarPath, candidates: &[crate::SpanCandidate]) -> Vec<SpanFamily> {
+    path.candidates
+        .iter()
+        .map(|c| candidates[*c].family)
+        .collect()
+}
+
 #[cfg(test)]
 mod ranking_tests {
     use std::cmp::Ordering;
@@ -684,13 +693,4 @@ mod ranking_tests {
             "proposal cost must never overrule the physical-bit selector"
         );
     }
-}
-
-/// The families of a path, for callers that want the discrete answer without
-/// the solve.
-pub fn path_families(path: &GrammarPath, candidates: &[crate::SpanCandidate]) -> Vec<SpanFamily> {
-    path.candidates
-        .iter()
-        .map(|c| candidates[*c].family)
-        .collect()
 }
