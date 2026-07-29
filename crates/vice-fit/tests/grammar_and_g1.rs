@@ -118,7 +118,7 @@ fn best(chain: &BoundaryChain, canvas: f64) -> BoundaryModel {
 }
 
 fn physical_residual_bits(model: &BoundaryModel, chain: &BoundaryChain) -> f64 {
-    let poly = vice_fit::solve::flatten_chain(&model.chain).expect("accepted model flattens");
+    let poly = model.geometry.flatten().expect("accepted model flattens");
     let precision = GEOMETRY_CODE_TABLE_V1.coordinate_precision_px();
     chain
         .samples
@@ -237,8 +237,9 @@ fn exact_g1_holds_on_every_model_the_solver_accepts() {
             .expect("well formed");
         assert!(!run.models.is_empty());
         for m in &run.models {
-            let lowered = m.chain.lower().expect("lowers");
-            let readings = g1_readings(&lowered, m.chain.start(), m.chain.end());
+            let chain = m.geometry.typed_chain().expect("a typed-chain fixture");
+            let lowered = chain.lower().expect("lowers");
+            let readings = g1_readings(&lowered, chain.start(), chain.end());
             smooth_nodes += readings.len();
             for r in &readings {
                 worst = worst.max(r.spread_rad);
@@ -762,6 +763,13 @@ fn a_closed_circle_promotes_a_whole_loop_primitive_and_an_open_chain_does_not() 
         .expect("a circle should beat its free typed-chain sibling");
     assert_eq!(kept.kind, vice_fit::LoopPrimitiveKind::Circle);
     assert!(kept.accepted && kept.net_bits > 0.0);
+    assert!(matches!(
+        &model.geometry,
+        vice_fit::SelectedBoundaryGeometry::LoopPrimitive {
+            kind: vice_fit::LoopPrimitiveKind::Circle,
+            ..
+        }
+    ));
     assert_eq!(
         model.relations_kept, 0,
         "a primitive and its implied relations were both charged"
@@ -815,6 +823,22 @@ fn a_relation_is_accepted_only_when_it_shortens_the_code() {
                 h.residual_penalty_bits,
                 h.net_bits,
                 if h.accepted { "ACCEPTED" } else { "rejected" }
+            );
+        }
+        if m.relations_kept > 0 {
+            assert_eq!(
+                m.relation_kept_indices.len(),
+                m.relations_kept,
+                "the accepted relation is not identifiable"
+            );
+            let kept = &m.relations[m.relation_kept_indices[0]];
+            let selected = m
+                .geometry
+                .typed_chain()
+                .expect("a relation winner is a constrained typed chain");
+            assert_eq!(
+                selected, &kept.constrained_chain,
+                "the discounted relation geometry was not materialized"
             );
         }
         (m.relations.len(), m.relations_kept)
@@ -949,8 +973,11 @@ fn the_red_team_chain_no_longer_produces_an_accepted_g1_violation() {
     let mut nodes = 0usize;
     let mut worst = 0.0f64;
     for m in &run.models {
-        let lowered = m.chain.lower().expect("an accepted model lowers");
-        let r = g1_readings(&lowered, m.chain.start(), m.chain.end());
+        let Some(chain) = m.geometry.typed_chain() else {
+            continue;
+        };
+        let lowered = chain.lower().expect("an accepted model lowers");
+        let r = g1_readings(&lowered, chain.start(), chain.end());
         nodes += r.len();
         for x in &r {
             worst = worst.max(x.spread_rad);

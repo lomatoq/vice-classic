@@ -47,11 +47,53 @@ use crate::solve::joint_constrained_refit;
 use crate::span::{NoFit, SpanCandidate, SpanFamily};
 use crate::{span_candidates, FitRefusal};
 
+/// The geometry selected by Stage H.
+///
+/// There is deliberately no parallel free-chain field. A relation winner is
+/// the constrained chain itself, and a primitive winner is the canonical
+/// primitive itself; downstream code cannot flatten the losing sibling while
+/// charging the winner's shorter code.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "selected_geometry", rename_all = "snake_case")]
+pub enum SelectedBoundaryGeometry {
+    TypedChain {
+        chain: RefitChain,
+    },
+    LoopPrimitive {
+        kind: crate::primitive::LoopPrimitiveKind,
+        geometry: crate::primitive::LoopPrimitiveGeometry,
+        /// The polyline used for the Stage-H residual/corridor comparison.
+        /// Export uses the canonical parameters; this preserves the witness
+        /// that was actually judged.
+        verification_polyline: Vec<vice_geom::Pt>,
+    },
+}
+
+impl SelectedBoundaryGeometry {
+    pub fn typed_chain(&self) -> Option<&RefitChain> {
+        match self {
+            SelectedBoundaryGeometry::TypedChain { chain } => Some(chain),
+            SelectedBoundaryGeometry::LoopPrimitive { .. } => None,
+        }
+    }
+
+    pub fn flatten(&self) -> Result<Vec<vice_geom::Pt>, RefitRefusal> {
+        match self {
+            SelectedBoundaryGeometry::TypedChain { chain } => crate::solve::flatten_chain(chain),
+            SelectedBoundaryGeometry::LoopPrimitive {
+                verification_polyline,
+                ..
+            } if verification_polyline.len() >= 2 => Ok(verification_polyline.clone()),
+            SelectedBoundaryGeometry::LoopPrimitive { .. } => Err(RefitRefusal::Malformed),
+        }
+    }
+}
+
 /// One accepted boundary model: a discrete grammar path that survived the joint
 /// solve, with everything a ranking or a gate would need.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct BoundaryModel {
-    pub chain: RefitChain,
+    pub geometry: SelectedBoundaryGeometry,
     pub families: Vec<SpanFamily>,
     pub breakpoints: Vec<usize>,
     pub smooth: Vec<bool>,
@@ -80,6 +122,9 @@ pub struct BoundaryModel {
     pub relations: Vec<crate::relation::RelationHypothesis>,
     /// How many of them were accepted, and are therefore folded into `code`.
     pub relations_kept: usize,
+    /// Exact indices into `relations`; a count alone cannot identify which
+    /// constrained sibling won.
+    pub relation_kept_indices: Vec<usize>,
 }
 
 /// What one call to [`k_best_boundary_models`] did, including the paths it
@@ -130,13 +175,17 @@ fn apply_stage_h(
     if primitive_kept.is_some()
         && primitive_sibling.code.total_bits() < relation_sibling.code.total_bits()
     {
+        model.geometry = primitive_sibling.geometry;
         model.code = primitive_sibling.code;
         model.primitive_kept = primitive_kept;
         model.relations_kept = 0;
+        model.relation_kept_indices.clear();
     } else {
+        model.geometry = relation_sibling.geometry;
         model.code = relation_sibling.code;
         model.primitive_kept = None;
         model.relations_kept = relations_kept;
+        model.relation_kept_indices = relation_sibling.relation_kept_indices;
     }
     model.primitives = primitives;
     model.relations = relations;
@@ -341,7 +390,7 @@ pub fn fit_forced_boundary_models(
                     continue;
                 }
                 let mut model = BoundaryModel {
-                    chain: out.chain,
+                    geometry: SelectedBoundaryGeometry::TypedChain { chain: out.chain },
                     families: families.to_vec(),
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),
@@ -355,6 +404,7 @@ pub fn fit_forced_boundary_models(
                     primitive_kept: None,
                     relations: Vec::new(),
                     relations_kept: 0,
+                    relation_kept_indices: Vec::new(),
                 };
                 apply_stage_h(&mut model, samples, table, canvas_dim_px, chain.closed);
                 models.push(model);
@@ -611,7 +661,7 @@ fn models_for_open_chain(
                     continue;
                 }
                 let mut m = BoundaryModel {
-                    chain: out.chain,
+                    geometry: SelectedBoundaryGeometry::TypedChain { chain: out.chain },
                     families,
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),
@@ -625,6 +675,7 @@ fn models_for_open_chain(
                     primitive_kept: None,
                     relations: Vec::new(),
                     relations_kept: 0,
+                    relation_kept_indices: Vec::new(),
                 };
                 apply_stage_h(&mut m, samples, table, canvas_dim_px, chain.closed);
                 models.push(m);

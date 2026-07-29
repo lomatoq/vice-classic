@@ -18,7 +18,6 @@ use vice_geom::Pt;
 
 use crate::code::{independent_observations, residual_bits, GeometryCodeTable};
 use crate::models::BoundaryModel;
-use crate::solve::flatten_chain;
 
 /// The finite whole-loop primitive universe named by §15.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -56,19 +55,33 @@ impl LoopPrimitiveKind {
         }
     }
 
-    /// Continuous scalar parameters coded at the calibrated coordinate
-    /// precision.  Angles are scalar parameters too: omitting their price
-    /// would make rotated models strictly cheaper for no evidential reason.
-    pub fn free_parameters(self) -> usize {
+    /// Coordinate-like continuous parameters coded in pixels.
+    pub fn coordinate_parameters(self) -> usize {
         match self {
             LoopPrimitiveKind::Circle => 3,         // cx, cy, r
-            LoopPrimitiveKind::Ellipse => 5,        // cx, cy, rx, ry, angle
+            LoopPrimitiveKind::Ellipse => 4,        // cx, cy, rx, ry
             LoopPrimitiveKind::Rect => 4,           // cx, cy, hx, hy
-            LoopPrimitiveKind::RotatedRect => 5,    // cx, cy, hx, hy, angle
-            LoopPrimitiveKind::RoundedRect => 6,    // rotated rect + corner r
-            LoopPrimitiveKind::Capsule => 5,        // cx, cy, half-length, r, angle
-            LoopPrimitiveKind::RegularPolygon => 4, // cx, cy, circumradius, phase
+            LoopPrimitiveKind::RotatedRect => 4,    // cx, cy, hx, hy
+            LoopPrimitiveKind::RoundedRect => 5,    // rotated rect + corner r
+            LoopPrimitiveKind::Capsule => 4,        // cx, cy, half-length, r
+            LoopPrimitiveKind::RegularPolygon => 3, // cx, cy, circumradius
         }
+    }
+
+    /// Angle-like parameters coded in radians.
+    pub fn angle_parameters(self) -> usize {
+        match self {
+            LoopPrimitiveKind::Circle | LoopPrimitiveKind::Rect => 0,
+            LoopPrimitiveKind::Ellipse
+            | LoopPrimitiveKind::RotatedRect
+            | LoopPrimitiveKind::RoundedRect
+            | LoopPrimitiveKind::Capsule
+            | LoopPrimitiveKind::RegularPolygon => 1,
+        }
+    }
+
+    pub fn free_parameters(self) -> usize {
+        self.coordinate_parameters() + self.angle_parameters()
     }
 
     /// Discrete parameters inside a primitive family.
@@ -80,12 +93,22 @@ impl LoopPrimitiveKind {
         }
     }
 
-    pub fn code_bits(self, table: &GeometryCodeTable, canvas_dim_px: f64) -> f64 {
+    pub fn code_bits(
+        self,
+        table: &GeometryCodeTable,
+        canvas_dim_px: f64,
+        characteristic_radius_px: f64,
+    ) -> f64 {
         // Uniform prefix over the seven finite families.  This function is
         // called by `pricing_surface_v1`, so changing either the family count
         // or a parameter count moves the frozen pricing hash.
+        let angular_precision_rad = (table.coordinate_precision_px()
+            / characteristic_radius_px.max(table.coordinate_precision_px()))
+        .min(std::f64::consts::TAU);
+        let angle_bits = (std::f64::consts::TAU / angular_precision_rad).log2();
         (Self::ALL.len() as f64).log2()
-            + self.free_parameters() as f64 * table.coordinate_bits(canvas_dim_px)
+            + self.coordinate_parameters() as f64 * table.coordinate_bits(canvas_dim_px)
+            + self.angle_parameters() as f64 * angle_bits
             + self.flag_bits()
     }
 }
@@ -112,6 +135,8 @@ pub struct LoopPrimitiveGeometry {
 pub struct LoopPrimitiveHypothesis {
     pub kind: LoopPrimitiveKind,
     pub geometry: LoopPrimitiveGeometry,
+    /// The exact tessellated witness used for residual/corridor evaluation.
+    pub verification_polyline: Vec<Pt>,
     pub primitive_bits: f64,
     pub free_structure_bits: f64,
     pub residual_penalty_bits: f64,
@@ -139,7 +164,7 @@ pub fn loop_primitive_hypotheses(
     if points.len() < 3 {
         return Vec::new();
     }
-    let Ok(free_poly) = flatten_chain(&model.chain) else {
+    let Ok(free_poly) = model.geometry.flatten() else {
         return Vec::new();
     };
     let free_residual = polyline_residual(&free_poly, samples, table);
@@ -174,12 +199,14 @@ pub fn loop_primitive_hypotheses(
             let poly = primitive_polyline(kind, geometry, table.coordinate_precision_px())?;
             let after = polyline_residual(&poly, samples, table);
             let residual_penalty_bits = after - free_residual;
-            let primitive_bits = kind.code_bits(table, canvas_dim_px);
+            let characteristic_radius_px = geometry.half_width_px.max(geometry.half_height_px);
+            let primitive_bits = kind.code_bits(table, canvas_dim_px, characteristic_radius_px);
             let net_bits = free_structure_bits - primitive_bits - residual_penalty_bits;
             let (worst, allowed) = worst_deviation(&poly, samples);
             Some(LoopPrimitiveHypothesis {
                 kind,
                 geometry,
+                verification_polyline: poly,
                 primitive_bits,
                 free_structure_bits,
                 residual_penalty_bits,
@@ -213,6 +240,11 @@ pub fn apply_best_primitive(
     model.code.topology_bits = 0.0;
     model.code.relation_bits = 0.0;
     model.code.residual_bits += best.residual_penalty_bits;
+    model.geometry = crate::models::SelectedBoundaryGeometry::LoopPrimitive {
+        kind: best.kind,
+        geometry: best.geometry,
+        verification_polyline: best.verification_polyline.clone(),
+    };
     Some(index)
 }
 
@@ -522,7 +554,7 @@ mod tests {
     #[test]
     fn every_kind_has_a_finite_positive_price() {
         for kind in LoopPrimitiveKind::ALL {
-            let bits = kind.code_bits(&crate::GEOMETRY_CODE_TABLE_V1, 256.0);
+            let bits = kind.code_bits(&crate::GEOMETRY_CODE_TABLE_V1, 256.0, 64.0);
             assert!(bits.is_finite() && bits > 0.0, "{kind:?}: {bits}");
         }
     }

@@ -140,18 +140,17 @@ fn the_admissible_subset_matches_what_the_core_executes_today() {
         vec!["box"],
         "the renderer refuses Triangle/Gaussian with UnsupportedPixelFilter"
     );
-    // M6 activated the four boundary-local §15 relation families. The two
-    // scene-level families remain planned, and the list is compared
-    // whole rather than by count: a fifth appearing without a hypothesis
-    // generator would be a widening of the grammar with the old
-    // calibration, which is exactly what §1.5 forbids.
+    // M6 activates all six §15 relation families. Parallel/perpendicular share
+    // one universe prefix but remain two typed constrained hypotheses.
     assert_eq!(
         SupportedModelUniverseV1::admissible_names(&u.relations.families),
         vec![
             "equal_radius",
             "concentric",
             "parallel_perpendicular",
-            "shared_baseline"
+            "shared_baseline",
+            "mirror_symmetry",
+            "repeated_transforms"
         ],
         "the admissible relation set is what `vice_fit::RelationKind` generates hypotheses for"
     );

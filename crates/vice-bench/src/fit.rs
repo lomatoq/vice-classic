@@ -189,6 +189,7 @@ fn refusal_name(r: &FitRefusal) -> &'static str {
         FitRefusal::NonFiniteSample { .. } => "non_finite_sample",
         FitRefusal::NonUnitNormal { .. } => "non_unit_normal",
         FitRefusal::NonPositiveCorrLength { .. } => "non_positive_corr_length",
+        FitRefusal::CutOutOfRange { .. } => "cut_out_of_range",
     }
 }
 
@@ -276,13 +277,13 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                                     run.worst_selected_deviation_px = run
                                         .worst_selected_deviation_px
                                         .max(m.worst_normal_deviation_px);
-                                    match m.chain.lower() {
+                                    let Some(chain) = m.geometry.typed_chain() else {
+                                        continue;
+                                    };
+                                    match chain.lower() {
                                         Ok(lowered) => {
-                                            let r = g1_readings(
-                                                &lowered,
-                                                m.chain.start(),
-                                                m.chain.end(),
-                                            );
+                                            let r =
+                                                g1_readings(&lowered, chain.start(), chain.end());
                                             run.g1_nodes_measured += r.len() as u64;
                                             for x in &r {
                                                 run.worst_g1_spread_rad =

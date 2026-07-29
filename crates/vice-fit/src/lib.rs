@@ -77,7 +77,8 @@ pub use grammar::{
 };
 pub use models::{
     canonical_cuts, fit_forced_boundary_models, k_best_boundary_models, models_at_cut,
-    path_families, BoundaryModel, ForcedFitRefusal, ModelRun, DUPLICATE_EPSILON_PX,
+    path_families, BoundaryModel, ForcedFitRefusal, ModelRun, SelectedBoundaryGeometry,
+    DUPLICATE_EPSILON_PX,
 };
 pub use primitive::{
     apply_best_primitive, loop_primitive_hypotheses, LoopPrimitiveGeometry,

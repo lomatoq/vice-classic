@@ -16,8 +16,9 @@
 //!
 //! ## The approximation, named at its exact price
 //!
-//! A relation is evaluated at the PROJECTED parameters — both radii set to
-//! their mean, a line snapped to its nearest axis — **without a constrained
+//! A relation is evaluated at the PROJECTED parameters — radii are shared,
+//! line directions are bound, and whole-loop line geometry is reflected —
+//! **without a constrained
 //! re-solve**. The optimiser has no constraint machinery and adding one is
 //! §28 M7's trust-region work.
 //!
@@ -28,14 +29,6 @@
 //! direction — the direction that does not promote a relation the evidence does
 //! not support. Limitation 66.
 //!
-//! ## What is NOT here
-//!
-//! §15's `mirror_symmetry` and `repetition` are properties of a SCENE — "a
-//! reflection maps the scene to itself", "a translation maps a sub-scene to
-//! itself". Stage G is handed one chain at a time and has no scene. They are
-//! not detected here, and the universe records their owner as the milestone with
-//! a scene-level search rather than leaving them pointed at this one.
-
 use serde::Serialize;
 use vice_evidence::BoundarySample;
 use vice_geom::Pt;
@@ -44,6 +37,11 @@ use crate::code::{log2_binomial, GeometryCodeTable};
 use crate::models::BoundaryModel;
 use crate::refit::{ArcAnchor, RefitChain, RefitSegment};
 use crate::solve::flatten_chain;
+
+/// Relation hypotheses are independently evaluated against one free sibling.
+/// Selecting more than one would require a newly evaluated joint constrained
+/// sibling, so M6 keeps the single best admissible one.
+pub const RELATION_COMPOSITION_POLICY: &str = "best_single_constrained_sibling_v1";
 
 /// The relation families of §15, named exactly as the model universe names
 /// them.
@@ -63,18 +61,24 @@ pub enum RelationKind {
     Perpendicular,
     /// Two lines lie on the same infinite supporting line.
     SharedBaseline,
+    /// A closed line loop is invariant under one reflected node pairing.
+    MirrorSymmetry,
+    /// One line segment is the translation of another, including its length.
+    RepeatedTransform,
 }
 
 impl RelationKind {
     /// Every generator this type can name. The relation/universe judge consumes
     /// this value instead of retyping the variants, so adding a variant cannot
     /// silently evade the reverse direction of that judge (M6B-N6).
-    pub const ALL: [RelationKind; 5] = [
+    pub const ALL: [RelationKind; 7] = [
         RelationKind::EqualRadius,
         RelationKind::Concentric,
         RelationKind::Parallel,
         RelationKind::Perpendicular,
         RelationKind::SharedBaseline,
+        RelationKind::MirrorSymmetry,
+        RelationKind::RepeatedTransform,
     ];
 
     pub fn universe_name(self) -> &'static str {
@@ -83,6 +87,8 @@ impl RelationKind {
             RelationKind::Concentric => "concentric",
             RelationKind::Parallel | RelationKind::Perpendicular => "parallel_perpendicular",
             RelationKind::SharedBaseline => "shared_baseline",
+            RelationKind::MirrorSymmetry => "mirror_symmetry",
+            RelationKind::RepeatedTransform => "repeated_transforms",
         }
     }
 
@@ -97,7 +103,9 @@ impl RelationKind {
     /// the second's far anchor to the first's direction.
     pub fn scalars_determined(self) -> usize {
         match self {
-            RelationKind::SharedBaseline => 2,
+            RelationKind::SharedBaseline
+            | RelationKind::MirrorSymmetry
+            | RelationKind::RepeatedTransform => 2,
             _ => 1,
         }
     }
@@ -118,6 +126,8 @@ pub struct RelationHypothesis {
     pub kind: RelationKind,
     /// Segment indices the relation binds, in order.
     pub segments: Vec<usize>,
+    /// The actual constrained sibling whose residual was measured.
+    pub constrained_chain: RefitChain,
     /// `bits_per_relation` plus the combinatorial code for which segments.
     pub cost_bits: f64,
     /// `scalars_determined * coordinate_bits`.
@@ -148,8 +158,11 @@ pub fn relation_hypotheses(
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
 ) -> Vec<RelationHypothesis> {
+    let Some(free_chain) = model.geometry.typed_chain() else {
+        return Vec::new();
+    };
     let cb = table.coordinate_bits(canvas_dim_px);
-    let n_seg = model.chain.segments.len();
+    let n_seg = free_chain.segments.len();
     if n_seg == 0 {
         return Vec::new();
     }
@@ -158,15 +171,15 @@ pub fn relation_hypotheses(
     } else {
         0.0
     };
-    let base_residual = residual_code(&model.chain, samples, table);
+    let base_residual = residual_code(free_chain, samples, table);
 
     let mut out = Vec::new();
-    for (i, a) in model.chain.segments.iter().enumerate() {
-        for (j, b) in model.chain.segments.iter().enumerate().skip(i + 1) {
+    for (i, a) in free_chain.segments.iter().enumerate() {
+        for (j, b) in free_chain.segments.iter().enumerate().skip(i + 1) {
             match (a, b) {
                 (RefitSegment::Arc(_), RefitSegment::Arc(_)) => {
                     for kind in [RelationKind::EqualRadius, RelationKind::Concentric] {
-                        let mut constrained = model.chain.clone();
+                        let mut constrained = free_chain.clone();
                         if !bind_arcs(&mut constrained, i, j, kind) {
                             continue;
                         }
@@ -176,6 +189,7 @@ pub fn relation_hypotheses(
                             constrained,
                             table.bits_per_relation() + pair_code,
                             cb,
+                            kind.scalars_determined(),
                             base_residual,
                             samples,
                             table,
@@ -187,9 +201,15 @@ pub fn relation_hypotheses(
                         RelationKind::Parallel,
                         RelationKind::Perpendicular,
                         RelationKind::SharedBaseline,
+                        RelationKind::RepeatedTransform,
                     ] {
-                        let mut constrained = model.chain.clone();
-                        if !bind_lines(&mut constrained, i, j, kind) {
+                        let mut constrained = free_chain.clone();
+                        let bound = if kind == RelationKind::RepeatedTransform {
+                            bind_repeated_line(&mut constrained, i, j)
+                        } else {
+                            bind_lines(&mut constrained, i, j, kind)
+                        };
+                        if !bound {
                             continue;
                         }
                         out.push(evaluate(
@@ -198,6 +218,7 @@ pub fn relation_hypotheses(
                             constrained,
                             table.bits_per_relation() + pair_code + kind.flag_bits(),
                             cb,
+                            kind.scalars_determined(),
                             base_residual,
                             samples,
                             table,
@@ -207,6 +228,20 @@ pub fn relation_hypotheses(
                 _ => {}
             }
         }
+    }
+    if let Some((constrained, determined)) = bind_mirror_loop(free_chain) {
+        let segments: Vec<usize> = (0..n_seg).collect();
+        out.push(evaluate(
+            RelationKind::MirrorSymmetry,
+            segments,
+            constrained,
+            table.bits_per_relation(),
+            cb,
+            determined,
+            base_residual,
+            samples,
+            table,
+        ));
     }
     out
 }
@@ -218,11 +253,12 @@ fn evaluate(
     constrained: RefitChain,
     cost_bits: f64,
     coordinate_bits: f64,
+    scalars_determined: usize,
     base_residual: f64,
     samples: &[BoundarySample],
     table: &GeometryCodeTable,
 ) -> RelationHypothesis {
-    let saving_bits = kind.scalars_determined() as f64 * coordinate_bits;
+    let saving_bits = scalars_determined as f64 * coordinate_bits;
     let after = residual_code(&constrained, samples, table);
     let residual_penalty_bits = after - base_residual;
     let (worst, allowed) = worst_deviation(&constrained, samples);
@@ -230,6 +266,7 @@ fn evaluate(
     RelationHypothesis {
         kind,
         segments,
+        constrained_chain: constrained,
         cost_bits,
         saving_bits,
         residual_penalty_bits,
@@ -242,6 +279,74 @@ fn evaluate(
         // compensating a salient residual" §15 forbids.
         accepted: net_bits > 0.0 && worst <= allowed && after.is_finite(),
     }
+}
+
+/// Make segment `j` the exact translated copy of line segment `i`.
+fn bind_repeated_line(chain: &mut RefitChain, i: usize, j: usize) -> bool {
+    if !matches!(chain.segments.get(i), Some(RefitSegment::Line))
+        || !matches!(chain.segments.get(j), Some(RefitSegment::Line))
+    {
+        return false;
+    }
+    let delta = chain.nodes[i + 1].pos - chain.nodes[i].pos;
+    if !(delta.is_finite() && delta.length_sq() > 0.0) {
+        return false;
+    }
+    chain.nodes[j + 1].pos = chain.nodes[j].pos + delta;
+    true
+}
+
+/// Bilaterally symmetrise a closed all-line loop around the axis through its
+/// centroid and canonical first vertex.
+///
+/// The correspondence is finite and cut-explicit: vertex `k` pairs with
+/// `n-k`. This is a real constrained sibling (nodes are projected), not a
+/// detector flag. Odd loops are supported; the only self-paired vertex is the
+/// canonical seam.
+fn bind_mirror_loop(chain: &RefitChain) -> Option<(RefitChain, usize)> {
+    let n = chain.segments.len();
+    if n < 3
+        || chain.nodes.len() != n + 1
+        || !chain
+            .segments
+            .iter()
+            .all(|segment| matches!(segment, RefitSegment::Line))
+        || (chain.nodes[0].pos - chain.nodes[n].pos).length() > 1e-9
+    {
+        return None;
+    }
+    let center = chain.nodes[..n]
+        .iter()
+        .fold(Pt::ZERO, |sum, node| sum + node.pos)
+        * (1.0 / n as f64);
+    let axis = chain.nodes[0].pos - center;
+    let axis_len = axis.length();
+    if !(axis_len.is_finite() && axis_len > 0.0) {
+        return None;
+    }
+    let u = axis * (1.0 / axis_len);
+    let v = Pt::new(-u.y, u.x);
+    let mut constrained = chain.clone();
+    let mut pairs = 0usize;
+    for k in 0..=n / 2 {
+        let j = (n - k) % n;
+        if k == j {
+            let d = chain.nodes[k].pos - center;
+            constrained.nodes[k].pos = center + u * d.dot(u);
+            continue;
+        }
+        let a = chain.nodes[k].pos - center;
+        let b = chain.nodes[j].pos - center;
+        let along = 0.5 * (a.dot(u) + b.dot(u));
+        let across = 0.5 * (a.dot(v) - b.dot(v));
+        constrained.nodes[k].pos = center + u * along + v * across;
+        constrained.nodes[j].pos = center + u * along - v * across;
+        pairs += 1;
+    }
+    constrained.nodes[n].pos = constrained.nodes[0].pos;
+    // Each paired 2D vertex loses two free coordinates. The axis is determined
+    // by the centroid and canonical seam, so it is not an unpriced parameter.
+    (pairs > 0).then_some((constrained, pairs * 2))
 }
 
 fn residual_code(chain: &RefitChain, samples: &[BoundarySample], table: &GeometryCodeTable) -> f64 {
@@ -381,31 +486,25 @@ fn arc_centre(chain: &RefitChain, seg: usize) -> Option<Pt> {
 /// nothing — a `L_relations` of zero is a real statement about a chain with no
 /// relation, not an absence.
 pub fn apply_accepted(model: &mut BoundaryModel, hypotheses: &[RelationHypothesis]) -> usize {
-    let mut kept = 0usize;
-    let mut order: Vec<usize> = hypotheses
+    let best = hypotheses
         .iter()
         .enumerate()
         .filter_map(|(i, h)| h.accepted.then_some(i))
-        .collect();
-    order.sort_by(|&a, &b| hypotheses[b].net_bits.total_cmp(&hypotheses[a].net_bits));
-    let mut bound = vec![false; model.chain.segments.len()];
-    for i in order {
-        let h = &hypotheses[i];
-        // Every hypothesis was evaluated against the same unconstrained
-        // sibling. Overlapping ones cannot add their individual savings and
-        // penalties without double-counting the same scalar.
-        if h.segments.iter().any(|&segment| bound[segment]) {
-            continue;
-        }
-        model.code.relation_bits += h.cost_bits;
-        model.code.geometry_bits -= h.saving_bits;
-        model.code.residual_bits += h.residual_penalty_bits;
-        for &segment in &h.segments {
-            bound[segment] = true;
-        }
-        kept += 1;
-    }
-    kept
+        .max_by(|&a, &b| hypotheses[a].net_bits.total_cmp(&hypotheses[b].net_bits));
+    let Some(index) = best else {
+        model.relation_kept_indices.clear();
+        return 0;
+    };
+    let hypothesis = &hypotheses[index];
+    model.code.relation_bits += hypothesis.cost_bits;
+    model.code.geometry_bits -= hypothesis.saving_bits;
+    model.code.residual_bits += hypothesis.residual_penalty_bits;
+    model.geometry = crate::models::SelectedBoundaryGeometry::TypedChain {
+        chain: hypothesis.constrained_chain.clone(),
+    };
+    model.worst_normal_deviation_px = hypothesis.worst_normal_deviation_px;
+    model.relation_kept_indices = vec![index];
+    1
 }
 
 #[cfg(test)]
@@ -425,7 +524,9 @@ mod tests {
                 "concentric",
                 "parallel_perpendicular",
                 "parallel_perpendicular",
-                "shared_baseline"
+                "shared_baseline",
+                "mirror_symmetry",
+                "repeated_transforms"
             ]
         );
     }
@@ -512,5 +613,75 @@ mod tests {
                 .abs()
                 < 1e-9
         );
+    }
+
+    #[test]
+    fn repeated_transform_materializes_the_same_line_vector() {
+        let mut chain = RefitChain {
+            nodes: vec![
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(8.0, 2.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(20.0, 5.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line, RefitSegment::Line],
+        };
+        assert!(bind_repeated_line(&mut chain, 0, 1));
+        assert_eq!(
+            chain.nodes[2].pos - chain.nodes[1].pos,
+            chain.nodes[1].pos - chain.nodes[0].pos
+        );
+    }
+
+    #[test]
+    fn mirror_loop_projects_a_perturbed_rectangle_to_bilateral_geometry() {
+        let chain = RefitChain {
+            nodes: vec![
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(10.0, 1.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(10.0, 8.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(-1.0, 7.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line; 4],
+        };
+        let (mirrored, saved) = bind_mirror_loop(&chain).expect("closed line loop");
+        assert!(saved >= 2);
+        assert_eq!(mirrored.nodes[0].pos, mirrored.nodes[4].pos);
+
+        let center = mirrored.nodes[..4]
+            .iter()
+            .fold(Pt::ZERO, |sum, node| sum + node.pos)
+            * 0.25;
+        let axis = mirrored.nodes[0].pos - center;
+        let u = axis * (1.0 / axis.length());
+        let v = Pt::new(-u.y, u.x);
+        let a = mirrored.nodes[1].pos - center;
+        let b = mirrored.nodes[3].pos - center;
+        assert!((a.dot(u) - b.dot(u)).abs() < 1e-12);
+        assert!((a.dot(v) + b.dot(v)).abs() < 1e-12);
     }
 }

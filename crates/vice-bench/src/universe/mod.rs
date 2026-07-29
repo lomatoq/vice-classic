@@ -347,21 +347,13 @@ impl SupportedModelUniverseV1 {
                         "shared_baseline",
                         "two lines lie on the same infinite supporting line",
                     ),
-                    // Both remaining families are properties of a SCENE, not of
-                    // a boundary: Stage G is handed one chain at a time and has
-                    // no scene to reflect or to translate. Their owner is the
-                    // milestone with a scene-level discrete search (§26), which
-                    // is M7 — retargeted here rather than left pointing at a
-                    // milestone that finished without them.
-                    Family::planned(
+                    Family::admissible(
                         "mirror_symmetry",
-                        "M7",
-                        "a reflection maps the scene to itself; needs the scene-level compound search of §26",
+                        "a closed typed line loop is projected onto a finite bilateral correspondence",
                     ),
-                    Family::planned(
-                        "repetition",
-                        "M7",
-                        "a translation maps a sub-scene to itself; needs the scene-level compound search of §26",
+                    Family::admissible(
+                        "repeated_transforms",
+                        "two typed line spans share one exact translation vector",
                     ),
                 ],
             },

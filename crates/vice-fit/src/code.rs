@@ -216,12 +216,14 @@ pub fn pricing_surface_v1() -> String {
     }
     for kind in LoopPrimitiveKind::ALL {
         out.push_str(&format!(
-            "loop_primitive {} flag_bits {} free_parameters {} code_bits_at_256 {}
+            "loop_primitive {} flag_bits {} coordinate_parameters {} angle_parameters {} \
+             code_bits_at_256_r64 {}
 ",
             kind.universe_name(),
             kind.flag_bits(),
-            kind.free_parameters(),
-            kind.code_bits(&GEOMETRY_CODE_TABLE_V1, 256.0)
+            kind.coordinate_parameters(),
+            kind.angle_parameters(),
+            kind.code_bits(&GEOMETRY_CODE_TABLE_V1, 256.0, 64.0)
         ));
     }
     for kind in RelationKind::ALL {
@@ -259,6 +261,32 @@ pub fn pricing_surface_v1() -> String {
             crate::cost::rho(u)
         ));
     }
+    for d in [0.0f64, 0.35, 0.7, 1.4] {
+        out.push_str(&format!(
+            "residual_bits d={d} h=0.35 p=0.35 = {}
+",
+            residual_bits(d, 0.35, 0.35)
+        ));
+    }
+    for (weight, correlation) in [(0.0f64, 1.0f64), (0.5, 1.0), (1.0, 2.0)] {
+        out.push_str(&format!(
+            "independent_observations weight={weight} correlation={correlation} = {:?}
+",
+            independent_observations(weight, correlation)
+        ));
+    }
+    for (n, k) in [(4usize, 2usize), (16, 1), (16, 8)] {
+        out.push_str(&format!(
+            "log2_binomial n={n} k={k} = {}
+",
+            log2_binomial(n, k)
+        ));
+    }
+    out.push_str(&format!(
+        "relation_composition_policy {}
+",
+        crate::relation::RELATION_COMPOSITION_POLICY
+    ));
     for n in [2usize, 17, 257] {
         out.push_str(&format!(
             "gap_bits {} = {}

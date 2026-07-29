@@ -729,7 +729,9 @@ fn arm_result(
 }
 
 fn geometry_error(model: &BoundaryModel, truth: &[Pt]) -> Result<GeometryError, String> {
-    let poly = vice_fit::solve::flatten_chain(&model.chain)
+    let poly = model
+        .geometry
+        .flatten()
         .map_err(|e| format!("selected model does not flatten: {e:?}"))?;
     if poly.len() < 2 || truth.len() < 2 {
         return Err("geometry metric received a degenerate polyline".to_string());
