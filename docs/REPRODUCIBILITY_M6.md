@@ -15,7 +15,7 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - geometry pricing surface:
   `a8df2e99b1f22ff0288f44f7256059c9f481a2565254eb16bff0b83bd5195360`;
 - Stage G/H backend source:
-  `7cd987a466f3a5fa1914eb80e7fc6ef03ec16d1e4d36dcc90184047161ce4563`;
+  `ac460d626cc6f597d3787a2f3a8fedd05cb486e7f85190d9a5bfd74b03371380`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -98,7 +98,7 @@ Expected population and gate witnesses:
 |---|---|---|
 | common population | 6 of 18 observed closed chains complete all five arms | `>= 6` |
 | exact arm set | G00, G10, G01, G11, G20 on every boundary | exactly 5 |
-| compatibility | 30 arm rows share key `00b0bb04…e33d5` | one identical five-component key |
+| compatibility | 30 arm rows share key `32477b1a…f918c` | one identical five-component key |
 | raster provenance | 6 rows from independent ExactClip raster → production Stage F | `>= 6` |
 | oracle candidate injection | 11 forced-discrete fits | `>= 10` |
 | material selector changes | G01/G10/G11 = 2/4/1 geometry hashes | `>= 1/1/1` |
@@ -111,9 +111,9 @@ Aggregate symmetric maximum error:
 
 | arm | mean max px | worst max px | interpretation |
 |---|---:|---:|---|
-| G00 | 0.5240710784 | 1.2397753223 | auto candidates + auto selector |
+| G00 | 0.6978803255 | 1.6679802262 | auto candidates + auto selector |
 | G10 | 0.2626356432 | 0.6218945873 | forced candidate union + auto selector |
-| G01 | 0.5176101068 | 1.2010094931 | auto set + oracle selector |
+| G01 | 0.6978803255 | 1.6679802262 | auto set + oracle selector |
 | G11 | 0.2622747938 | 0.6218945873 | forced set + oracle selector |
 | G20 | 0.2626356432 | 0.6218945873 | forced families/breakpoints + production parameter fit |
 
@@ -147,7 +147,11 @@ The relevant sequence is intentionally split:
 8. C348 lands the final row-derived consumers and C349 freezes their thresholds
    in a config-only commit;
 9. C351 splits the repaired source under the hygiene bound while extending the
-   backend digest to the new modules, and C352 records the final artifact.
+   backend digest to the new modules, and C352 records that candidate;
+10. C357–C365 close the final corridor, relation, cyclic-search, totality,
+    pricing-control, provenance and aggregate-review blockers without moving a
+    frozen threshold;
+11. C367 records the repaired Tier-A artifact after those code-only changes.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 

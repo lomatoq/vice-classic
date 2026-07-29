@@ -1294,9 +1294,9 @@ Aggregate symmetric maximum error:
 
 | arm | mean max px | worst max px |
 |---|---:|---:|
-| G00 | 0.5240710784 | 1.2397753223 |
+| G00 | 0.6978803255 | 1.6679802262 |
 | G10 | 0.2626356432 | 0.6218945873 |
-| G01 | 0.5176101068 | 1.2010094931 |
+| G01 | 0.6978803255 | 1.6679802262 |
 | G11 | 0.2622747938 | 0.6218945873 |
 | G20 | 0.2626356432 | 0.6218945873 |
 
@@ -1309,13 +1309,13 @@ The current identities are:
 
 - model universe `47903d73…0f097`;
 - pricing surface `a8df2e99…95360`;
-- backend source `7cd987a4…e4563`;
-- five-arm compatibility fingerprint `00b0bb04…e33d5`.
+- backend source `ac460d62…71380`;
+- five-arm compatibility fingerprint `32477b1a…f918c`.
 
 C349 is the config-only freeze of the measured floors. C351 keeps every
-production module under 800 lines and extends the source digest over the moved
-modules. C352 is the Tier-A artifact, reproduced byte-for-byte on
-`windows-x86_64`.
+production module under 800 lines. C363 extends the source digest over every
+fitting/intervention Rust source and mechanically guards the manifest; C367 is
+the repaired Tier-A artifact, reproduced byte-for-byte on `windows-x86_64`.
 
 ## A5.3 Materialized broad-corpus population
 
@@ -1353,7 +1353,7 @@ The §28 M6 gate is **MET as a completion candidate**:
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
-passes every one of the 44 commits from `origin/main` through this candidate.
+passes every one of the 55 commits from `origin/main` through this candidate.
 
 `REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-11. Defect classes
 F-0108…F-0117 record the final repair rather than letting Addendum 4’s invalid
