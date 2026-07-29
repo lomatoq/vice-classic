@@ -214,6 +214,9 @@ pub fn build_edges(
         let mut residual = 0.0f64;
         let mut ok = true;
         for s in &samples[c.support.lo() + 1..=c.support.hi()] {
+            if s.weight_ds == 0.0 {
+                continue;
+            }
             let Some(dn) = crate::cost::normal_deviation(s.p, s.normal, &poly) else {
                 ok = false;
                 break;

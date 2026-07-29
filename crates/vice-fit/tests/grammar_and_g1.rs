@@ -217,6 +217,31 @@ fn a_malformed_forced_gt_path_is_a_typed_refusal() {
     ));
 }
 
+#[test]
+fn a_forced_closed_path_keeps_loop_semantics_and_reaches_stage_h() {
+    let points: Vec<Pt> = (0..=4)
+        .map(|x| Pt::new(x as f64, 0.0))
+        .chain((1..=4).map(|y| Pt::new(4.0, y as f64)))
+        .chain((0..4).rev().map(|x| Pt::new(x as f64, 4.0)))
+        .chain((1..4).rev().map(|y| Pt::new(0.0, y as f64)))
+        .collect();
+    assert_eq!(points.len(), 16);
+    let chain = chain_from(&points, true);
+    let run = fit_forced_boundary_models(
+        &chain,
+        &[SpanFamily::Line; 4],
+        &[4, 8, 12],
+        CANVAS_PX,
+        K_DISCRETE_PATHS,
+    )
+    .expect("the canonical closed GT path fits");
+    assert!(
+        run.primitives_considered > 0,
+        "losing closed=true would silently bypass Stage-H loop primitives"
+    );
+    assert!(run.models.iter().all(|model| !model.closure_smooth));
+}
+
 // ---------------------------------------------------------------------------
 // Gate clause 1: exact G1 after the joint solve
 // ---------------------------------------------------------------------------

@@ -222,6 +222,12 @@ pub fn proposal_cost(
         .take(support.hi() + 1)
         .skip(support.lo())
     {
+        // A closed loop is opened by repeating its seam with zero physical
+        // arclength. It constrains the endpoint position but is not another
+        // likelihood observation and has no unique corner normal.
+        if s.weight_ds == 0.0 {
+            continue;
+        }
         let Some(dn) = normal_deviation(s.p, s.normal, &poly) else {
             return Err(CostRefusal::NormalLineMisses { sample: i });
         };

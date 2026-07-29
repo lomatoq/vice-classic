@@ -295,13 +295,24 @@ pub fn fit_forced_boundary_models(
     k: usize,
 ) -> Result<ModelRun, ForcedFitRefusal> {
     crate::validate_chain(chain).map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
+    let closed = chain.closed;
+    let base_chain = dedup_coincident(chain);
+    let closure_smooth = closed && cut_is_jet_smooth(&base_chain, 0);
+    // The forced breakpoints are expressed from GT's canonical start. Open
+    // that same physical loop exactly once; unlike G00 there is no cut search
+    // to perform, but Stage H and the seam still need to know it is a loop.
+    let opened_chain = if closed {
+        rotate(&base_chain, 0)
+    } else {
+        base_chain
+    };
     if families.len() != breakpoints.len() + 1 {
         return Err(ForcedFitRefusal::ShapeMismatch {
             families: families.len(),
             breakpoints: breakpoints.len(),
         });
     }
-    let samples = &chain.samples;
+    let samples = &opened_chain.samples;
     let last = samples.len() - 1;
     let mut previous = 0usize;
     for &breakpoint in breakpoints {
@@ -376,21 +387,44 @@ pub fn fit_forced_boundary_models(
             not_representable += 1;
             continue;
         }
-        let Some(init) = materialize(path, &edges, &candidates, samples) else {
+        let Some(init) =
+            materialize_with_closure(path, &edges, &candidates, samples, closure_smooth)
+                .or_else(|| materialize(path, &edges, &candidates, samples))
+        else {
             not_representable += 1;
             continue;
         };
+        let closure_is_represented = init.has_closed_tangent_alias();
         match joint_constrained_refit(&init, samples) {
             Ok(out) => {
                 let Ok(lowered) = out.chain.lower() else {
                     bump(&mut refused, "malformed");
                     continue;
                 };
-                let worst_g1 = g1_readings(&lowered, out.chain.start(), out.chain.end())
+                let mut worst_g1 = g1_readings(&lowered, out.chain.start(), out.chain.end())
                     .iter()
                     .map(|r| r.spread_rad)
                     .fold(0.0f64, f64::max);
+                if closure_smooth && closure_is_represented {
+                    let Some(declared) = out.chain.nodes[0].tangent_rad else {
+                        bump(&mut refused, "closure_tangent_missing");
+                        continue;
+                    };
+                    let Some(spread) = closure_g1_spread_rad(
+                        &lowered,
+                        out.chain.start(),
+                        out.chain.end(),
+                        declared,
+                    ) else {
+                        bump(&mut refused, "closure_g1_unread");
+                        continue;
+                    };
+                    worst_g1 = worst_g1.max(spread);
+                }
                 let mut code = path.code;
+                if closed {
+                    code.topology_bits += (crate::JOIN_KINDS as f64).log2();
+                }
                 code.residual_bits = crate::code::chain_residual_bits(&out.chain, samples, table);
                 if !code.residual_bits.is_finite() {
                     bump(&mut refused, "non_finite_post_refit_code");
@@ -401,7 +435,7 @@ pub fn fit_forced_boundary_models(
                     families: families.to_vec(),
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),
-                    closure_smooth: false,
+                    closure_smooth,
                     code,
                     proposal_cost_px: path.proposal_cost_px,
                     worst_g1_spread_rad: worst_g1,
@@ -415,7 +449,14 @@ pub fn fit_forced_boundary_models(
                     relations_kept: 0,
                     relation_kept_indices: Vec::new(),
                 };
-                apply_stage_h(&mut model, samples, table, canvas_dim_px, chain.closed);
+                apply_stage_h(&mut model, samples, table, canvas_dim_px, closed);
+                if closure_smooth
+                    && !closure_is_represented
+                    && matches!(model.geometry, SelectedBoundaryGeometry::TypedChain { .. })
+                {
+                    bump(&mut refused, "smooth_closure_unrepresented");
+                    continue;
+                }
                 models.push(model);
             }
             Err(why) => bump(&mut refused, refusal_name(&why)),
@@ -638,7 +679,13 @@ pub fn rotate(chain: &BoundaryChain, cut: usize) -> BoundaryChain {
     let n = chain.samples.len();
     let mut samples: Vec<BoundarySample> = (0..n).map(|i| chain.samples[(cut + i) % n]).collect();
     if chain.closed {
-        samples.push(chain.samples[cut]);
+        // The repeated endpoint closes geometry but is not a second physical
+        // observation. At a corner its incoming-side normal is represented by
+        // the predecessor, while the first copy keeps the outgoing side.
+        let mut seam = chain.samples[cut];
+        seam.normal = chain.samples[(cut + n - 1) % n].normal;
+        seam.weight_ds = 0.0;
+        samples.push(seam);
     }
     BoundaryChain {
         samples,
