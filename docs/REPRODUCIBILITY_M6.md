@@ -15,7 +15,7 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - geometry pricing surface:
   `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;
 - Stage G/H backend source:
-  `56f3be2b4fb057d2702004ed9d803cf80a53569480ae3055fe3221074a6bfd7f`;
+  `c0060e07490d8fd7d373788652d51b766338e3eb869f8e2769f7213131c3120a`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -61,7 +61,7 @@ The 2026-07-29 Windows run (one cell per non-sealed scene) measured:
 | selected typed chains / whole-loop primitives | 7 / 28 |
 | typed selected segments / smooth joins | 18 / 1 |
 | path refusals | 43 outside-corridor |
-| relation hypotheses considered / promoted | 446 / 2 |
+| relation hypotheses considered / promoted | 222 / 1 |
 | whole-loop hypotheses considered / promoted among k-best models | 3,920 / 209 |
 | worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
 | lowering failures | 0 |
@@ -99,7 +99,7 @@ Expected population and gate witnesses:
 |---|---|---|
 | common population | 11 of 19 observed closed chains complete all five arms | `>= 6` |
 | exact arm set | G00, G10, G01, G11, G20 on every boundary | exactly 5 |
-| compatibility | 55 arm rows share key `ea52f89f…db13e7a` | one identical five-component key |
+| compatibility | 55 arm rows share key `d5d21071…98f1b` | one identical five-component key |
 | raster provenance | 11 rows from independent ExactClip raster → production Stage F | `>= 6` |
 | oracle candidate injection | 27 forced-discrete fits | `>= 10` |
 | material selector changes | G01/G10/G11 = 3/6/1 geometry hashes | `>= 1/1/1` |
@@ -112,9 +112,9 @@ Aggregate symmetric maximum error:
 
 | arm | mean max px | worst max px | interpretation |
 |---|---:|---:|---|
-| G00 | 0.6008265288 | 1.6679802262 | auto candidates + auto selector |
+| G00 | 0.5984981083 | 1.6679802262 | auto candidates + auto selector |
 | G10 | 0.2962620573 | 0.8023976306 | forced candidate union + auto selector |
-| G01 | 0.6008265288 | 1.6679802262 | auto set + oracle selector |
+| G01 | 0.5984981083 | 1.6679802262 | auto set + oracle selector |
 | G11 | 0.2960652304 | 0.8023976306 | forced set + oracle selector |
 | G20 | 0.2962620573 | 0.8023976306 | forced families/breakpoints + production parameter fit |
 
@@ -175,6 +175,12 @@ The relevant sequence is intentionally split:
     freezes that changed eligibility/pricing surface alone.
 20. C396 separately records and replays the resulting 11-boundary, 55-arm
     Tier-A artifact.
+21. C399 validates caller-constructible candidate, edge and path structure at
+    every exported grammar boundary; C400 gives Stage H the observation's
+    open/closed topology and refuses relation projections that change it.
+22. C401 publishes the new typed refusal names in corpus telemetry; C402 adds
+    both split source modules to the complete backend digest; C403 separately
+    records the resulting seam-safe 11-boundary, 55-arm Tier-A artifact.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 

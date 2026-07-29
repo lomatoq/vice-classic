@@ -1444,3 +1444,61 @@ frozen Stage-H floor is still met exactly.
 This remains an M6 completion candidate, not a self-certification. Fresh
 two-cold-review plus separate safety/correctness verdicts are required on one
 unchanged final SHA before M7 starts.
+
+# Addendum 7 — structural public inputs and cyclic Stage-H topology
+
+Both independent cold reviews blocked exact clean SHA
+`6e0af60533ba353714c54030cb8d8af01812f7af`. The separate correctness audit
+independently reproduced the grammar boundary failures before its task was
+interrupted by the review service. No M7 work began.
+
+## A7.1 Exported grammar structures are validated before use
+
+C399 closes the class left by C393 rather than adding another sample-field
+guard. A `SpanCandidate` support must belong to the supplied sample slice; a
+caller-built `GrammarEdge` must be a finite non-negative forward DAG edge with
+valid jet classes; physical and proposal costs must remain accumulable; and a
+public `GrammarPath` must consistently name a non-empty contiguous set of
+edges/candidates/samples before materialization.
+
+The same edge validator serves physical K-best and the no-BIC proposal-control
+K-best. Direct external-style tests reproduce every previous panic and the
+negative/infinite code cases and require typed refusal or `None`. C401 names
+all six new refusals in corpus telemetry.
+
+## A7.2 Relation projection preserves declared open/closed topology
+
+C400 passes the observation's `closed` fact into Stage H. The first and last
+segments of a closed chain are cyclic-adjacent, so the duplicate
+`SharedBaseline` label is ineligible there too. Every constrained sibling must
+retain the exact repeated seam node before evaluation, and exported
+`apply_accepted` checks the same invariant again before changing the selected
+model.
+
+The direct Line/Quad/Line wrap regression requires every formed sibling to
+remain closed and proves that an injected accepted-but-open hypothesis cannot
+apply. The broad ignored population consequently changes from 446/2 to
+**222 relation hypotheses considered / 1 promoted**. The remaining M6
+population is unchanged: 35 materialized winners, 7 typed chains, 28 loop
+primitives, 18 typed segments, one smooth join and zero lowering failures.
+
+## A7.3 Content identity and exact evidence
+
+C402 extends the recursively judged backend manifest to the two split modules;
+C403 records the artifact alone. The current identities are:
+
+- model universe `47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097`;
+- pricing surface `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;
+- backend source `c0060e07490d8fd7d373788652d51b766338e3eb869f8e2769f7213131c3120a`;
+- five-arm compatibility fingerprint
+  `d5d21071269eabab40b7982d36a61650706b7c1590bdd1b4ccddca92c8798f1b`.
+
+The row-derived artifact still has 11 boundaries, 55 arms, 27 injections,
+selector changes 3/6/1, four relation-selected rows, five primitive-selected
+rows and all 18 clauses MET. G00/G01 mean symmetric maximum error is now
+`0.5984981083 px`; the worst remains `1.6679802262 px`.
+
+This addendum is a new completion candidate, not acceptance. One exact-HEAD
+full matrix, the per-commit governance walk over 92 commits, two fresh
+independent cold-review verdicts and one fresh independent correctness verdict
+must all pass on the same unchanged SHA before M7 starts.

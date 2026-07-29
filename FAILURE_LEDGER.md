@@ -4754,3 +4754,67 @@ is not formed; a direct regression retains `Parallel` for the adjacent pair
 and retains `SharedBaseline` for a non-adjacent pair. C395 freezes the
 eligibility bit in the pricing surface, and C396 records the resulting Tier-A
 artifact alone.
+
+## F-0131 — A typed public boundary remained partial for caller-constructible structure (M6 third exact-SHA review, 2026-07-29)
+
+**Found by.** Both independent cold reviews and the separate correctness audit
+on `6e0af60533ba353714c54030cb8d8af01812f7af`.
+
+**What happened.** C393 validated observations but trusted the public
+`SpanCandidate`, `GrammarEdge` and `GrammarPath` structures. A support from a
+different sample slice and an edge endpoint outside the slice panicked while
+indexing. Negative or infinite edge costs entered the DP and produced a
+negative/infinite physical code. An empty public path panicked in
+`materialize` although its return type advertised `Option`.
+
+**Class rule.** Returning `Result` is not totality. Every caller-constructible
+index, DAG relation and numeric code term is validated before indexing or
+ranking, and every exported sibling/control path uses the same validator.
+
+**Status.** Closed in C399. `build_edges`, physical K-best and proposal-control
+K-best validate their structural and numeric domains; `materialize` returns
+`None` for unrelated path/edge/candidate/sample collections. External-style
+regressions cover foreign support, endpoints, invalid jets, negative/infinite
+and accumulating-overflow costs, and the empty path. C401 gives every new
+typed refusal a corpus telemetry name.
+
+## F-0132 — A closed-chain relation projection could open the repeated seam (M6 third exact-SHA review, 2026-07-29)
+
+**Found by.** Independent cold review B on
+`6e0af60533ba353714c54030cb8d8af01812f7af`.
+
+**What happened.** Pair eligibility understood only linear adjacency. On a
+closed Line/Quad/Line chain, segments zero and two are adjacent across the
+canonical seam, but every line relation was formed for that pair.
+`bind_lines`/`bind_repeated_line` rewrote the repeated last node without
+maintaining its identity with node zero; an accepted relation therefore
+delivered an open chain and bought code savings by changing topology.
+
+**Class rule.** A relation consumes the observation's declared topology.
+Cyclic adjacency is not inferred from linear indices, and neither hypothesis
+formation nor the exported application boundary may change open/closed state.
+
+**Status.** Closed in C400. Stage H receives the `BoundaryChain.closed` fact,
+treats first/last as cyclic-adjacent, refuses every constrained sibling whose
+exact repeated-node state differs, and rechecks that invariant in
+`apply_accepted`. The direct mixed-family wrap regression also injects an
+accepted open sibling and requires it not to apply. The broad population is
+now 222 considered / 1 promoted rather than 446 / 2.
+
+## F-0133 — Splitting guarded source can leave the content digest blind to the new file (M6 third exact-SHA repair, 2026-07-29)
+
+**Found by.** The recursive backend-manifest completeness test after C399/C400.
+
+**What happened.** Moving validation and topology application below the
+800-line module bound created `grammar/surface.rs` and
+`relation/topology.rs`. Until the manifest was extended, edits to those files
+would not move the Stage G/H backend identity even though both files decide
+accepted output.
+
+**Class rule.** A content digest over a source tree has a recursive equality
+judge between actual and registered files. A prose entry saying “all files”
+does not add a newly created file to a literal manifest.
+
+**Status.** Closed in C402. Both modules are framed into
+`BACKEND_SOURCE_PATHS`; the recursive equality test passes. C403 records
+backend `c0060e07…3120a` and compatibility `d5d21071…98f1b`.
