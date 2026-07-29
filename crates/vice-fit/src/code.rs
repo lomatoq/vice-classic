@@ -96,14 +96,14 @@ impl GeometryCodeTable {
 
     /// Bits to code one anchor (two coordinates) on a canvas of `canvas_dim_px`.
     ///
-    /// `bits_per_anchor + 2 log2(canvas / reference)`: exact arithmetic on the
-    /// frozen number, so the frozen number is what governs behaviour rather
-    /// than a rounded copy of something the code recomputes. Coding at the
-    /// image's own canvas rather than at the universe's maximum matters: on a
-    /// 256 px canvas the difference is 12 bits per anchor, which is several
-    /// segments' worth of selection pressure.
+    /// `max(0, bits_per_anchor + 2 log2(canvas / reference))`: exact arithmetic
+    /// on the frozen number, capped at the one-bin case. A range narrower than
+    /// one calibrated coordinate bin has one symbol, not a negative number of
+    /// bits. Coding at the image's own canvas rather than at the universe's
+    /// maximum matters: on a 256 px canvas the difference is 12 bits per
+    /// anchor, which is several segments' worth of selection pressure.
     pub fn anchor_bits(&self, canvas_dim_px: f64) -> f64 {
-        self.bits_per_anchor + 2.0 * (canvas_dim_px / REFERENCE_CANVAS_DIM_PX).log2()
+        (self.bits_per_anchor + 2.0 * (canvas_dim_px / REFERENCE_CANVAS_DIM_PX).log2()).max(0.0)
     }
 
     /// Bits to code one scalar coordinate-like parameter.
@@ -268,6 +268,11 @@ pub fn pricing_surface_v1() -> String {
             residual_bits(d, 0.35, 0.35)
         ));
     }
+    out.push_str(&format!(
+        "residual_bits d=0 h=0.01 p=0.35 = {}
+",
+        residual_bits(0.0, 0.01, 0.35)
+    ));
     for (weight, correlation) in [(0.0f64, 1.0f64), (0.5, 1.0), (1.0, 2.0)] {
         out.push_str(&format!(
             "independent_observations weight={weight} correlation={correlation} = {:?}
@@ -304,6 +309,11 @@ pub fn pricing_surface_v1() -> String {
         "anchor_bits_at_256 = {}
 ",
         GEOMETRY_CODE_TABLE_V1.anchor_bits(256.0)
+    ));
+    out.push_str(&format!(
+        "anchor_bits_at_0.01 = {}
+",
+        GEOMETRY_CODE_TABLE_V1.anchor_bits(0.01)
     ));
     out.push_str(&format!(
         "jet_classes {JET_CLASSES}
@@ -385,18 +395,27 @@ pub fn independent_observations(weight_ds_px: f64, corr_length_px: f64) -> Optio
 /// cannot buy an arbitrary number of segments:
 ///
 /// ```text
-/// bits = rho(d_n / h) / (2 ln 2) + log2(h sqrt(2 pi) / precision)
+/// bits = max(0, rho(d_n / h) / (2 ln 2)
+///               + log2(h sqrt(2 pi) / precision))
 /// ```
 ///
-/// The second term is the normalising constant, and it is included rather than
-/// dropped because `total_bits` claims to be a number of BITS. It is identical
-/// for every candidate over the same sample, so it cancels in every comparison
-/// — which is why dropping it would have been undetectable, and is why it is
-/// stated here that it changes no ranking.
+/// The maximum is the quantized-mass cap: when one quantization bin is wider
+/// than the local density scale, its probability cannot exceed one and its
+/// ideal code length is zero. Without the cap a narrow positive corridor
+/// produced a negative "physical" code and rewarded additional observations.
 pub fn residual_bits(d_n_px: f64, halfwidth_px: f64, precision_px: f64) -> f64 {
+    if !(d_n_px.is_finite()
+        && halfwidth_px.is_finite()
+        && halfwidth_px > 0.0
+        && precision_px.is_finite()
+        && precision_px > 0.0)
+    {
+        return f64::INFINITY;
+    }
     let u = d_n_px / halfwidth_px;
-    crate::cost::rho(u) / (2.0 * std::f64::consts::LN_2)
-        + (halfwidth_px * std::f64::consts::TAU.sqrt() / precision_px).log2()
+    (crate::cost::rho(u) / (2.0 * std::f64::consts::LN_2)
+        + (halfwidth_px * std::f64::consts::TAU.sqrt() / precision_px).log2())
+    .max(0.0)
 }
 
 /// Recompute the physical residual code on the geometry that will actually be
@@ -563,5 +582,21 @@ mod tests {
              square would",
             at(10.0 * h)
         );
+    }
+
+    #[test]
+    fn physical_code_terms_never_reward_a_symbol() {
+        let table = GEOMETRY_CODE_TABLE_V1;
+        assert_eq!(table.anchor_bits(0.01), 0.0);
+        assert_eq!(table.coordinate_bits(0.01), 0.0);
+        assert_eq!(residual_bits(0.0, 0.01, 0.35), 0.0);
+        for bits in [
+            table.anchor_bits(0.01),
+            table.segment_bits(SpanFamily::Cubic, 0.01),
+            residual_bits(0.0, 0.01, 0.35),
+            residual_bits(1.0, 0.01, 0.35),
+        ] {
+            assert!(bits.is_finite() && bits >= 0.0, "{bits}");
+        }
     }
 }

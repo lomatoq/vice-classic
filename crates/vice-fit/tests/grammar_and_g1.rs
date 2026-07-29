@@ -171,6 +171,33 @@ fn final_mdl_codes_the_jointly_refitted_geometry() {
 }
 
 #[test]
+fn every_accepted_code_component_is_finite_and_nonnegative() {
+    let points: Vec<_> = (0..=20)
+        .map(|i| Pt::new(i as f64 * 0.0005, 0.005))
+        .collect();
+    let mut chain = chain_from(&points, false);
+    for sample in &mut chain.samples {
+        sample.halfwidth = 0.01;
+    }
+    let run = k_best_boundary_models(&chain, &FIT_BUDGET_V1, 0.01, K_DISCRETE_PATHS)
+        .expect("positive sub-precision canvas remains a one-bin domain");
+    assert!(!run.models.is_empty());
+    for model in &run.models {
+        let terms = [
+            model.code.geometry_bits,
+            model.code.topology_bits,
+            model.code.relation_bits,
+            model.code.residual_bits,
+            model.code.total_bits(),
+        ];
+        assert!(
+            terms.iter().all(|bits| bits.is_finite() && *bits >= 0.0),
+            "accepted model has a non-physical code {terms:?}: {model:?}"
+        );
+    }
+}
+
+#[test]
 fn a_forced_gt_path_fixes_only_families_and_breakpoints() {
     let points: Vec<Pt> = (0..=20).map(|i| Pt::new(10.0 + i as f64, 40.0)).collect();
     let chain = chain_from(&points, false);
