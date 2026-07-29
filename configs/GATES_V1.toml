@@ -392,3 +392,41 @@ gate_min_register_arms_with_a_long_loop = 6
 # numbers that row published were arithmetic, so the only thing it really asked
 # of the audit was one caught slot. Measured 155 160.
 gate_min_slots_perturbed = 40000
+
+# --- Compound topological transactions (§28 M5, §11.4; delivered in M6) ------
+# §28 M5's bullet "local COMPOUND topology transactions" was carried into M6
+# with no second deferral available. It is delivered, and this section is the
+# floor that keeps it delivered.
+#
+# WHY IT IS NEEDED, in one sentence a reviewer can check: the compound
+# population exists only because the harness applies more than one edit SHAPE,
+# and a commit that lost the annulus shape would drop `transactions_compound`
+# to zero with all four §28 M5 rows still MET. That is REVIEW_M5_A M5A-D3-N1
+# exactly — "when a check is added because its population was empty, the
+# population is part of the check" — and it is the fifth population of this
+# gate to need a floor, after clause 1's convention-dependent groups, clause
+# 3's unrelated chains, and clause 4's slots and probes.
+#
+# It is also F-0081's guard. The 310 arms M5 reported as excluded-as-compound
+# were not compound at all; they declare the identity delta. A floor on
+# `transactions_compound` is the number that would have made that visible on
+# the first run rather than on the milestone after.
+#
+# PLACEHOLDER in this commit, and that is the §27.7 three-step this repository
+# already uses (C178/C179/C180 for [topology], C239/C240/C241 for [dcel]): the
+# keys land here with no code, the consumer lands next, the freeze lands after.
+# A placeholder is not a threshold and no row may gate on one.
+[dcel_compound]
+status = "placeholder"
+set_by_milestone = "M6"
+
+# Transactions whose declared edit is worth two or more unit steps.
+gate_min_compound_transactions = 0
+# Distinct compound DELTAS the run must exercise. A floor on the count alone is
+# satisfied by one delta repeated: 118 copies of (+1,+1) would meet a floor of
+# 100 and would test one shape's one behaviour. Measured: four distinct.
+gate_min_distinct_compound_deltas = 0
+# Edit shapes the harness applies per arm. The count above is a CONSEQUENCE of
+# this one, and losing a shape is the cheapest way to empty the population, so
+# it gets its own floor rather than being inferred from the consequence.
+gate_min_transaction_shapes = 0
