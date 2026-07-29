@@ -214,3 +214,58 @@ fn closed_wrap_relations_cannot_open_the_canonical_seam() {
     let selected = model.geometry.typed_chain().expect("typed chain");
     assert_eq!(selected.start(), selected.end());
 }
+
+#[test]
+fn public_relation_application_rejects_unphysical_or_overflowing_codes() {
+    let base = line_model(&[Pt::new(0.0, 0.0), Pt::new(4.0, 0.0), Pt::new(8.0, 0.0)]);
+    let chain = base.geometry.typed_chain().expect("typed chain").clone();
+    let valid_shape = RelationHypothesis {
+        kind: RelationKind::Parallel,
+        segments: vec![0, 1],
+        constrained_chain: chain,
+        cost_bits: 1.0,
+        saving_bits: 2.0,
+        geometry_saving_bits: 2.0,
+        topology_saving_bits: 0.0,
+        residual_penalty_bits: 0.0,
+        net_bits: 1.0,
+        worst_normal_deviation_px: 0.0,
+        worst_model_to_evidence_px: 0.0,
+        allowed_px: 1.0,
+        accepted: true,
+    };
+
+    let mut cases = Vec::new();
+    let mut negative = valid_shape.clone();
+    negative.cost_bits = -1.0;
+    cases.push((base.clone(), negative));
+    let mut infinite = valid_shape.clone();
+    infinite.cost_bits = f64::INFINITY;
+    cases.push((base.clone(), infinite));
+    let mut underflowing_residual = valid_shape.clone();
+    underflowing_residual.residual_penalty_bits = -1.0;
+    underflowing_residual.net_bits = 2.0;
+    cases.push((base.clone(), underflowing_residual));
+    let mut oversized = valid_shape.clone();
+    oversized.saving_bits = 201.0;
+    oversized.geometry_saving_bits = 201.0;
+    oversized.net_bits = 200.0;
+    cases.push((base.clone(), oversized));
+    let mut overflowing_model = base.clone();
+    overflowing_model.code.geometry_bits = 0.75 * f64::MAX;
+    overflowing_model.code.relation_bits = 0.75 * f64::MAX;
+    let mut overflowing_relation = valid_shape;
+    overflowing_relation.cost_bits = 0.5 * f64::MAX;
+    overflowing_relation.saving_bits = 0.75 * f64::MAX;
+    overflowing_relation.geometry_saving_bits = 0.75 * f64::MAX;
+    overflowing_relation.net_bits = 0.25 * f64::MAX;
+    cases.push((overflowing_model, overflowing_relation));
+
+    for (mut model, hypothesis) in cases {
+        let before_code = model.code;
+        let before_geometry = model.geometry.clone();
+        assert_eq!(apply_accepted(&mut model, &[hypothesis], false), 0);
+        assert_eq!(model.code, before_code);
+        assert_eq!(model.geometry, before_geometry);
+    }
+}

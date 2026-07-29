@@ -32,7 +32,7 @@ pub fn k_best_proposal_control_paths(
         k,
         (PathObjective::ProposalResidual, super::ClosureMode::Open),
         0.0,
-    )
+    )?
     .into_iter()
     .map(|path| ProposalControlPath {
         candidates: path.candidates,

@@ -205,6 +205,8 @@ fn refusal_name(r: &FitRefusal) -> &'static str {
         FitRefusal::InvalidGrammarEdgeTopology { .. } => "invalid_grammar_edge_topology",
         FitRefusal::InvalidGrammarEdgeJet { .. } => "invalid_grammar_edge_jet",
         FitRefusal::InvalidGrammarEdgeCost { .. } => "invalid_grammar_edge_cost",
+        FitRefusal::InvalidGrammarPathCost { .. } => "invalid_grammar_path_cost",
+        FitRefusal::PathCandidateOutOfRange { .. } => "path_candidate_out_of_range",
         FitRefusal::CutOutOfRange { .. } => "cut_out_of_range",
         FitRefusal::InvalidCanvasDimension { .. } => "invalid_canvas_dimension",
     }

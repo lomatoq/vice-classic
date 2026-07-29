@@ -18,12 +18,13 @@
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
     build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models, k_best_paths,
-    k_best_proposal_control_paths, materialize, span_candidates, BoundaryModel, ChainCode,
-    FitBudget, FitRefusal, ForcedFitRefusal, GrammarEdge, GrammarPath, ProposalCost, SpanCandidate,
-    SpanFamily, Support, FITTED_FAMILIES, FIT_BUDGET_V1, GATE_MAX_BREAKPOINT_FRACTION_DELTA,
-    GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD, GATE_MAX_TRANSLATION_DELTA_BITS,
-    GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD, GATE_MIN_INVARIANCE_LEGS,
-    GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
+    k_best_proposal_control_paths, materialize, path_families, residual_bits, span_candidates,
+    BoundaryModel, ChainCode, FitBudget, FitRefusal, ForcedFitRefusal, GrammarEdge, GrammarPath,
+    ProposalCost, SpanCandidate, SpanFamily, Support, FITTED_FAMILIES, FIT_BUDGET_V1,
+    GATE_MAX_BREAKPOINT_FRACTION_DELTA, GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD,
+    GATE_MAX_TRANSLATION_DELTA_BITS, GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD,
+    GATE_MIN_INVARIANCE_LEGS, GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1,
+    K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
 };
 use vice_geom::Pt;
 use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
@@ -157,6 +158,81 @@ fn exported_grammar_boundaries_refuse_non_physical_edge_values() {
 /// A chain whose corridor and correlation length scale with the geometry — a
 /// SIMILARITY of the whole observation, which is what "uniform scale" means for
 /// a measurement rather than for a picture.
+#[test]
+fn exported_grammar_boundaries_refuse_combined_cost_overflow_and_foreign_path_ids() {
+    let mut observation = chain_from(&[Pt::new(0.0, 0.0), Pt::new(1.0, 0.0)], false);
+    let per_observation = residual_bits(
+        0.0,
+        observation.samples[0].halfwidth,
+        GEOMETRY_CODE_TABLE_V1.coordinate_precision_px(),
+    );
+    observation.samples[0].weight_ds = (0.75 * f64::MAX) / per_observation;
+    let mut edge = direct_line_edge(0, 1);
+    edge.residual_bits = f64::MAX / 2.0;
+    assert!(matches!(
+        k_best_paths(
+            &[edge],
+            &observation.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            CANVAS_PX,
+            1
+        ),
+        Err(FitRefusal::InvalidGrammarPathCost { edge: 0, .. })
+    ));
+
+    let path = GrammarPath {
+        candidates: vec![1],
+        breakpoints: Vec::new(),
+        smooth: Vec::new(),
+        closed: false,
+        closure_smooth: false,
+        code: ChainCode::default(),
+        proposal_cost_px: 0.0,
+    };
+    let candidate = SpanCandidate {
+        support: Support::new(0, 1).expect("non-empty support"),
+        family: SpanFamily::Line,
+        segment: Segment::Line,
+        cost: zero_proposal_cost(),
+    };
+    assert!(matches!(
+        path_families(&path, &[candidate]),
+        Err(FitRefusal::PathCandidateOutOfRange {
+            path_candidate: 0,
+            candidate: 1,
+            candidates: 1
+        })
+    ));
+}
+
+#[test]
+fn materialize_refuses_a_candidate_whose_declared_family_misprices_its_segment() {
+    let observation = chain_from(&[Pt::new(0.0, 0.0), Pt::new(1.0, 0.0)], false);
+    let path = GrammarPath {
+        candidates: vec![0],
+        breakpoints: Vec::new(),
+        smooth: Vec::new(),
+        closed: false,
+        closure_smooth: false,
+        code: ChainCode::default(),
+        proposal_cost_px: 0.0,
+    };
+    let edge = direct_line_edge(0, 1);
+    let mismatched = SpanCandidate {
+        support: Support::new(0, 1).expect("non-empty support"),
+        family: SpanFamily::Line,
+        segment: Segment::Cubic {
+            ctrl1: Pt::new(0.25, 0.0),
+            ctrl2: Pt::new(0.75, 0.0),
+        },
+        cost: zero_proposal_cost(),
+    };
+    assert_eq!(
+        materialize(&path, &[edge], &[mismatched], &observation.samples),
+        None
+    );
+}
+
 fn chain_scaled(points: &[Pt], closed: bool, scale: f64) -> BoundaryChain {
     let n = points.len();
     assert!(n >= 2);

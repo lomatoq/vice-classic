@@ -256,6 +256,32 @@ struct Partial {
     prev: Option<usize>,
 }
 
+impl Partial {
+    fn validate_cost(self) -> Result<Self, crate::FitRefusal> {
+        let valid = [
+            self.bits,
+            self.geometry,
+            self.topology,
+            self.residual,
+            self.proposal,
+        ]
+        .into_iter()
+        .all(|value| value.is_finite() && value >= 0.0);
+        if valid {
+            Ok(self)
+        } else {
+            Err(crate::FitRefusal::InvalidGrammarPathCost {
+                edge: self.edge,
+                total_bits: self.bits,
+                geometry_bits: self.geometry,
+                topology_bits: self.topology,
+                residual_bits: self.residual,
+                proposal_cost_px: self.proposal,
+            })
+        }
+    }
+}
+
 /// The DP state key at a node.
 ///
 /// The suffix of a path depends on the prefix only through these three things —
@@ -301,7 +327,7 @@ pub fn k_best_paths(
 ) -> Result<Vec<GrammarPath>, crate::FitRefusal> {
     let first_sample_bits = crate::code::first_sample_residual_bits(samples, table, canvas_dim_px)?;
     validate_grammar_edges(edges, samples)?;
-    Ok(k_best_paths_for_objective(
+    k_best_paths_for_objective(
         edges,
         samples,
         table,
@@ -309,7 +335,7 @@ pub fn k_best_paths(
         k,
         (PathObjective::PhysicalCode, ClosureMode::Open),
         first_sample_bits,
-    ))
+    )
 }
 
 pub(crate) fn k_best_paths_with_closure(
@@ -323,7 +349,7 @@ pub(crate) fn k_best_paths_with_closure(
     let first_sample_bits = crate::code::first_sample_residual_bits(samples, table, canvas_dim_px)?;
     validate_grammar_edges(edges, samples)?;
     if !closed {
-        return Ok(k_best_paths_for_objective(
+        return k_best_paths_for_objective(
             edges,
             samples,
             table,
@@ -331,7 +357,7 @@ pub(crate) fn k_best_paths_with_closure(
             k,
             (PathObjective::PhysicalCode, ClosureMode::Open),
             first_sample_bits,
-        ));
+        );
     }
     let mut paths = k_best_paths_for_objective(
         edges,
@@ -341,7 +367,7 @@ pub(crate) fn k_best_paths_with_closure(
         k,
         (PathObjective::PhysicalCode, ClosureMode::Corner),
         first_sample_bits,
-    );
+    )?;
     paths.extend(k_best_paths_for_objective(
         edges,
         samples,
@@ -350,7 +376,7 @@ pub(crate) fn k_best_paths_with_closure(
         k,
         (PathObjective::PhysicalCode, ClosureMode::Smooth),
         first_sample_bits,
-    ));
+    )?);
     paths.sort_by(compare_path_rank);
     paths.truncate(k);
     Ok(paths)
@@ -370,10 +396,10 @@ fn k_best_paths_for_objective(
     k: usize,
     (objective, closure_mode): (PathObjective, ClosureMode),
     first_sample_bits: f64,
-) -> Vec<GrammarPath> {
+) -> Result<Vec<GrammarPath>, crate::FitRefusal> {
     let n = samples.len();
     if n < 2 || edges.is_empty() || k == 0 {
-        return Vec::new();
+        return Ok(Vec::new());
     }
     let physical = objective == PathObjective::PhysicalCode;
     let cb = if physical {
@@ -447,7 +473,8 @@ fn k_best_paths_for_objective(
             smooth_here: false,
             closure: closure_mode.state_for_seed(e),
             prev: None,
-        };
+        }
+        .validate_cost()?;
         push_state(
             &mut arena,
             &mut states[e.to],
@@ -508,7 +535,8 @@ fn k_best_paths_for_objective(
                                 .closure
                                 .map(|state| state.after_join(p.prev.is_none(), smooth)),
                             prev: Some(pi),
-                        };
+                        }
+                        .validate_cost()?;
                         push_state(
                             &mut arena,
                             &mut states[e.to],
@@ -526,15 +554,26 @@ fn k_best_paths_for_objective(
     }
 
     if closure_mode.is_closed() {
+        let mut invalid = None;
         finished.retain(|end| {
-            close_finished_path(
+            let closed = close_finished_path(
                 &mut arena[*end],
                 edges,
                 cb,
                 join_bits,
                 closure_mode.is_smooth(),
-            )
+            );
+            if closed {
+                if let Err(refusal) = arena[*end].validate_cost() {
+                    invalid = Some(refusal);
+                    return false;
+                }
+            }
+            closed
         });
+        if let Some(refusal) = invalid {
+            return Err(refusal);
+        }
     }
     finished.sort_by(|a, b| compare_partial(&arena[*a], &arena[*b]));
     finished.truncate(k);
@@ -549,7 +588,7 @@ fn k_best_paths_for_objective(
             }
             walk.reverse();
             let p = arena[end];
-            GrammarPath {
+            let path = GrammarPath {
                 candidates: walk.iter().map(|x| edges[x.edge].candidate).collect(),
                 breakpoints: walk[1..].iter().map(|x| edges[x.edge].from).collect(),
                 smooth: walk[1..].iter().map(|x| x.smooth_here).collect(),
@@ -562,6 +601,18 @@ fn k_best_paths_for_objective(
                     residual_bits: p.residual,
                 },
                 proposal_cost_px: p.proposal,
+            };
+            if path.total_bits().is_finite() {
+                Ok(path)
+            } else {
+                Err(crate::FitRefusal::InvalidGrammarPathCost {
+                    edge: p.edge,
+                    total_bits: path.total_bits(),
+                    geometry_bits: path.code.geometry_bits,
+                    topology_bits: path.code.topology_bits,
+                    residual_bits: path.code.residual_bits,
+                    proposal_cost_px: path.proposal_cost_px,
+                })
             }
         })
         .collect()
@@ -653,6 +704,7 @@ pub(crate) fn materialize_with_closure(
         edge.from >= edge.to
             || edge.to >= samples.len()
             || edge.candidate >= candidates.len()
+            || validate_candidate(&candidates[edge.candidate], edge.candidate, samples).is_err()
             || candidates[edge.candidate].support.lo() != edge.from
             || candidates[edge.candidate].support.hi() != edge.to
             || candidates[edge.candidate].family != edge.family

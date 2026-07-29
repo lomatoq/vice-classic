@@ -750,10 +750,23 @@ fn bump(acc: &mut Vec<(&'static str, usize)>, name: &'static str) {
 
 /// The families of a path, for callers that want the discrete answer without
 /// the solve.
-pub fn path_families(path: &GrammarPath, candidates: &[crate::SpanCandidate]) -> Vec<SpanFamily> {
+pub fn path_families(
+    path: &GrammarPath,
+    candidates: &[crate::SpanCandidate],
+) -> Result<Vec<SpanFamily>, FitRefusal> {
     path.candidates
         .iter()
-        .map(|c| candidates[*c].family)
+        .enumerate()
+        .map(|(path_candidate, &candidate)| {
+            candidates
+                .get(candidate)
+                .map(|candidate| candidate.family)
+                .ok_or(FitRefusal::PathCandidateOutOfRange {
+                    path_candidate,
+                    candidate,
+                    candidates: candidates.len(),
+                })
+        })
         .collect()
 }
 

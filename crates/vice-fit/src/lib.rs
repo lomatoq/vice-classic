@@ -235,6 +235,23 @@ pub enum FitRefusal {
         residual_bits: f64,
         proposal_cost_px: f64,
     },
+    /// Individually finite grammar terms overflowed, or produced a negative
+    /// component, while a public path was being accumulated.
+    InvalidGrammarPathCost {
+        edge: usize,
+        total_bits: f64,
+        geometry_bits: f64,
+        topology_bits: f64,
+        residual_bits: f64,
+        proposal_cost_px: f64,
+    },
+    /// A caller-constructed path names a candidate outside the supplied
+    /// candidate slice.
+    PathCandidateOutOfRange {
+        path_candidate: usize,
+        candidate: usize,
+        candidates: usize,
+    },
     /// A public single-cut request named a sample that does not exist.
     CutOutOfRange { cut: usize, samples: usize },
     /// The physical coordinate range used by the code is not finite and

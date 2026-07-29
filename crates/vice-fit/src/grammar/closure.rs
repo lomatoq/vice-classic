@@ -184,7 +184,8 @@ mod tests {
                 256.0,
             )
             .expect("valid samples"),
-        );
+        )
+        .expect("valid path costs");
         assert_eq!(paths.len(), 8);
         assert!(
             paths.iter().all(|path| path.candidates[1] == 9),
@@ -213,6 +214,7 @@ mod tests {
             crate::code::first_sample_residual_bits(&samples(), table, 256.0)
                 .expect("valid samples"),
         )
+        .expect("valid path costs")
         .pop()
         .expect("closed path");
         let cb = table.coordinate_bits(256.0);
@@ -249,6 +251,7 @@ mod tests {
             )
             .expect("valid samples"),
         )
+        .expect("valid path costs")
         .pop()
         .expect("the valid two-span loop survives K=1");
         assert_eq!(path.candidates, vec![1, 2]);

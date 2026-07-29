@@ -98,6 +98,7 @@ fn every_k_truncation_uses_the_declared_proposal_tie_break() {
         (PathObjective::PhysicalCode, ClosureMode::Smooth),
         crate::code::first_sample_residual_bits(&samples, &crate::GEOMETRY_CODE_TABLE_V1, 256.0)
             .expect("valid samples"),
-    );
+    )
+    .expect("valid path costs");
     assert_eq!(closed[0].candidates, vec![1, 2]);
 }
