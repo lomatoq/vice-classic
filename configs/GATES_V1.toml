@@ -445,7 +445,18 @@ gate_min_slots_perturbed = 40000
 # keys land here with no code, the consumer lands next, the freeze lands after.
 # A placeholder is not a threshold and no row may gate on one.
 # FROZEN. Measured at C288 on the full scope: 178 compound transactions, all
-# 178 committed, 4 distinct compound deltas, 3 edit shapes.
+# 178 committed, FIVE distinct compound deltas, 3 edit shapes.
+#
+# WAS: "4 distinct compound deltas" here and "Measured: four distinct" on the
+# key below. Reviewer A measured the artifact AS COMMITTED AT C288 and it
+# carried FIVE distinct compound deltas even then: the third edit shape had
+# added compound(c-1,h-1) three commits before the freeze, and the freeze
+# comment quoted the TWO-shape population's count beside the three-shape
+# population's 178 - a numerator and a denominator from different populations,
+# F-0082's class, in the commit that froze this section (M6A-N2, ledger
+# F-0093). The floor of 3 itself was and is sound: it sits below both the
+# false 4 and the true 5. The five, from DCEL_M5.json: (+1,+1) 118,
+# (-1,+1) 46, (+0,+2) 6, (-1,-1) 6, (-3,+1) 2, sum 178.
 #
 # The first two floors sit BELOW the measurement, on this file's own rule that
 # a threshold equal to today's count is a fingerprint rather than a floor. The
@@ -462,7 +473,9 @@ set_by_milestone = "M6"
 gate_min_compound_transactions = 100
 # Distinct compound DELTAS the run must exercise. A floor on the count alone is
 # satisfied by one delta repeated: 118 copies of (+1,+1) would meet a floor of
-# 100 and would test one shape's one behaviour. Measured: four distinct.
+# 100 and would test one shape's one behaviour. Measured: FIVE distinct (the
+# word here said "four" from freeze until the C316 correction - see the WAS
+# block above).
 gate_min_distinct_compound_deltas = 3
 # Edit shapes the harness applies per arm. The count above is a CONSEQUENCE of
 # this one, and losing a shape is the cheapest way to empty the population, so
