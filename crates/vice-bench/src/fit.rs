@@ -116,6 +116,7 @@ fn refusal_name(r: &FitRefusal) -> &'static str {
         FitRefusal::BudgetExceeded { .. } => "budget_exceeded",
         FitRefusal::NonPositiveHalfwidth { .. } => "non_positive_halfwidth",
         FitRefusal::NonFiniteSample { .. } => "non_finite_sample",
+        FitRefusal::NonUnitNormal { .. } => "non_unit_normal",
     }
 }
 

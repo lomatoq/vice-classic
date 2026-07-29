@@ -115,6 +115,18 @@ impl SpanFamily {
             SpanFamily::Cubic => 4,
         }
     }
+
+    /// Discrete flags the family carries beyond its scalar parameters, in bits.
+    ///
+    /// The circular arc's `large_arc` and `ccw` are one bit each: they are part
+    /// of the endpoint parameterisation and a code that omitted them would let
+    /// the arc name four curves for the price of one.
+    pub fn flag_bits(self) -> f64 {
+        match self {
+            SpanFamily::Line | SpanFamily::Quad | SpanFamily::Cubic => 0.0,
+            SpanFamily::CircularArc => 2.0,
+        }
+    }
 }
 
 /// One fitted candidate: which samples it spans, what it is, and what it

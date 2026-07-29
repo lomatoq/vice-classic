@@ -43,21 +43,40 @@
 
 #![forbid(unsafe_code)]
 
+pub mod code;
 pub mod corner;
 pub mod cost;
+pub mod grammar;
+pub mod models;
+pub mod refit;
 pub mod schedule;
+pub mod solve;
 pub mod span;
 
 use serde::Serialize;
 
+pub use code::{
+    log2_binomial, residual_bits, ChainCode, GeometryCodeTable, GEOMETRY_CODE_TABLE_V1, JOIN_KINDS,
+    REFERENCE_CANVAS_DIM_PX,
+};
 pub use corner::{corner_anchors, corner_proposals, CornerProposal};
 pub use cost::{
     normal_deviation, proposal_cost, CostRefusal, ProposalCost, MATERIAL_DEVIATION_FRACTION,
+};
+pub use grammar::{
+    build_edges, jet_class, jet_compatible, k_best_paths, materialize, GrammarEdge, GrammarPath,
+    JET_CLASSES, K_DISCRETE_PATHS,
+};
+pub use models::{canonical_cuts, k_best_boundary_models, BoundaryModel, ModelRun};
+pub use refit::{
+    canonical_angle, g1_readings, ArcAnchor, G1Reading, Handle, RefitChain, RefitNode,
+    RefitRefusal, RefitSegment, FEASIBLE_HALFWIDTHS,
 };
 pub use schedule::{
     anchored_schedule, anchored_schedule_bound, hierarchical_schedule, FitBudget, Support,
     FIT_BUDGET_V1, MIN_SUPPORT_SAMPLES, SUPPORTS_PER_SAMPLE_BOUND,
 };
+pub use solve::{joint_constrained_refit, RefitOutcome, JOINT_REFIT_PASSES, MAX_JOINT_PARAMETERS};
 pub use span::{
     fit, flattening_error_px, NoFit, SpanCandidate, SpanFamily, DEVIATION_CHORD_TOLERANCE_PX,
     FAMILIES_DELIBERATELY_NOT_FITTED, FITTED_FAMILIES, PARAMETER_REFINEMENT_PASSES,
@@ -95,6 +114,22 @@ pub enum FitRefusal {
     NonPositiveHalfwidth { sample: usize, halfwidth_px: f64 },
     /// A non-finite sample position, normal, or arclength weight.
     NonFiniteSample { sample: usize },
+    /// A normal that is not a unit vector.
+    ///
+    /// `BoundarySample::normal` is documented as a UNIT normal, and every
+    /// quantity this crate computes along it — §14.4's `d_n` above all — reads
+    /// its length as one. A zero normal passes a finiteness check and then
+    /// makes `normal_deviation` return `None` at that sample for EVERY
+    /// candidate, so every candidate whose support touches it is silently
+    /// removed and the DAG loses a node. Measured: a chain whose first sample
+    /// had a zero normal produced 1417 candidates, none of them starting at
+    /// sample 0, and the k-best search returned no path at all with no refusal
+    /// to explain it. A malformed input has to be refused where it is
+    /// malformed, not where its consequences surface.
+    ///
+    /// The tolerance is on a value the producer DECLARES to be one, so it is a
+    /// contract check rather than a geometric threshold.
+    NonUnitNormal { sample: usize, length: f64 },
 }
 
 /// Everything the candidate stage produced for one chain, including the
@@ -151,6 +186,14 @@ pub struct ChainCandidates {
 /// no candidate. Change `MIN_SUPPORT_SAMPLES` and this moves with it.
 pub const CORNER_ANCHOR_HALF_WINDOW: usize = MIN_SUPPORT_SAMPLES - 1;
 
+/// How far `BoundarySample::normal` may be from unit length before the chain is
+/// refused.
+///
+/// A contract check on a value its producer declares to be a unit vector, not a
+/// geometric tolerance: `1e-9` is far above the rounding of a normalisation and
+/// far below anything that would make `d_n` mean something different.
+pub const UNIT_NORMAL_TOLERANCE: f64 = 1e-9;
+
 /// **§28 M6 bullets 1 and 2 for one chain.**
 ///
 /// Offers every family on every support of the schedule — the dyadic ladder of
@@ -171,6 +214,13 @@ pub fn span_candidates(
             return Err(FitRefusal::NonPositiveHalfwidth {
                 sample: i,
                 halfwidth_px: s.halfwidth,
+            });
+        }
+        let len = s.normal.length();
+        if (len - 1.0).abs() > UNIT_NORMAL_TOLERANCE {
+            return Err(FitRefusal::NonUnitNormal {
+                sample: i,
+                length: len,
             });
         }
     }
