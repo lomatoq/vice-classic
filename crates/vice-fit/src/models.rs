@@ -111,6 +111,8 @@ pub struct BoundaryModel {
     pub worst_g1_spread_rad: f64,
     /// Worst `|d_n|` after the solve, px.
     pub worst_normal_deviation_px: f64,
+    /// Worst distance in the reverse model-to-evidence direction, px.
+    pub worst_model_to_evidence_px: f64,
     pub residual_before: f64,
     pub residual_after: f64,
     /// §15 whole-loop constrained siblings, accepted and rejected alike.
@@ -404,6 +406,7 @@ pub fn fit_forced_boundary_models(
                     proposal_cost_px: path.proposal_cost_px,
                     worst_g1_spread_rad: worst_g1,
                     worst_normal_deviation_px: out.worst_normal_deviation_px,
+                    worst_model_to_evidence_px: out.worst_model_to_evidence_px,
                     residual_before: out.residual_before,
                     residual_after: out.residual_after,
                     primitives: Vec::new(),
@@ -723,6 +726,7 @@ fn models_for_open_chain(
                     proposal_cost_px: path.proposal_cost_px,
                     worst_g1_spread_rad: worst_g1,
                     worst_normal_deviation_px: out.worst_normal_deviation_px,
+                    worst_model_to_evidence_px: out.worst_model_to_evidence_px,
                     residual_before: out.residual_before,
                     residual_after: out.residual_after,
                     primitives: Vec::new(),

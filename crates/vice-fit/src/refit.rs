@@ -171,7 +171,7 @@ pub enum RefitRefusal {
     /// chain inside the evidence corridor, so this discrete path is INVALID and
     /// the next one is considered. Carries what it reached.
     OutsideCorridor {
-        worst_normal_deviation_px: f64,
+        worst_deviation_px: f64,
         allowed_px: f64,
     },
 }

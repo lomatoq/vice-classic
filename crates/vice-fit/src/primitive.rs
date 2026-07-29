@@ -142,6 +142,7 @@ pub struct LoopPrimitiveHypothesis {
     pub residual_penalty_bits: f64,
     pub net_bits: f64,
     pub worst_normal_deviation_px: f64,
+    pub worst_model_to_evidence_px: f64,
     pub allowed_px: f64,
     pub accepted: bool,
 }
@@ -203,6 +204,8 @@ pub fn loop_primitive_hypotheses(
             let primitive_bits = kind.code_bits(table, canvas_dim_px, characteristic_radius_px);
             let net_bits = free_structure_bits - primitive_bits - residual_penalty_bits;
             let (worst, allowed) = worst_deviation(&poly, samples);
+            let worst_reverse = crate::solve::model_to_evidence_deviation(&poly, samples);
+            let reverse_allowed = crate::solve::reverse_corridor_allowance(samples);
             Some(LoopPrimitiveHypothesis {
                 kind,
                 geometry,
@@ -212,9 +215,11 @@ pub fn loop_primitive_hypotheses(
                 residual_penalty_bits,
                 net_bits,
                 worst_normal_deviation_px: worst,
+                worst_model_to_evidence_px: worst_reverse,
                 allowed_px: allowed,
                 accepted: net_bits > 0.0
                     && worst <= allowed
+                    && worst_reverse <= reverse_allowed
                     && after.is_finite()
                     && primitive_bits.is_finite(),
             })
@@ -245,6 +250,8 @@ pub fn apply_best_primitive(
         geometry: best.geometry,
         verification_polyline: best.verification_polyline.clone(),
     };
+    model.worst_normal_deviation_px = best.worst_normal_deviation_px;
+    model.worst_model_to_evidence_px = best.worst_model_to_evidence_px;
     Some(index)
 }
 

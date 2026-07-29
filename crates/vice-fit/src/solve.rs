@@ -71,6 +71,10 @@ pub struct RefitOutcome {
     pub pass_kept: usize,
     /// Worst `|d_n|` over the chain's samples after the solve, in px.
     pub worst_normal_deviation_px: f64,
+    /// Worst distance from the delivered curve back to the Stage-F evidence
+    /// polyline. The opposite direction prevents an overshooting curve from
+    /// touching every sample while wandering arbitrarily far between them.
+    pub worst_model_to_evidence_px: f64,
 }
 
 fn tolerance() -> ChordTolerancePx {
@@ -136,6 +140,26 @@ fn residual(chain: &RefitChain, samples: &[BoundarySample]) -> f64 {
         .iter()
         .map(|s| (euclidean_deviation(s.p, &poly) / s.halfwidth).powi(2))
         .sum()
+}
+
+/// The reverse half of corridor feasibility: every point of the delivered
+/// curve must stay near the ordered Stage-F evidence, not merely vice versa.
+pub fn model_to_evidence_deviation(poly: &[Pt], samples: &[BoundarySample]) -> f64 {
+    let evidence: Vec<Pt> = samples.iter().map(|sample| sample.p).collect();
+    if poly.len() < 2 || evidence.len() < 2 {
+        return f64::INFINITY;
+    }
+    poly.iter()
+        .map(|point| euclidean_deviation(*point, &evidence))
+        .fold(0.0f64, f64::max)
+}
+
+pub fn reverse_corridor_allowance(samples: &[BoundarySample]) -> f64 {
+    FEASIBLE_HALFWIDTHS
+        * samples
+            .iter()
+            .map(|sample| sample.halfwidth)
+            .fold(0.0f64, f64::max)
 }
 
 /// Pack the free scalars of a chain into a vector.
@@ -401,10 +425,17 @@ pub fn joint_constrained_refit(
             allowed = FEASIBLE_HALFWIDTHS * s.halfwidth;
         }
     }
-    if worst > allowed {
+    let worst_reverse = model_to_evidence_deviation(&poly, samples);
+    let reverse_allowed = reverse_corridor_allowance(samples);
+    if worst > allowed || worst_reverse > reverse_allowed {
+        let (worst_deviation_px, allowed_px) = if worst_reverse > reverse_allowed {
+            (worst_reverse, reverse_allowed)
+        } else {
+            (worst, allowed)
+        };
         return Err(RefitRefusal::OutsideCorridor {
-            worst_normal_deviation_px: worst,
-            allowed_px: allowed,
+            worst_deviation_px,
+            allowed_px,
         });
     }
 
@@ -415,6 +446,7 @@ pub fn joint_constrained_refit(
         residual_after: best_r,
         pass_kept,
         worst_normal_deviation_px: worst,
+        worst_model_to_evidence_px: worst_reverse,
     })
 }
 
@@ -540,14 +572,34 @@ mod tests {
         };
         match joint_constrained_refit(&init, &s) {
             Err(RefitRefusal::OutsideCorridor {
-                worst_normal_deviation_px,
+                worst_deviation_px,
                 allowed_px,
             }) => {
-                assert!(worst_normal_deviation_px > allowed_px);
+                assert!(worst_deviation_px > allowed_px);
                 assert!((allowed_px - FEASIBLE_HALFWIDTHS * 0.35).abs() < 1e-12);
             }
             other => panic!("expected OutsideCorridor, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn a_curve_excursion_hidden_from_the_forward_leg_is_detected_in_reverse() {
+        let s = samples_from(&[Pt::new(0.0, 0.0), Pt::new(5.0, 0.0), Pt::new(10.0, 0.0)]);
+        let poly = [
+            Pt::new(0.0, 0.0),
+            Pt::new(5.0, 0.0),
+            Pt::new(10.0, 0.0),
+            Pt::new(10.0, 100.0),
+        ];
+        assert!(
+            s.iter()
+                .all(|sample| euclidean_deviation(sample.p, &poly) == 0.0),
+            "the old forward-only corridor leg sees no defect"
+        );
+        assert!(
+            model_to_evidence_deviation(&poly, &s) > reverse_corridor_allowance(&s),
+            "the reverse leg must reject the 100 px excursion"
+        );
     }
 
     /// The solve never returns something worse than what it was handed, at any

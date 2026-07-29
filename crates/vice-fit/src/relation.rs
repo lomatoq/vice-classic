@@ -143,6 +143,7 @@ pub struct RelationHypothesis {
     /// allowed. §15's "relation prior не может компенсировать salient residual"
     /// as a number.
     pub worst_normal_deviation_px: f64,
+    pub worst_model_to_evidence_px: f64,
     pub allowed_px: f64,
     pub accepted: bool,
 }
@@ -262,6 +263,10 @@ fn evaluate(
     let after = residual_code(&constrained, samples, table);
     let residual_penalty_bits = after - base_residual;
     let (worst, allowed) = worst_deviation(&constrained, samples);
+    let worst_reverse = flatten_chain(&constrained).map_or(f64::INFINITY, |poly| {
+        crate::solve::model_to_evidence_deviation(&poly, samples)
+    });
+    let reverse_allowed = crate::solve::reverse_corridor_allowance(samples);
     let net_bits = saving_bits - cost_bits - residual_penalty_bits;
     RelationHypothesis {
         kind,
@@ -272,12 +277,16 @@ fn evaluate(
         residual_penalty_bits,
         net_bits,
         worst_normal_deviation_px: worst,
+        worst_model_to_evidence_px: worst_reverse,
         allowed_px: allowed,
         // §15's two conditions, both required: a net saving in bits AND a chain
         // the evidence still supports. A relation that pays for itself by
         // moving the boundary out of its corridor is the "relation prior
         // compensating a salient residual" §15 forbids.
-        accepted: net_bits > 0.0 && worst <= allowed && after.is_finite(),
+        accepted: net_bits > 0.0
+            && worst <= allowed
+            && worst_reverse <= reverse_allowed
+            && after.is_finite(),
     }
 }
 
@@ -503,6 +512,7 @@ pub fn apply_accepted(model: &mut BoundaryModel, hypotheses: &[RelationHypothesi
         chain: hypothesis.constrained_chain.clone(),
     };
     model.worst_normal_deviation_px = hypothesis.worst_normal_deviation_px;
+    model.worst_model_to_evidence_px = hypothesis.worst_model_to_evidence_px;
     model.relation_kept_indices = vec![index];
     1
 }

@@ -276,7 +276,8 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                                     }
                                     run.worst_selected_deviation_px = run
                                         .worst_selected_deviation_px
-                                        .max(m.worst_normal_deviation_px);
+                                        .max(m.worst_normal_deviation_px)
+                                        .max(m.worst_model_to_evidence_px);
                                     let Some(chain) = m.geometry.typed_chain() else {
                                         continue;
                                     };
