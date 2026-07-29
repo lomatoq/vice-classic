@@ -532,12 +532,14 @@ gate_min_transaction_shapes = 3
 #   2. the M6 scorecard and every consumer land in a later code commit;
 #   3. measured values and `status = "frozen"` land in a gate-file-only commit.
 #
-# Full development run used for the population floors: 22 independent source
-# groups, one scene per group, 205/205 eligible boundaries, no exclusions,
-# five arms on every boundary, 205 forced-GT candidate injections and 14 cases
-# where G01's oracle selector changed G00's automatic choice. The population
-# and injection floors sit below the measurement; the arm floor is exactly
-# five because losing one declared arm is the regression it exists to catch.
+# Full raster-derived run used for these floors: one scene from each independent
+# development source group plus three certified M6 raster witnesses, 25 scenes
+# total. Production Stage F exposed 18 eligible closed chains; the exact
+# common population on which all five arms completed is 6 rows. Those rows
+# contain 11 forced-GT candidate injections, 2 G01 geometry changes, 4 G10
+# geometry changes, 1 G11 geometry change, 3 selected relation rows, and 2
+# selected whole-loop primitive rows. The selector changes compare hashes of
+# materialized geometry, not source labels or code lengths.
 [m6_geometry]
 status = "frozen"
 set_by_milestone = "M6"
@@ -552,7 +554,20 @@ gate_min_invariance_legs = 6
 gate_min_no_bic_extra_segments = 1
 candidate_budget_per_chain = 65536
 k_discrete_paths = 8
-gate_min_geometry_boundaries = 100
+max_canonical_cuts = 4
+gate_min_geometry_boundaries = 6
 gate_min_geometry_arms_per_boundary = 5
-gate_min_oracle_candidate_injections = 100
+gate_min_oracle_candidate_injections = 10
 gate_min_oracle_selector_changes = 1
+gate_min_injection_selector_changes = 1
+gate_min_forced_selector_changes = 1
+gate_min_raster_derived_rows = 6
+gate_min_multi_span_rows = 6
+gate_min_multi_family_rows = 2
+gate_min_arc_rows = 1
+gate_min_quad_rows = 1
+gate_min_cubic_rows = 2
+gate_min_forced_multi_candidate_rows = 2
+gate_min_forced_smooth_rows = 2
+gate_min_relation_selected_rows = 2
+gate_min_primitive_selected_rows = 1
