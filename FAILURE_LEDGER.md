@@ -4874,5 +4874,5 @@ and their total remain finite and non-negative.
 **Status.** Closed in C405. Stage H checks structural family preservation,
 published-code identities and the complete post-application `ChainCode`
 before mutating the model. Negative, infinite, underflowing and overflowing
-direct witnesses are inert. C406 preserves the prior 4 relation-selected rows
-and all prior geometry aggregates.
+direct witnesses are inert. C406 and the post-layout C409 artifact preserve
+the prior 4 relation-selected rows and all prior geometry aggregates.

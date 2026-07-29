@@ -15,7 +15,7 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - geometry pricing surface:
   `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;
 - Stage G/H backend source:
-  `f22e03c9b469119b8bdb2f983387539a3f48deeb405d465950698f0674e915a3`;
+  `3e683f8ca2db6e88c5288cea80a4cadca9a3630eccc6f0dc42d43ee190280098`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -186,6 +186,9 @@ The relevant sequence is intentionally split:
     family/segment materialization and relation-code application. C406 records
     the resulting content identity alone; all row-derived populations and
     geometry errors remain unchanged.
+24. C408 moves the new grammar helpers below the 800-line production-module
+    bound without changing behavior; C409 records that final content identity
+    alone.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 

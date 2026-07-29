@@ -1528,17 +1528,21 @@ relation-selection behavior.
 
 ## A8.2 Frozen evidence
 
-C406 records the artifact alone. Its row-derived behavior is unchanged:
+C406 records the functional repair artifact alone. The final hygiene pass then
+found `grammar.rs` at 842 lines; C408 moves validation/ranking helpers into the
+already digested `grammar/surface.rs`, restoring 791 lines without behavior
+change, and C409 records that final identity alone. Its row-derived behavior is
+unchanged:
 11 boundaries, 55 arms, 27 injections, selector changes 3/6/1, four
 relation-selected rows, five primitive-selected rows, all 18 clauses MET,
 and G00/G01 mean `0.5984981083 px` with worst `1.6679802262 px`.
 
 - model universe `47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097`;
 - pricing surface `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;
-- backend source `f22e03c9b469119b8bdb2f983387539a3f48deeb405d465950698f0674e915a3`;
-- config hash `fe22e7ed149356e479ea19391af2979902eafff950f5b1f2f5da8777e36d85c5`;
+- backend source `3e683f8ca2db6e88c5288cea80a4cadca9a3630eccc6f0dc42d43ee190280098`;
+- config hash `bfd3907b467fd386e2683042a436f893369e4b5a09279a179ab4ba416785ae9c`;
 - five-arm compatibility fingerprint
-  `74fd7ab01eae99faf4ea9718e0883a0f8f5a9e66e6816e25b3347a7322c82f0a`.
+  `d39d98a3fa2e60556d24264405ed1a0822c1678ad767facbe4ac5a279cd31bc1`.
 
 This is again a completion candidate, not acceptance. The final validation and
 all three independent PASS verdicts must name one unchanged clean SHA before
