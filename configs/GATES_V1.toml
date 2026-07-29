@@ -520,33 +520,37 @@ gate_min_transaction_shapes = 3
 
 # --- M6 geometry selection and oracle decomposition (§14–§15, §28 M6) -------
 #
-# PLACEHOLDER in this commit. Independent reviewers A/B found that every
+# FROZEN after the consumers landed in C327. Independent reviewers A/B found that every
 # number deciding the three already-green M6 clauses lived beside the test it
 # judged, so one feature commit could relax the test and change the mechanism
 # together (M6A-C5 / M6B-N8). The same is true of the population floors the
 # G00–G20 decomposition now needs.
 #
-# This is the repository's §27.7 three-step:
+# This was the repository's §27.7 three-step:
 #   1. these key names land while the section is a placeholder;
 #   2. the M6 scorecard and every consumer land in a later code commit;
 #   3. measured values and `status = "frozen"` land in a gate-file-only commit.
 #
-# Zeroes below are deliberately unusable. `GatesFile::gate_value` refuses the
-# whole section while it is a placeholder, so no zero can decide a verdict.
+# Full development run used for the population floors: 22 independent source
+# groups, one scene per group, 205/205 eligible boundaries, no exclusions,
+# five arms on every boundary, 205 forced-GT candidate injections and 14 cases
+# where G01's oracle selector changed G00's automatic choice. The population
+# and injection floors sit below the measurement; the arm floor is exactly
+# five because losing one declared arm is the regression it exists to catch.
 [m6_geometry]
-status = "placeholder"
+status = "frozen"
 set_by_milestone = "M6"
 
-gate_max_g1_spread_rad = 0.0
-gate_min_g1_nodes = 0
-gate_min_g1_positive_control_rad = 0.0
-gate_max_breakpoint_fraction_delta = 0.0
-gate_min_cut_nontrivial_spread_bits = 0.0
-gate_max_cut_rotation_delta_bits = 0.0
-gate_max_translation_delta_bits = 0.0
-gate_min_invariance_legs = 0
-gate_min_no_bic_extra_segments = 0
-gate_min_geometry_boundaries = 0
-gate_min_geometry_arms_per_boundary = 0
-gate_min_oracle_candidate_injections = 0
-gate_min_oracle_selector_changes = 0
+gate_max_g1_spread_rad = 1e-9
+gate_min_g1_nodes = 1
+gate_min_g1_positive_control_rad = 0.4
+gate_max_breakpoint_fraction_delta = 0.06
+gate_min_cut_nontrivial_spread_bits = 1.0
+gate_max_cut_rotation_delta_bits = 1.0
+gate_max_translation_delta_bits = 1e-6
+gate_min_invariance_legs = 6
+gate_min_no_bic_extra_segments = 1
+gate_min_geometry_boundaries = 100
+gate_min_geometry_arms_per_boundary = 5
+gate_min_oracle_candidate_injections = 100
+gate_min_oracle_selector_changes = 1
