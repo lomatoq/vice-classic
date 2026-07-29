@@ -64,18 +64,36 @@ pub struct ProposalCost {
     pub max_euclidean_deviation_px: f64,
     /// The largest `|d_n| / d_euclidean` over the samples where the Euclidean
     /// deviation is at least [`MATERIAL_DEVIATION_FRACTION`] of the corridor
-    /// halfwidth.
+    /// halfwidth — or `None` when NO sample of the support was material.
     ///
     /// **This is the size of the error the previous cost carried**, now
     /// measured on the same population rather than bounded by an argument. It
-    /// is `>= 1` by construction (the Euclidean distance is the minimum over
-    /// directions), and a value near 1 means the two agree.
-    pub max_normal_to_euclidean_ratio: f64,
-    /// The Euclidean deviation, in px, at the sample where that worst ratio
-    /// occurred. Without it the ratio cannot be interpreted: a ratio of 40 at
-    /// 0.001 px and at 1.5 px are the same number and different findings
-    /// (F-0085).
-    pub ratio_at_deviation_px: f64,
+    /// is `>= 1` by construction, and a value near 1 means the two agree.
+    ///
+    /// An `Option`, and the history is RT6-A5: these were two `f64`s
+    /// initialised to `1.0` and `0.0` — the LOWER boundary of the range and a
+    /// legal deviation value — so a support whose every sample had a true
+    /// ratio of 2.0 but sat below the material threshold published "1.0 at
+    /// 0.0 px", indistinguishable from perfect agreement. F-0085 (a value at
+    /// the exact boundary of the instrument's range is a saturation reading)
+    /// applied to the OTHER end of the range, and F-0075 (an absence written
+    /// as a value that elsewhere means zero) in the same two fields. Absence
+    /// is now unwritable as a number.
+    pub worst_ratio: Option<RatioReading>,
+    /// How many samples of the support were material — the population the
+    /// ratio was measured over, published so `None` above reads as "measured
+    /// over nothing" rather than as silence.
+    pub material_samples: usize,
+}
+
+/// One measured worst ratio: the value and the Euclidean deviation at which it
+/// occurred. The second is what makes the first interpretable: a ratio of 40
+/// at 0.001 px and at 1.5 px are the same number and different findings
+/// (F-0085).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct RatioReading {
+    pub ratio: f64,
+    pub at_deviation_px: f64,
 }
 
 /// Why a candidate has no §14.4 cost.
@@ -195,8 +213,8 @@ pub fn proposal_cost(
     let mut cost = 0.0f64;
     let mut max_dn = 0.0f64;
     let mut max_de = 0.0f64;
-    let mut max_ratio = 1.0f64;
-    let mut ratio_at = 0.0f64;
+    let mut worst_ratio: Option<RatioReading> = None;
+    let mut material_samples = 0usize;
 
     for (i, s) in samples
         .iter()
@@ -215,10 +233,13 @@ pub fn proposal_cost(
         max_dn = max_dn.max(dn.abs());
         max_de = max_de.max(de);
         if de >= MATERIAL_DEVIATION_FRACTION * s.halfwidth && de > 0.0 {
+            material_samples += 1;
             let ratio = dn.abs() / de;
-            if ratio > max_ratio {
-                max_ratio = ratio;
-                ratio_at = de;
+            if worst_ratio.is_none_or(|w| ratio > w.ratio) {
+                worst_ratio = Some(RatioReading {
+                    ratio,
+                    at_deviation_px: de,
+                });
             }
         }
     }
@@ -232,8 +253,8 @@ pub fn proposal_cost(
         cost_px: cost,
         max_normal_deviation_px: max_dn,
         max_euclidean_deviation_px: max_de,
-        max_normal_to_euclidean_ratio: max_ratio,
-        ratio_at_deviation_px: ratio_at,
+        worst_ratio,
+        material_samples,
     })
 }
 
@@ -289,6 +310,58 @@ mod tests {
         // meet it reads a crossing, so `None` is a fact about the geometry and
         // not about the function always failing.
         assert!(normal_deviation(Pt::new(5.0, 5.0), Pt::new(-1.0, 0.0), &p).is_some());
+    }
+
+    /// **RT6-A5's probe, kept as the regression test.** A support whose every
+    /// sample has a TRUE normal-to-Euclidean ratio of 2.0 (normals at 60
+    /// degrees to the curve) but whose deviations all sit below the material
+    /// threshold used to publish `1.0 at 0.0 px` — the lower boundary of the
+    /// instrument's range, indistinguishable from measured perfect agreement.
+    /// It must now publish ABSENCE, with the population that produced it.
+    #[test]
+    fn a_support_with_no_material_sample_reports_absence_not_perfect_agreement() {
+        use vice_evidence::BoundarySample;
+        use vice_ir::Segment;
+
+        let theta = std::f64::consts::FRAC_PI_3;
+        // Endpoints on the chord, interior samples offset: the Line candidate
+        // runs between the two endpoints, so the interior deviation IS `dev`.
+        let make = |dev: f64| -> Vec<BoundarySample> {
+            (0..8)
+                .map(|i| BoundarySample {
+                    p: Pt::new(2.0 * i as f64, if i == 0 || i == 7 { 0.0 } else { dev }),
+                    normal: Pt::new(theta.sin(), -theta.cos()),
+                    halfwidth: 0.35,
+                    confidence: 1.0,
+                    weight_ds: 2.0,
+                    corr_length_px: 1.0,
+                })
+                .collect()
+        };
+        let support = crate::schedule::Support::new(0, 7).expect("support");
+
+        // Every deviation at a QUARTER of the material threshold: true ratio
+        // 2.0 everywhere, measured nowhere.
+        let below = make(0.25 * MATERIAL_DEVIATION_FRACTION * 0.35);
+        let c = proposal_cost(&below, support, &Segment::Line).expect("line flattens");
+        assert_eq!(
+            c.worst_ratio, None,
+            "no sample was material; a number here is the saturation reading F-0085 names"
+        );
+        assert_eq!(c.material_samples, 0);
+
+        // The positive leg: one material deviation, and the reading appears
+        // with the true ratio and the deviation it occurred at.
+        let above = make(2.0 * MATERIAL_DEVIATION_FRACTION * 0.35);
+        let c2 = proposal_cost(&above, support, &Segment::Line).expect("line flattens");
+        let r = c2.worst_ratio.expect("material samples exist");
+        assert!(c2.material_samples > 0);
+        assert!(
+            (r.ratio - 2.0).abs() < 1e-9,
+            "normals at 60 degrees have d_n / d_e = 2, measured {}",
+            r.ratio
+        );
+        assert!(r.at_deviation_px > 0.0);
     }
 
     /// The crossing NEAREST the sample is the one taken, on a polyline the

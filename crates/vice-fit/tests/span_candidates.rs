@@ -232,7 +232,7 @@ fn the_cubic_family_fits_a_cubic_to_a_measured_floor_and_ranks_it_first() {
             "{:>16}: max d_n {worst:8.5} px | max d_euclid {:8.5} px | ratio {:6.3} | proposal              cost {cost:11.4}",
             fam.universe_name(),
             c.max_euclidean_deviation_px,
-            c.max_normal_to_euclidean_ratio,
+            c.worst_ratio.map_or(1.0, |r| r.ratio),
         );
         by_family.push((fam, cost, worst));
     }
@@ -367,14 +367,14 @@ fn a_run_over_a_real_shape_publishes_its_own_population() {
     }
     println!(
         "samples {} | supports {} | candidates {} | families {:?} | headroom {} | worst d_n / \
-         d_euclid {:.3} at {:.5} px | cost refusals {:?}",
+         d_euclid {:?} at {:?} px | cost refusals {:?}",
         out.chain_samples,
         out.supports,
         out.candidates.len(),
         out.families_present,
         out.budget_headroom,
-        out.max_normal_to_euclidean_ratio,
-        out.ratio_at_deviation_px,
+        out.worst_ratio.map(|r| r.ratio),
+        out.worst_ratio.map(|r| r.at_deviation_px),
         out.no_costs,
     );
 }

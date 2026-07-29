@@ -122,6 +122,13 @@ pub enum RefitRefusal {
     ArcIsALine { segment: usize },
     /// A non-finite parameter reached the lowering.
     NonFinite { segment: usize },
+    /// More free scalars than [`crate::solve::MAX_JOINT_PARAMETERS`].
+    ///
+    /// Its own name, because until delta-1 this case was reported as
+    /// `Malformed` — and a correct chain of forty-one segments is not
+    /// malformed, it is bigger than the solver's backstop, and a report that
+    /// calls it malformed misdirects whoever reads it (REDTEAM_M6 §4).
+    TooManyParameters { parameters: usize, cap: usize },
     /// A smooth join between two LINES. Their directions are their chords, so
     /// the join is G1 only when the two chords are collinear — and two
     /// collinear lines are one line. There is no shared parameter to store, so

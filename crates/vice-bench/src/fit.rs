@@ -79,11 +79,14 @@ pub struct FitRun {
     /// Family names that produced at least one candidate anywhere in the run,
     /// MEASURED. An absent family is an absent name rather than silence.
     pub families_present: Vec<String>,
-    /// Largest `d_n / d_euclidean` over every candidate of the run, and the
-    /// Euclidean deviation at which it occurred. `1.0` would mean the
+    /// Largest `d_n / d_euclidean` over every candidate of the run, with the
+    /// Euclidean deviation at which it occurred — `None` when no candidate
+    /// anywhere had a material sample (RT6-A5: a run that measured nothing
+    /// must not print the lower boundary of the range). `1.0` would mean the
     /// pre-C302 lower bound was §14.4's integrand all along.
-    pub max_normal_to_euclidean_ratio: f64,
-    pub ratio_at_deviation_px: f64,
+    pub worst_ratio: Option<vice_fit::RatioReading>,
+    /// The population the ratio stands on, over the whole run.
+    pub material_samples: u64,
     /// Candidates that FITTED and whose §14.4 cost then refused them, by
     /// reason. Overwhelmingly `normal_line_misses`: a candidate no sample of
     /// its own support can see along its own normal.
@@ -99,11 +102,18 @@ pub struct FitRun {
     // --- §28 M6 bullets 3-6: the grammar, the joint solve and Stage H -------
     /// Chains for which at least one discrete path survived the joint solve.
     pub chains_with_a_model: u64,
-    /// Chains where every one of the k paths was refused. Counted separately
-    /// from "no chain": a chain the grammar could not explain is a finding, and
-    /// it looks exactly like a chain that was never offered if only successes
-    /// are counted (F-0075).
+    /// Chains the pipeline ran to completion on and every one of the k paths
+    /// was refused by the solver.
+    ///
+    /// SEPARATE from `chains_refused_at_entry`, and the separation is
+    /// REDTEAM_M6 §4's finding: `Err(_)` from `k_best_boundary_models` used to
+    /// fall into this same counter, so an input-contract refusal and a solver
+    /// that emptied its k-best were one number wearing this field's doc
+    /// comment (RT5-A21's class — a refusal folded into a value that means
+    /// something else).
     pub chains_with_no_model: u64,
+    /// Chains the entry contract refused (`FitRefusal`), by name.
+    pub chains_refused_at_entry: Vec<(&'static str, u64)>,
     /// Segments in the SELECTED model, summed over chains, and how many of the
     /// joins between them are smooth.
     pub selected_segments: u64,
@@ -116,8 +126,15 @@ pub struct FitRun {
     /// 0.4949 rad on `vice-ir`'s canonical fixture.
     pub worst_g1_spread_rad: f64,
     /// Smooth nodes the clause was evaluated over. A worst-of-nothing is zero
-    /// and says nothing (F-0039).
+    /// and says nothing (F-0039), and the corpus test now asserts this EQUALS
+    /// `selected_smooth_joins` — M6B-N4: `g1_readings` silently skips a node
+    /// whose incident direction it cannot read, so without the equality the
+    /// clause's population can shrink under its own instrument and 8 = 8
+    /// would be a coincidence rather than a check.
     pub g1_nodes_measured: u64,
+    /// Selected models whose `lower()` failed in the measurement. Used to be
+    /// swallowed by an `if let Ok` (M6B-N4); asserted zero in the corpus test.
+    pub g1_lowering_failures: u64,
     /// Worst `|d_n|` of any selected model after the solve, px.
     pub worst_selected_deviation_px: f64,
     /// Discrete paths the joint solve refused, by reason. §24's reason for
@@ -242,20 +259,35 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                                     run.worst_selected_deviation_px = run
                                         .worst_selected_deviation_px
                                         .max(m.worst_normal_deviation_px);
-                                    if let Ok(lowered) = m.chain.lower() {
-                                        let r =
-                                            g1_readings(&lowered, m.chain.start(), m.chain.end());
-                                        run.g1_nodes_measured += r.len() as u64;
-                                        for x in &r {
-                                            run.worst_g1_spread_rad =
-                                                run.worst_g1_spread_rad.max(x.spread_rad);
+                                    match m.chain.lower() {
+                                        Ok(lowered) => {
+                                            let r = g1_readings(
+                                                &lowered,
+                                                m.chain.start(),
+                                                m.chain.end(),
+                                            );
+                                            run.g1_nodes_measured += r.len() as u64;
+                                            for x in &r {
+                                                run.worst_g1_spread_rad =
+                                                    run.worst_g1_spread_rad.max(x.spread_rad);
+                                            }
                                         }
+                                        // Not swallowed (M6B-N4): a selected
+                                        // model that cannot lower is a defect
+                                        // of the measurement, not a skip.
+                                        Err(_) => run.g1_lowering_failures += 1,
                                     }
                                 }
                                 None => run.chains_with_no_model += 1,
                             }
                         }
-                        Err(_) => run.chains_with_no_model += 1,
+                        Err(why) => {
+                            let name = refusal_name(&why);
+                            match run.chains_refused_at_entry.iter_mut().find(|e| e.0 == name) {
+                                Some(e) => e.1 += 1,
+                                None => run.chains_refused_at_entry.push((name, 1)),
+                            }
+                        }
                     }
                     run.chains += 1;
                     run.longest_chain_samples = run.longest_chain_samples.max(chain.samples.len());
@@ -273,9 +305,11 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                                 .map(|k| k.saliency)
                                 .fold(run.max_corner_saliency, f64::max);
                             run.candidates += c.candidates.len() as u64;
-                            if c.max_normal_to_euclidean_ratio > run.max_normal_to_euclidean_ratio {
-                                run.max_normal_to_euclidean_ratio = c.max_normal_to_euclidean_ratio;
-                                run.ratio_at_deviation_px = c.ratio_at_deviation_px;
+                            run.material_samples += c.material_samples as u64;
+                            if let Some(r) = c.worst_ratio {
+                                if run.worst_ratio.is_none_or(|w| r.ratio > w.ratio) {
+                                    run.worst_ratio = Some(r);
+                                }
                             }
                             run.candidates_before_cost += c.candidates.len() as u64;
                             for (_, why, n) in &c.no_costs {
@@ -366,15 +400,21 @@ mod tests {
             "candidates before cost      {} (cost refusals {:?})",
             run.candidates_before_cost, run.cost_refusals
         );
-        println!(
-            "worst d_n / d_euclid        {:.4}, at a Euclidean deviation of {:.5} px",
-            run.max_normal_to_euclidean_ratio, run.ratio_at_deviation_px
-        );
+        match run.worst_ratio {
+            Some(r) => println!(
+                "worst d_n / d_euclid        {:.4}, at a Euclidean deviation of {:.5} px, over \
+                 {} material samples",
+                r.ratio, r.at_deviation_px, run.material_samples
+            ),
+            None => println!(
+                "worst d_n / d_euclid        NOT MEASURED: 0 material samples in the whole run"
+            ),
+        }
         println!("min budget headroom         {}", run.min_budget_headroom);
         println!("--- bullets 3-6: grammar, joint solve, Stage H ---");
         println!(
-            "chains with a model         {} (none: {})",
-            run.chains_with_a_model, run.chains_with_no_model
+            "chains with a model         {} (solver emptied k-best: {}, refused at entry: {:?})",
+            run.chains_with_a_model, run.chains_with_no_model, run.chains_refused_at_entry
         );
         println!(
             "selected segments           {} ({} smooth joins), families {:?}",
@@ -390,8 +430,8 @@ mod tests {
             run.worst_selected_deviation_px
         );
         println!(
-            "WORST G1 SPREAD             {:.3e} rad over {} smooth nodes",
-            run.worst_g1_spread_rad, run.g1_nodes_measured
+            "WORST G1 SPREAD             {:.3e} rad over {} smooth nodes ({} lowering failures)",
+            run.worst_g1_spread_rad, run.g1_nodes_measured, run.g1_lowering_failures
         );
 
         assert!(
@@ -427,6 +467,27 @@ mod tests {
             run.g1_nodes_measured > 0,
             "no selected model on the corpus has a single smooth join, so the G1 clause was \
              evaluated over an empty population"
+        );
+        // M6B-N4: the clause's population equals the selection's smooth joins,
+        // as a CHECK rather than a coincidence — `g1_readings` silently skips
+        // nodes it cannot read, and a skip here would shrink the population
+        // under the instrument with the worst-of still green.
+        assert_eq!(
+            run.g1_nodes_measured, run.selected_smooth_joins,
+            "g1_readings measured {} nodes over {} selected smooth joins: the instrument skipped \
+             part of the clause's own population",
+            run.g1_nodes_measured, run.selected_smooth_joins
+        );
+        assert_eq!(
+            run.g1_lowering_failures, 0,
+            "{} selected models failed to lower during the G1 measurement",
+            run.g1_lowering_failures
+        );
+        assert!(
+            run.chains_refused_at_entry.is_empty(),
+            "chains the entry contract refused on the real corpus: {:?} — the M4 evidence path \
+             is producing malformed chains",
+            run.chains_refused_at_entry
         );
         assert!(
             run.worst_g1_spread_rad < 1e-9,

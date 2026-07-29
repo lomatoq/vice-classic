@@ -62,7 +62,8 @@ pub use code::{
 };
 pub use corner::{corner_anchors, corner_proposals, CornerProposal};
 pub use cost::{
-    normal_deviation, proposal_cost, CostRefusal, ProposalCost, MATERIAL_DEVIATION_FRACTION,
+    normal_deviation, proposal_cost, CostRefusal, ProposalCost, RatioReading,
+    MATERIAL_DEVIATION_FRACTION,
 };
 pub use grammar::{
     build_edges, jet_class, jet_compatible, k_best_paths, materialize, GrammarEdge, GrammarPath,
@@ -173,16 +174,18 @@ pub struct ChainCandidates {
     /// quietly becoming a working limit is visible before it binds.
     pub budget_headroom: usize,
     /// The largest `|d_n| / d_euclidean` over every candidate of this chain,
-    /// and the Euclidean deviation at which it occurred.
+    /// with the Euclidean deviation at which it occurred — `None` when no
+    /// candidate had a material sample to measure it on (RT6-A5: absence is
+    /// not writable as `1.0 at 0.0 px`).
     ///
     /// This is the size of the correction C302 made: `1.0` would mean the
     /// Euclidean lower bound this crate used to integrate was §14.4's `d_n`
     /// all along, and anything above it is what that approximation was
-    /// costing. Published rather than argued, at the deviation where it
-    /// happened, because a ratio without the magnitude it occurred at is the
-    /// shape F-0085 records.
-    pub max_normal_to_euclidean_ratio: f64,
-    pub ratio_at_deviation_px: f64,
+    /// costing.
+    pub worst_ratio: Option<cost::RatioReading>,
+    /// Material samples over every candidate of the chain — the population
+    /// `worst_ratio` stands on.
+    pub material_samples: usize,
     /// §14.1's corner proposals for this chain, one per sample with a `±1`
     /// window. A PROPOSAL confidence, published and used to anchor the
     /// schedule; nothing here or downstream compares it against a threshold.
@@ -269,8 +272,8 @@ pub fn span_candidates(
     let mut candidates = Vec::with_capacity(would_generate);
     let mut no_fits: Vec<(&'static str, NoFit, usize)> = Vec::new();
     let mut no_costs: Vec<(&'static str, CostRefusal, usize)> = Vec::new();
-    let mut worst_ratio = 1.0f64;
-    let mut worst_ratio_at = 0.0f64;
+    let mut worst_ratio: Option<cost::RatioReading> = None;
+    let mut material_samples = 0usize;
 
     for support in &supports {
         for family in FITTED_FAMILIES {
@@ -288,9 +291,11 @@ pub fn span_candidates(
                     continue;
                 }
             };
-            if cost.max_normal_to_euclidean_ratio > worst_ratio {
-                worst_ratio = cost.max_normal_to_euclidean_ratio;
-                worst_ratio_at = cost.ratio_at_deviation_px;
+            material_samples += cost.material_samples;
+            if let Some(r) = cost.worst_ratio {
+                if worst_ratio.is_none_or(|w| r.ratio > w.ratio) {
+                    worst_ratio = Some(r);
+                }
             }
             candidates.push(SpanCandidate {
                 support: *support,
@@ -317,8 +322,8 @@ pub fn span_candidates(
         families_present,
         no_fits,
         no_costs,
-        max_normal_to_euclidean_ratio: worst_ratio,
-        ratio_at_deviation_px: worst_ratio_at,
+        worst_ratio,
+        material_samples,
         corners,
         anchors,
     })

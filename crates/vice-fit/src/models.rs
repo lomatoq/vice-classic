@@ -105,6 +105,7 @@ fn refusal_name(r: &RefitRefusal) -> &'static str {
         RefitRefusal::OutsideCorridor { .. } => "outside_corridor",
         RefitRefusal::SmoothJoinBetweenTwoLines { .. } => "smooth_join_between_two_lines",
         RefitRefusal::SmoothNodeUnread { .. } => "smooth_node_unread",
+        RefitRefusal::TooManyParameters { .. } => "too_many_parameters",
     }
 }
 

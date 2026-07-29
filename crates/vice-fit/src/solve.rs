@@ -291,7 +291,10 @@ pub fn joint_constrained_refit(
 
     let p = pack(init).len();
     if p > MAX_JOINT_PARAMETERS {
-        return Err(RefitRefusal::Malformed);
+        return Err(RefitRefusal::TooManyParameters {
+            parameters: p,
+            cap: MAX_JOINT_PARAMETERS,
+        });
     }
 
     if p > 0 && best_r.is_finite() {
