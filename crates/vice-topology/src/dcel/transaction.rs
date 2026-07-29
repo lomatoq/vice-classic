@@ -116,10 +116,14 @@ pub enum TransactionRefusal {
     EditIsANoOp,
     #[error(
         "declared {declared} but the signature went from ({c0}, {h0}) to ({c1}, {h1}), which is \
-         not that edit"
+         {performed}"
     )]
     NotTheDeclaredEdit {
-        declared: &'static str,
+        declared: String,
+        /// What the edit actually was. The old message said only what the
+        /// declaration was NOT; naming the delta performed costs nothing and is
+        /// what a reader of a rolled-back compound transaction needs.
+        performed: String,
         c0: u32,
         h0: u32,
         c1: u32,
@@ -134,10 +138,55 @@ pub enum TransactionRefusal {
     CandidateFailedAudit(#[from] InvariantViolation),
 }
 
+impl TransactionRefusal {
+    /// The refusal's variant name.
+    ///
+    /// The judge is the compiler: this `match` is exhaustive, so a new refusal
+    /// variant does not compile until it is named here. That is the difference
+    /// between this and a caller re-deriving the name from the rendered
+    /// message, which would be a text scan over a string this type is free to
+    /// reword.
+    pub fn name(&self) -> &'static str {
+        match self {
+            TransactionRefusal::EditLeftTheRoi { .. } => "EditLeftTheRoi",
+            TransactionRefusal::EditLeftTheCanvas { .. } => "EditLeftTheCanvas",
+            TransactionRefusal::EditIsANoOp => "EditIsANoOp",
+            TransactionRefusal::NotTheDeclaredEdit { .. } => "NotTheDeclaredEdit",
+            TransactionRefusal::UnrelatedGraphMutation { .. } => "UnrelatedGraphMutation",
+            TransactionRefusal::CandidateFailedAudit(_) => "CandidateFailedAudit",
+        }
+    }
+
+    /// Every refusal this type can express.
+    ///
+    /// A literal (F-0048 Q1), and guarded in both directions by
+    /// `every_refusal_variant_is_in_all_names`: one of each variant is
+    /// constructed and its `name()` required to be present, and the length is
+    /// required to match, so a variant added without a line here fails a test
+    /// rather than silently shrinking a report's denominator.
+    pub const ALL_NAMES: [&'static str; 6] = [
+        "EditLeftTheRoi",
+        "EditLeftTheCanvas",
+        "EditIsANoOp",
+        "NotTheDeclaredEdit",
+        "UnrelatedGraphMutation",
+        "CandidateFailedAudit",
+    ];
+}
+
 /// What one transaction did, whether or not it committed.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TransactionReport {
-    pub declared: &'static str,
+    /// The declared edit's name. A `String` since M6 rather than a
+    /// `&'static str`: the four unit steps have static names, a compound delta
+    /// names itself from its own numbers, and both serialize to a JSON string,
+    /// so `docs/gt/DCEL_M5.json`'s existing `declared` values are unmoved.
+    pub declared: String,
+    /// How many unit steps the declared edit is worth. `1` for the four named
+    /// steps; anything else is a compound edit, and this is the field that
+    /// makes "M5 measured only the one-step subclass" a published number rather
+    /// than something a reader has to infer from the absence of rows.
+    pub declared_steps: u64,
     pub roi: Roi,
     pub roi_with_halo: Roi,
     pub halo_px: u32,
@@ -193,7 +242,8 @@ pub fn apply(base: &Dcel, edit: &Edit, cfg: &TxConfig) -> Outcome {
     let (w, h) = (base.width_px(), base.height_px());
     let roi_halo = edit.roi.grown(cfg.halo_px, w, h);
     let mut report = TransactionReport {
-        declared: edit.kind.as_str(),
+        declared: edit.kind.name(),
+        declared_steps: edit.kind.steps(),
         roi: edit.roi,
         roi_with_halo: roi_halo,
         halo_px: cfg.halo_px,
@@ -264,18 +314,29 @@ pub fn apply(base: &Dcel, edit: &Edit, cfg: &TxConfig) -> Outcome {
     report.candidate = Some(cand_audit);
 
     // (3) The declared edit is the edit performed.
+    //
+    // COMPOUND-CAPABLE since M6. This was four `match` arms over a four-variant
+    // enum, and an edit whose signature delta was not one of those four could
+    // not be declared at all — so `vice-bench`'s harness dropped 310 of 480
+    // arms before reaching here, which is exactly the subclass §28 M5 names
+    // ("local COMPOUND topology transactions", limitations 37 and 44). The
+    // check is now arithmetic over Z^2: the declared delta is ADDED to the
+    // base signature and the sum is required to equal the candidate's. Every
+    // multi-step edit is expressible, and the four unit steps evaluate exactly
+    // as they did before.
+    //
+    // Signed arithmetic on purpose. The old form used `checked_sub` on `u32`
+    // and mapped underflow to `None`, i.e. an unrepresentable declaration and a
+    // wrong one produced the same refusal; here they are the same thing, and
+    // there is no path that can underflow.
     let (c0, h0) = (base_audit.foreground_faces, base_audit.holes);
     let (c1, h1) = (cand_audit.foreground_faces, cand_audit.holes);
-    let expected = match edit.kind {
-        EditKind::BridgeClose => (c0.checked_sub(1), Some(h0)),
-        EditKind::GapOpen => (Some(c0 + 1), Some(h0)),
-        EditKind::HoleOpen => (Some(c0), Some(h0 + 1)),
-        EditKind::HoleFill => (Some(c0), h0.checked_sub(1)),
-    };
-    if expected.0 != Some(c1) || expected.1 != Some(h1) {
+    let performed = EditKind::between((c0, h0), (c1, h1));
+    if performed != edit.kind {
         return rolled(
             TransactionRefusal::NotTheDeclaredEdit {
-                declared: edit.kind.as_str(),
+                declared: edit.kind.name(),
+                performed: performed.name(),
                 c0,
                 h0,
                 c1,
@@ -392,7 +453,7 @@ mod tests {
             "two blobs and the unrelated square"
         );
         let edit = Edit {
-            kind: EditKind::BridgeClose,
+            kind: EditKind::BRIDGE_CLOSE,
             roi: neck_roi(),
             set: (7..14u32).map(|x| (x, 4u32, true)).collect(),
         };
@@ -419,7 +480,7 @@ mod tests {
     fn an_edit_that_is_not_what_it_declared_is_rolled_back() {
         let base = dumbbell(false);
         let edit = Edit {
-            kind: EditKind::HoleFill,
+            kind: EditKind::HOLE_FILL,
             roi: neck_roi(),
             set: (7..14u32).map(|x| (x, 4u32, true)).collect(),
         };
@@ -444,7 +505,7 @@ mod tests {
         let mut set: Vec<(u32, u32, bool)> = (7..14u32).map(|x| (x, 4u32, true)).collect();
         set.push((0, 0, true));
         let edit = Edit {
-            kind: EditKind::BridgeClose,
+            kind: EditKind::BRIDGE_CLOSE,
             roi: neck_roi(),
             set,
         };
@@ -475,7 +536,7 @@ mod tests {
         // A pixel far from the neck, well outside the neck ROI + halo.
         set.push((19, 13, true));
         let edit = Edit {
-            kind: EditKind::BridgeClose,
+            kind: EditKind::BRIDGE_CLOSE,
             roi: wide,
             set: set.clone(),
         };
@@ -494,7 +555,7 @@ mod tests {
         // the ROI test — the cheaper of the two mechanisms, and the one that
         // fires first.
         let edit2 = Edit {
-            kind: EditKind::BridgeClose,
+            kind: EditKind::BRIDGE_CLOSE,
             roi: neck_roi(),
             set,
         };
@@ -523,7 +584,7 @@ mod tests {
             y1: 7,
         };
         let open = Edit {
-            kind: EditKind::HoleOpen,
+            kind: EditKind::HOLE_OPEN,
             roi,
             set: vec![(5, 5, false)],
         };
@@ -532,7 +593,7 @@ mod tests {
         assert_eq!(holed.holes(), 1);
 
         let fill = Edit {
-            kind: EditKind::HoleFill,
+            kind: EditKind::HOLE_FILL,
             roi,
             set: vec![(5, 5, true)],
         };
@@ -604,7 +665,7 @@ mod tests {
     fn a_transaction_that_changes_nothing_is_refused() {
         let base = dumbbell(true);
         let edit = Edit {
-            kind: EditKind::BridgeClose,
+            kind: EditKind::BRIDGE_CLOSE,
             roi: neck_roi(),
             set: vec![(8, 4, true)],
         };

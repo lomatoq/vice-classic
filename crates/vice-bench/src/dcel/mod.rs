@@ -136,15 +136,25 @@ pub struct DcelArm {
     pub class_out: GtSignature,
     /// The transaction this arm ran, if its geometry admitted one.
     pub transaction: Option<ArmTransaction>,
-    /// True when this arm had NO transaction because the edit's effect on the
-    /// signature is COMPOUND — not a single `±1` in one of the two counts.
+    /// The annulus transaction: the second edit shape, compound by
+    /// construction on a background centre (§28 M5's "local COMPOUND topology
+    /// transactions"; STATUS_M5 limitations 34, 37, 44).
+    pub transaction_ring: Option<ArmTransaction>,
+    /// True when this arm had NO transaction attempted, for any reason.
     ///
-    /// Published so that clause 3's population is a number rather than an
-    /// impression: `transaction_for` drops these, and the subclass it drops is
-    /// exactly what §28 M5 calls "local COMPOUND topology transactions"
-    /// (REVIEW_M5_A N2). F-0058's own rule is that a filter deciding membership
-    /// by looking at the answer must publish what it excluded.
-    pub excluded_from_transactions_as_compound: bool,
+    /// Until M6 this said `..._as_compound` and meant it: `transaction_for`
+    /// dropped every arm whose signature delta was not a single `±1`, which was
+    /// 310 of 480 and was exactly the subclass §28 M5 names (REVIEW_M5_A N2,
+    /// limitations 37 and 44). M6 removed that filter, so no arm is excluded
+    /// for being compound any more and the only exclusion left is the size
+    /// guard.
+    ///
+    /// The field is kept, and kept PUBLISHED, rather than deleted: F-0058's
+    /// rule is that a harness must publish what it excluded, and a count that
+    /// exists and reads zero is the evidence that the exclusion is gone. A
+    /// deleted field would leave a reader unable to tell "no exclusions" from
+    /// "no longer counted".
+    pub excluded_from_transactions: bool,
 }
 
 /// The counts one audit produced. Absent when the audit refused (RT5-A21).
@@ -168,15 +178,31 @@ pub struct ArmAudit {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ArmTransaction {
-    pub declared: &'static str,
+    pub declared: String,
+    /// Unit steps the declared edit is worth: `1` for the four named steps,
+    /// `>= 2` for a COMPOUND edit, `0` for the identity. M5 measured only the
+    /// arms where this is 1 — the other 310 were dropped before `apply` saw
+    /// them — so publishing it is what turns "compound transactions are
+    /// attempted" into a number a reader can check (limitations 37, 44).
+    pub declared_steps: u64,
     pub committed: bool,
     pub refusal: Option<String>,
+    /// The refusal's VARIANT name, taken from the type rather than parsed back
+    /// out of the rendered message. `refusal` is prose and may be reworded;
+    /// this is the identity a report may count by.
+    pub refusal_kind: Option<&'static str>,
     pub roi_area_px: u64,
     pub pixels_changed: usize,
     pub unrelated_chains: usize,
     pub unrelated_chains_that_moved: usize,
-    pub components_before: u32,
-    pub components_after: u32,
+    /// `None` when the audit refused, NOT zero. Zero is a real component count
+    /// (an empty arrangement has one), so an error path writing zero here would
+    /// be indistinguishable from a measurement — which is F-0075 exactly, and
+    /// it was live in this struct until M6 through `.unwrap_or(0)`.
+    pub components_before: Option<u32>,
+    pub components_after: Option<u32>,
+    pub holes_before: Option<u32>,
+    pub holes_after: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -514,6 +540,7 @@ fn arm_from_labelling(
     let (longest_loop, _total_half_edges, long_loops) =
         vice_topology::dcel::loop_length_profile(&d);
     let transaction = transaction_for(&d, t, k.roi);
+    let transaction_ring = ring_transaction_for(&d, t, k.roi);
 
     // Probed on a stride. `arms_seen` counts every arm and the probe fires on
     // one in `RESOLVING_POWER_STRIDE`, so the control's population grows with
@@ -570,8 +597,9 @@ fn arm_from_labelling(
         longest_loop: longest_loop as u32,
         loops_of_three_or_more: long_loops as u32,
         class_out: dcel_class,
-        excluded_from_transactions_as_compound: transaction.is_none() && t.width_px >= 16,
+        excluded_from_transactions: transaction.is_none(),
         transaction,
+        transaction_ring,
     }
 }
 
@@ -607,10 +635,30 @@ fn probe_resolving_power(d: &Dcel, power: &mut ResolvingPower) {
 ///
 /// The edit is derived from the CANVAS rather than from the arrangement, so it
 /// is the same edit for every arm and the population is not selected by what
-/// happens to work. Which topological edit it turns out to be depends on the
-/// scene, so the declared kind is read off the two arrangements and the
-/// transaction is then required to agree with it — an arm whose edit does not
-/// match its declaration is a rolled-back transaction and is counted as one.
+/// happens to work.
+///
+/// ## What M6 changed, and why it had to (limitations 37 and 44)
+///
+/// Until M6 the declared kind came out of a four-arm `match` with
+/// `_ => return None`, so **310 of 480 arms never reached `apply` at all** —
+/// and the dropped subclass was exactly the one §28 M5 names, "local COMPOUND
+/// topology transactions". Both reviewers recorded it with no second deferral
+/// available. Two things changed here:
+///
+/// 1. **No arm is dropped for its signature delta.** `EditKind` is a point of
+///    Z^2 now, so every arm's edit is declarable and every arm is attempted.
+///    The only remaining exclusion is the size guard below, and it is counted.
+///
+/// 2. **The declaration and the check no longer share a provenance.** The old
+///    code built the edited arrangement with `Dcel::assemble` and read the
+///    delta off it — then `apply` rebuilt with `Dcel::assemble` and compared.
+///    That is F-0048 Q4: the guard shared its origin with the mechanism, so a
+///    defect inside `assemble` moved both sides together and the comparison
+///    could not see it. The declaration now comes from
+///    [`crate::topology::independent::signature_of`] — breadth-first flood fill
+///    plus an Euler count from 2x2 bit-quads, which shares no code with the
+///    DCEL — so `apply`'s agreement is a claim about two independent readings
+///    of the same labelling rather than about a copy.
 fn transaction_for(base: &Dcel, t: &ViewTransform, roi_k: RoiKnockout) -> Option<ArmTransaction> {
     let (w, h) = (t.width_px, t.height_px);
     if w < 16 || h < 16 {
@@ -623,50 +671,126 @@ fn transaction_for(base: &Dcel, t: &ViewTransform, roi_k: RoiKnockout) -> Option
         x1: w / 2 + s / 2,
         y1: h / 2 + s / 2,
     };
-    let mut set: Vec<(u32, u32, bool)> = (roi.x0..roi.x1)
+    let set: Vec<(u32, u32, bool)> = (roi.x0..roi.x1)
         .flat_map(|x| (roi.y0..roi.y1).map(move |y| (x, y, true)))
         .collect();
+    attempt(base, w, h, roi, set, roi_k)
+}
+
+/// The SECOND transaction shape: a square annulus at the canvas centre.
+///
+/// ## Why a second shape exists at all
+///
+/// Removing the `_ => return None` filter let all 480 arms reach `apply`, and
+/// the first thing the published `transactions_compound` count said was
+/// **zero**. The 310 arms the M5 harness reported as
+/// `transaction_arms_excluded_as_compound` are not compound: 282 of them change
+/// no pixel (the centred square is already inside the foreground) and the other
+/// 28 move no signature count, so all 310 declare the IDENTITY delta `(0, 0)`.
+/// The label was arithmetically defensible — `(0,0)` is not a single `±1` — and
+/// materially wrong, because everyone who read it, this author included, took
+/// it to name the subclass §28 M5 calls "local COMPOUND topology transactions".
+///
+/// The cause is STATUS_M5 limitation 34: ONE transaction shape, and a filled
+/// square can only ever produce `(0,0)`, `(-1,0)` or `(+1,0)`. A compound
+/// population cannot exist under one shape, so widening `EditKind` was
+/// necessary and not sufficient.
+///
+/// An annulus is compound BY CONSTRUCTION on a background region: the wall
+/// becomes one new component and the void it encloses becomes one new hole, so
+/// the delta is `(+1, +1)` — two unit steps in one transaction. Like the filled
+/// square it is derived from the CANVAS and not from the arrangement, so the
+/// population is still not selected by what happens to work: on an arm whose
+/// centre is already foreground the annulus does something else, and whatever
+/// it does is declared from the independent chain and checked by `apply`.
+fn ring_transaction_for(
+    base: &Dcel,
+    t: &ViewTransform,
+    roi_k: RoiKnockout,
+) -> Option<ArmTransaction> {
+    let (w, h) = (t.width_px, t.height_px);
+    if w < 16 || h < 16 {
+        return None;
+    }
+    // Outer side at least 5 so that a one-pixel wall leaves a non-empty void.
+    let s = (w / 6).max(5);
+    let roi = Roi {
+        x0: w / 2 - s / 2,
+        y0: h / 2 - s / 2,
+        x1: w / 2 + s / 2,
+        y1: h / 2 + s / 2,
+    };
+    let set: Vec<(u32, u32, bool)> = (roi.x0..roi.x1)
+        .flat_map(|x| (roi.y0..roi.y1).map(move |y| (x, y)))
+        .map(|(x, y)| {
+            let on_wall = x == roi.x0 || x + 1 == roi.x1 || y == roi.y0 || y + 1 == roi.y1;
+            (x, y, on_wall)
+        })
+        .collect();
+    attempt(base, w, h, roi, set, roi_k)
+}
+
+/// Declare an edit from the INDEPENDENT chain and put it through `apply`.
+///
+/// Shared by both shapes so that the declaration's provenance is stated once:
+/// the delta comes from breadth-first flood fill plus a bit-quad Euler count,
+/// and `apply` recomputes it through the DCEL. The two share no code, which is
+/// what makes their agreement a cross-check rather than a comparison of a copy
+/// against itself (F-0048 Q4; the old code read both sides off `Dcel::assemble`).
+fn attempt(
+    base: &Dcel,
+    w: u32,
+    h: u32,
+    roi: Roi,
+    mut set: Vec<(u32, u32, bool)>,
+    roi_k: RoiKnockout,
+) -> Option<ArmTransaction> {
     if roi_k == RoiKnockout::Reach {
         set.push((0, 0, true));
     }
 
-    // What the edit actually does, so the declaration is a claim about THIS
-    // scene rather than a guess.
-    let mut inside = base.labelling().inside().to_vec();
+    // The declaration, from the INDEPENDENT chain. `apply` will recompute the
+    // same delta through the DCEL and refuse the transaction if the two
+    // disagree, which is now a real cross-check rather than a rebuild compared
+    // against itself.
+    let before = base.labelling().inside().to_vec();
+    let mut after = before.clone();
     for (x, y, v) in &set {
         if *x < w && *y < h {
-            inside[*y as usize * w as usize + *x as usize] = *v;
+            after[*y as usize * w as usize + *x as usize] = *v;
         }
     }
-    let after = Dcel::assemble(
-        Labelling::new(w as usize, h as usize, inside),
-        base.connectivity(),
+    let conn = base.connectivity();
+    let (wz, hz) = (w as usize, h as usize);
+    let sig_before = crate::topology::independent::signature_of(&before, wz, hz, conn);
+    let sig_after = crate::topology::independent::signature_of(&after, wz, hz, conn);
+    let kind = EditKind::between(
+        (sig_before.components, sig_before.holes),
+        (sig_after.components, sig_after.holes),
     );
-    let (c0, h0) = (base.foreground_faces() as i64, base.holes() as i64);
-    let (c1, h1) = (after.foreground_faces() as i64, after.holes() as i64);
-    let kind = match (c1 - c0, h1 - h0) {
-        (-1, 0) => EditKind::BridgeClose,
-        (1, 0) => EditKind::GapOpen,
-        (0, 1) => EditKind::HoleOpen,
-        (0, -1) => EditKind::HoleFill,
-        _ => return None,
-    };
 
     let edit = Edit { kind, roi, set };
     let out = apply(base, &edit, &TX_CONFIG_V1);
     let rep = out.report();
     Some(ArmTransaction {
-        declared: rep.declared,
+        declared: rep.declared.clone(),
+        declared_steps: rep.declared_steps,
         committed: rep.committed,
         refusal: match &out {
             Outcome::RolledBack { reason, .. } => Some(reason.to_string()),
+            Outcome::Committed { .. } => None,
+        },
+        refusal_kind: match &out {
+            Outcome::RolledBack { reason, .. } => Some(reason.name()),
             Outcome::Committed { .. } => None,
         },
         roi_area_px: rep.roi.area_px(),
         pixels_changed: rep.pixels_changed,
         unrelated_chains: rep.unrelated_chains,
         unrelated_chains_that_moved: rep.unrelated_chains_that_moved,
-        components_before: rep.base.map(|b| b.foreground_faces).unwrap_or(0),
-        components_after: rep.candidate.map(|c| c.foreground_faces).unwrap_or(0),
+        components_before: rep.base.map(|b| b.foreground_faces),
+        components_after: rep.candidate.map(|c| c.foreground_faces),
+        holes_before: rep.base.map(|b| b.holes),
+        holes_after: rep.candidate.map(|c| c.holes),
     })
 }

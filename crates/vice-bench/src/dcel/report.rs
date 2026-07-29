@@ -164,6 +164,12 @@ pub struct DcelReport {
 
     // --- clause 3 -------------------------------------------------------
     pub transactions_attempted: u64,
+    /// How many distinct edit SHAPES the harness applies per arm. One until
+    /// M6, and one shape can only produce the deltas that shape produces:
+    /// a filled square yields `(0,0)`, `(-1,0)` or `(+1,0)` and never a
+    /// compound edit, which is why `transactions_compound` read zero the first
+    /// time it was published (STATUS_M5 limitation 34).
+    pub transaction_shapes: u64,
     pub transactions_committed: u64,
     /// Committed transactions on arms whose arrangement is NOT empty. This is
     /// what clause 3 stands on (RT5-A4).
@@ -176,16 +182,32 @@ pub struct DcelReport {
     /// Committed transactions that had NO unrelated chain to compare. Published
     /// because on those the clause is a statement about the empty set.
     pub transactions_with_no_unrelated_population: u64,
-    /// Arms that had NO transaction attempted because the edit's effect on the
-    /// signature is compound. This is clause 3's exclusion, and §28 M5 names
-    /// exactly this subclass — "local COMPOUND topology transactions"
-    /// (REVIEW_M5_A N2).
-    pub transaction_arms_excluded_as_compound: u64,
-    /// Which of `apply`'s six refusal reasons can fire on THIS population.
-    /// Four cannot, and one of the four is the declared-edit check, because the
-    /// harness derives `kind` from the comparison `apply` redoes.
-    pub reachable_refusals_on_this_population: Vec<&'static str>,
-    pub unreachable_refusals_on_this_population: Vec<&'static str>,
+    /// Arms that had NO transaction attempted, for any reason. Zero exclusions
+    /// for being COMPOUND since M6 — the filter that produced 310 of them is
+    /// gone (limitations 37, 44) — so what remains is the size guard.
+    pub transaction_arms_excluded: u64,
+    /// Transactions whose declared edit is worth two or more unit steps: the
+    /// subclass §28 M5 names and M5 never attempted. A run in which this is
+    /// zero has not tested compound transactions, which is why it is a
+    /// published number and a gate floor rather than a remark.
+    pub transactions_compound: u64,
+    pub transactions_compound_committed: u64,
+    pub transactions_unit_step: u64,
+    /// Transactions whose declared delta is `(0, 0)`. The signature did not
+    /// move; `apply` still has to agree that it did not.
+    pub transactions_identity: u64,
+    pub max_declared_steps: u64,
+    /// Every declared edit name that actually occurred, with its count. M5
+    /// exercised two of four possible names; this is derived from the run
+    /// rather than from a list, so a name nobody anticipated appears here
+    /// without anyone adding a row.
+    pub declared_kinds_exercised: BTreeMap<String, u64>,
+    /// Refusal variants the run actually produced, counted. MEASURED.
+    pub refusals_observed: BTreeMap<&'static str, u64>,
+    /// The complement, against every refusal the type can express. A refusal
+    /// that never fires is not evidence of correctness, and this is the list
+    /// that says which ones those are.
+    pub refusals_never_observed: Vec<&'static str>,
 
     // --- clause 4 -------------------------------------------------------
     /// The population the §12 ORIENTED check stands on: loops long enough to
@@ -251,13 +273,17 @@ pub fn build(run: &DcelRun) -> DcelReport {
         .iter()
         .filter(|a| a.audit.is_some() && a.loops_of_three_or_more > 0)
         .collect();
-    let tx = |f: fn(&super::ArmTransaction) -> bool| {
-        run.arms
-            .iter()
-            .filter_map(|a| a.transaction.as_ref())
-            .filter(|t| f(t))
-            .count() as u64
-    };
+    // BOTH edit shapes. Clause 3 is a claim about transactions, and the
+    // annulus transaction is a transaction, so every count below spans both.
+    // Counting only the filled square would publish a compound population
+    // beside a committed count that excluded it, which is the shape of
+    // arithmetic this milestone exists to stop.
+    let all: Vec<&super::ArmTransaction> = run
+        .arms
+        .iter()
+        .flat_map(|a| a.transaction.iter().chain(a.transaction_ring.iter()))
+        .collect();
+    let tx = |f: fn(&super::ArmTransaction) -> bool| all.iter().filter(|t| f(t)).count() as u64;
 
     DcelReport {
         schema: DCEL_REPORT_SCHEMA,
@@ -305,50 +331,77 @@ pub fn build(run: &DcelRun) -> DcelReport {
         distinct_classes: classes.len() as u64,
         classes: classes.into_iter().collect(),
 
-        transactions_attempted: run.arms.iter().filter(|a| a.transaction.is_some()).count() as u64,
+        // Over BOTH shapes, like every other count in this row. It counted only
+        // the filled square for one commit, and the run printed "480 attempted,
+        // 678 committed" — arithmetic that is impossible and therefore visible.
+        // The rule it broke is the one this project keeps paying for: a
+        // denominator and its numerator must come from the same population.
+        transactions_attempted: all.len() as u64,
+        transaction_shapes: 2,
         transactions_committed: tx(|t| t.committed),
         transactions_committed_on_non_empty_arms: run
             .arms
             .iter()
             .filter(|a| a.audit.is_some_and(|x| x.directed_steps > 0))
-            .filter_map(|a| a.transaction.as_ref())
+            .flat_map(|a| a.transaction.iter().chain(a.transaction_ring.iter()))
             .filter(|t| t.committed)
             .count() as u64,
         transactions_rolled_back: tx(|t| !t.committed),
-        unrelated_chains_total: run
-            .arms
+        unrelated_chains_total: all
             .iter()
-            .filter_map(|a| a.transaction.as_ref())
             .filter(|t| t.committed)
             .map(|t| t.unrelated_chains as u64)
             .sum(),
-        unrelated_chains_that_moved: run
-            .arms
+        unrelated_chains_that_moved: all
             .iter()
-            .filter_map(|a| a.transaction.as_ref())
             .map(|t| t.unrelated_chains_that_moved as u64)
             .sum(),
         transactions_with_no_unrelated_population: tx(|t| t.committed && t.unrelated_chains == 0),
-        transaction_arms_excluded_as_compound: run
+        transaction_arms_excluded: run
             .arms
             .iter()
-            .filter(|a| a.excluded_from_transactions_as_compound)
+            .filter(|a| a.excluded_from_transactions)
             .count() as u64,
-        // Stated rather than measured, and stated as an argument a reader can
-        // check against `transaction_for`: the ROI is derived from the canvas
-        // so no pixel can leave it or the canvas; a no-op has signature delta
-        // (0,0) and returns `None` before `apply` is called; and `kind` is read
-        // off the same comparison `apply` redoes.
-        reachable_refusals_on_this_population: vec![
-            "UnrelatedGraphMutation",
-            "CandidateFailedAudit",
-        ],
-        unreachable_refusals_on_this_population: vec![
-            "EditLeftTheCanvas",
-            "EditLeftTheRoi",
-            "EditIsANoOp",
-            "NotTheDeclaredEdit",
-        ],
+        transactions_compound: tx(|t| t.declared_steps >= 2),
+        transactions_compound_committed: tx(|t| t.declared_steps >= 2 && t.committed),
+        transactions_unit_step: tx(|t| t.declared_steps == 1),
+        transactions_identity: tx(|t| t.declared_steps == 0),
+        max_declared_steps: all.iter().map(|t| t.declared_steps).max().unwrap_or(0),
+        declared_kinds_exercised: {
+            let mut m: BTreeMap<String, u64> = BTreeMap::new();
+            for t in &all {
+                *m.entry(t.declared.clone()).or_default() += 1;
+            }
+            m
+        },
+        // MEASURED since M6, not argued.
+        //
+        // This was a pair of hand-written lists with a prose argument for why
+        // four of the six refusals could not fire. Two of those four became
+        // reachable the moment the compound filter came out — a no-op edit now
+        // reaches `apply` instead of being dropped, and `NotTheDeclaredEdit`
+        // became a real cross-check once the declaration stopped sharing its
+        // provenance with the check. An argument that has to be re-derived
+        // whenever the harness moves is not evidence, so what is published now
+        // is what the run OBSERVED, and the complement against the refusals the
+        // type can express.
+        refusals_observed: {
+            let mut m: BTreeMap<&'static str, u64> = BTreeMap::new();
+            for t in &all {
+                if let Some(k) = t.refusal_kind {
+                    *m.entry(k).or_default() += 1;
+                }
+            }
+            m
+        },
+        refusals_never_observed: {
+            let seen: BTreeSet<&'static str> = all.iter().filter_map(|t| t.refusal_kind).collect();
+            vice_topology::dcel::TransactionRefusal::ALL_NAMES
+                .iter()
+                .copied()
+                .filter(|n| !seen.contains(n))
+                .collect()
+        },
 
         arms_with_a_loop_of_three_or_more: long.len() as u64,
         arms_with_a_loop_of_three_or_more_from_corpus: long

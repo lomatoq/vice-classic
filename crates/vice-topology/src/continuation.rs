@@ -44,30 +44,7 @@ use serde::Serialize;
 use crate::envelope::Envelope;
 use crate::hypothesis::TopologyHypothesis;
 
-/// What one edit does to the topology.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum EditKind {
-    /// One fewer component: two blobs became one. A bridge closed.
-    BridgeClose,
-    /// One more component: one blob became two. A gap opened.
-    GapOpen,
-    /// One more hole.
-    HoleOpen,
-    /// One fewer hole.
-    HoleFill,
-}
-
-impl EditKind {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            EditKind::BridgeClose => "bridge_close",
-            EditKind::GapOpen => "gap_open",
-            EditKind::HoleOpen => "hole_open",
-            EditKind::HoleFill => "hole_fill",
-        }
-    }
-}
+pub use crate::edit::EditKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Bbox {
@@ -238,18 +215,22 @@ pub const CONTINUATION_CONFIG_V1: ContinuationConfig = ContinuationConfig {
     max_plans: 8,
 };
 
+/// The edit separating two envelope members, when they are ADJACENT.
+///
+/// The restriction to unit steps stays here, and staying here is the point.
+/// This function answers "are these two hypotheses ONE edit apart", which is a
+/// question about adjacency in the envelope, and `None` for a pair two steps
+/// apart is the honest answer. M6 moved the restriction out of the TYPE — where
+/// it silently dropped 310 transaction arms (limitation 37) — and left it at
+/// the one call site that actually means it. The predicate here is unchanged,
+/// so the partial/refused counts frozen into `docs/gt/TOPOLOGY_M4_5.json` do
+/// not move.
 fn edit_kind(a: &TopologyHypothesis, b: &TopologyHypothesis) -> Option<EditKind> {
-    let (dc, dh) = (
-        b.signature.components as i64 - a.signature.components as i64,
-        b.signature.holes as i64 - a.signature.holes as i64,
+    let k = EditKind::between(
+        (a.signature.components, a.signature.holes),
+        (b.signature.components, b.signature.holes),
     );
-    match (dc, dh) {
-        (-1, 0) => Some(EditKind::BridgeClose),
-        (1, 0) => Some(EditKind::GapOpen),
-        (0, 1) => Some(EditKind::HoleOpen),
-        (0, -1) => Some(EditKind::HoleFill),
-        _ => None,
-    }
+    k.is_unit_step().then_some(k)
 }
 
 fn difference(a: &TopologyHypothesis, b: &TopologyHypothesis, halo: u32) -> Option<(u64, Bbox)> {
@@ -300,7 +281,7 @@ fn steps_for(edit: &TopologyEdit) -> Vec<ContinuationStep> {
                 "the edit is IDENTIFIED, not applied: {} takes ({}, {}) to ({}, {}) across {} \
                  px, at level {:.4} with persistence {:.4} — computed as the difference between \
                  two members the envelope ALREADY contains",
-                edit.kind.as_str(),
+                edit.kind.name(),
                 edit.from_components,
                 edit.from_holes,
                 edit.to_components,
@@ -499,9 +480,9 @@ mod tests {
         assert_eq!(env.hypotheses.len(), 2, "the envelope keeps BOTH readings");
         let plans = plan_continuations(&env, &CONTINUATION_CONFIG_V1);
         assert!(!plans.is_empty());
-        let kinds: Vec<&str> = plans.iter().map(|p| p.edit.kind.as_str()).collect();
+        let kinds: Vec<String> = plans.iter().map(|p| p.edit.kind.name()).collect();
         assert!(
-            kinds.contains(&"gap_open") || kinds.contains(&"bridge_close"),
+            kinds.iter().any(|k| k == "gap_open" || k == "bridge_close"),
             "{kinds:?}"
         );
         let p = &plans[0];
@@ -521,7 +502,7 @@ mod tests {
     #[test]
     fn five_of_the_seven_steps_are_typed_refusals_with_owners() {
         let edit = TopologyEdit {
-            kind: EditKind::BridgeClose,
+            kind: EditKind::BRIDGE_CLOSE,
             from_digest: "a".into(),
             to_digest: "b".into(),
             from_components: 2,

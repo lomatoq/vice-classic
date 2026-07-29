@@ -46,7 +46,11 @@ use crate::continuation::EditKind;
 /// against carries no proxy to be made on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TopologyCertificate {
-    pub edit: &'static str,
+    pub edit: String,
+    /// Unit steps the certified edit is worth (M6). A certificate for a
+    /// compound edit is a certificate for a compound edit, and the number is
+    /// on the certificate rather than inferred from the name.
+    pub edit_steps: u64,
     pub components_before: u32,
     pub holes_before: u32,
     pub components_after: u32,
@@ -171,7 +175,8 @@ pub fn topology_certificate(
     cand_audit: &AuditReport,
 ) -> TopologyCertificate {
     TopologyCertificate {
-        edit: kind.as_str(),
+        edit: kind.name(),
+        edit_steps: kind.steps(),
         components_before: base_audit.foreground_faces,
         holes_before: base_audit.holes,
         components_after: cand_audit.foreground_faces,

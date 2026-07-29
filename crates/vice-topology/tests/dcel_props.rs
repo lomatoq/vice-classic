@@ -35,7 +35,10 @@ use std::collections::BTreeSet;
 
 use vice_ir::{ComplementaryConnectivity, PixelConnectivity};
 use vice_topology::continuation::EditKind;
-use vice_topology::dcel::{apply, audit, is_the_assembly_of_its_own_labelling, Edit, Outcome, Roi};
+use vice_topology::dcel::{
+    apply, audit, is_the_assembly_of_its_own_labelling, Edit, InvariantViolation, Outcome, Roi,
+    TransactionRefusal,
+};
 use vice_topology::{
     audit_every_labelling, signature, structural_fixtures, with_a_distant_witness, Dcel, Labelling,
     TX_CONFIG_V1,
@@ -205,7 +208,7 @@ fn a_local_transaction_on_a_corpus_sized_fixture_leaves_the_rest_alone() {
             .flat_map(|x| (roi.y0..roi.y1).map(move |y| (x, y, true)))
             .collect();
         let edit = Edit {
-            kind: EditKind::BridgeClose,
+            kind: EditKind::BRIDGE_CLOSE,
             roi,
             set: set.clone(),
         };
@@ -229,7 +232,7 @@ fn a_local_transaction_on_a_corpus_sized_fixture_leaves_the_rest_alone() {
         let mut reaching = set;
         reaching.push((0, 0, true));
         let bad = Edit {
-            kind: EditKind::BridgeClose,
+            kind: EditKind::BRIDGE_CLOSE,
             roi,
             set: reaching,
         };
@@ -371,4 +374,161 @@ fn the_register_carries_loops_long_enough_to_have_an_order() {
         sizes_with_long_loops += 1;
     }
     assert_eq!(sizes_with_long_loops, FAST_SIZES_PX.len());
+}
+
+/// The connectivity arm the moved transaction tests use.
+fn arm() -> ComplementaryConnectivity {
+    ComplementaryConnectivity::arms()[0]
+}
+
+/// The neck ROI of the dumbbell fixture, used only to build one of each
+/// refusal variant.
+fn neck_roi() -> Roi {
+    Roi {
+        x0: 7,
+        y0: 3,
+        x1: 14,
+        y1: 6,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// M6: compound transactions (spec v1.3 §28 M5 "local COMPOUND topology
+// transactions"; STATUS_M5 limitations 37 and 44, "no second deferral").
+//
+// These live here rather than in `src/dcel/transaction.rs` because §4.1 caps a
+// module at 800 lines and that file reached 814. They use only the public API,
+// so nothing is lost by the move.
+// ---------------------------------------------------------------------------
+
+/// **`ALL_NAMES` lists every refusal the type can express, both ways.**
+///
+/// `ALL_NAMES` is a literal, and a report's "never observed" list is its
+/// complement — so a variant missing from it would shrink that list
+/// silently and a reader would see fewer unexercised refusals than exist.
+/// One of each variant is constructed here, so the check is against the
+/// TYPE and not against a second copy of the same list.
+#[test]
+fn every_refusal_variant_is_in_all_names() {
+    let roi = neck_roi();
+    let one_of_each = [
+        TransactionRefusal::EditLeftTheRoi { x: 0, y: 0, roi },
+        TransactionRefusal::EditLeftTheCanvas {
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+        },
+        TransactionRefusal::EditIsANoOp,
+        TransactionRefusal::NotTheDeclaredEdit {
+            declared: "a".into(),
+            performed: "b".into(),
+            c0: 0,
+            h0: 0,
+            c1: 0,
+            h1: 0,
+        },
+        TransactionRefusal::UnrelatedGraphMutation {
+            count: 1,
+            first: String::new(),
+        },
+        TransactionRefusal::CandidateFailedAudit(InvariantViolation::SuccessorNotAPermutation {
+            detail: String::new(),
+        }),
+    ];
+    assert_eq!(
+        one_of_each.len(),
+        TransactionRefusal::ALL_NAMES.len(),
+        "a variant was added without a line in ALL_NAMES, or the reverse"
+    );
+    let mut seen = std::collections::BTreeSet::new();
+    for r in &one_of_each {
+        assert!(
+            TransactionRefusal::ALL_NAMES.contains(&r.name()),
+            "{} is not in ALL_NAMES",
+            r.name()
+        );
+        assert!(seen.insert(r.name()), "duplicate name {}", r.name());
+    }
+    for n in TransactionRefusal::ALL_NAMES {
+        assert!(seen.contains(n), "{n} is in ALL_NAMES and has no variant");
+    }
+}
+
+/// **A COMPOUND transaction commits, and is certified as compound.**
+///
+/// This is §28 M5's undelivered bullet, executed. The edit closes the neck
+/// AND fills a hole in the same step, so the signature moves by
+/// `(-1, -1)` — two unit steps at once, which is precisely the shape the
+/// old four-variant `EditKind` could not express and which the harness
+/// therefore dropped for 310 of 480 arms.
+#[test]
+fn a_compound_edit_commits_and_its_certificate_says_compound() {
+    // A dumbbell whose LEFT blob carries a hole. Bridging the neck and
+    // filling the hole together is one transaction with a two-step delta.
+    let (w, h) = (21usize, 15usize);
+    let mut inside = vec![false; w * h];
+    for y in 2..7 {
+        for x in 1..7 {
+            inside[y * w + x] = true;
+        }
+        for x in 14..20 {
+            inside[y * w + x] = true;
+        }
+    }
+    inside[4 * w + 3] = false; // the hole
+    let base = Dcel::assemble(Labelling::new(w, h, inside), arm());
+    assert_eq!(base.foreground_faces(), 2, "two blobs");
+    assert_eq!(base.holes(), 1, "one hole in the left blob");
+
+    let roi = Roi {
+        x0: 3,
+        y0: 3,
+        x1: 14,
+        y1: 6,
+    };
+    let mut set: Vec<(u32, u32, bool)> = (7..14u32).map(|x| (x, 4u32, true)).collect();
+    set.push((3, 4, true)); // fill the hole in the same transaction
+    let edit = Edit {
+        kind: EditKind::new(-1, -1),
+        roi,
+        set,
+    };
+    assert!(!edit.kind.is_unit_step(), "the fixture must be compound");
+    assert_eq!(edit.kind.steps(), 2);
+
+    let out = apply(&base, &edit, &TX_CONFIG_V1);
+    let new = out
+        .committed()
+        .expect("a correctly declared compound edit must commit");
+    assert_eq!(new.foreground_faces(), 1);
+    assert_eq!(new.holes(), 0);
+    let r = out.report();
+    assert_eq!(r.declared, "compound(c-1,h-1)");
+    assert_eq!(r.declared_steps, 2);
+    let cert = r.certificate.as_ref().expect("a certificate");
+    assert_eq!(cert.edit_steps, 2);
+    assert_eq!(cert.edit, "compound(c-1,h-1)");
+
+    // BOTH DIRECTIONS: declaring only half of what the edit does is
+    // refused, and the refusal names what was actually performed. Without
+    // this leg, "compound edits commit" would be satisfied by a check that
+    // waved every declaration through.
+    let half = Edit {
+        kind: EditKind::BRIDGE_CLOSE,
+        roi,
+        set: edit.set.clone(),
+    };
+    match apply(&base, &half, &TX_CONFIG_V1) {
+        Outcome::RolledBack { reason, .. } => {
+            assert_eq!(reason.name(), "NotTheDeclaredEdit");
+            assert!(
+                reason.to_string().contains("compound(c-1,h-1)"),
+                "the refusal must name the edit performed: {reason}"
+            );
+        }
+        Outcome::Committed { .. } => {
+            panic!("declaring one step for a two-step edit must not commit")
+        }
+    }
 }

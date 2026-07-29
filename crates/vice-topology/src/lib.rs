@@ -49,6 +49,7 @@
 pub mod continuation;
 pub mod cubical;
 pub mod dcel;
+pub mod edit;
 pub mod envelope;
 pub mod events;
 pub mod field;
@@ -60,8 +61,8 @@ use serde::Serialize;
 use vice_ir::ComplementaryConnectivity;
 
 pub use continuation::{
-    plan_continuations, ContinuationConfig, ContinuationPlan, ContinuationStep, EditKind,
-    TopologyEdit, CONTINUATION_CONFIG_V1,
+    plan_continuations, ContinuationConfig, ContinuationPlan, ContinuationStep, TopologyEdit,
+    CONTINUATION_CONFIG_V1,
 };
 pub use cubical::{
     critical_cells, residual_critical_cells, signature, threshold, Labelling, SaddleResolution,
