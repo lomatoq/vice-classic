@@ -741,3 +741,341 @@ with a price and an owner.
 
 **STOPPED AFTER M6 BULLETS 1 AND 2 — the successor under §28 is M7, measured
 in A2.1, and M7 IS NOT STARTED. §28 M6 ITSELF IS NOT COMPLETE.**
+
+---
+
+# Addendum 3 — §28 M6 bullets 3, 4, 5, 6 and the first evaluation of the gate (C302–C310)
+
+A fresh author context. The governor directed the remainder of §28 M6 and
+forbade M7 and beyond. **When this pass began, bullets 1 and 2 were delivered
+and bullets 3–6 were NOT STARTED**; all four are delivered now, and §28 M6's
+gate is **evaluated for the first time**: three of its four clauses are green
+and the fourth is NOT MET, with its price and its owner named.
+
+## A3.1 The ladder, measured from the section BOUNDARY
+
+Not inherited from the body above or from either addendum. Spec hash re-verified
+as the first action of the pass:
+
+```
+652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1   (matches)
+```
+
+The subject set is taken from the **range** §28 occupies — line 1895
+(`# 28. Milestones и жёсткие гейты`) to line 2046 (`# 29.`) — by listing every
+`## ` heading inside it. Not by a predicate on the names, which is what F-0086
+records: an `awk` filtering `/M[0-9]/` carried a literal about the SHAPE of the
+answer, and `P1` was unfindable by construction.
+
+```
+M0 M1 M2 M3 M3.5 M4 M4.5 M5 M6 M7 M8 P1 M9 M10 M11 M12
+```
+
+**Positive control on an element whose name does NOT satisfy the pattern the
+predicate would have used:** `## P1 — Partition correction API/editor` is at
+line 2021, inside the range, and is present in the list above. An instrument
+that filtered on `M[0-9]` would have returned fifteen headings and looked
+complete. That is the control F-0086 requires, on the exact element that exposed
+the defect.
+
+- **M6 EXISTS**, line 1983, six bullets and a `Gate:` line at 1992.
+- **Predecessor: M5. Successor: M7** — "Exact posterior refinement + selective
+  delivery + export materialization".
+
+## A3.2 §34 for M6, and the governor's standard
+
+Read directly, and both line numbers verified:
+
+- line **2254**: review "подписывает `docs/REVIEW_<M>.md` либо возвращает
+  blockers";
+- line **2256**: "**M2, M5 и M7** требуют отдельного numerical/topology red-team
+  pass."
+
+So **§34 requires ONE independent review for M6** and does not require a red
+team. The governor has declared a stricter standard — two cold reviews of
+different model families plus a separate red team — and named it as the
+governor's own.
+
+**The governor invited me to say if that standard is disproportionate. It is
+not, and the evidence is this pass's own findings.** M6 is the first milestone
+with an inference stage, and three of the four defects below were invisible to
+reading: a G1 violation of 3.01° in models the solver had ACCEPTED, an invariance
+clause of §14.5 that simply FAILED, and a DAG that silently lost its source node
+and returned no path with no refusal. All three were found by instruments, and
+two of the three only because a SECOND instrument disagreed with the first. A
+single reviewer reading a diff would have found none of them. The standard is
+proportionate to the class of defect this stage produces.
+
+The author does not certify the milestone.
+
+## A3.3 What was delivered
+
+| §28 M6 bullet | status | where |
+|---|---|---|
+| hierarchical span candidates | **DELIVERED** (addendum 2) | `vice-fit/src/schedule.rs`, `span.rs` |
+| candidate-generation budgets | **DELIVERED** (addendum 2) | `schedule::FitBudget` |
+| k-best jet-compatible grammar paths | **DELIVERED** | `corner.rs`, `grammar.rs` |
+| joint constrained chain refit | **DELIVERED** | `refit.rs`, `solve.rs` |
+| explicit code lengths | **DELIVERED** | `code.rs`, `[geometry_code_table]` FROZEN |
+| primitive/relation hypotheses | **DELIVERED in part**, stated | `relation.rs` — four of §15's six relation families; the two scene-level ones retargeted to M7 with a reason. §15's whole-loop primitives NOT started, priced in A3.7 |
+
+### The G1 decision the governor asked me to make, and both prices
+
+The governor's measured fact: `vice-ir`'s own canonical VALID fixture has a node
+typed `SmoothG1` arriving at −14.04°, leaving at 0.00° and declaring +14.32° — a
+spread of **28.36°**, valid since M1. Hold G1 by REPRESENTATION or by CHECK, and
+name the price of each.
+
+**Decision: by REPRESENTATION, in the producer.** §14.3 forbids
+`angle < tolerance`, so a check needs either a tolerance (forbidden) or exact
+equality of two independently rounded floats (unreachable). `refit::RefitChain`
+stores the tangent once: `Handle::Shared` carries a LENGTH and the direction
+comes from the node; `ArcAnchor::FromHeadTangent` stores no radius at all,
+because a circle through two points tangent to a prescribed direction at one of
+them is determined. A corner is the deliberate absence of sharing.
+
+**Price of the choice TAKEN.** `vice_ir::CurveChain` is unchanged, so it can
+still express an inconsistent chain, and anything constructing one outside
+`RefitChain::lower` can still write the disagreement down. What is closed is the
+PRODUCER. The residual is the floating-point round trip through absolute control
+points, and it is measured rather than assumed: **2.776e-15 rad** on the corpus.
+
+**Price of the choice NOT taken** — `vice_ir::Segment` storing handle lengths
+instead of absolute control points, which would give the IR itself the property:
+every serialized scene, the M1 canonical serialization and its digests, the
+renderer, the validator and `model_universe_hash` all move, and every signed
+artifact in the repository is re-recorded. That is a §1.5 model-version change
+with full recalibration, and it is a milestone of its own.
+
+### What §1.5 meant for the order of commits
+
+The governor asked what "a bullet that moves `model_universe_hash` is a
+model-version change" means operationally. Measured, and it means three things:
+
+1. **The universe change is its own commit** (C306) and touches nothing else, so
+   a reviewer sees the model-version change without a diff around it.
+2. **The generator has to land first.** C305 delivered `vice_fit::relation`;
+   C306 promoted the four families it generates hypotheses for. The reverse order
+   would have left the universe wider than anything that produces it for the
+   length of one commit, which is the silent widening §1.5 forbids.
+3. **The recalibration debt has to be named where the hash is.** It is recorded
+   on `FROZEN_V1_HASH`: this tree has no confidence threshold and both
+   search-mass bounds are `Unknown`, so nothing must be re-measured NOW — the
+   obligation is that **M7 calibrates against `e9e7f7e6…`, not `fed2af86…`**, and
+   a calibration inherited across this hash is a calibration for a smaller
+   grammar.
+
+And the interaction with §27.7 that this pass found the hard way:
+`[geometry_code_table]`'s freeze **could not happen before Stage H existed**,
+because `bits_per_relation` is one of its three keys and
+`every_frozen_value_agrees_with_the_code_that_uses_it` fails on a frozen key
+nothing consumes. The order was therefore forced: C305 generator → C306 universe
+→ C307 constants and claim (code, inert while the section is a placeholder) →
+C308 freeze (gate file alone) → C309 code → C310 artifact alone.
+
+## A3.4 **The gate, evaluated**
+
+§28 M6: *"Gate: exact G1 after joint solve; sample/cut/transform invariance;
+oracle G00–G20 decomposition; no BIC-only promotion."*
+
+**It is evaluable now and it was not before**, because all four clauses are about
+code that did not exist. Three are green, one is NOT MET.
+
+| clause | verdict | measured by | number |
+|---|---|---|---|
+| **exact G1 after joint solve** | **GREEN**, with a positive control | `refit::g1_readings` on every smooth node of every SELECTED model | corpus **2.776e-15 rad** over 8 nodes; synthetic **2.220e-16 rad** over 9 nodes; **positive control 0.7136 rad (40.89°)** through the same instrument |
+| **sample / cut / transform invariance** | **GREEN**, six of six | `crates/vice-fit/tests/grammar_and_g1.rs` | sample step 0.25/0.5/1.0 px: identical families and join kinds, breakpoints within 6 % of the chain; duplicate samples: identical; cyclic cut: the pipeline's answer identical to the last printed digit under loop rotation, per-cut spread **1.303 bits** published; translation: identical to 1e-6 bits; reflection: identical; uniform scale ×1/×2/×4: identical selection, deciding residual within **1 bit** |
+| **oracle G00–G20 decomposition** | **NOT MET** | `oracle::design` | **0 of 5 arms producible**; price in A3.7 |
+| **no BIC-only promotion** | **GREEN**, as a differential with a knockout | `crates/vice-fit/tests/grammar_and_g1.rs` | frozen table selects **1 arc** for an arc at 106.8 bits; the same DP with the parameter code divided by a thousand selects **64 quadratics**. No `k log n` exists anywhere in `vice-fit` |
+
+**What the green clauses do NOT say.** The G1 clause was evaluated over **8
+smooth nodes** on the corpus — the corpus is largely polygonal and most joins the
+DP selects are corners. Eight is not zero and it is not many, and the clause's
+strength on this population is bounded by that count. The invariance clause
+asserts the SELECTION and the deciding part of the code; the bit totals move
+under scale for a reason that is stated (limitation 71). The BIC clause is a
+differential on one shape.
+
+## A3.5 Measured, over the corpus, release, one cell per scene
+
+```
+arms 41 (13 without a boundary)      sealed-audit groups skipped 22
+chains 36                            longest chain 83 samples
+chain samples 1910                   supports 4065 (2.128/sample, bound 10187)
+corner anchors 219                   max §14.1 saliency 0.4617
+candidates 14659 offered             333 refused by the §14.4 cost
+worst d_n / d_euclid 23.8712         at a Euclidean deviation of 0.21824 px
+
+chains with a model 36               chains with none 0
+selected segments 93                 smooth joins 8
+families selected                    circular_arc, cubic_bezier, line, quadratic_bezier
+path refusals                        degenerate_span 18, non_finite 10, outside_corridor 28
+relations 368 considered             133 accepted
+worst selected |d_n| 1.55103 px
+WORST G1 SPREAD 2.776e-15 rad over 8 smooth nodes
+```
+
+The 56 refused paths are §24's stated reason for k-best — "лучший coarse DP path
+может стать infeasible после exact constraints" — as a number rather than as a
+justification.
+
+## A3.6 Defects my own mechanisms found against me
+
+Four, all by measurement, none by re-reading a formulation. Recorded as
+**F-0087** … **F-0090**.
+
+1. **The representation held G1 everywhere except where a LINE was incident, and
+   the models were already ACCEPTED.** A line reads no tangent — its direction is
+   its chord — so a smooth node beside one stored an angle that was not a
+   parameter. `g1_readings` measured **0.0525 rad (3.01°)** on models the solver
+   had returned as valid. The grammar had ALREADY priced a line's tangent as
+   determined (`free_scalars(Line, …) = 0`, `tangent_is_free(Line) = false`); the
+   code length and the representation disagreed about what a line-adjacent smooth
+   node is, and the representation was wrong. `node_dir` now derives the angle
+   from the incident line, and a smooth join between two lines is refused
+   outright — their chords are G1 only when collinear, and two collinear lines
+   are one line.
+
+2. **A zero-length normal passed the finiteness guard and silently emptied the
+   DAG.** `BoundarySample::normal` is documented as a unit normal; a zero one is
+   finite. It then made `normal_deviation` return `None` at that sample for every
+   candidate, so every support touching it disappeared. Measured: **1417
+   candidates, none of them starting at sample 0, and `k_best_paths` returned NO
+   PATH with no refusal to explain it.** A malformed input must be refused where
+   it is malformed, not where its consequences surface:
+   `FitRefusal::NonUnitNormal`.
+
+3. **§14.5's duplicate-sample invariance FAILED.** A chain with every third
+   sample repeated selected `[Cubic]` where the same boundary selected
+   `[CircularArc, Line]`. The residual code was already duplicate-invariant — it
+   counts `weight_ds / corr_length_px` — but the SCHEDULE is over sample INDICES,
+   so repeats move every dyadic support to a different place on the boundary and
+   change which candidates exist at all. `dedup_coincident` collapses them at the
+   entry. **The defect is invisible on the population the pipeline actually
+   sees**, because `observe_boundaries` resamples by arclength; §14.5 asks for the
+   property anyway, and asking is what found it.
+
+4. **The cut-invariance test measured the pipeline twice and I nearly wrote the
+   result down as a property of cutting.** It called the whole pipeline on an
+   already-rotated chain, which RE-CUT it, and reported a **47-bit** spread. The
+   real single-cut spread is **1.303 bits**. `models_at_cut` exists because a test
+   of cut invariance may not itself go through the mechanism that hides the cut —
+   the same shape as F-0044 and F-0048 Q4, one level up: **an instrument that
+   reaches its subject through the mechanism under test measures the mechanism.**
+
+A fifth, caught before it landed and therefore not in the ledger: I computed
+`bits_per_anchor = 2 log2(16384 / 0.35)` by hand as `31.029496`. The true value
+is `31.029146`. The derivation is a TEST rather than a comment, so it was red
+within a minute. That is the whole argument for C307's shape.
+
+## A3.7 What §28 M6 still costs, exactly
+
+| not delivered | price |
+|---|---|
+| **oracle G00–G20 decomposition** (gate clause 3) | Two capabilities, now named in `oracle::design` rather than described here. `GeometryPipelineArm`: a path from a fixture's GT partition into Stage G — `vice_fit` consumes `BoundaryChain`, which `observe_boundaries` builds from the ANALYSED image — plus a geometry error against GT geometry. `OracleInjection`: expressing a GT boundary as a candidate over an observed chain's samples (G10/G11), a selector ranking by GT agreement (G01), forced GT families and breakpoints (G20). Both need the chain identity limitation 57 prices. **Owner: M7** |
+| §15 `mirror_symmetry`, `repetition` | Both are properties of a SCENE; Stage G is handed one chain. Needs §26's scene-level compound search. **Owner: M7**, and the universe now says so |
+| §15 whole-loop primitives — circle/ellipse, rect/rotated rect, rounded rect/capsule, regular polygon, against the free typed chain | **NOT STARTED.** The MDL comparison machinery exists and is the same one relations use: a whole-loop model is a `RefitChain` with a constrained parameterisation scored by the same `ChainCode`. Price: one module plus a closed-chain fitter per family, and the §15 admissibility conditions on emitting a native SVG primitive (canonical boundary matches exactly, neighbours share the boundary object, post-quantization verification green) — the last of which is M7's verifier |
+| a constrained re-solve for relations | The optimiser has no constraint machinery. Acceptance is SOUND and rejection is CONSERVATIVE without it (limitation 66); closing it is M7's trust-region work |
+| §14.1's "stability по topology/formation hypotheses" | `BoundaryChain` is ONE hypothesis. Needs the M4.5 envelope threaded to Stage G (limitation 63) |
+| local isotopy (§24's `exact_g1_and_local_isotopy`, second half) | limitation 57's class, unchanged |
+
+## A3.8 New limitations
+
+63. **§14.1's fourth ingredient is not computed.** Corner saliency uses
+    multiscale signed turning, curvature persistence and line-intersection
+    support; "stability по topology/formation hypotheses" needs the envelope, and
+    Stage G is handed one chosen evidence set. **Owner: the milestone that
+    threads the M4.5 envelope into Stage G.**
+64. **333 of 14 659 corpus candidates are refused by the §14.4 cost** because
+    some sample's normal line misses them. The refusal is correct and the
+    DISTRIBUTION of what it removes is not characterised — which families, at
+    which scales. **Owner M7**, price: a histogram over the refusal, whose data
+    the run already carries.
+65. **Local isotopy is still unchecked.** §24's line is
+    `exact_g1_and_local_isotopy`; only the first half is held.
+    `curve_replacement_isotopy` still names `fitted_curve` as its first missing
+    capability, and a chain still carries no DCEL identity. **Owner M7.**
+66. **Relations are evaluated at PROJECTED parameters, not re-solved under the
+    constraint.** Acceptance is sound, rejection is conservative. **Owner M7**,
+    price: constraints in the optimiser.
+67. **The joint solve minimises the EUCLIDEAN residual and is judged by `d_n`.**
+    Two quantities, one optimised and one gating, and the second is the spec's.
+    They agree where a fit is good, which is where the solve ends up, but the
+    disagreement is not bounded. Price: a normal-direction residual in the
+    Jacobian, which is discontinuous where the normal ray leaves the curve —
+    which is why it was not taken.
+68. **§28 M6's gate clause 3 is NOT MET**, 0 of 5 G arms producible. Priced in
+    A3.7.
+69. **The G1 clause is evaluated over 8 smooth nodes on the corpus.** Not zero
+    and not many. The corpus is largely polygonal and the DP selects corners.
+    Price of a stronger population: curved-boundary fixtures, or the full
+    degradation matrix instead of one cell per scene — `measure(matrix_v1().len())`,
+    the same code at more cells.
+70. **`ChainCode::total_bits` is not §14.5's `L_total`.** The pixel-byte
+    likelihood is M7's, and `L_paint`/`L_formation` are scene properties. Named
+    on the type rather than left to be assumed.
+71. **The residual code's quantization normaliser is not scale-invariant**:
+    measured 100.756 / 176.756 / 252.755 bits at scales 1 / 2 / 4, because the
+    residual precision is a frozen px calibration and a similarity does not move
+    it. It is identical for every path over one chain, so it cannot change a
+    selection — but a reported bit TOTAL is not comparable across scales.
+72. **`FEASIBLE_HALFWIDTHS = 3.0` is a threshold**, and what it hides is stated on
+    the constant: a chain whose worst `d_n` is between one and three corridors is
+    accepted and pays in the residual code. It bounds GROSS infeasibility, not
+    quality.
+73. **`JET_CLASSES = 32` with adjacency admits joins within about 11°.** §14.3
+    calls that "coarse tangent compatibility" and it is named as a tolerance where
+    it is defined. It prunes discrete paths; it decides nothing.
+
+## A3.9 F-0048 over every mechanism this addendum added
+
+Q4 read from the CODE, not from the prose.
+
+| mechanism | Q1 literal | Q2 next finding | Q3 judge | Q4 provenance, by CODE | Q5 both ways | verdict |
+|---|---|---|---|---|---|---|
+| `normal_deviation` (§14.4's `d_n`) | no — a line/segment intersection, no window and no cap | the criterion is "does the normal line meet it", which does not grow rows | exact-zero determinant, no epsilon | deviation from the flattened candidate, normal from the M4 sample | a miss returns `None`, with a positive control on the same polyline | **PASSES** |
+| corner saliency and anchors | no — persistence is a min over a GENERATED dyadic ladder | "what about scale k" is answered by the ladder | strict local maximum, a structural criterion | turning from positions, attenuation from the corridor halfwidth | corner vs arc of the same total turn, both printed | **PASSES** |
+| `anchored_schedule` | no | a scale is a level, not a row | an exact structural size bound, asserted | schedule from `n` and the anchors; anchors from the saliency | the plain schedule is a subset; all-pairs printed beside it | **PASSES** |
+| `GeometryCodeTable` | **the three frozen values ARE literals** | a fourth code term needs a fourth key and a §27.7 commit | `every_frozen_value_agrees_with_the_code_that_uses_it` walks the CLASS of frozen keys | values in `vice-fit`, derivation in `vice-bench` from the universe and `[identifiability]` — neither side derives the other | a table of zeros is not constructible; the cheap-table knockout is RUN | **DOES NOT PASS Q1**, residual exact: three numbers in a file. Bypass price: a §27.7 commit a reviewer reads |
+| `RefitChain` / `Handle::Shared` | no — there is no second tangent to enumerate | a new family needs a lowering, not a row | the TYPE: a G1 violation is unwritable | declaration and geometry both from one `dir(angle)`; the instrument reads the lowered control points | positive control 0.7136 rad through the same function | **PASSES**, and it caught its own line-adjacent hole |
+| `k_best_paths` state key | no | a new state dimension changes the key, not a list | the exactness argument: the suffix depends on the prefix only through the key | costs from the frozen table, structure from the DAG | k=8 with 56 refusals published; a k doing nothing would show as zero | **PASSES** |
+| `RelationKind` | **YES** — four variants | a fifth family is a variant AND a universe change | `every_admissible_relation_family_has_a_hypothesis_generator`, both directions | universe names in `vice-bench`, generators in `vice-fit` | on-axis 2 kept, off-axis 0 kept, same instrument | **DOES NOT PASS Q1.** Bypass price: **one family admissible with no generator — now RED**, so the true price is a generator or a universe commit |
+| `MissingCapability` | **YES** — the variants are a literal | a capability is DELETED when delivered, which is a rewrite not a row | the arm ladder asserts the id SET whole | arms declare what they need; the enum declares who owns it | `g30_is_still_the_only_producible_geometry_arm…` asserts the owner AND the id set | **DOES NOT PASS Q1**, and the mitigation is the deletion discipline rather than a closure |
+| `dedup_coincident` | no | a different degeneracy needs a different collapse | the invariance test, which FAILED before it existed | positions from the chain; the test compares two samplings of one boundary | duplicated and plain both measured | **PASSES** |
+
+## A3.10 What I could not verify
+
+- **CI.** Not run. T11/T12 remain "closed in code, not executed", unchanged since
+  M5. The governor waits for CI.
+- **The M4.5, M4 and M5 harness artifacts.** Untouched and not re-run. Numbers
+  quoted from them here are quoted from their records.
+- **`docs/gt/SCORECARD_M3.json` carries the OLD `model_universe_hash`**
+  (`fed2af86…`). It is the record of an M3 run and records the universe that run
+  was made under; nothing re-derives it and nothing compares it against the live
+  universe. Whether it SHOULD be compared is a question I did not answer, and it
+  is the kind of question the third occurrence of limitation 36 was.
+- **Whether the corpus's 8 smooth joins are representative.** They are what this
+  corpus produces at one cell per scene. I did not run the full matrix.
+- **The "one door, three locks" cross-reference** (backlog 48/49/50). Untouched
+  this pass, still a reading of two documents.
+- **Backlog 36, 51, 52, 54, 55, 56.** None closed. 36 and 56 did NOT grow: this
+  pass added one frozen section whose values are all consumed and cross-checked,
+  and whose provenance comment states DERIVATIONS rather than a population, so it
+  cannot drift with a run the way `[dcel]`'s did.
+
+## A3.11 Explicit statement of stopping
+
+The author does NOT self-certify M6.
+
+No number here is a statement about the reliability of the system. **§28 M6's
+gate is evaluated for the first time: three clauses green, one NOT MET.** The
+green ones are properties of the geometry and of the selection, each with a
+positive control or a knockout that was RUN; the fourth is refused with two named
+capabilities and an owner.
+
+Four of my own defects are in the ledger (F-0087 … F-0090). Three of the four
+were invisible to reading, and two of those three were found only because a
+second instrument disagreed with the first.
+
+**STOPPED AFTER M6 — the successor under §28 is M7, measured in A3.1 from the
+section boundary with a positive control on `P1`, and M7 IS NOT STARTED.**
