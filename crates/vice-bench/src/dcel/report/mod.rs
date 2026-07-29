@@ -26,8 +26,9 @@ pub const DCEL_REPORT_SCHEMA: &str = "vice-classic/dcel-report/v1";
 
 mod config;
 pub use config::{
-    DcelGateConfig, MIN_ARMS, MIN_CONVENTION_DEPENDENT_GROUPS, MIN_REGISTER_ARMS_WITH_A_LONG_LOOP,
-    MIN_RESOLVING_POWER_PROBES, MIN_SLOTS_PERTURBED, MIN_STRUCTURAL_ARMS, MIN_TRANSACTIONS,
+    DcelGateConfig, MIN_ARMS, MIN_COMPOUND_TRANSACTIONS, MIN_CONVENTION_DEPENDENT_GROUPS,
+    MIN_DISTINCT_COMPOUND_DELTAS, MIN_REGISTER_ARMS_WITH_A_LONG_LOOP, MIN_RESOLVING_POWER_PROBES,
+    MIN_SLOTS_PERTURBED, MIN_STRUCTURAL_ARMS, MIN_TRANSACTIONS, MIN_TRANSACTION_SHAPES,
     MIN_UNRELATED_CHAIN_POPULATION,
 };
 
@@ -432,6 +433,13 @@ impl DcelReport {
         // appending `arms_with_a_non_empty_arrangement` in three spots missed
         // it. That is F-0048 Q2 answered "append a line" again, inside the fix
         // for the previous instance.
+        // M6 adds the COMPOUND conjuncts. §28 M5's bullet names "local COMPOUND
+        // topology transactions", and until M6 this row was green while that
+        // subclass was empty — the harness excluded it and mislabelled what it
+        // excluded (F-0081). A clause naming a subclass must stand on a
+        // population of it, and the three floors are the CAUSE (shapes) and
+        // two EFFECTS (count, distinct deltas), because a floor on the count
+        // alone is met by one delta repeated.
         let mutation_row = cfg
             .min_transactions
             .met_by(self.transactions_committed_on_non_empty_arms)

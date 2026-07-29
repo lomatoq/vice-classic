@@ -28,6 +28,13 @@ pub const MIN_RESOLVING_POWER_PROBES: u32 = 10;
 pub const MIN_SLOTS_PERTURBED: u32 = 40000;
 pub const MIN_REGISTER_ARMS_WITH_A_LONG_LOOP: u32 = 6;
 
+/// The §28 M5 COMPOUND-transaction floors (M6). Same role as the constants
+/// above: the file and the code must agree, so changing one without the other
+/// is red and changing both is refused by §27.7.
+pub const MIN_COMPOUND_TRANSACTIONS: u32 = 100;
+pub const MIN_DISTINCT_COMPOUND_DELTAS: u32 = 3;
+pub const MIN_TRANSACTION_SHAPES: u32 = 3;
+
 /// The population thresholds of the §28 M5 rows, LOADED from the frozen gate
 /// file.
 ///
