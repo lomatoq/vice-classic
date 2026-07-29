@@ -336,3 +336,80 @@ fn every_admissible_segment_family_has_a_fitter_or_a_declared_reason() {
         );
     }
 }
+
+/// **The geometry code table is DERIVED, and this is where the derivation is
+/// checked**, because `vice-bench` is the only crate that can see the model
+/// universe and the frozen identifiability gate at once.
+///
+/// §14.5 asks for a "parameter code `log2(range / calibrated precision)`" and a
+/// "prefix code family". Both are computable from things this repository has
+/// already frozen, and neither is a number anyone chose:
+///
+/// | value | range | precision |
+/// |---|---|---|
+/// | `bits_per_anchor` | the universe's `canvas_dim_px.hi` | `[identifiability] observability_floor_px`, "smallest salient LENGTH in render px whose parameters stay recoverable" |
+/// | `bits_per_segment_family` | the admissible segment families | uniform, no frequency calibration exists |
+/// | `bits_per_relation` | the relation families | uniform |
+///
+/// `vice-fit` holds the values and this holds the derivation, so neither side
+/// derives the other (F-0048 Q4). The tolerance is the rounding of the six
+/// decimals the gate file carries.
+#[test]
+fn the_geometry_code_table_agrees_with_the_universe_it_codes_over() {
+    use vice_fit::{GEOMETRY_CODE_TABLE_V1 as t, JOIN_KINDS, REFERENCE_CANVAS_DIM_PX};
+
+    let u = SupportedModelUniverseV1::v1();
+    assert_eq!(
+        REFERENCE_CANVAS_DIM_PX, u.geometry.canvas_dim_px.hi,
+        "`vice-fit` states `bits_per_anchor` at a canvas the universe does not declare"
+    );
+    assert_eq!(
+        JOIN_KINDS,
+        u.geometry.join_kinds.len(),
+        "the join code prices a number of join kinds the universe does not declare"
+    );
+
+    // The calibrated precision comes from the gate file, not from a literal
+    // here: a second copy of 0.35 would be the guard sharing a key with the
+    // mechanism.
+    let g = crate::gates::GatesFile::load(std::path::Path::new("../../configs/GATES_V1.toml"))
+        .expect("gates load");
+    let floor = g
+        .doc
+        .sections
+        .get("identifiability")
+        .and_then(|s| s.values.get("observability_floor_px"))
+        .and_then(|v| v.as_float())
+        .expect("[identifiability] observability_floor_px");
+
+    let want_anchor = 2.0 * (u.geometry.canvas_dim_px.hi / floor).log2();
+    assert!(
+        (t.bits_per_anchor() - want_anchor).abs() < 5e-6,
+        "bits_per_anchor {} against 2 log2({} / {floor}) = {want_anchor}",
+        t.bits_per_anchor(),
+        u.geometry.canvas_dim_px.hi
+    );
+    assert!(
+        (t.coordinate_precision_px() - floor).abs() < 1e-5,
+        "the table inverts to a precision of {} px against the frozen floor of {floor}",
+        t.coordinate_precision_px()
+    );
+
+    let seg = SupportedModelUniverseV1::admissible_names(&u.geometry.segment_families).len();
+    assert!(
+        (t.bits_per_segment_family() - (seg as f64).log2()).abs() < 5e-6,
+        "bits_per_segment_family {} against log2({seg})",
+        t.bits_per_segment_family()
+    );
+    let rel = u.relations.families.len();
+    assert!(
+        (t.bits_per_relation() - (rel as f64).log2()).abs() < 5e-6,
+        "bits_per_relation {} against log2({rel})",
+        t.bits_per_relation()
+    );
+
+    // Both directions on the derivation itself: a table of zeros — the
+    // placeholder this section shipped as — must not be constructible, or a
+    // §14.5 code would price an unbounded grammar at nothing.
+    assert!(vice_fit::GeometryCodeTable::new(0.0, 0.0, 0.0).is_none());
+}

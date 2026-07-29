@@ -322,6 +322,27 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
             "clean_bucket_sigma_codes",
             GateExpectation::num(vice_evidence::corridor::CLEAN_BUCKET_SIGMA_CODES),
         ),
+        // --- geometry code table (§14.5; set by M6) -----------------
+        // The three values `vice_fit::code` actually computes with. Claimed
+        // here BEFORE the section is frozen, which the walk permits and §27.7
+        // requires: the code side lands in one commit and the freeze is the
+        // next, because a commit may not touch the gate file and production
+        // code together.
+        (
+            "geometry_code_table",
+            "bits_per_anchor",
+            GateExpectation::num(vice_fit::GEOMETRY_CODE_TABLE_V1.bits_per_anchor()),
+        ),
+        (
+            "geometry_code_table",
+            "bits_per_segment_family",
+            GateExpectation::num(vice_fit::GEOMETRY_CODE_TABLE_V1.bits_per_segment_family()),
+        ),
+        (
+            "geometry_code_table",
+            "bits_per_relation",
+            GateExpectation::num(vice_fit::GEOMETRY_CODE_TABLE_V1.bits_per_relation()),
+        ),
         // --- likelihood --------------------------------------------
         (
             "likelihood",
