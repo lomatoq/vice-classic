@@ -44,14 +44,30 @@ pub const DUPLICATE_EPSILON_PX: f64 = 1e-6;
 /// budget.
 pub const MAX_CANONICAL_CUTS: usize = 4;
 
-fn descriptor(samples: &[BoundarySample], i: usize) -> [f64; 3] {
+fn normal_alignment(normal: vice_geom::Pt, edge: vice_geom::Pt, length: f64) -> f64 {
+    if length > 0.0 {
+        (normal.dot(edge) / length).abs()
+    } else {
+        0.0
+    }
+}
+
+fn descriptor(samples: &[BoundarySample], i: usize) -> [f64; 8] {
     let n = samples.len();
-    let incoming = (samples[i].p - samples[(i + n - 1) % n].p).length();
-    let outgoing = (samples[(i + 1) % n].p - samples[i].p).length();
+    let sample = samples[i];
+    let incoming_edge = sample.p - samples[(i + n - 1) % n].p;
+    let outgoing_edge = samples[(i + 1) % n].p - sample.p;
+    let incoming = incoming_edge.length();
+    let outgoing = outgoing_edge.length();
     [
         -crate::corner::cyclic_turning(samples, i, 1).map_or(0.0, f64::abs),
         incoming,
         outgoing,
+        sample.halfwidth,
+        sample.weight_ds,
+        sample.corr_length_px,
+        normal_alignment(sample.normal, incoming_edge, incoming),
+        normal_alignment(sample.normal, outgoing_edge, outgoing),
     ]
 }
 
@@ -84,10 +100,14 @@ fn canonical_root(samples: &[BoundarySample]) -> usize {
 /// persistent corner anchors.
 ///
 /// Neither the root nor an anchor depends on which sample the caller happened
-/// to put at index zero. Descriptor sequences break physical ties around the
-/// full loop; anchor windows wrap across the seam. Perfectly symmetric loops,
-/// where every root is equivalent, also receive a diametrically separated
-/// second cut so the cut-invariance gate remains load-bearing.
+/// to put at index zero. Descriptor sequences bind both the cyclic geometry
+/// and every observation attribute consumed by candidate ranking: normal-line
+/// orientation, corridor halfwidth, arclength weight and correlation length.
+/// `confidence` is deliberately absent because Stage G publishes but does not
+/// consume it. Anchor windows wrap across the seam. Perfectly symmetric loops,
+/// where every ranking-relevant descriptor is equivalent, also receive a
+/// diametrically separated second cut so the cut-invariance gate remains
+/// load-bearing.
 pub fn canonical_cuts(chain: &BoundaryChain) -> Vec<usize> {
     let n = chain.samples.len();
     if n == 0 {
