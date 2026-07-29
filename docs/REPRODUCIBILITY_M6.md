@@ -15,7 +15,7 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - geometry pricing surface:
   `a8df2e99b1f22ff0288f44f7256059c9f481a2565254eb16bff0b83bd5195360`;
 - Stage G/H backend source:
-  `ac460d626cc6f597d3787a2f3a8fedd05cb486e7f85190d9a5bfd74b03371380`;
+  `d1b950951d308fb73346b5a3e718fcdcad834c5b9eac4bb7faf574ecab1499b8`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -98,7 +98,7 @@ Expected population and gate witnesses:
 |---|---|---|
 | common population | 6 of 18 observed closed chains complete all five arms | `>= 6` |
 | exact arm set | G00, G10, G01, G11, G20 on every boundary | exactly 5 |
-| compatibility | 30 arm rows share key `32477b1a…f918c` | one identical five-component key |
+| compatibility | 30 arm rows share key `41e56f75…6ae30` | one identical five-component key |
 | raster provenance | 6 rows from independent ExactClip raster → production Stage F | `>= 6` |
 | oracle candidate injection | 11 forced-discrete fits | `>= 10` |
 | material selector changes | G01/G10/G11 = 2/4/1 geometry hashes | `>= 1/1/1` |
@@ -151,7 +151,8 @@ The relevant sequence is intentionally split:
 10. C357–C365 close the final corridor, relation, cyclic-search, totality,
     pricing-control, provenance and aggregate-review blockers without moving a
     frozen threshold;
-11. C367 records the repaired Tier-A artifact after those code-only changes.
+11. C369 restores the production-module hygiene bound by splitting the
+    non-production control, and C370 records the final Tier-A artifact.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 
