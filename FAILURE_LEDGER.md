@@ -4560,9 +4560,10 @@ clamped the same malformed input to zero.
 **Class rule.** A physical measure is non-negative by type contract. Malformed
 negative mass is refused once and consistently at every public entry.
 
-**Status.** Closed in C375 with `FitRefusal::NegativeWeight`. Automatic,
-forced, per-cut and candidate APIs share the validation; zero remains legal
-and the negative-input matrix is a permanent typed-refusal witness.
+**Status.** Closed at high level in C375 and across the exported low-level
+entries in C385. Automatic, forced, per-cut, candidate, `proposal_cost` and
+`joint_constrained_refit` APIs share the validation; zero remains legal and
+the negative-input matrix is a permanent typed-refusal witness.
 
 ## F-0121 — A physical code term can be negative on a sub-bin domain (M6 final cold review, 2026-07-29)
 
@@ -4600,3 +4601,110 @@ witness; C380 records the seven-boundary, 35-arm artifact with 16 genuine
 forced candidate injections. C382 splits its grammar tests under the
 production-module bound and C383 records the resulting content-bound backend
 identity.
+
+## F-0123 — A typed input guard at high level does not protect exported low-level entries (M6 final cold review/red team, 2026-07-29)
+
+**Found by.** Independent cold review B and final red team on C384.
+
+**What happened.** `proposal_cost` returned a negative proposal integral and
+`joint_constrained_refit` accepted the same negative-weight observation even
+though all four high-level model APIs refused it. Two residual paths also used
+`unwrap_or(0.0)`, changing malformed evidence into absence.
+
+**Class rule.** Input totality belongs at every public boundary that consumes
+the field. A high-level guard is not a proof for separately exported
+lower-level functions, and invalid evidence is never equivalent to zero
+evidence.
+
+**Status.** Closed in C385. Shared sample validation feeds typed `Input`
+variants at both low-level entries; every residual path returns non-finite on
+invalid observation mass instead of zero; the exact direct-call exploits are
+permanent regressions.
+
+## F-0124 — Finite operands can have a non-finite physical ratio (M6 final red team, 2026-07-29)
+
+**Found by.** Final red team on C384.
+
+**What happened.** `weight_ds = f64::MAX` and
+`corr_length_px = f64::MIN_POSITIVE` passed field-level finiteness checks, but
+their quotient overflowed. Edge construction then dropped every infinite
+residual and returned an empty graph with no refusal.
+
+**Class rule.** Validation covers derived values at the point where the
+contract names them; finiteness of every operand does not prove finiteness of
+the operation.
+
+**Status.** Closed in C385 with
+`FitRefusal::NonFiniteIndependentWeight`. The quotient is checked explicitly,
+the exact high-level graph-emptiness witness is typed-refused, and the overflow
+probe is part of the frozen pricing surface.
+
+## F-0125 — Relation savings were debited from a code component that never owned the scalar (M6 final red team, 2026-07-29)
+
+**Found by.** Final red team on C384.
+
+**What happened.** A three-line `RepeatedTransform` relation determined two
+anchor coordinates. Grammar pricing stored those anchors in topology, but
+Stage H subtracted both savings from geometry, producing
+`geometry_bits = -14.553586995673065` in an accepted model.
+
+**Class rule.** A constrained sibling removes a symbol from the component that
+encoded that symbol. A non-negative total cannot excuse a negative physical
+component, and a saving larger than its owning component is not admissible.
+
+**Status.** Closed in C385. Arc-parameter savings debit geometry; line-anchor
+and whole-loop vertex savings debit topology; acceptance checks component
+capacity. The exact three-line witness still selects `RepeatedTransform` and
+asserts every delivered component finite and non-negative.
+
+## F-0126 — K-best state pruning used a weaker order than the declared final rank (M6 final red team, 2026-07-29)
+
+**Found by.** Final red team on C384.
+
+**What happened.** Equal-code prefixes with proposal integrals 10 and 1 reached
+the same state at K=1. State and final truncation compared only code, so
+insertion order retained 10 even though the published rank declared proposal
+integral as the exact-code tie-break. Cross-cut selection repeated the defect.
+
+**Class rule.** Every lossy truncation uses the complete declared order. A
+tie-break applied only after the candidate it favours has been pruned is
+decorative.
+
+**Status.** Closed in C386. State, branch, final and cross-cut ordering all use
+physical code then proposal integral. Open and smooth-cyclic K=1 regressions
+present the worse prefix first and require the better one to survive. C387
+freezes the path-order policy alone.
+
+## F-0127 — The artificial cut pre-labelled the cyclic seam instead of letting the grammar choose (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review B on C384.
+
+**What happened.** An absolute jet bucket selected either corner or smooth
+before the cyclic DP ran. Different canonical cuts of the same 19-sample
+circle therefore selected different family sets.
+
+**Class rule.** A canonical cut is a representation of one physical loop, not
+evidence for one seam semantics. Every admissible seam join participates in
+the same feasibility, pricing and K truncation as every interior join.
+
+**Status.** Closed in C386. Closed search runs exact corner and smooth branches,
+merges them under the frozen rank and carries the chosen seam on
+`GrammarPath`. The 19-sample circle requires one family set at every canonical
+cut. C388 records the resulting 11-boundary, 55-arm artifact.
+
+## F-0128 — A known-degenerate corner closure consumed a global K slot (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review A on C384.
+
+**What happened.** Smooth closure rejected a one-span loop before K, but corner
+closure accepted it. Because the opened loop has identical endpoints, lowering
+always returned `DegenerateSpan`; at K=1 the invalid path hid a valid two-span
+model that appeared at K=2.
+
+**Class rule.** A path known unrepresentable from its discrete shape is removed
+before global K for every join kind, not deferred to a solver whose refusal is
+already certain.
+
+**Status.** Closed in C386. Every closed one-span path is rejected in the final
+transition before branch/global truncation. The exact corner K=1 witness
+requires the more expensive two-span loop to survive.

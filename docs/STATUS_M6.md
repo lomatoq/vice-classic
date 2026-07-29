@@ -1280,15 +1280,15 @@ The common population is deliberately exact rather than padded:
 |---|---:|
 | source groups / scenes | 26 / 26 |
 | Stage-F closed chains attempted | 19 |
-| rows completing all five arms | 7 |
-| exclusions, including pre-fit Stage-F/binding refusals | 21 |
-| arm rows | 35 |
-| forced candidate injections | 16 |
-| material geometry changes G01 / G10 / G11 | 2 / 4 / 1 |
-| multi-span / heterogeneous-family rows | 7 / 2 |
+| rows completing all five arms | 11 |
+| exclusions, including pre-fit Stage-F/binding refusals | 17 |
+| arm rows | 55 |
+| forced candidate injections | 27 |
+| material geometry changes G01 / G10 / G11 | 3 / 6 / 1 |
+| multi-span / heterogeneous-family rows | 11 / 2 |
 | arc / quadratic / cubic-labelled rows | 1 / 1 / 3 |
 | G20 multi-candidate / selected-smooth rows | 3 / 3 |
-| rows selecting Stage-H relation / primitive geometry | 3 / 3 |
+| rows selecting Stage-H relation / primitive geometry | 4 / 5 |
 
 All published counts are re-derived from the rows by the gate. Each of the 18
 gate clauses has a negative knockout. Losing a family, joint, Stage-H
@@ -1299,11 +1299,11 @@ Aggregate symmetric maximum error:
 
 | arm | mean max px | worst max px |
 |---|---:|---:|
-| G00 | 0.5873306657 | 1.6679802262 |
-| G10 | 0.2321390557 | 0.6218945873 |
-| G01 | 0.5873306657 | 1.6679802262 |
-| G11 | 0.2318297563 | 0.6218945873 |
-| G20 | 0.2321390557 | 0.6218945873 |
+| G00 | 0.6008265288 | 1.6679802262 |
+| G10 | 0.2962620573 | 0.8023976306 |
+| G01 | 0.6008265288 | 1.6679802262 |
+| G11 | 0.2960652304 | 0.8023976306 |
+| G20 | 0.2962620573 | 0.8023976306 |
 
 These errors are larger than Addendum 4’s numbers because they measure fitted
 Stage-F raster evidence rather than samples manufactured from the scoring
@@ -1313,9 +1313,9 @@ a regression hidden by changing the metric.
 The current identities are:
 
 - model universe `47903d73…0f097`;
-- pricing surface `e8cd9a8a…4c38a`;
-- backend source `5bd44d0a…9b1594`;
-- five-arm compatibility fingerprint `6a8b6dfc…1f06898f`.
+- pricing surface `932c083e…70e418e`;
+- backend source `0c52e7dc…60a9bed`;
+- five-arm compatibility fingerprint `5ecba2ac…bee19b3`.
 
 C349 is the config-only freeze of the measured floors. C351 keeps every
 production module under 800 lines. C363 extends the source digest over every
@@ -1324,8 +1324,10 @@ splits the residual-only control under that bound. C373–C377 close the next
 independent-review findings; C378 is their config-only pricing freeze, C379
 adds the independent smooth-seam raster witness, and C380 is the current
 Tier-A geometry record. C382 restores the module-size bound by splitting tests,
-and C383 is the current content-bound Tier-A artifact, reproduced byte-for-byte
-on `windows-x86_64`.
+and C383 records the split backend. C385/C386 close the final physical-code and
+cyclic-search blockers, C387 is their config-only pricing freeze, and C388 is
+the current content-bound Tier-A artifact, reproduced byte-for-byte on
+`windows-x86_64`.
 
 ## A5.3 Materialized broad-corpus population
 
@@ -1337,10 +1339,10 @@ emptied:
 |---|---:|
 | chains with a model / solver emptied k-best | 35 / 1 |
 | selected typed chains / whole-loop primitives | 7 / 28 |
-| typed selected segments / smooth joins | 20 / 1 |
-| relation hypotheses considered / promoted | 552 / 7 |
-| whole-loop hypotheses considered / promoted among k-best models | 3,296 / 169 |
-| path refusals | 18 degenerate-span; 12 G1-violation; 52 outside-corridor |
+| typed selected segments / smooth joins | 18 / 1 |
+| relation hypotheses considered / promoted | 498 / 4 |
+| whole-loop hypotheses considered / promoted among k-best models | 3,920 / 209 |
+| path refusals | 43 outside-corridor |
 | worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
 | lowering failures | 0 |
 
@@ -1361,15 +1363,15 @@ The §28 M6 gate is **MET as a completion candidate**:
 |---|---|---|
 | exact G1 after joint solve | **MET** | every selected smooth node, including the closure seam, is read from materialized geometry; inconsistent controls fail |
 | sample/cut/transform invariance | **MET** | six executable function-pointer-registered legs, cyclicly stable bounded cuts and an explicit closed seam |
-| G00/G10/G01/G11/G20 decomposition | **MET** | 7 raster-derived common rows, all five arms, geometry-hash changes 2/4/1 |
+| G00/G10/G01/G11/G20 decomposition | **MET** | 11 raster-derived common rows, all five arms, geometry-hash changes 3/6/1 |
 | no BIC-only promotion | **MET** | physical-code winner changes under the registered finite non-negative proposal-residual-only knockout |
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
-passes every one of the 72 commits from `origin/main` through this candidate.
+passes every one of the 77 commits from `origin/main` through this candidate.
 
 `REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-11. Defect classes
-F-0108…F-0122 record the final repair rather than letting Addendum 4’s invalid
+F-0108…F-0128 record the final repair rather than letting Addendum 4’s invalid
 claim disappear.
 
 ## A5.5 Boundary of the stop

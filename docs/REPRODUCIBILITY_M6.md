@@ -13,9 +13,9 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - model universe:
   `47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097`;
 - geometry pricing surface:
-  `e8cd9a8a7d04ebb0dcacf0696ba38342b40216625d43c4331055d89a6094c38a`;
+  `932c083e0a330ca2983a6cf3d96d9e8d6e80fffc93d7c1a3874f7e15670e418e`;
 - Stage G/H backend source:
-  `5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594`;
+  `0c52e7dcb68bf1db0dee1c1a87ddff23cd2f5602d318a82b535cdd73260a9bed`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -59,10 +59,10 @@ The 2026-07-29 Windows run (one cell per non-sealed scene) measured:
 | normal-line-miss cost refusals | 333 |
 | chains with a model / solver emptied k-best | 35 / 1 |
 | selected typed chains / whole-loop primitives | 7 / 28 |
-| typed selected segments / smooth joins | 20 / 1 |
-| path refusals | 18 degenerate-span; 12 G1-violation; 52 outside-corridor |
-| relation hypotheses considered / promoted | 552 / 7 |
-| whole-loop hypotheses considered / promoted among k-best models | 3,296 / 169 |
+| typed selected segments / smooth joins | 18 / 1 |
+| path refusals | 43 outside-corridor |
+| relation hypotheses considered / promoted | 498 / 4 |
+| whole-loop hypotheses considered / promoted among k-best models | 3,920 / 209 |
 | worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
 | lowering failures | 0 |
 
@@ -97,26 +97,26 @@ Expected population and gate witnesses:
 
 | clause | measured | frozen requirement |
 |---|---|---|
-| common population | 7 of 19 observed closed chains complete all five arms | `>= 6` |
+| common population | 11 of 19 observed closed chains complete all five arms | `>= 6` |
 | exact arm set | G00, G10, G01, G11, G20 on every boundary | exactly 5 |
-| compatibility | 35 arm rows share key `6a8b6dfc…1f06898f` | one identical five-component key |
-| raster provenance | 7 rows from independent ExactClip raster → production Stage F | `>= 6` |
-| oracle candidate injection | 16 forced-discrete fits | `>= 10` |
-| material selector changes | G01/G10/G11 = 2/4/1 geometry hashes | `>= 1/1/1` |
-| multi-span / heterogeneous | 7 / 2 rows | `>= 6/2` |
+| compatibility | 55 arm rows share key `5ecba2ac…bee19b3` | one identical five-component key |
+| raster provenance | 11 rows from independent ExactClip raster → production Stage F | `>= 6` |
+| oracle candidate injection | 27 forced-discrete fits | `>= 10` |
+| material selector changes | G01/G10/G11 = 3/6/1 geometry hashes | `>= 1/1/1` |
+| multi-span / heterogeneous | 11 / 2 rows | `>= 6/2` |
 | arc / quad / cubic GT labels | 1 / 1 / 3 rows | `>= 1/1/2` |
 | forced joint alternatives / smooth | 3 / 3 rows | `>= 2/2` |
-| selected Stage H relations / primitives | 3 / 3 rows | `>= 2/1` |
+| selected Stage H relations / primitives | 4 / 5 rows | `>= 2/1` |
 
 Aggregate symmetric maximum error:
 
 | arm | mean max px | worst max px | interpretation |
 |---|---:|---:|---|
-| G00 | 0.5873306657 | 1.6679802262 | auto candidates + auto selector |
-| G10 | 0.2321390557 | 0.6218945873 | forced candidate union + auto selector |
-| G01 | 0.5873306657 | 1.6679802262 | auto set + oracle selector |
-| G11 | 0.2318297563 | 0.6218945873 | forced set + oracle selector |
-| G20 | 0.2321390557 | 0.6218945873 | forced families/breakpoints + production parameter fit |
+| G00 | 0.6008265288 | 1.6679802262 | auto candidates + auto selector |
+| G10 | 0.2962620573 | 0.8023976306 | forced candidate union + auto selector |
+| G01 | 0.6008265288 | 1.6679802262 | auto set + oracle selector |
+| G11 | 0.2960652304 | 0.8023976306 | forced set + oracle selector |
+| G20 | 0.2962620573 | 0.8023976306 | forced families/breakpoints + production parameter fit |
 
 All fit inputs are `BoundaryChain`s extracted by the production Stage-F path
 from an independently rendered 128 px raster. GT is used only to bind a
@@ -162,6 +162,11 @@ The relevant sequence is intentionally split:
     artifact alone.
 14. C382 splits grammar tests below the 800-line production-module bound, and
     C383 records the content-bound backend identity alone.
+15. C385 closes public-input totality and relation-saving ownership; C386
+    branches corner/smooth seam joins inside K-best and applies the declared
+    proposal tie-break at every truncation.
+16. C387 freezes that changed pricing/search surface alone, and C388 records
+    the resulting 11-boundary, 55-arm Tier-A artifact alone.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 
