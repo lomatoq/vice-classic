@@ -212,11 +212,11 @@ fn collect_scene(
     Ok(())
 }
 
-/// Three certified, development-only witnesses for the exact M6 claims the
+/// Four certified, development-only witnesses for the exact M6 claims the
 /// broad corpus does not happen to place in its development split:
-/// heterogeneous span families and representable smooth joints. They still
-/// enter through the independent raster and production Stage-F extractor;
-/// no authored point is handed to the fitter.
+/// heterogeneous span families, representable smooth joints and a smooth
+/// cyclic cubic seam. They still enter through the independent raster and
+/// production Stage-F extractor; no authored point is handed to the fitter.
 fn geometry_witnesses() -> Result<Vec<GtScene>, String> {
     let paint = Paint::OpaqueSolid(LinearRgb {
         r: 0.08,
@@ -295,6 +295,30 @@ fn geometry_witnesses() -> Result<Vec<GtScene>, String> {
         large_arc: false,
         ccw: true,
     });
+    let cubic_loop_points = [
+        Pt::new(220.0, 128.0),
+        Pt::new(128.0, 204.0),
+        Pt::new(36.0, 128.0),
+        Pt::new(128.0, 52.0),
+    ];
+    let cubic_loop_segments = [
+        Segment::Cubic {
+            ctrl1: Pt::new(220.0, 170.0),
+            ctrl2: Pt::new(179.0, 204.0),
+        },
+        Segment::Cubic {
+            ctrl1: Pt::new(77.0, 204.0),
+            ctrl2: Pt::new(36.0, 170.0),
+        },
+        Segment::Cubic {
+            ctrl1: Pt::new(36.0, 86.0),
+            ctrl2: Pt::new(77.0, 52.0),
+        },
+        Segment::Cubic {
+            ctrl1: Pt::new(179.0, 52.0),
+            ctrl2: Pt::new(220.0, 86.0),
+        },
+    ];
     Ok(vec![
         build("m6-witness/mixed-bezier", &mixed_points, &mixed_segments)?,
         build(
@@ -303,6 +327,11 @@ fn geometry_witnesses() -> Result<Vec<GtScene>, String> {
             &line_cubic_segments,
         )?,
         build("m6-witness/four-arc-circle", &arc_points, &arc_segments)?,
+        build(
+            "m6-witness/smooth-cubic-loop",
+            &cubic_loop_points,
+            &cubic_loop_segments,
+        )?,
     ])
 }
 
