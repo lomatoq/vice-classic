@@ -117,7 +117,8 @@ max_px = 1.50
 # (FAILURE_LEDGER F-0048 Q4) and there is exactly one length constant.
 #
 # Consumers: `vice_fit::code::GEOMETRY_CODE_TABLE_V1`, which prices every edge
-# and node of the §14.3 grammar DAG, and every §15 relation hypothesis.
+# and node of the §14.3 grammar DAG, every §15 relation hypothesis and every
+# whole-loop primitive sibling.
 #
 # WAS: `status = "placeholder"`, `set_by_milestone = "M6"`, all three values
 # `0.0`. A table of zeros prices an unbounded grammar at nothing;
@@ -137,14 +138,14 @@ bits_per_relation = 2.584963
 # wherever it is written (RT45-A5, M45-N6).
 #
 # So the WHOLE surface is frozen by content: `vice_fit::pricing_surface_v1`
-# enumerates every price the grammar consults - per-family flag bits and free
-# parameters, the full free_scalars domain, the join-kind count, the Huber
-# loss at probes bracketing its knee, the gap code, the coordinate-bits
-# factor, the jet-compatibility pruning, and the smooth-join reachability per
-# family pair - by CALLING the real functions, and this key is the SHA-256 of
-# that enumeration. Any repricing anywhere on the surface moves the hash and
-# fails `every_frozen_value_agrees_with_the_code_that_uses_it`, making the
-# §27.7 commit unavoidable rather than polite.
+# enumerates every price the grammar consults - span and whole-loop family
+# flags/free parameters, relation flags and determined scalars, the full
+# free_scalars domain, the join-kind count, the Huber loss at probes bracketing
+# its knee, the gap code, the coordinate-bits factor, jet-compatibility pruning
+# and smooth-join reachability - by CALLING the real functions, and this key is
+# the SHA-256 of that enumeration. Any repricing anywhere on the surface moves
+# the hash and fails `every_frozen_value_agrees_with_the_code_that_uses_it`,
+# making the §27.7 commit unavoidable rather than polite.
 #
 # Stated residual: the continuous pieces are pinned at probe points, so a
 # reshaped loss that agrees at the probes passes; the probes bracket the knee,

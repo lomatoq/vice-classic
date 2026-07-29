@@ -1079,3 +1079,138 @@ second instrument disagreed with the first.
 
 **STOPPED AFTER M6 — the successor under §28 is M7, measured in A3.1 from the
 section boundary with a positive control on `P1`, and M7 IS NOT STARTED.**
+
+# Addendum 4 — M6 completion candidate after independent-review delta (C314–C335)
+
+This addendum supersedes every earlier present-tense statement that M6 is “not
+started”, “delivered in part”, has “0 of 5 arms”, or that its geometry harness
+is owned by M7. Those statements remain above because they are the record of
+the tree at C282–C313; treating them as the current state after C327 would turn
+an audit trail into misinformation.
+
+The author still does not self-certify. The tree described here is the
+candidate submitted to the governor’s stricter requirement: two independent
+cold reviews and a separate red-team pass.
+
+## A4.1 Current §28 M6 scope
+
+| §28 M6 bullet | current state | implementation/evidence |
+|---|---|---|
+| hierarchical span candidates | **DELIVERED** | `vice_fit::schedule`, `corner`, `span`; physical-arclength observations, dyadic full-run schedule plus persistent corner anchors |
+| candidate-generation budgets | **DELIVERED** | typed `FitBudget`; an over-budget chain is refused rather than generation-order truncated; corpus 4,065 supports against a 10,187 structural bound |
+| k-best jet-compatible grammar paths | **DELIVERED** | finite jet-state DAG, exact reachability checks and eight physical-bit-ranked paths |
+| joint constrained chain refit | **DELIVERED** | one parameter vector for the whole chain; exact G1 by shared representation; every unreadable smooth end is refused |
+| explicit code lengths | **DELIVERED** | frozen `GeometryCodeTable`, complete pricing-surface digest and proposal-integral tie-break; production entry points cannot inject a replacement table |
+| primitive/relation hypotheses | **DELIVERED for boundary-local Stage H** | seven whole-loop families compete against the free typed chain through the same code; equal-radius, concentric, parallel/perpendicular and shared-baseline constrained siblings; scene-level mirror/repeated-transform hypotheses enter with M7’s compound scene search |
+
+Whole-loop families are exactly circle, ellipse, rect, rotated rect, rounded
+rect, capsule and regular polygon (3–12 sides). Every rejected and accepted
+hypothesis carries primitive/free structure bits, residual change, corridor
+witness and net saving. A primitive and its implied relations are competing
+siblings; their savings cannot be added twice. Overlapping relation projections
+also cannot add the same scalar twice.
+
+This does **not** authorize native SVG primitive emission. The promoted
+hypothesis is stored with its canonical parameters, while M7 must still prove
+the §15 boundary-identity, shared-neighbour and post-quantization conditions.
+
+The universe/pricing change is explicit:
+
+- model universe `e9e7f7e6…2cfb` → `fdcd283a…7359`;
+- pricing surface `01a8b63c…7b0f` → `4d90681d…1d42`;
+- C330 changes code and the declared universe;
+- gate-only C331 freezes the two resulting identities.
+
+No calibrated confidence threshold existed under the old universe, so there is
+no threshold silently inherited across this change. M7’s first confidence
+calibration must use `fdcd283a…7359`.
+
+## A4.2 Gate, re-evaluated
+
+The §28 M6 gate is now **MET as a completion candidate**:
+
+| clause | result | non-vacuity witness |
+|---|---|---|
+| exact G1 after joint solve | **MET** | `6.661e-15 rad` worst over 18 selected smooth joins; 18/18 measured, zero lowering failures; the inconsistent IR fixture reads above the `0.4 rad` positive-control floor |
+| sample/cut/transform invariance | **MET** | all six registered legs; non-zero single-cut spread `1.303 bits`; rotations stay within `1 bit`; translation below `1e-6 bit`; duplicate and near-duplicate legs exercise the declared physical equivalence |
+| oracle G00–G20 decomposition | **MET** | 205/205 development boundaries, five arms each, 205 forced candidate injections, 14 oracle-selector changes, zero exclusions |
+| no BIC-only promotion | **MET** | frozen physical code selects the compact family while the cheap-code knockout adds at least one segment |
+
+`docs/gt/GEOMETRY_M6.json` is the five-arm artifact. All 1,025 arm rows share
+compatibility fingerprint `c74a63c…e2888`. C333 made this key depend on both the
+model-universe and pricing hashes; before that fix, the M6 model version changed
+while the fingerprint remained `8f5a39d…`, which was not a valid compatibility
+claim. C334 is the artifact recorded after that binding.
+
+The legacy `ORACLE_M4.json` remains an M4 snapshot: its G00–G20 refusals name
+M6 as the milestone that later supplied the separate geometry artifact. C332
+removed the stale claim that this already-delivered harness belonged to M7 and
+replayed the full 1,162-arm M4 report.
+
+## A4.3 Current measurements
+
+The Stage G/H corpus walk, one cell per non-sealed scene:
+
+- 36 chains / 1,910 samples; all 36 produced a model;
+- 14,326 candidates after 333 named normal-line-miss refusals;
+- all four fitted span families appeared in candidates and selected models;
+- 561 relation siblings considered, 6 promoted;
+- 3,504 whole-loop siblings considered, 188 promoted among accepted k-best
+  models;
+- 105 segments and 18 smooth joins in the best chain models;
+- zero entry-contract refusals and zero hidden lowering failures.
+
+The geometry oracle aggregate (symmetric maximum error):
+
+| arm | mean max px | worst max px |
+|---|---:|---:|
+| G00 | 0.0059325734 | 0.1520221988 |
+| G10 | 0.0059325734 | 0.1520221988 |
+| G01 | 0.0004072413 | 0.0104374370 |
+| G11 | 0.0004072413 | 0.0104374370 |
+| G20 | 0.0004072413 | 0.0104374370 |
+
+G10 equalling G00 does not mean the injection is inert as a mechanism: 205
+forced candidates were inserted and the automatic selector declined them.
+G01’s 14 changed choices are the selector positive control. G20 forces only
+families and breakpoints; it still fits the observations with the production
+joint solver and frozen selector.
+
+Exact commands, expected rows, artifact tier and gate sequence are in
+`docs/REPRODUCIBILITY_M6.md`.
+
+## A4.4 Review-delta closures
+
+- C314–C323 close the original two cold reviews and red-team findings:
+  unread smooth ends, whole input contract, measured gate populations, absence
+  sentinels, near-duplicate identity, pricing surface, proposal tie-break,
+  production table injection, enum-derived judges and corpus refusal
+  aggregation.
+- C324–C329 deliver typed G20, the five-arm common-population harness, frozen
+  geometry floors and its first committed artifact.
+- C330–C334 close the remaining §15 whole-loop/spec-relation gap, universe
+  governance, historical oracle provenance and compatibility-key binding.
+- C335 connects the full Stage G/H population and five-arm gate to Ubuntu CI
+  and the committed Tier-A replay to Windows CI.
+
+The new defect classes are F-0091–F-0107 in `FAILURE_LEDGER.md`.
+
+## A4.5 Boundaries of the claim
+
+Still not claimed by M6:
+
+1. final full-resolution pixel likelihood or a final posterior;
+2. a constrained trust-region re-solve (M6 relation rejection remains
+   conservative);
+3. DCEL-local isotopy and canonical shared-boundary export;
+4. scene-level mirror/repeated-transform search;
+5. selective-delivery confidence, native SVG emission or post-quantization
+   verification;
+6. cross-platform equality of Tier-A floating geometry rows.
+
+Those are M7 responsibilities, not hidden M6 passes. The sealed audit remains
+closed.
+
+CI configuration now runs the complete M6 evidence path, but this local author
+run is not evidence that GitHub’s remote jobs have executed. Remote CI status
+must be reported by the publisher/reviewer, not inferred from the YAML.

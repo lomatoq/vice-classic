@@ -4065,3 +4065,290 @@ k_best_paths вернул НОЛЬ путей
 тот же ответ, который конвейер и даёт — до последней печатаемой цифры.
 
 **Статус.** Исправлено в C305.
+
+---
+
+## F-0091 — A population count typed beside the run measures the author, not the run (M6 review delta, 2026-07-29)
+
+**Found by.** Independent cold review A (`M6A-N1`) with a deleted-shape
+knockout.
+
+**What happened.** The compound-transaction gate published
+`transaction_shapes = 3`, but the value was a literal. Deleting one entire
+transaction-shape generator left the row green because the instrument repeated
+the intended answer instead of deriving it from attempted transactions.
+
+**Class rule.** A population floor is evidence only when its numerator is
+derived from the population. A literal equal to today's measurement is a claim,
+not an instrument.
+
+**Status.** Closed in C315. Shape coverage is derived from the run, and the
+deleted-shape world makes the clause NOT MET.
+
+## F-0092 — A guard without a mutation witness is a prose closure (M6 review delta, 2026-07-29)
+
+**Found by.** Independent cold review A (`M6A-N3`).
+
+**What happened.** F-0088's unit-normal guard existed, but reverting it to the
+pre-fix finiteness-only check left the entire suite green. The corpus could not
+be its witness because the observer already normalises this field.
+
+**Class rule.** A guard is closed only when a malformed leg reaches its typed
+refusal and a neighbouring valid leg proves that the test is not merely
+rejecting everything.
+
+**Status.** Closed in C318. The full `BoundarySample` contract is guarded before
+candidate generation, with positive and negative witnesses for every field.
+
+## F-0093 — A freeze comment joined a numerator and denominator from different populations (M6 review delta, 2026-07-29)
+
+**Found by.** Independent cold review A (`M6A-N2`).
+
+**What happened.** `[dcel_compound]` froze a three-shape population of 178
+transactions while saying it contained four distinct deltas. The artifact from
+that same population contained five; four belonged to the older two-shape run.
+
+**Class rule.** Provenance is a compatibility key: population, numerator and
+denominator must come from one run. A correct threshold does not make false
+provenance harmless.
+
+**Status.** Corrected in the gate-file-only C316. The historical STATUS claim is
+superseded by the M6 review-delta erratum below.
+
+## F-0094 — A comment predicting its own next stale occurrence was already stale (M6 review delta, 2026-07-29)
+
+**Found by.** Independent cold review B (`B-1`).
+
+**What happened.** The `[dcel]` IS block still described two transaction shapes,
+678/960 transactions, 172 compounds and 556 unrelated chains after the third
+shape had moved all four values to 3, 750/1032, 178 and 610. The file had been
+edited three times after the population moved.
+
+**Class rule.** Repeated provenance drift is a missing mechanism, not a request
+for more careful comments.
+
+**Status.** The false block was corrected in gate-file-only C317. The mechanism
+debt remains live for the provenance generator; certification must not cite the
+old “did not grow” claim.
+
+## F-0095 — Shared declaration is not shared geometry unless every incident end reads it (M6 red team, 2026-07-29)
+
+**Found by.** Red team `RT6-A1`.
+
+**What happened.** A circular arc smooth at both ends read only its head
+tangent. The tail node stored a shared direction that the arc geometry did not
+consume, so an accepted cubic–arc–cubic chain could record a non-G1 join while
+the representation claimed exact G1.
+
+**Class rule.** Representation-held constraints are conjunctions over every
+consumer. “Stored once” closes duplicate disagreement; it does not prove that
+all geometry is derived from the stored value.
+
+**Status.** Closed in C314 by refusing the unrepresentable both-smooth arc form
+before materialisation. The red-team chain is a permanent witness.
+
+## F-0096 — A neighbouring unchecked contract field recreated a typed-refusal hole (M6 red team, 2026-07-29)
+
+**Found by.** Red team `RT6-A2`.
+
+**What happened.** A zero or NaN `corr_length_px` passed candidate generation,
+then silently removed every grammar path downstream: no path, no model and no
+refusal. The adjacent normal field had already been fixed for exactly this
+class.
+
+**Class rule.** Validate the whole public input contract at the boundary, not
+only the field named by the last defect.
+
+**Status.** Closed in C318 with a whole-sample guard and field-by-field
+witnesses.
+
+## F-0097 — Freezing a table does not freeze the functions that price around it (M6 red team, 2026-07-29)
+
+**Found by.** Red team `RT6-A3`.
+
+**What happened.** Three table values were frozen, while family flags, free
+parameter counts, join counts, breakpoint coding and robust-residual constants
+could still be changed in an ordinary feature commit. A one-line arc flag change
+flipped the selected grammar without touching the frozen table.
+
+**Class rule.** The gate surface is the transitive set of values that decide the
+clause, not the struct whose name sounds like the gate.
+
+**Status.** C320 enumerates the whole pricing surface through the functions
+production calls; gate-file-only C321 freezes its digest and
+`frozen_claims` binds both directions.
+
+## F-0098 — A ranking term mentioned in the algorithm can be load-free (M6 red team, 2026-07-29)
+
+**Found by.** Red team `RT6-A4`.
+
+**What happened.** Removing the §14.4 proposal-integral tie-break left all tests
+and corpus numbers unchanged. Its refusal role was load-bearing; its ordering
+role was held only by prose.
+
+**Class rule.** Each claimed role of a quantity needs its own differential.
+Evidence that the quantity matters somewhere is not evidence that every named
+use matters.
+
+**Status.** Closed in C323. The production comparator has one declared order,
+and a two-leg exact-code-tie test turns red if the proposal leg is removed while
+also proving it cannot overrule physical bits.
+
+## F-0099 — A legal sentinel in a measurement field turns absence into a result (M6 red team, 2026-07-29)
+
+**Found by.** Red team `RT6-A5` and cold review B (`B-4`).
+
+**What happened.** The normal/Euclidean ratio reported `1.0 at 0.0 px` when no
+material sample had been measured, and the G1 corpus instrument could skip
+unreadable smooth nodes or lowering failures while still publishing only the
+surviving count.
+
+**Class rule.** Absence is a distinct state, and a population clause must
+account for every offered subject. A legal value cannot double as “not
+measured”.
+
+**Status.** Closed in C319. Ratio absence is `None`; lowering failures and
+unreadable G1 nodes are counted/refused; measured G1 nodes are asserted equal to
+selected smooth joins.
+
+## F-0100 — Bit identity is not physical duplicate identity (M6 red team, 2026-07-29)
+
+**Found by.** Red team `RT6-A6`.
+
+**What happened.** Exact duplicate samples were collapsed, but perturbing the
+duplicate by `1e-9 px` shifted the index-based schedule and changed the selected
+grammar.
+
+**Class rule.** If an invariance is physical, its equivalence relation must be
+declared in physical units and tested on both sides of that declaration.
+
+**Status.** Closed in C322. Consecutive samples within the declared
+`DUPLICATE_EPSILON_PX` collapse, with exact, near and outside-epsilon legs.
+
+## F-0101 — A frozen production dependency remained injectable at the public entry point (M6 review delta, 2026-07-29)
+
+**Found by.** Independent cold review B (`B-5`, with adjacent `B-6`/`B-7`).
+
+**What happened.** `GeometryCodeTable` was frozen, but the public production
+pipeline accepted any caller-supplied table. The relation judge also retyped the
+enum variants, and per-family `NoFit` counts disappeared below the corpus
+summary.
+
+**Class rule.** A frozen dependency is frozen at the production boundary.
+Knockout injection belongs below that boundary. Universe judges derive their
+domain from the type, and typed refusals remain visible after aggregation.
+
+**Status.** Closed in C323. Production entry points always use
+`GEOMETRY_CODE_TABLE_V1`; the cheap-table knockout works through lower-level
+grammar APIs; `RelationKind::ALL` supplies the judge; corpus reports aggregate
+every family/refusal pair.
+
+## F-0102 — A milestone bullet can be called partial while its named subject is absent (M6 completion audit, 2026-07-29)
+
+**Found by.** Completion audit against §15 after the first review delta.
+
+**What happened.** The status table called “primitive/relation hypotheses”
+delivered in part because four chain-local relations existed, while every
+whole-loop primitive explicitly listed by §15 was still absent. The gate did
+not name a primitive-specific row, so all existing gate rows could be green
+without exercising half of the bullet’s subject.
+
+**Class rule.** A milestone checklist is a coverage instrument only when each
+noun in a compound bullet has an implementation and a witness. A green gate
+cannot imply coverage of a requirement the gate does not enumerate.
+
+**Status.** Closed in C330. Seven finite whole-loop families form constrained
+siblings of a closed free chain, publish both sides of the MDL trade, and have
+positive/open-chain-negative end-to-end witnesses.
+
+## F-0103 — A relation named “collinear” implemented only parallel direction (M6 completion audit, 2026-07-29)
+
+**Found by.** Direct comparison of §15’s relation list with the projection code.
+
+**What happened.** `make_collinear` rotated the second line’s far anchor to the
+first direction but left its near anchor at an arbitrary perpendicular offset.
+The two lines were parallel, not collinear. At the same time `axis_aligned` was
+promoted although §15 asks for parallel/perpendicular lines and a shared
+baseline.
+
+**Class rule.** A semantic family is not implemented by a nearby geometric
+operation with the right dimension. Tests must distinguish every named
+relation geometrically, not merely show that some coordinate moved.
+
+**Status.** Closed in C330. Parallel, perpendicular and shared-baseline are
+distinct projections with distinct witnesses; parallel/perpendicular share one
+universe prefix plus an explicit one-bit flag.
+
+## F-0104 — Individually valid constrained siblings cannot have overlapping savings added (M6 completion audit, 2026-07-29)
+
+**Found by.** Inspection of the Stage H code adjustment.
+
+**What happened.** Every accepted relation hypothesis was evaluated against
+the same free sibling, then all accepted savings were added. Two relations
+binding the same segment could therefore remove the same scalar twice. A
+future primitive promotion would have compounded the error by also claiming
+relations implied by its own parameterization.
+
+**Class rule.** Deltas against a common baseline are alternatives unless their
+composition is independently evaluated. Pairwise-valid savings are not
+additive evidence.
+
+**Status.** Closed in C330. Relation projections are selected by net saving
+with disjoint bound segments, and the shortest relation-constrained sibling
+competes against the shortest whole-loop sibling; only one resulting code is
+kept.
+
+## F-0105 — A compatibility key that omits the model version survives a model change (M6 completion audit, 2026-07-29)
+
+**Found by.** Re-running the geometry artifact after C330 and observing that its
+compatibility fingerprint stayed `8f5a39d…` despite a changed universe and
+pricing surface.
+
+**What happened.** `GeometryOracleConfig` hashed sampling and search-budget
+settings but not `model_universe_hash` or the complete pricing-surface hash.
+All five arms in one run were mutually compatible, yet the same key could also
+label results from two different grammars.
+
+**Class rule.** Compatibility is transitive over every load-bearing input. A
+key sufficient for within-run subtraction may still be insufficient for
+cross-version comparison.
+
+**Status.** Closed in C333; both hashes are serialized into the intervention
+config and tested. C334 re-records all 205 boundaries under fingerprint
+`c74a63c…e2888`.
+
+## F-0106 — A historical artifact and a current capability claim were allowed to disagree (M6 completion audit, 2026-07-29)
+
+**Found by.** Searching live `oracle::design` declarations after the separate
+M6 geometry harness landed.
+
+**What happened.** The M4 report still serialized G00–G20 as refusals, which is
+correct for an M4 snapshot, but the live comments called the missing harness an
+M7 responsibility and the `not_yet_produced` list repeated that the M6 geometry
+result did not exist. History and current state were mixed in one tense.
+
+**Class rule.** Historical absence is provenance, not current backlog. A report
+must state its as-of milestone, and current status must point to the successor
+artifact without rewriting the old measurement as if it had run later code.
+
+**Status.** Closed in C332. The M4 snapshot keeps typed refusals owned by M6,
+the current list points to the separate geometry artifact, and the full
+1,162-arm artifact reproduces after regeneration.
+
+## F-0107 — A local milestone path with no CI consumer is a manual ritual (M6 completion audit, 2026-07-29)
+
+**Found by.** Comparing the M6 reproducibility commands with
+`.github/workflows/ci.yml`.
+
+**What happened.** Default unit tests ran, but the ignored full Stage G/H
+population, five-arm geometry gate and committed Tier-A geometry replay had no
+workflow steps. A local author could run all three and CI could remain green
+after they broke.
+
+**Class rule.** Reproducibility documentation names a manual path; automation
+makes it a maintained path. A milestone artifact is governed only when both
+generation/gating and committed replay have runners.
+
+**Status.** Closed in C335. Ubuntu CI runs the corpus population and a fresh
+five-arm gated report; Windows CI replays every row of the committed Tier-A
+artifact.
