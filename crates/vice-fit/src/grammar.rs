@@ -183,6 +183,20 @@ pub struct GrammarPath {
     pub proposal_cost_px: f64,
 }
 
+/// A differential control that ranks the same admissible grammar by the
+/// non-negative §14.4 proposal integral alone.
+///
+/// This is not a production code and cannot be injected into
+/// `k_best_boundary_models`. It exists so the no-BIC gate can remove the
+/// physical parameter code without manufacturing negative "bits".
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProposalControlPath {
+    pub candidates: Vec<usize>,
+    pub breakpoints: Vec<usize>,
+    pub smooth: Vec<bool>,
+    pub residual_cost_px: f64,
+}
+
 impl GrammarPath {
     pub fn total_bits(&self) -> f64 {
         self.code.total_bits()
@@ -311,23 +325,95 @@ pub fn k_best_paths(
     canvas_dim_px: f64,
     k: usize,
 ) -> Vec<GrammarPath> {
+    k_best_paths_for_objective(
+        edges,
+        samples,
+        table,
+        canvas_dim_px,
+        k,
+        PathObjective::PhysicalCode,
+    )
+}
+
+/// Rank the same discrete grammar by its finite non-negative proposal
+/// residual, with every geometry/topology code term removed.
+///
+/// The production selector cannot call this through its API. This is the
+/// explicit knockout side of the no-BIC differential.
+pub fn k_best_proposal_control_paths(
+    edges: &[GrammarEdge],
+    samples: &[BoundarySample],
+    k: usize,
+) -> Vec<ProposalControlPath> {
+    k_best_paths_for_objective(
+        edges,
+        samples,
+        &crate::GEOMETRY_CODE_TABLE_V1,
+        crate::REFERENCE_CANVAS_DIM_PX,
+        k,
+        PathObjective::ProposalResidual,
+    )
+    .into_iter()
+    .map(|path| ProposalControlPath {
+        candidates: path.candidates,
+        breakpoints: path.breakpoints,
+        smooth: path.smooth,
+        residual_cost_px: path.proposal_cost_px,
+    })
+    .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PathObjective {
+    PhysicalCode,
+    ProposalResidual,
+}
+
+fn k_best_paths_for_objective(
+    edges: &[GrammarEdge],
+    samples: &[BoundarySample],
+    table: &GeometryCodeTable,
+    canvas_dim_px: f64,
+    k: usize,
+    objective: PathObjective,
+) -> Vec<GrammarPath> {
     let n = samples.len();
     if n < 2 || edges.is_empty() || k == 0 {
         return Vec::new();
     }
-    let cb = table.coordinate_bits(canvas_dim_px);
-    let anchor = table.anchor_bits(canvas_dim_px);
-    let join_bits = (crate::code::JOIN_KINDS as f64).log2();
-    let gap_bits = crate::code::gap_bits(n);
+    let physical = objective == PathObjective::PhysicalCode;
+    let cb = if physical {
+        table.coordinate_bits(canvas_dim_px)
+    } else {
+        0.0
+    };
+    let anchor = if physical {
+        table.anchor_bits(canvas_dim_px)
+    } else {
+        0.0
+    };
+    let join_bits = if physical {
+        (crate::code::JOIN_KINDS as f64).log2()
+    } else {
+        0.0
+    };
+    let gap_bits = if physical {
+        crate::code::gap_bits(n)
+    } else {
+        0.0
+    };
     let precision = table.coordinate_precision_px();
     // The chain's first sample, charged once so it is not free and not double
     // counted (§17.2). Its deviation is zero for every candidate — both
     // endpoints are held at sample positions — so this is the code's
     // normalising constant, identical for every path.
-    let first_sample_bits =
+    let first_sample_bits = if physical {
         crate::code::independent_observations(samples[0].weight_ds, samples[0].corr_length_px)
             .unwrap_or(0.0)
-            * crate::code::residual_bits(0.0, samples[0].halfwidth, precision);
+            * crate::code::residual_bits(0.0, samples[0].halfwidth, precision)
+    } else {
+        0.0
+    };
 
     let mut by_from: Vec<Vec<usize>> = vec![Vec::new(); n];
     for (i, e) in edges.iter().enumerate() {
@@ -341,20 +427,36 @@ pub fn k_best_paths(
     let mut finished: Vec<usize> = Vec::new();
 
     let seg_bits = |f: SpanFamily, head: bool| {
-        table.bits_per_segment_family()
-            + f.flag_bits()
-            + free_scalars(f, head, false) as f64 * cb
-            + gap_bits
+        if physical {
+            table.bits_per_segment_family()
+                + f.flag_bits()
+                + free_scalars(f, head, false) as f64 * cb
+                + gap_bits
+        } else {
+            0.0
+        }
+    };
+    let edge_objective = |edge: GrammarEdge| {
+        if physical {
+            edge.residual_bits
+        } else {
+            edge.proposal_cost_px
+        }
     };
 
     for &ei in &by_from[0] {
         let e = edges[ei];
         let g = seg_bits(e.family, false);
+        let residual = edge_objective(e);
         let p = Partial {
-            bits: g + e.residual_bits + first_sample_bits,
+            bits: g + residual + first_sample_bits,
             geometry: g,
             topology: 0.0,
-            residual: e.residual_bits + first_sample_bits,
+            residual: if physical {
+                e.residual_bits + first_sample_bits
+            } else {
+                0.0
+            },
             proposal: e.proposal_cost_px,
             edge: ei,
             smooth_here: false,
@@ -406,13 +508,18 @@ pub fn k_best_paths(
                             0.0
                         };
                     let g = seg_bits(e.family, smooth);
+                    let residual = edge_objective(e);
                     for &pi in &partials {
                         let p = arena[pi];
                         let q = Partial {
-                            bits: p.bits + g + node_bits + e.residual_bits,
+                            bits: p.bits + g + node_bits + residual,
                             geometry: p.geometry + g,
                             topology: p.topology + node_bits,
-                            residual: p.residual + e.residual_bits,
+                            residual: if physical {
+                                p.residual + e.residual_bits
+                            } else {
+                                0.0
+                            },
                             proposal: p.proposal + e.proposal_cost_px,
                             edge: ei,
                             smooth_here: smooth,

@@ -17,12 +17,13 @@
 
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
-    build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models, k_best_paths,
-    path_families, span_candidates, BoundaryModel, FitBudget, FitRefusal, ForcedFitRefusal,
-    SpanFamily, FITTED_FAMILIES, FIT_BUDGET_V1, GATE_MAX_BREAKPOINT_FRACTION_DELTA,
-    GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD, GATE_MAX_TRANSLATION_DELTA_BITS,
-    GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD, GATE_MIN_INVARIANCE_LEGS,
-    GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
+    build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models,
+    k_best_proposal_control_paths, span_candidates, BoundaryModel, FitBudget, FitRefusal,
+    ForcedFitRefusal, SpanFamily, FITTED_FAMILIES, FIT_BUDGET_V1,
+    GATE_MAX_BREAKPOINT_FRACTION_DELTA, GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD,
+    GATE_MAX_TRANSLATION_DELTA_BITS, GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD,
+    GATE_MIN_INVARIANCE_LEGS, GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1,
+    K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
 };
 use vice_geom::Pt;
 use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
@@ -783,26 +784,30 @@ fn the_lower_residual_model_does_not_win_when_its_code_is_longer() {
         m.families
     );
 
-    // The knockout: a table whose parameter code is a thousandth of the frozen
-    // one. Nothing else changes.
-    let cheap = vice_fit::GeometryCodeTable::new(
-        GEOMETRY_CODE_TABLE_V1.bits_per_anchor() / 1000.0,
-        GEOMETRY_CODE_TABLE_V1.bits_per_segment_family() / 1000.0,
-        GEOMETRY_CODE_TABLE_V1.bits_per_relation(),
-    )
-    .expect("positive");
+    // The knockout removes every parameter-code term and ranks the identical
+    // admissible grammar by §14.4's finite non-negative proposal residual.
     let candidates = span_candidates(&chain, &FIT_BUDGET_V1).expect("candidates");
-    let edges = build_edges(&candidates.candidates, &chain.samples, &cheap, CANVAS_PX);
-    let paths = k_best_paths(&edges, &chain.samples, &cheap, CANVAS_PX, K_DISCRETE_PATHS);
+    let edges = build_edges(
+        &candidates.candidates,
+        &chain.samples,
+        &GEOMETRY_CODE_TABLE_V1,
+        CANVAS_PX,
+    );
+    let paths = k_best_proposal_control_paths(&edges, &chain.samples, K_DISCRETE_PATHS);
     let cheapest = paths.first().expect("a discrete path");
-    let cheap_families = path_families(cheapest, &candidates.candidates);
+    let cheap_families: Vec<SpanFamily> = cheapest
+        .candidates
+        .iter()
+        .map(|candidate| candidates.candidates[*candidate].family)
+        .collect();
     println!(
-        "cheap table  : families {:?} | segments {} | residual {:8.3} | total {:9.3} bits",
+        "residual only: families {:?} | segments {} | proposal residual {:8.3} px",
         cheap_families,
         cheap_families.len(),
-        cheapest.code.residual_bits,
-        cheapest.code.total_bits()
+        cheapest.residual_cost_px,
     );
+    assert!(cheapest.residual_cost_px.is_finite());
+    assert!(cheapest.residual_cost_px >= 0.0);
     assert!(
         cheap_families.len() >= m.families.len() + GATE_MIN_NO_BIC_EXTRA_SEGMENTS,
         "making the parameter code free did not buy a single extra segment ({} against {}); then \
@@ -811,11 +816,11 @@ fn the_lower_residual_model_does_not_win_when_its_code_is_longer() {
         m.families.len()
     );
     assert!(
-        cheapest.code.residual_bits < m.code.residual_bits,
-        "the more complex grammar does not even fit better ({} against {} residual bits), so this \
+        cheapest.residual_cost_px < m.proposal_cost_px,
+        "the more complex grammar does not even fit better ({} against {} proposal residual), so this \
          is not the trade this clause is about",
-        cheapest.code.residual_bits,
-        m.code.residual_bits
+        cheapest.residual_cost_px,
+        m.proposal_cost_px
     );
 }
 
