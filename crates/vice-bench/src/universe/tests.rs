@@ -193,7 +193,7 @@ fn model_universe_hash_is_frozen() {
 /// recalibration; нельзя молча расширить grammar и сохранить старый
 /// confidence threshold."
 ///
-/// WAS `fed2af86…8f5d`. IS `e9e7f7e6…2cfb`.
+/// WAS `e9e7f7e6…2cfb`. IS `fdcd283a…7359`.
 ///
 /// The current M6 delta replaces the earlier axis/collinear approximation with
 /// §15's actual `parallel_perpendicular` and `shared_baseline` families, and
@@ -211,7 +211,7 @@ fn model_universe_hash_is_frozen() {
 /// inherited across this hash would be a calibration for a smaller grammar.
 /// That is the whole of the obligation and it is stated here so M7 does not
 /// have to reconstruct it.
-const FROZEN_V1_HASH: &str = "e9e7f7e60798d858e30cebaba525ab6dc8b71e101d20f7c75e868252f9f12cfb";
+const FROZEN_V1_HASH: &str = "fdcd283a01c3987aa58caa5698e5dd17fab36f595bf55e18e25613713c107359";
 
 /// **The default is "an admissible relation family has a hypothesis
 /// generator"**, the same inverted default
