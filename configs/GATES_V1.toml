@@ -128,6 +128,31 @@ bits_per_anchor = 31.029146
 bits_per_segment_family = 2.321928
 bits_per_relation = 2.584963
 
+# --- Geometry pricing surface (RT6-A3; frozen at M6 delta-1) -----------------
+# [geometry_code_table] froze three numbers, and the red team repriced the
+# grammar AROUND them in one line: `flag_bits` of the arc 2.0 -> 0.0 flipped
+# arc-vs-line decisions and moved published corpus numbers (including the G1
+# clause's own population, 8 -> 9) with the gate file untouched and every test
+# green. A number that decides whether a §28 clause is green is a gate,
+# wherever it is written (RT45-A5, M45-N6).
+#
+# So the WHOLE surface is frozen by content: `vice_fit::pricing_surface_v1`
+# enumerates every price the grammar consults - per-family flag bits and free
+# parameters, the full free_scalars domain, the join-kind count, the Huber
+# loss at probes bracketing its knee, the gap code, the coordinate-bits
+# factor, the jet-compatibility pruning, and the smooth-join reachability per
+# family pair - by CALLING the real functions, and this key is the SHA-256 of
+# that enumeration. Any repricing anywhere on the surface moves the hash and
+# fails `every_frozen_value_agrees_with_the_code_that_uses_it`, making the
+# §27.7 commit unavoidable rather than polite.
+#
+# Stated residual: the continuous pieces are pinned at probe points, so a
+# reshaped loss that agrees at the probes passes; the probes bracket the knee,
+# which is the loss's one structural feature.
+[geometry_pricing]
+status = "frozen"
+pricing_surface_sha256 = "01a8b63cc6c87152d51598684c0c04658874e6c03bc8efe3e21461d53a2c7b0f"
+
 # --- Observation noise (§17.1; measured in M4) -------------------------------
 # MEASURED, not chosen, on the development split by
 # `vice-bench::corridor::tests::the_clean_bucket_noise_scale_is_measured_on_the_development_split`:
