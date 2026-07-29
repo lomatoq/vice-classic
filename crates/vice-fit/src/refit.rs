@@ -1,5 +1,4 @@
-//! §14.3 / §24: the joint constrained chain refit, and **exact G1 by
-//! representation**.
+//! §14.3 / §24 joint constrained chain refit with exact G1 by representation.
 //!
 //! §14.3: "Проверка `angle < tolerance` сама по себе **не является G1**." So a
 //! tolerance is not available, and there are exactly two ways to have the
@@ -111,7 +110,7 @@ pub struct RefitChain {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(tag = "refit_refusal", rename_all = "snake_case")]
 pub enum RefitRefusal {
-    /// A malformed observation was supplied directly to the public solver.
+    /// A malformed observation supplied directly to the public solver.
     Input { refusal: crate::FitRefusal },
     /// Fewer segments than nodes minus one, or no segment at all.
     Malformed,

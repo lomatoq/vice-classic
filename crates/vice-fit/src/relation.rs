@@ -1,33 +1,13 @@
-//! §15 Stage H: primitive and relation hypotheses, judged by the same code
-//! length that judged the unconstrained model.
+//! §15 Stage H relation hypotheses judged by the unconstrained sibling's code.
 //!
-//! ## §15's rule, and why it decides the whole shape of this module
+//! A relation is a hypothesis, not a detector threshold: it pays flag/binding
+//! codes, earns only determined scalars, and must both save bits and remain in
+//! the evidence corridor. A prior therefore cannot hide topology or residual.
 //!
-//! > Каждый constrained model сравнивается с unconstrained sibling через тот же
-//! > exact posterior/MDL. Relation prior не может компенсировать topology defect
-//! > или salient residual.
-//!
-//! So a relation is not a detector with a threshold. It is a HYPOTHESIS that
-//! pays `bits_per_relation` plus the combinatorial code for which segments it
-//! binds, and earns back the scalars it determines. It is accepted only when
-//! that trade is a NET SAVING in bits, and it is refused outright when
-//! enforcing it pushes the chain outside the evidence corridor — which is the
-//! second sentence, as a mechanism rather than as a warning.
-//!
-//! ## The approximation, named at its exact price
-//!
-//! A relation is evaluated at the PROJECTED parameters — radii are shared,
-//! line directions are bound, and whole-loop line geometry is reflected —
-//! **without a constrained
-//! re-solve**. The optimiser has no constraint machinery and adding one is
-//! §28 M7's trust-region work.
-//!
-//! That makes acceptance SOUND and rejection CONSERVATIVE: a constrained
-//! re-solve can only lower the constrained model's residual, so a relation
-//! accepted here would still be accepted after one, and a relation rejected
-//! here might not be. The error is one-directional and it is in the safe
-//! direction — the direction that does not promote a relation the evidence does
-//! not support. Limitation 66.
+//! Parameters are projected without a constrained re-solve, which belongs to
+//! M7. Acceptance is sound and rejection conservative: re-solving may recover
+//! a rejection by lowering residual, but cannot undo an accepted saving.
+//! Limitation 66.
 //!
 use serde::Serialize;
 use vice_evidence::BoundarySample;
