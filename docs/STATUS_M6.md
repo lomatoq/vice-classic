@@ -1321,15 +1321,17 @@ artifact, reproduced byte-for-byte on `windows-x86_64`.
 ## A5.3 Materialized broad-corpus population
 
 The final ignored Stage G/H corpus walk classifies the geometry actually
-delivered by all 36 winners:
+delivered by all 35 winners and names the one chain whose k-best set the solver
+emptied:
 
 | quantity | measured |
 |---|---:|
-| selected typed chains / whole-loop primitives | 6 / 30 |
-| typed selected segments / smooth joins | 18 / 1 |
-| relation hypotheses considered / promoted | 457 / 8 |
-| whole-loop hypotheses considered / promoted among k-best models | 3,488 / 183 |
-| path refusals | 23 degenerate-span; 11 G1-violation; 36 outside-corridor |
+| chains with a model / solver emptied k-best | 35 / 1 |
+| selected typed chains / whole-loop primitives | 7 / 28 |
+| typed selected segments / smooth joins | 20 / 1 |
+| relation hypotheses considered / promoted | 496 / 7 |
+| whole-loop hypotheses considered / promoted among k-best models | 3,376 / 174 |
+| path refusals | 1 arc-is-a-line; 20 degenerate-span; 13 G1-violation; 43 outside-corridor |
 | worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
 | lowering failures | 0 |
 
@@ -1337,9 +1339,10 @@ The instrument also retains all-chain generation totals: 36 chains, 1,910
 samples, 4,065 supports under a 10,187 structural bound, and 14,326 candidates
 after 333 cost refusals. C355 fixed the population walk so a primitive winner
 cannot bypass those outer-chain totals and so G1 is read only from selected
-typed geometry, including an explicit closure seam. Thus `6 + 30 = 36`; the
-old Addendum 4 counts of 105 free-chain segments and 18 joins were not a claim
-about materialized winners.
+typed geometry, including an explicit closure seam. The old Addendum 4 counts
+of 105 free-chain segments and 18 joins were not a claim about materialized
+winners. After the cyclic cut repair, `7 + 28 = 35`; the remaining chain is the
+explicitly reported emptied-k-best refusal, not an unclassified winner.
 
 ## A5.4 Gate and governance
 

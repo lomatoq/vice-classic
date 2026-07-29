@@ -57,21 +57,22 @@ The 2026-07-29 Windows run (one cell per non-sealed scene) measured:
 | supports / structural bound | 4,065 / 10,187 |
 | candidates after cost / before cost | 14,326 / 14,659 |
 | normal-line-miss cost refusals | 333 |
-| chains with a model | 36 |
-| selected typed chains / whole-loop primitives | 6 / 30 |
-| typed selected segments / smooth joins | 18 / 1 |
-| path refusals | 23 degenerate-span; 11 G1-violation; 36 outside-corridor |
-| relation hypotheses considered / promoted | 457 / 8 |
-| whole-loop hypotheses considered / promoted among k-best models | 3,488 / 183 |
+| chains with a model / solver emptied k-best | 35 / 1 |
+| selected typed chains / whole-loop primitives | 7 / 28 |
+| typed selected segments / smooth joins | 20 / 1 |
+| path refusals | 1 arc-is-a-line; 20 degenerate-span; 13 G1-violation; 43 outside-corridor |
+| relation hypotheses considered / promoted | 496 / 7 |
+| whole-loop hypotheses considered / promoted among k-best models | 3,376 / 174 |
 | worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
 | lowering failures | 0 |
 
 The test asserts that every fitted segment family occurs, the schedule stays
-within its structural bound, all 36 materialized winners are classified as
+within its structural bound, all 35 materialized winners are classified as
 either a typed chain or a whole-loop primitive, every smooth join in selected
 typed geometry is measured (including the cyclic seam), no lowering failure is
 hidden, and only the declared typed path refusals occur. Candidate-generation
-statistics still cover every fitted chain; a primitive winner cannot skip the
+statistics still cover every fitted chain; the one chain whose k-best set the
+solver emptied is counted explicitly, and a primitive winner cannot skip the
 outer chain population.
 
 ## 4. Five-arm geometry artifact
