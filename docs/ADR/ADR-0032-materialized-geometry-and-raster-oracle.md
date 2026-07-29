@@ -64,11 +64,12 @@ Ground truth may supply:
 
 Ground-truth points may not become the `BoundaryChain` fitted by any arm.
 
-Three explicit development witnesses add the requirement families that the
+Four explicit development witnesses add the requirement families that the
 broad development split does not happen to contain in eligible Stage-F loops:
 four circular arcs, mixed quadratic/cubic spans, and a cornered
-line/cubic/line chain. They traverse the same raster and Stage-F path and are
-identified as witnesses in the population string.
+line/cubic/line chain, plus a smooth four-cubic cyclic seam. They traverse the
+same raster and Stage-F path and are identified as witnesses in the population
+string.
 
 ### 4. A selector change means material geometry changed
 
@@ -82,7 +83,7 @@ clause.
 
 ## Consequences
 
-- The common population is smaller (6 rows, 30 arms) and the measured error is
+- The common population is smaller (7 rows, 35 arms) and the measured error is
   larger than the direct-GT artifact. This is accepted because every row now
   proves the production inverse path and every claimed family/joint is
   load-bearing.

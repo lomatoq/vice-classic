@@ -4517,3 +4517,84 @@ chain/candidate population; only selected typed geometry contributes
 segment-family and G1 readings; the cyclic seam is measured explicitly. The
 release witness reports `6 + 30 = 36` materialized winners and rejects any
 future mismatch.
+
+## F-0118 — A geometric cyclic root can ignore non-geometric observations that change ranking (M6 final red team, 2026-07-29)
+
+**Found by.** Final red team on C372.
+
+**What happened.** Periodic geometry admitted several equivalent roots, but
+the canonical descriptor ignored halfwidth, arclength weight and correlation
+length. Rotating those attributes over the same points changed the selected
+cuts and moved the model code by 8.154949 bits.
+
+**Class rule.** A canonical observation root is bound to every observation
+attribute consumed by downstream ranking, not only to geometry.
+
+**Status.** Closed in C373. The descriptor includes all consumed sample
+attributes and invariant normal alignment; an exact periodic regression
+rotates nonuniform attributes and requires identical physical cuts and model.
+
+## F-0119 — A relation tolerance measured from the coordinate origin is not translation invariant (M6 final cold review/red team, 2026-07-29)
+
+**Found by.** Independent cold review A and final red team on C372.
+
+**What happened.** Concentric-arc centre tolerance scaled with the absolute
+centre norm. Translating unchanged geometry therefore changed whether the same
+relation formed and could be selected.
+
+**Class rule.** A Euclidean relation predicate may depend on relative geometry
+and physical scale, never on an arbitrary world origin.
+
+**Status.** Closed in C374. Centres are compared in a shared local frame and
+tolerance derives from radii/chords; the Stage-H formed and accepted relation
+sets are invariant under a large translation.
+
+## F-0120 — Negative arclength weight can turn evidence into a reward (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review B on C372.
+
+**What happened.** Public fit paths accepted a negative `weight_ds`; proposal
+integrals became negative while independent-observation accounting silently
+clamped the same malformed input to zero.
+
+**Class rule.** A physical measure is non-negative by type contract. Malformed
+negative mass is refused once and consistently at every public entry.
+
+**Status.** Closed in C375 with `FitRefusal::NegativeWeight`. Automatic,
+forced, per-cut and candidate APIs share the validation; zero remains legal
+and the negative-input matrix is a permanent typed-refusal witness.
+
+## F-0121 — A physical code term can be negative on a sub-bin domain (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review B on C372.
+
+**What happened.** Residual coding at halfwidth `0.01` and anchor coding on a
+`0.01` canvas returned negative bit lengths, allowing a symbol to reward the
+model.
+
+**Class rule.** The code of a quantized mass is finite and non-negative on
+every accepted domain; a one-bin domain costs zero bits.
+
+**Status.** Closed in C376. Anchor and residual codes enforce the one-bin
+lower bound, low-domain probes are part of the frozen pricing surface, and
+accepted chain-code components have a finite/non-negative regression.
+
+## F-0122 — The cyclic seam was validated and priced only after K-best truncation (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review A on C372.
+
+**What happened.** The DP ranked an opened chain, then materialization tried
+to alias the repeated endpoint and fell back to an open representation.
+More than K cheaper paths could be invalid only at the seam, while smooth
+first/last scalar sharing was absent from the ranked code.
+
+**Class rule.** The final transition of a cyclic grammar is a transition:
+feasibility, shared-parameter savings and its join code are applied before
+global K truncation, with no open fallback.
+
+**Status.** Closed in C377; C378 freezes the changed pricing surface alone.
+The DP state retains exactly the first-family data needed by the final
+transition, filters seam-invalid paths before K, and re-derives both endpoint
+scalar counts. C379 adds an independent raster-derived smooth four-cubic seam
+witness; C380 records the seven-boundary, 35-arm artifact with 16 genuine
+forced candidate injections.

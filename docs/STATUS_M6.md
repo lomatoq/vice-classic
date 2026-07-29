@@ -1242,6 +1242,11 @@ The repaired Stage G/H path now:
    openings together, with at most four persistent-corner openings;
 7. searches and materializes mirror/repeated-transform relation siblings;
 8. prices angles by their actual angle domain rather than a coordinate range.
+9. binds cyclic roots to every observation attribute consumed by fitting;
+10. derives concentric-relation tolerances in a translation-invariant frame;
+11. refuses negative physical arclength weights at every public entry;
+12. keeps every accepted physical code component finite and non-negative;
+13. ranks smooth cyclic-seam feasibility and scalar sharing before K truncation.
 
 C339–C347 carry these changes and their direct negative witnesses. The repaired
 model universe, pricing and search constants are bound by C342 and frozen by
@@ -1255,7 +1260,7 @@ produce the inputs, and nearly all rows were single-span. C348 replaces that
 instrument.
 
 The final oracle renders one scene from every independent development source
-group plus three certified M6 family/joint witnesses through an independent
+group plus four certified M6 family/joint/seam witnesses through an independent
 ExactClip/Box/linear/no-resize cell at 128 px. It then runs canonical decode,
 the production Flat2 analysis and production boundary observation. GT is used
 only to:
@@ -1273,17 +1278,17 @@ The common population is deliberately exact rather than padded:
 
 | quantity | measured |
 |---|---:|
-| source groups / scenes | 25 / 25 |
-| Stage-F closed chains attempted | 18 |
-| rows completing all five arms | 6 |
+| source groups / scenes | 26 / 26 |
+| Stage-F closed chains attempted | 19 |
+| rows completing all five arms | 7 |
 | exclusions, including pre-fit Stage-F/binding refusals | 21 |
-| arm rows | 30 |
-| forced candidate injections | 11 |
+| arm rows | 35 |
+| forced candidate injections | 16 |
 | material geometry changes G01 / G10 / G11 | 2 / 4 / 1 |
-| multi-span / heterogeneous-family rows | 6 / 2 |
-| arc / quadratic / cubic-labelled rows | 1 / 1 / 2 |
-| G20 multi-candidate / selected-smooth rows | 2 / 2 |
-| rows selecting Stage-H relation / primitive geometry | 3 / 2 |
+| multi-span / heterogeneous-family rows | 7 / 2 |
+| arc / quadratic / cubic-labelled rows | 1 / 1 / 3 |
+| G20 multi-candidate / selected-smooth rows | 3 / 3 |
+| rows selecting Stage-H relation / primitive geometry | 3 / 3 |
 
 All published counts are re-derived from the rows by the gate. Each of the 18
 gate clauses has a negative knockout. Losing a family, joint, Stage-H
@@ -1294,11 +1299,11 @@ Aggregate symmetric maximum error:
 
 | arm | mean max px | worst max px |
 |---|---:|---:|
-| G00 | 0.6978803255 | 1.6679802262 |
-| G10 | 0.2626356432 | 0.6218945873 |
-| G01 | 0.6978803255 | 1.6679802262 |
-| G11 | 0.2622747938 | 0.6218945873 |
-| G20 | 0.2626356432 | 0.6218945873 |
+| G00 | 0.5873306657 | 1.6679802262 |
+| G10 | 0.2321390557 | 0.6218945873 |
+| G01 | 0.5873306657 | 1.6679802262 |
+| G11 | 0.2318297563 | 0.6218945873 |
+| G20 | 0.2321390557 | 0.6218945873 |
 
 These errors are larger than Addendum 4’s numbers because they measure fitted
 Stage-F raster evidence rather than samples manufactured from the scoring
@@ -1308,15 +1313,17 @@ a regression hidden by changing the metric.
 The current identities are:
 
 - model universe `47903d73…0f097`;
-- pricing surface `a8df2e99…95360`;
-- backend source `d1b95095…1499b8`;
-- five-arm compatibility fingerprint `41e56f75…6ae30`.
+- pricing surface `e8cd9a8a…4c38a`;
+- backend source `aeab41c7…1e27f`;
+- five-arm compatibility fingerprint `5cb7ce78…1eea54ee`.
 
 C349 is the config-only freeze of the measured floors. C351 keeps every
 production module under 800 lines. C363 extends the source digest over every
 fitting/intervention Rust source and mechanically guards the manifest; C369
-splits the residual-only control under that bound and C370 is the final Tier-A
-artifact, reproduced byte-for-byte on `windows-x86_64`.
+splits the residual-only control under that bound. C373–C377 close the next
+independent-review findings; C378 is their config-only pricing freeze, C379
+adds the independent smooth-seam raster witness, and C380 is the current
+Tier-A artifact, reproduced byte-for-byte on `windows-x86_64`.
 
 ## A5.3 Materialized broad-corpus population
 
@@ -1329,9 +1336,9 @@ emptied:
 | chains with a model / solver emptied k-best | 35 / 1 |
 | selected typed chains / whole-loop primitives | 7 / 28 |
 | typed selected segments / smooth joins | 20 / 1 |
-| relation hypotheses considered / promoted | 496 / 7 |
-| whole-loop hypotheses considered / promoted among k-best models | 3,376 / 174 |
-| path refusals | 1 arc-is-a-line; 20 degenerate-span; 13 G1-violation; 43 outside-corridor |
+| relation hypotheses considered / promoted | 552 / 7 |
+| whole-loop hypotheses considered / promoted among k-best models | 3,296 / 169 |
+| path refusals | 18 degenerate-span; 12 G1-violation; 52 outside-corridor |
 | worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
 | lowering failures | 0 |
 
@@ -1352,15 +1359,15 @@ The §28 M6 gate is **MET as a completion candidate**:
 |---|---|---|
 | exact G1 after joint solve | **MET** | every selected smooth node, including the closure seam, is read from materialized geometry; inconsistent controls fail |
 | sample/cut/transform invariance | **MET** | six executable function-pointer-registered legs, cyclicly stable bounded cuts and an explicit closed seam |
-| G00/G10/G01/G11/G20 decomposition | **MET** | 6 raster-derived common rows, all five arms, geometry-hash changes 2/4/1 |
+| G00/G10/G01/G11/G20 decomposition | **MET** | 7 raster-derived common rows, all five arms, geometry-hash changes 2/4/1 |
 | no BIC-only promotion | **MET** | physical-code winner changes under the registered finite non-negative proposal-residual-only knockout |
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
-passes every one of the 59 commits from `origin/main` through this candidate.
+passes every one of the 69 commits from `origin/main` through this candidate.
 
 `REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-11. Defect classes
-F-0108…F-0117 record the final repair rather than letting Addendum 4’s invalid
+F-0108…F-0122 record the final repair rather than letting Addendum 4’s invalid
 claim disappear.
 
 ## A5.5 Boundary of the stop
