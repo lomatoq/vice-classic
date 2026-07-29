@@ -78,7 +78,7 @@ pub use grammar::{
 pub use models::{
     canonical_cuts, fit_forced_boundary_models, k_best_boundary_models, models_at_cut,
     path_families, BoundaryModel, ForcedFitRefusal, ModelRun, SelectedBoundaryGeometry,
-    DUPLICATE_EPSILON_PX,
+    DUPLICATE_EPSILON_PX, MAX_CANONICAL_CUTS,
 };
 pub use primitive::{
     apply_best_primitive, loop_primitive_hypotheses, LoopPrimitiveGeometry,
@@ -123,6 +123,15 @@ pub enum FitRefusal {
         samples: usize,
         supports: usize,
         would_generate: usize,
+        cap: usize,
+    },
+    /// Canonical-cut search generated more candidates in aggregate than the
+    /// same per-chain cap permits. Each cut being below the cap is not enough:
+    /// the resource contract is on the physical chain, not on a representation
+    /// of that chain.
+    CutSearchBudgetExceeded {
+        cuts_evaluated: usize,
+        candidates: usize,
         cap: usize,
     },
     /// A corridor halfwidth that is not strictly positive. The proposal cost

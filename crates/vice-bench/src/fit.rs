@@ -185,6 +185,7 @@ fn refusal_name(r: &FitRefusal) -> &'static str {
     match r {
         FitRefusal::ChainTooShort { .. } => "chain_too_short",
         FitRefusal::BudgetExceeded { .. } => "budget_exceeded",
+        FitRefusal::CutSearchBudgetExceeded { .. } => "cut_search_budget_exceeded",
         FitRefusal::NonPositiveHalfwidth { .. } => "non_positive_halfwidth",
         FitRefusal::NonFiniteSample { .. } => "non_finite_sample",
         FitRefusal::NonUnitNormal { .. } => "non_unit_normal",

@@ -18,11 +18,11 @@
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
     build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models, k_best_paths,
-    path_families, span_candidates, BoundaryModel, ForcedFitRefusal, SpanFamily, FIT_BUDGET_V1,
-    GATE_MAX_BREAKPOINT_FRACTION_DELTA, GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD,
-    GATE_MAX_TRANSLATION_DELTA_BITS, GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD,
-    GATE_MIN_INVARIANCE_LEGS, GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1,
-    K_DISCRETE_PATHS,
+    path_families, span_candidates, BoundaryModel, FitBudget, FitRefusal, ForcedFitRefusal,
+    SpanFamily, FITTED_FAMILIES, FIT_BUDGET_V1, GATE_MAX_BREAKPOINT_FRACTION_DELTA,
+    GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD, GATE_MAX_TRANSLATION_DELTA_BITS,
+    GATE_MIN_G1_NODES, GATE_MIN_G1_POSITIVE_CONTROL_RAD, GATE_MIN_INVARIANCE_LEGS,
+    GATE_MIN_NO_BIC_EXTRA_SEGMENTS, GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS, MAX_CANONICAL_CUTS,
 };
 use vice_geom::Pt;
 use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
@@ -240,6 +240,39 @@ fn a_forced_closed_path_keeps_loop_semantics_and_reaches_stage_h() {
         "losing closed=true would silently bypass Stage-H loop primitives"
     );
     assert!(run.models.iter().all(|model| !model.closure_smooth));
+}
+
+#[test]
+fn the_candidate_cap_applies_to_the_physical_loop_not_each_cut() {
+    let points: Vec<Pt> = (0..=12)
+        .map(|x| Pt::new(x as f64, 0.0))
+        .chain((1..=12).map(|y| Pt::new(12.0, y as f64)))
+        .chain((0..12).rev().map(|x| Pt::new(x as f64, 12.0)))
+        .chain((1..12).rev().map(|y| Pt::new(0.0, y as f64)))
+        .collect();
+    let chain = chain_from(&points, true);
+    let cuts = vice_fit::canonical_cuts(&chain);
+    assert!(cuts.len() >= 2);
+    assert!(cuts.len() <= MAX_CANONICAL_CUTS);
+    let per_cut_max = cuts
+        .iter()
+        .map(|cut| {
+            let rotated = vice_fit::models::rotate(&chain, *cut);
+            span_candidates(&rotated, &FIT_BUDGET_V1)
+                .expect("single cut fits the default budget")
+                .supports
+                * FITTED_FAMILIES.len()
+        })
+        .max()
+        .expect("at least two cuts");
+    let budget = FitBudget::new(per_cut_max).expect("positive observed candidate count");
+    assert!(matches!(
+        k_best_boundary_models(&chain, &budget, CANVAS_PX, K_DISCRETE_PATHS),
+        Err(FitRefusal::CutSearchBudgetExceeded {
+            cuts_evaluated: 2..,
+            ..
+        })
+    ));
 }
 
 // ---------------------------------------------------------------------------
@@ -474,6 +507,7 @@ fn the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected() {
     let chain = chain_from(&circle, true);
     let cuts = vice_fit::canonical_cuts(&chain);
     assert!(cuts.len() >= 2, "only {} cut(s) derived", cuts.len());
+    assert!(cuts.len() <= MAX_CANONICAL_CUTS);
     let distinct_first_points: std::collections::BTreeSet<(u64, u64)> = cuts
         .iter()
         .map(|cut| {
@@ -737,12 +771,21 @@ fn the_lower_residual_model_does_not_win_when_its_code_is_longer() {
 fn the_solver_refuses_some_of_the_k_paths_and_says_which() {
     let mut refusals = 0usize;
     let mut kinds: Vec<&'static str> = Vec::new();
-    for step in [0.25f64, 0.5, 1.0] {
-        let chain = chain_from(&s_curve(step), false);
+    for halfwidth in [0.35f64, 0.12, 0.04] {
+        let points: Vec<Pt> = (0..=200)
+            .map(|i| {
+                let x = i as f64 * 0.5;
+                Pt::new(x, 8.0 * (0.11 * x).sin() + 2.5 * (0.37 * x).sin())
+            })
+            .collect();
+        let mut chain = chain_from(&points, false);
+        for sample in &mut chain.samples {
+            sample.halfwidth = halfwidth;
+        }
         let run = k_best_boundary_models(&chain, &FIT_BUDGET_V1, CANVAS_PX, K_DISCRETE_PATHS)
             .expect("well formed");
         println!(
-            "step {step}: {} candidates, {} edges, {} paths -> {} models, refused {:?}, not \
+            "halfwidth {halfwidth}: {} candidates, {} edges, {} paths -> {} models, refused {:?}, not \
              representable {}",
             run.candidates,
             run.edges,
@@ -1038,10 +1081,10 @@ fn the_red_team_chain_no_longer_produces_an_accepted_g1_violation() {
         worst < GATE_MAX_G1_SPREAD_RAD,
         "an accepted model on the red team's own chain has a G1 spread of {worst} rad"
     );
-    assert!(
-        run.not_representable > 0,
-        "no path was dropped as non-representable on a chain built to elicit \
-         arc-smooth-at-both-ends; then the class closure is not being exercised here and the \
-         green above proves nothing about it"
+    assert_eq!(
+        run.not_representable, 0,
+        "an unrepresentable path consumed a frozen K slot; \
+         grammar::unmaterializable_smooth_transitions_cannot_consume_a_k_best_slot is the \
+         independent class-closure knockout"
     );
 }

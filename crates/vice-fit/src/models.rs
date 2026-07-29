@@ -139,6 +139,10 @@ pub struct BoundaryModel {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ModelRun {
     pub models: Vec<BoundaryModel>,
+    /// Canonical openings actually evaluated (one for an open or forced path).
+    pub cuts_evaluated: usize,
+    /// Candidates generated across every evaluated cut, bounded per physical
+    /// chain rather than independently per representation.
     pub candidates: usize,
     pub edges: usize,
     pub discrete_paths: usize,
@@ -481,6 +485,7 @@ pub fn fit_forced_boundary_models(
         primitives_considered,
         primitives_accepted,
         models,
+        cuts_evaluated: 1,
         candidates: candidates.len(),
         edges: edges.len(),
         discrete_paths: paths.len(),
@@ -518,10 +523,21 @@ fn k_best_boundary_models_with_table(
         vec![0usize]
     };
     let mut best: Option<ModelRun> = None;
+    let mut candidates_across_cuts = 0usize;
+    let mut cuts_evaluated = 0usize;
     for cut in cuts {
         let rotated = rotate(chain, cut);
         let closure_smooth = chain.closed && cut_is_jet_smooth(chain, cut);
         let run = models_for_open_chain(&rotated, budget, table, canvas_dim_px, k, closure_smooth)?;
+        cuts_evaluated += 1;
+        candidates_across_cuts = candidates_across_cuts.saturating_add(run.candidates);
+        if candidates_across_cuts > budget.cap() {
+            return Err(FitRefusal::CutSearchBudgetExceeded {
+                cuts_evaluated,
+                candidates: candidates_across_cuts,
+                cap: budget.cap(),
+            });
+        }
         let better = match &best {
             None => true,
             Some(b) => match (b.models.first(), run.models.first()) {
@@ -534,10 +550,13 @@ fn k_best_boundary_models_with_table(
             best = Some(run);
         }
     }
-    best.ok_or(FitRefusal::ChainTooShort {
+    let mut best = best.ok_or(FitRefusal::ChainTooShort {
         samples: chain.samples.len(),
         minimum: crate::MIN_SUPPORT_SAMPLES,
-    })
+    })?;
+    best.cuts_evaluated = cuts_evaluated;
+    best.candidates = candidates_across_cuts;
+    Ok(best)
 }
 
 /// The models for ONE canonical cut, without re-cutting.
@@ -633,6 +652,15 @@ pub fn dedup_coincident(chain: &BoundaryChain) -> BoundaryChain {
 /// duplicate-invariance test, which now runs at 1e-9 px offsets.
 pub const DUPLICATE_EPSILON_PX: f64 = 1e-6;
 
+/// Maximum canonical openings evaluated for one closed chain.
+///
+/// Sample zero is always present; the remaining slots go to the most salient
+/// persistent corner anchors. Four is a search budget, not a geometric
+/// threshold: it keeps the full candidate generation across cuts inside the
+/// per-chain candidate budget on the measured population while still testing
+/// several distinct seams as §14.3 requires.
+pub const MAX_CANONICAL_CUTS: usize = 4;
+
 /// The points a closed chain is opened at.
 ///
 /// Sample zero plus the corner anchors, all derived from the chain.
@@ -641,16 +669,30 @@ pub const DUPLICATE_EPSILON_PX: f64 = 1e-6;
 /// same finite jet classes as the grammar. A smooth cut receives one aliased
 /// endpoint tangent; a corner cut has no G1 declaration to lose.
 pub fn canonical_cuts(chain: &BoundaryChain) -> Vec<usize> {
+    let proposals = crate::corner::corner_proposals(&chain.samples);
+    let anchors = crate::corner::corner_anchors(&proposals, crate::CORNER_ANCHOR_HALF_WINDOW);
+    let mut ranked: Vec<(usize, f64)> = anchors
+        .into_iter()
+        .filter(|sample| *sample != 0)
+        .map(|sample| {
+            let saliency = proposals
+                .iter()
+                .find(|proposal| proposal.sample == sample)
+                .map_or(0.0, |proposal| proposal.saliency);
+            (sample, saliency)
+        })
+        .collect();
+    ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
     let mut cuts = vec![0usize];
-    cuts.extend(closed_corner_cuts(chain));
+    cuts.extend(
+        ranked
+            .into_iter()
+            .take(MAX_CANONICAL_CUTS.saturating_sub(1))
+            .map(|(sample, _)| sample),
+    );
     cuts.sort_unstable();
     cuts.dedup();
     cuts
-}
-
-fn closed_corner_cuts(chain: &BoundaryChain) -> Vec<usize> {
-    let proposals = crate::corner::corner_proposals(&chain.samples);
-    crate::corner::corner_anchors(&proposals, crate::CORNER_ANCHOR_HALF_WINDOW)
 }
 
 fn cut_is_jet_smooth(chain: &BoundaryChain, cut: usize) -> bool {
@@ -813,6 +855,7 @@ fn models_for_open_chain(
         primitives_considered,
         primitives_accepted,
         models,
+        cuts_evaluated: 1,
         candidates: cands.candidates.len(),
         edges: edges.len(),
         discrete_paths: paths.len(),
