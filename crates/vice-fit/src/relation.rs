@@ -422,25 +422,22 @@ fn bind_arcs(chain: &mut RefitChain, i: usize, j: usize, kind: RelationKind) -> 
     else {
         return false;
     };
+    if kind == RelationKind::Concentric {
+        // Fixed arc endpoints do not in general admit an arbitrary prescribed
+        // centre. Changing only the radius merely chooses a point on the
+        // chord's perpendicular bisector and was previously able to label a
+        // visibly non-concentric sibling "concentric". M6 has no constrained
+        // endpoint solve, so the sound conservative sibling is the one whose
+        // two materialized centres already coincide to roundoff.
+        let (Some(a), Some(b)) = (arc_centre(chain, i), arc_centre(chain, j)) else {
+            return false;
+        };
+        let scale = a.length().max(b.length()).max(1.0);
+        return (a - b).length() <= 32.0 * f64::EPSILON * scale;
+    }
     let target = match kind {
         RelationKind::EqualRadius => 0.5 * (ra + rb),
-        RelationKind::Concentric => {
-            // With both endpoint pairs held, two concentric arcs are two arcs
-            // whose centres coincide. The centre of each is determined by its
-            // radius; equating them and solving is a one-parameter problem, and
-            // the projection used here is the radius that puts the second
-            // centre nearest the first.
-            let Some(ca) = arc_centre(chain, i) else {
-                return false;
-            };
-            let (p0, p1) = (chain.nodes[j].pos, chain.nodes[j + 1].pos);
-            let mid = p0 + (p1 - p0) * 0.5;
-            let r = (ca - mid).length().hypot((p1 - p0).length() * 0.5);
-            if !(r.is_finite() && r > 0.0) {
-                return false;
-            }
-            r
-        }
+        RelationKind::Concentric => unreachable!("handled above"),
         _ => return false,
     };
     if !(target.is_finite() && target > 0.0) {
@@ -448,9 +445,7 @@ fn bind_arcs(chain: &mut RefitChain, i: usize, j: usize, kind: RelationKind) -> 
     }
     for k in [i, j] {
         if let RefitSegment::Arc(ArcAnchor::Radius { radius_px, .. }) = &mut chain.segments[k] {
-            if kind == RelationKind::EqualRadius || k == j {
-                *radius_px = target;
-            }
+            *radius_px = target;
         }
     }
     true
@@ -636,6 +631,83 @@ mod tests {
             chain.nodes[2].pos - chain.nodes[1].pos,
             chain.nodes[1].pos - chain.nodes[0].pos
         );
+    }
+
+    #[test]
+    fn concentric_means_the_materialized_arc_centres_coincide() {
+        let mut concentric = RefitChain {
+            nodes: vec![
+                crate::refit::RefitNode {
+                    pos: Pt::new(5.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 5.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(-5.0, 0.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![
+                RefitSegment::Arc(ArcAnchor::Radius {
+                    radius_px: 5.0,
+                    large_arc: false,
+                    ccw: true,
+                }),
+                RefitSegment::Arc(ArcAnchor::Radius {
+                    radius_px: 5.0,
+                    large_arc: false,
+                    ccw: true,
+                }),
+            ],
+        };
+        assert!(bind_arcs(&mut concentric, 0, 1, RelationKind::Concentric));
+        assert!(
+            (arc_centre(&concentric, 0).unwrap() - arc_centre(&concentric, 1).unwrap()).length()
+                <= 32.0 * f64::EPSILON
+        );
+
+        // The first arc is the semicircle centred at (1,0). The second
+        // chord's perpendicular bisector does not contain that centre. Merely
+        // changing its radius can never make the two arcs concentric.
+        let mut incompatible = RefitChain {
+            nodes: vec![
+                crate::refit::RefitNode {
+                    pos: Pt::new(2.0, -4.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 4.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(2.0, 6.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![
+                RefitSegment::Arc(ArcAnchor::Radius {
+                    radius_px: 17.0f64.sqrt(),
+                    large_arc: false,
+                    ccw: true,
+                }),
+                RefitSegment::Arc(ArcAnchor::Radius {
+                    radius_px: 3.0,
+                    large_arc: false,
+                    ccw: true,
+                }),
+            ],
+        };
+        let before = incompatible.clone();
+        assert!(!bind_arcs(
+            &mut incompatible,
+            0,
+            1,
+            RelationKind::Concentric
+        ));
+        assert_eq!(incompatible, before, "a refused projection must be inert");
     }
 
     #[test]
