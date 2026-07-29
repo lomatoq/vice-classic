@@ -429,10 +429,20 @@ fn bind_arcs(chain: &mut RefitChain, i: usize, j: usize, kind: RelationKind) -> 
         // visibly non-concentric sibling "concentric". M6 has no constrained
         // endpoint solve, so the sound conservative sibling is the one whose
         // two materialized centres already coincide to roundoff.
-        let (Some(a), Some(b)) = (arc_centre(chain, i), arc_centre(chain, j)) else {
+        // Compute both centres in one local frame. Using their absolute canvas
+        // coordinates here made the roundoff allowance grow with distance
+        // from the world origin, so translating the same two arcs could mint
+        // a relation candidate.
+        let origin = chain.nodes[i].pos;
+        let (Some(a), Some(b)) = (
+            arc_centre_in_frame(chain, i, origin),
+            arc_centre_in_frame(chain, j, origin),
+        ) else {
             return false;
         };
-        let scale = a.length().max(b.length()).max(1.0);
+        let chord_a = (chain.nodes[i + 1].pos - chain.nodes[i].pos).length();
+        let chord_b = (chain.nodes[j + 1].pos - chain.nodes[j].pos).length();
+        let scale = ra.abs().max(rb.abs()).max(chord_a).max(chord_b).max(1.0);
         return (a - b).length() <= 32.0 * f64::EPSILON * scale;
     }
     let target = match kind {
@@ -451,7 +461,12 @@ fn bind_arcs(chain: &mut RefitChain, i: usize, j: usize, kind: RelationKind) -> 
     true
 }
 
+#[cfg(test)]
 fn arc_centre(chain: &RefitChain, seg: usize) -> Option<Pt> {
+    arc_centre_in_frame(chain, seg, Pt::ZERO)
+}
+
+fn arc_centre_in_frame(chain: &RefitChain, seg: usize, origin: Pt) -> Option<Pt> {
     let RefitSegment::Arc(ArcAnchor::Radius {
         radius_px,
         large_arc,
@@ -461,8 +476,8 @@ fn arc_centre(chain: &RefitChain, seg: usize) -> Option<Pt> {
         return None;
     };
     vice_geom::flatten::circular_arc_center(
-        chain.nodes[seg].pos,
-        chain.nodes[seg + 1].pos,
+        chain.nodes[seg].pos - origin,
+        chain.nodes[seg + 1].pos - origin,
         radius_px,
         large_arc,
         ccw,
