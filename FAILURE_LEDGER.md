@@ -4818,3 +4818,61 @@ does not add a newly created file to a literal manifest.
 **Status.** Closed in C402. Both modules are framed into
 `BACKEND_SOURCE_PATHS`; the recursive equality test passes. C403 records
 backend `c0060e07…3120a` and compatibility `d5d21071…98f1b`.
+
+## F-0134 — Individually finite path terms can overflow only when composed (M6 fourth exact-SHA review, 2026-07-30)
+
+**Found by.** Both independent cold reviews on
+`0a437cb4e582de78c50c4fedfc91cef056806db8`.
+
+**What happened.** The edge validator reserved half of the finite range for
+non-edge terms, but the independently valid first-sample residual was not
+included in that bound. Two finite accepted terms could therefore produce an
+infinite `ChainCode` at the first DP transition.
+
+**Class rule.** Per-field bounds do not prove composed arithmetic. Validate
+every accumulated state and the final component sum, including cyclic final
+transitions, and return a typed refusal before ranking.
+
+**Status.** Closed in C405. `InvalidGrammarPathCost` covers every physical and
+proposal DP state plus the final code. The direct two-sample witness combines
+`0.75 * f64::MAX` first-sample code with a permitted `f64::MAX / 2` edge and
+requires a refusal.
+
+## F-0135 — A public-surface repair omitted sibling lookup and materialization semantics (M6 fourth exact-SHA audit, 2026-07-30)
+
+**Found by.** Independent release-quality audit and cold review B on
+`0a437cb4e582de78c50c4fedfc91cef056806db8`.
+
+**What happened.** Root-re-exported `path_families` indexed a caller-built path
+without bounds checking. `materialize` checked the declared edge/candidate
+family equality but not whether the candidate's declared family matched its
+actual segment variant, so pricing and materialization could describe
+different models.
+
+**Class rule.** Audit the complete root export surface, not only the functions
+named by the previous report. A declaration used for pricing must be checked
+against the value materialized from it.
+
+**Status.** Closed in C405. `path_families` returns a typed
+`PathCandidateOutOfRange`; materialization reuses candidate structural
+validation and returns `None` on a family/segment mismatch.
+
+## F-0136 — Public relation application trusted caller-supplied code deltas (M6 fourth exact-SHA audit, 2026-07-30)
+
+**Found by.** Independent release-quality audit on
+`0a437cb4e582de78c50c4fedfc91cef056806db8`.
+
+**What happened.** `apply_accepted` rechecked closure but applied public
+cost/saving fields directly. Negative, non-finite or oversized deltas could
+make a code component negative or the total non-finite.
+
+**Class rule.** Validate the resulting state, not only every delta in
+isolation. A negative residual delta is legitimate when a constrained solve
+improves the fit, but it may apply only when every resulting code component
+and their total remain finite and non-negative.
+
+**Status.** Closed in C405. Stage H checks structural family preservation,
+published-code identities and the complete post-application `ChainCode`
+before mutating the model. Negative, infinite, underflowing and overflowing
+direct witnesses are inert. C406 preserves the prior 4 relation-selected rows
+and all prior geometry aggregates.

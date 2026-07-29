@@ -15,7 +15,7 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - geometry pricing surface:
   `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;
 - Stage G/H backend source:
-  `c0060e07490d8fd7d373788652d51b766338e3eb869f8e2769f7213131c3120a`;
+  `f22e03c9b469119b8bdb2f983387539a3f48deeb405d465950698f0674e915a3`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -181,6 +181,11 @@ The relevant sequence is intentionally split:
 22. C401 publishes the new typed refusal names in corpus telemetry; C402 adds
     both split source modules to the complete backend digest; C403 separately
     records the resulting seam-safe 11-boundary, 55-arm Tier-A artifact.
+23. C405 validates every remaining caller-constructible grammar/relation
+    composition: whole-path cost accumulation, path-family lookup,
+    family/segment materialization and relation-code application. C406 records
+    the resulting content identity alone; all row-derived populations and
+    geometry errors remain unchanged.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 

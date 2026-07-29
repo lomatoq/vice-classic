@@ -1502,3 +1502,44 @@ This addendum is a new completion candidate, not acceptance. One exact-HEAD
 full matrix, the per-commit governance walk over 92 commits, two fresh
 independent cold-review verdicts and one fresh independent correctness verdict
 must all pass on the same unchanged SHA before M7 starts.
+
+# Addendum 8 — composed public-boundary totality
+
+Both cold reviews and the independent release-quality audit blocked exact
+clean SHA `0a437cb4e582de78c50c4fedfc91cef056806db8`. They found one composed
+numeric failure and three omissions from the public-surface inventory. No M7
+work began.
+
+## A8.1 One complete repair
+
+C405 makes the K-best core validate every accumulated physical/proposal state
+and final code, so independently finite first-sample and edge terms cannot
+produce an infinite accepted path. Root-exported `path_families` now
+typed-refuses an out-of-range path candidate. `materialize` reuses candidate
+validation, including the declared-family/segment-variant identity.
+
+The exported Stage-H application boundary now checks the free and constrained
+chain structure, relation-code identities and the complete resulting
+`ChainCode` before mutation. This deliberately judges the result rather than
+rejecting every negative delta: a constrained solve may improve residual
+cost, but no component or total may become negative or non-finite. Direct
+regressions cover the exact review witnesses and retain the previous valid
+relation-selection behavior.
+
+## A8.2 Frozen evidence
+
+C406 records the artifact alone. Its row-derived behavior is unchanged:
+11 boundaries, 55 arms, 27 injections, selector changes 3/6/1, four
+relation-selected rows, five primitive-selected rows, all 18 clauses MET,
+and G00/G01 mean `0.5984981083 px` with worst `1.6679802262 px`.
+
+- model universe `47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097`;
+- pricing surface `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;
+- backend source `f22e03c9b469119b8bdb2f983387539a3f48deeb405d465950698f0674e915a3`;
+- config hash `fe22e7ed149356e479ea19391af2979902eafff950f5b1f2f5da8777e36d85c5`;
+- five-arm compatibility fingerprint
+  `74fd7ab01eae99faf4ea9718e0883a0f8f5a9e66e6816e25b3347a7322c82f0a`.
+
+This is again a completion candidate, not acceptance. The final validation and
+all three independent PASS verdicts must name one unchanged clean SHA before
+M7 starts.
