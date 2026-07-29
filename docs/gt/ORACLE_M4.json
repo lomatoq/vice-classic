@@ -44171,8 +44171,8 @@
           "missing": [
             "geometry_pipeline_arm"
           ],
-          "owner_milestone": "M7",
-          "reason": "G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44190,8 +44190,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G10 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G10 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44209,8 +44209,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G01 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G01 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44228,8 +44228,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G11 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G11 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44247,8 +44247,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G20 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G20 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44524,8 +44524,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G10-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G10-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44540,8 +44540,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G01-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G01-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44556,8 +44556,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G11-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G11-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44572,8 +44572,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G20-G30 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G20-G30 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44588,8 +44588,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G10-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G10-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44604,8 +44604,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G01-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G01-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44620,8 +44620,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G11-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G11-G00 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     },
@@ -44636,8 +44636,8 @@
             "geometry_pipeline_arm",
             "oracle_injection"
           ],
-          "owner_milestone": "M7",
-          "reason": "G20-G30 cannot be produced honestly: the harness has no geometry_pipeline_arm (M7), oracle_injection (M7). Spec 27.6 forbids a placeholder arm, so no number is reported."
+          "owner_milestone": "M6",
+          "reason": "G20-G30 cannot be produced honestly: the harness has no geometry_pipeline_arm (M6), oracle_injection (M6). Spec 27.6 forbids a placeholder arm, so no number is reported."
         }
       }
     }
@@ -46812,9 +46812,8 @@
   },
   "not_yet_produced": [
     "PF00/PF01 and all three factorial effects (auto partition, M4.5). PF10 joined the measured arms in M4",
-    "G00/G01/G10/G11/G20 and the geometry ladder deltas (M6)",
     "paint oracle (M8) and formation-expansion oracle (M9), per §27.6",
-    "boundary/topology/primitive metrics: there is no vectorizer output to measure (M6+)",
+    "topology/native-primitive export metrics: M6 fits boundary models and publishes its five-arm geometry artifact; scene-bound export and verification begin in M7",
     "the resize-chain cells of §27.2: the edge mask is defined at work resolution only"
   ]
 }

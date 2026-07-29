@@ -5,10 +5,10 @@
 //! partition and formation are crossed 2×2, and what is published is the
 //! partition main effect, the formation main effect and their interaction.
 //!
-//! This module declares the design and nothing else. It contains no
-//! estimator, no partitioner and no fitter, because none exists yet: M3.5
-//! owns the MEASUREMENT frame, and §32 rule 2 puts the measurement before
-//! the algorithm. What the design therefore has to express well is ABSENCE.
+//! This module is the design carried by the historical M4 oracle report.  The
+//! M6 geometry implementation and its five-arm measurements live in
+//! `crate::geometry` and `docs/gt/GEOMETRY_M6.json`; they are intentionally not
+//! retroactively embedded into an artifact whose `milestone` field is `M4`.
 //!
 //! Absence is DATA here, never a type for a later milestone to implement
 //! (§32 rule 7, §27.6 "fake placeholder arms are forbidden"). An arm that
@@ -20,9 +20,10 @@ use serde::Serialize;
 
 pub const INTERVENTION_SCHEMA_VERSION: &str = "vice-classic/oracle-intervention/v1";
 
-/// A capability the harness does not have, with the milestone that owns it.
+/// A capability the M4 report harness did not have, with the milestone that
+/// supplied it.
 ///
-/// This is a list of FACTS about the current system, not an interface: it
+/// This is a list of facts at the report's M4 snapshot, not an interface: it
 /// declares no method a future milestone must implement, and adding the
 /// capability means deleting the variant's use, not filling it in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -48,26 +49,20 @@ pub enum MissingCapability {
     // use": nothing can now record an absence that ended.
     //
     // What remains, and what the G ladder is ACTUALLY blocked on, is below.
-    /// Driving the Stage G/H pipeline from an INJECTED partition and scoring
+    /// Driving the Stage G/H pipeline from an injected partition and scoring
     /// the geometry it returns against ground truth (§27.6's G arms are all
     /// stated "при GT partition + GT formation").
     ///
-    /// `vice_fit` consumes `vice_evidence::BoundaryChain`, which
-    /// `observe_boundaries` produces from the analysed image — an AUTO
-    /// partition. There is no path from a fixture's GT partition into Stage G,
-    /// and no geometry error metric against GT geometry. Both need the chain
-    /// identity STATUS_M6 limitation 57 prices: a chain carries no boundary or
-    /// vertex id, so nothing ties a fitted curve to the GT boundary it is
-    /// supposed to be a curve for.
+    /// M6 later supplied this in `crate::geometry::bind_observation`, with an
+    /// explicit `(scene id, BoundaryId)` binding and symmetric geometry error.
     GeometryPipelineArm,
     /// Injecting an oracle into the geometry search: a GT-compatible candidate
     /// (G10), a selector that ranks by agreement with GT rather than by code
     /// length (G01), both (G11), or forced GT-equivalent families and
     /// breakpoints (G20).
     ///
-    /// Strictly more than [`Self::GeometryPipelineArm`]: it needs not only the
-    /// correspondence but a way to express a GT boundary as a candidate over an
-    /// observed chain's samples.
+    /// M6 later supplied all four interventions plus the typed G20 forced-fit
+    /// API; the historical refusal remains serialized in the M4 report.
     OracleInjection,
 }
 
@@ -83,11 +78,7 @@ impl MissingCapability {
     pub fn owner_milestone(&self) -> &'static str {
         match self {
             MissingCapability::AutoPartition => "M4.5",
-            // Both need a fitted chain bound to the arrangement it is a
-            // boundary of, which is where M7's export and verification path
-            // starts and where STATUS_M6 limitation 57 says the binding is
-            // owed.
-            MissingCapability::GeometryPipelineArm | MissingCapability::OracleInjection => "M7",
+            MissingCapability::GeometryPipelineArm | MissingCapability::OracleInjection => "M6",
         }
     }
 
@@ -99,7 +90,8 @@ impl MissingCapability {
             "M4.5" => 1,
             "M5" => 2,
             "M6" => 3,
-            _ => 4,
+            "M7" => 4,
+            _ => 5,
         }
     }
 }
@@ -227,10 +219,8 @@ impl GArm {
             // it needs nothing the harness lacks. It is the one arm M3.5
             // can measure, and §28 M3.5 asks for exactly it.
             GArm::G30 => Vec::new(),
-            // The auto candidate stage and the auto selector both EXIST after
-            // M6. What G00 still lacks is the harness half: a way to run them
-            // from the GT partition every G arm is stated at, and a geometry
-            // error against GT to report.
+            // These are refusals in the M4 report snapshot. The separate M6
+            // geometry artifact now measures all five arms.
             GArm::G00 => vec![MissingCapability::GeometryPipelineArm],
             GArm::G10 | GArm::G01 | GArm::G11 | GArm::G20 => vec![
                 MissingCapability::GeometryPipelineArm,
@@ -428,8 +418,8 @@ mod tests {
         }
     }
 
-    /// The geometry ladder after M6: G30 is still the only producible arm, and
-    /// every other G arm is now owned by **M7** rather than by M6.
+    /// The historical M4 report truthfully records G30 as its only producible
+    /// geometry arm and names M6 as the owner of the five missing arms.
     ///
     /// The change is the point. M6 delivered candidate generation, the
     /// code-length selector and the parameter fit, so the three variants that
@@ -439,18 +429,17 @@ mod tests {
     /// GT boundary as a candidate over an observed chain's samples. All three
     /// need the chain identity STATUS_M6 limitation 57 prices.
     ///
-    /// **So §28 M6's third gate clause — "oracle G00–G20 decomposition" — is
-    /// NOT MET**, and this test is where that is recorded as a fact about the
-    /// tree rather than as a sentence in a report.
+    /// The current M6 result is tested in `crate::geometry`; this test protects
+    /// the provenance of an older report instead of rewriting history.
     #[test]
-    fn g30_is_still_the_only_producible_geometry_arm_and_the_rest_moved_to_m7() {
+    fn the_m4_report_names_m6_as_the_owner_of_its_missing_geometry_arms() {
         assert!(GArm::G30.missing().is_empty());
         for arm in [GArm::G00, GArm::G01, GArm::G10, GArm::G11, GArm::G20] {
             let missing = arm.missing();
             assert!(!missing.is_empty(), "{} claims to be producible", arm.id());
             assert_eq!(
                 NotYetApplicable::from_missing(arm.id(), &missing).owner_milestone,
-                "M7"
+                "M6"
             );
         }
         // And the capabilities M6 delivered are GONE rather than renamed: the

@@ -325,9 +325,9 @@ pub fn build(run: &OracleRun) -> OracleReport {
         not_yet_produced: vec![
             "PF00/PF01 and all three factorial effects (auto partition, M4.5). PF10 joined the \
              measured arms in M4",
-            "G00/G01/G10/G11/G20 and the geometry ladder deltas (M6)",
             "paint oracle (M8) and formation-expansion oracle (M9), per §27.6",
-            "boundary/topology/primitive metrics: there is no vectorizer output to measure (M6+)",
+            "topology/native-primitive export metrics: M6 fits boundary models and publishes its \
+             five-arm geometry artifact; scene-bound export and verification begin in M7",
             "the resize-chain cells of §27.2: the edge mask is defined at work resolution only",
         ],
     }
@@ -640,7 +640,7 @@ mod tests {
         for a in refused {
             let x = a.outcome.refusal().unwrap();
             assert!(!x.missing.is_empty());
-            assert!(["M4.5", "M7"].contains(&x.owner_milestone));
+            assert!(["M4.5", "M6"].contains(&x.owner_milestone));
         }
         for arm in ["PF10", "PF11"] {
             assert!(

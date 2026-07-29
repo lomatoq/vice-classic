@@ -127,11 +127,11 @@ pub struct GeometryDelta {
 
 /// The interpretation deltas §27.6 lists for the geometry decomposition.
 ///
-/// All of them subtract two G arms, and every G arm except G30 needs a
-/// capability M6 owns, so all of them refuse here. They are listed rather
-/// than omitted so that a reader can see the shape of the contract and tell
-/// "absent because nothing produces it" from "absent because it was
-/// forgotten" (§31).
+/// In the historical M4 report all of them subtract at least one arm that M6
+/// had not supplied yet, so they refuse there. The current five-arm values are
+/// produced independently by `crate::geometry` and frozen in
+/// `docs/gt/GEOMETRY_M6.json`; this function preserves the provenance of the
+/// older artifact.
 pub fn geometry_deltas(arms: &CommensurableArms) -> Vec<GeometryDelta> {
     let spec: &[(&'static str, &'static str, GArm, GArm)] = &[
         (
@@ -170,7 +170,7 @@ pub fn geometry_deltas(arms: &CommensurableArms) -> Vec<GeometryDelta> {
                     Err(e) => ArmOutcome::NotYetApplicable(NotYetApplicable::limitation(
                         *name,
                         e.to_string(),
-                        "M7",
+                        "M6",
                     )),
                 }
             } else {
@@ -290,8 +290,8 @@ mod tests {
         }
     }
 
-    /// The geometry ladder refuses in M3.5 and names M6, but its shape is
-    /// published so the reader can see what is missing.
+    /// The historical report refuses and names the milestone that later
+    /// supplied the separate five-arm artifact.
     #[test]
     fn the_geometry_ladder_is_declared_and_refused() {
         let d = geometry_deltas(&with_arms(&[("G30", 1.0)]));
@@ -299,8 +299,8 @@ mod tests {
         for entry in &d {
             let r = entry.outcome.refusal().expect("must refuse");
             assert_eq!(
-                r.owner_milestone, "M7",
-                "after M6 the geometry ladder is blocked on the harness rather than on the                  candidate stage, and its owner moved with it"
+                r.owner_milestone, "M6",
+                "the M4 report must name the milestone that supplied the geometry harness"
             );
             assert!(!entry.isolates.is_empty());
         }
