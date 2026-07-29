@@ -1,0 +1,20 @@
+[package]
+name = "vice-svg"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "vice-classic M7: canonical PurePartition and SeamSafe SVG export plans with independent parse/render"
+
+[lints]
+workspace = true
+
+[dependencies]
+hex = "0.4"
+resvg = "0.45"
+roxmltree = "0.20"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+thiserror = "2"
+vice-geom = { path = "../vice-geom" }
+vice-ir = { path = "../vice-ir" }

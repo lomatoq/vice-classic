@@ -10,7 +10,9 @@ members = [
     "crates/vice-ir",
     "crates/vice-opt",
     "crates/vice-render",
+    "crates/vice-svg",
     "crates/vice-topology",
+    "crates/vice-verify",
 ]
 # Baseline checkouts are cloned under runs/<out>/checkouts/ at run time; a
 # donor crate without its own [workspace] must not be captured by this one.
@@ -46,6 +48,11 @@ exclude = ["runs", "baselines-work"]
 # M7: vice-opt — the crate §4 lists as posterior, continuous/discrete
 # optimization, and supported-search accounting. It is created in M7 together
 # with those first executable responsibilities.
+# M7: vice-svg and vice-verify — canonical PurePartition/SeamSafe
+# materialization, independent parse/render, pre/post-quantization
+# certification, and final delivery sealing. They are created together because
+# the verifier's first real seal consumes the SVG crate's opaque parsed-render
+# witness rather than trusting a report field.
 
 [workspace.package]
 edition = "2021"
