@@ -1,8 +1,9 @@
 //! Raster-derived Stage-F observations bound to canonical GT face loops.
 //!
 //! GT supplies only the intervention labels (family sequence, breakpoints) and
-//! the scoring reference. The chain fitted by every arm comes from the real
-//! render → decode → Flat2 evidence → boundary-observation path.
+//! the scoring reference. The automatic arms preserve the raw Stage-F cut and
+//! orientation. Forced arms may cyclicly reindex those same physical samples
+//! solely to attach the intervention labels; no authored point is fitted.
 
 use std::collections::BTreeSet;
 
@@ -441,6 +442,43 @@ fn bind_chain(
     match_px: f64,
     render_cell: &str,
 ) -> Result<RasterBoundObservation, String> {
+    let (forced_chain, breakpoint_indices) = align_forced_chain(&chain, truth)?;
+    let mut raw_points: Vec<(u64, u64)> = chain
+        .samples
+        .iter()
+        .map(|sample| (sample.p.x.to_bits(), sample.p.y.to_bits()))
+        .collect();
+    let mut forced_points: Vec<(u64, u64)> = forced_chain
+        .samples
+        .iter()
+        .map(|sample| (sample.p.x.to_bits(), sample.p.y.to_bits()))
+        .collect();
+    raw_points.sort_unstable();
+    forced_points.sort_unstable();
+    if raw_points != forced_points {
+        return Err("GT label alignment changed the Stage-F sample population".to_string());
+    }
+    Ok(RasterBoundObservation {
+        fixture_id: format!(
+            "{scene_id}/face:{}/loop:{}/stage-f-chain:{chain_index}",
+            truth.face, truth.loop_index
+        ),
+        scene_id: scene_id.to_string(),
+        boundary_id: truth.face,
+        chain,
+        forced_chain,
+        truth: truth.polyline.clone(),
+        gt_families: truth.families.clone(),
+        gt_breakpoints: breakpoint_indices,
+        stage_f_truth_match_px: match_px,
+        render_cell: render_cell.to_string(),
+    })
+}
+
+fn align_forced_chain(
+    chain: &BoundaryChain,
+    truth: &TruthLoop,
+) -> Result<(BoundaryChain, Vec<usize>), String> {
     let start = truth.polyline[0];
     let cut = chain
         .samples
@@ -504,24 +542,67 @@ fn bind_chain(
         .map(|pair| (pair[1].p - pair[0].p).length())
         .sum::<f64>()
         + (samples[0].p - samples[samples.len() - 1].p).length();
-    Ok(RasterBoundObservation {
-        fixture_id: format!(
-            "{scene_id}/face:{}/loop:{}/stage-f-chain:{chain_index}",
-            truth.face, truth.loop_index
-        ),
-        scene_id: scene_id.to_string(),
-        boundary_id: truth.face,
-        chain: BoundaryChain {
+    Ok((
+        BoundaryChain {
             samples,
             closed: true,
             length_px,
             corr_length_px: chain.corr_length_px,
             vertices: chain.vertices,
         },
-        truth: truth.polyline.clone(),
-        gt_families: truth.families.clone(),
-        gt_breakpoints: breakpoint_indices,
-        stage_f_truth_match_px: match_px,
-        render_cell: render_cell.to_string(),
-    })
+        breakpoint_indices,
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gt_label_alignment_does_not_recut_the_automatic_stage_f_chain() {
+        let points = [
+            Pt::new(10.0, 10.0),
+            Pt::new(0.0, 10.0),
+            Pt::new(0.0, 0.0),
+            Pt::new(10.0, 0.0),
+        ];
+        let samples = points
+            .iter()
+            .map(|point| BoundarySample {
+                p: *point,
+                normal: Pt::new(0.0, 1.0),
+                halfwidth: 0.35,
+                confidence: 1.0,
+                weight_ds: 10.0,
+                corr_length_px: 1.0,
+            })
+            .collect();
+        let raw = BoundaryChain {
+            samples,
+            closed: true,
+            length_px: 40.0,
+            corr_length_px: 1.0,
+            vertices: 4,
+        };
+        let truth = TruthLoop {
+            face: 1,
+            loop_index: 0,
+            polyline: vec![
+                Pt::new(0.0, 0.0),
+                Pt::new(10.0, 0.0),
+                Pt::new(10.0, 10.0),
+                Pt::new(0.0, 10.0),
+            ],
+            breakpoint_points: Vec::new(),
+            families: vec![vice_fit::SpanFamily::Line],
+        };
+
+        let bound = bind_chain(raw.clone(), &truth, "scene", 0, 0.0, "cell").expect("binds labels");
+        assert_eq!(bound.chain, raw, "automatic evidence was GT-reindexed");
+        assert_ne!(
+            bound.forced_chain.samples[0].p, bound.chain.samples[0].p,
+            "fixture must exercise a different GT label seam"
+        );
+        assert_eq!(bound.forced_chain.samples[0].p, truth.polyline[0]);
+    }
 }

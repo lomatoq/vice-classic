@@ -273,7 +273,12 @@ pub(super) struct RasterBoundObservation {
     fixture_id: String,
     scene_id: String,
     boundary_id: usize,
+    /// The Stage-F order exactly as emitted by the observation pipeline.
+    /// Automatic arms must not inherit a cut or orientation from GT.
     chain: BoundaryChain,
+    /// A cyclic reindexing of `chain` used only to express forced GT labels.
+    /// It contains the same physical samples; no authored point enters it.
+    forced_chain: BoundaryChain,
     truth: Vec<Pt>,
     gt_families: Vec<SpanFamily>,
     gt_breakpoints: Vec<usize>,
@@ -408,7 +413,7 @@ fn measure_boundary(
         ));
     }
     let forced = fit_forced_boundary_models(
-        &observation.chain,
+        &observation.forced_chain,
         &observation.gt_families,
         &observation.gt_breakpoints,
         config.canvas_dim_px,
