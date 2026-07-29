@@ -8,6 +8,7 @@ members = [
     "crates/vice-geom",
     "crates/vice-image",
     "crates/vice-ir",
+    "crates/vice-opt",
     "crates/vice-render",
     "crates/vice-topology",
 ]
@@ -42,6 +43,9 @@ exclude = ["runs", "baselines-work"]
 # relation/primitive siblings. It was created HERE and not earlier because
 # §4.1 forbids empty crates for the future and §32 rule 7 forbids placeholder
 # APIs.
+# M7: vice-opt — the crate §4 lists as posterior, continuous/discrete
+# optimization, and supported-search accounting. It is created in M7 together
+# with those first executable responsibilities.
 
 [workspace.package]
 edition = "2021"

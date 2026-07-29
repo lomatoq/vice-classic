@@ -1,0 +1,16 @@
+[package]
+name = "vice-opt"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "vice-classic M7: correlation-aware posterior, supported-search accounting, compound transactions, and current-parent trust-region optimization"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+vice-image = { path = "../vice-image" }
+vice-ir = { path = "../vice-ir" }
+vice-render = { path = "../vice-render" }
