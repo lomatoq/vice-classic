@@ -139,10 +139,12 @@ bits_per_relation = 2.584963
 #
 # So the WHOLE surface is frozen by content: `vice_fit::pricing_surface_v1`
 # enumerates every price the grammar consults - span and whole-loop family
-# flags/free parameters, relation flags and determined scalars, the full
-# free_scalars domain, the join-kind count, the Huber loss at probes bracketing
-# its knee, the gap code, the coordinate-bits factor, jet-compatibility pruning
-# and smooth-join reachability - by CALLING the real functions, and this key is
+# flags/free parameters, relation flags, determined scalars and saving
+# ownership, the full free_scalars domain, the join-kind count and path-order
+# policy, the Huber loss at probes bracketing its knee, independent-observation
+# counts including overflow refusal, the gap code, the coordinate-bits factor,
+# jet-compatibility pruning and smooth-join reachability - by CALLING the real
+# functions, and this key is
 # the SHA-256 of that enumeration. Any repricing anywhere on the surface moves
 # the hash and fails `every_frozen_value_agrees_with_the_code_that_uses_it`,
 # making the §27.7 commit unavoidable rather than polite.
@@ -152,7 +154,7 @@ bits_per_relation = 2.584963
 # which is the loss's one structural feature.
 [geometry_pricing]
 status = "frozen"
-pricing_surface_sha256 = "e8cd9a8a7d04ebb0dcacf0696ba38342b40216625d43c4331055d89a6094c38a"
+pricing_surface_sha256 = "932c083e0a330ca2983a6cf3d96d9e8d6e80fffc93d7c1a3874f7e15670e418e"
 
 # --- Observation noise (§17.1; measured in M4) -------------------------------
 # MEASURED, not chosen, on the development split by
