@@ -1214,3 +1214,134 @@ closed.
 CI configuration now runs the complete M6 evidence path, but this local author
 run is not evidence that GitHub’s remote jobs have executed. Remote CI status
 must be reported by the publisher/reviewer, not inferred from the YAML.
+
+# Addendum 5 — repaired M6 candidate after final cold-review/red-team blockers
+
+This addendum supersedes Addendum 4’s current measurements, hashes and
+five-arm provenance. The older text remains an audit record of the candidate
+that the final independent reviewers blocked.
+
+The author still does not self-certify. The exact candidate described here is
+submitted to two independent cold reviews and one separate red-team review.
+
+## A5.1 What changed after the blocked candidate
+
+The repaired Stage G/H path now:
+
+1. ranks and validates the geometry produced by the joint refit, never a stale
+   pre-refit residual;
+2. stores the selected constrained relation or whole-loop primitive as the
+   actual `SelectedBoundaryGeometry`, so export and error measurement cannot
+   flatten a losing sibling;
+3. represents the closed-loop seam explicitly, including its G1 constraint;
+4. filters unmaterializable transitions before they can consume one of the
+   frozen K paths;
+5. checks the evidence corridor symmetrically, observation-to-model and
+   model-to-observation;
+6. preserves closed-loop semantics in forced G20 fits and budgets all canonical
+   openings together, with at most four persistent-corner openings;
+7. searches and materializes mirror/repeated-transform relation siblings;
+8. prices angles by their actual angle domain rather than a coordinate range.
+
+C339–C347 carry these changes and their direct negative witnesses. The repaired
+model universe, pricing and search constants are bound by C342 and frozen by
+the config-only C343.
+
+## A5.2 Raster-derived five-arm oracle
+
+The previous 205-row artifact fitted samples derived from canonical GT
+geometry. Its large population was therefore not evidence that Stage F could
+produce the inputs, and nearly all rows were single-span. C348 replaces that
+instrument.
+
+The final oracle renders one scene from every independent development source
+group plus three certified M6 family/joint witnesses through an independent
+ExactClip/Box/linear/no-resize cell at 128 px. It then runs canonical decode,
+the production Flat2 analysis and production boundary observation. GT is used
+only to:
+
+- match a closed Stage-F chain to a face loop within 2 px;
+- label forced families and breakpoints;
+- construct the independent scoring target.
+
+No authored curve sample enters a fitter. Every arm stores the complete
+five-part compatibility key at construction time and the SHA-256 of its
+materialized selected geometry. Selector positive controls compare those
+geometry hashes.
+
+The common population is deliberately exact rather than padded:
+
+| quantity | measured |
+|---|---:|
+| source groups / scenes | 25 / 25 |
+| Stage-F closed chains attempted | 18 |
+| rows completing all five arms | 6 |
+| exclusions, including pre-fit Stage-F/binding refusals | 21 |
+| arm rows | 30 |
+| forced candidate injections | 11 |
+| material geometry changes G01 / G10 / G11 | 2 / 4 / 1 |
+| multi-span / heterogeneous-family rows | 6 / 2 |
+| arc / quadratic / cubic-labelled rows | 1 / 1 / 2 |
+| G20 multi-candidate / selected-smooth rows | 2 / 2 |
+| rows selecting Stage-H relation / primitive geometry | 3 / 2 |
+
+All published counts are re-derived from the rows by the gate. Each of the 18
+gate clauses has a negative knockout. Losing a family, joint, Stage-H
+selection, raster witness, compatibility component or selector geometry turns
+its own clause red.
+
+Aggregate symmetric maximum error:
+
+| arm | mean max px | worst max px |
+|---|---:|---:|
+| G00 | 0.5240710784 | 1.2397753223 |
+| G10 | 0.2626356432 | 0.6218945873 |
+| G01 | 0.5176101068 | 1.2010094931 |
+| G11 | 0.2622747938 | 0.6218945873 |
+| G20 | 0.2626356432 | 0.6218945873 |
+
+These errors are larger than Addendum 4’s numbers because they measure fitted
+Stage-F raster evidence rather than samples manufactured from the scoring
+geometry. That increase is evidence that the inverse path is now present, not
+a regression hidden by changing the metric.
+
+The current identities are:
+
+- model universe `47903d73…0f097`;
+- pricing surface `a8df2e99…95360`;
+- backend source `7cd987a4…e4563`;
+- five-arm compatibility fingerprint `00b0bb04…e33d5`.
+
+C349 is the config-only freeze of the measured floors. C351 keeps every
+production module under 800 lines and extends the source digest over the moved
+modules. C352 is the Tier-A artifact, reproduced byte-for-byte on
+`windows-x86_64`.
+
+## A5.3 Gate and governance
+
+The §28 M6 gate is **MET as a completion candidate**:
+
+| clause group | result | non-vacuity |
+|---|---|---|
+| exact G1 after joint solve | **MET** | every selected smooth node, including the closure seam, is read from materialized geometry; inconsistent controls fail |
+| sample/cut/transform invariance | **MET** | six registered legs, multiple bounded canonical cuts and an explicit closed seam |
+| G00/G10/G01/G11/G20 decomposition | **MET** | 6 raster-derived common rows, all five arms, geometry-hash changes 2/4/1 |
+| no BIC-only promotion | **MET** | physical-code winner changes under the registered cheap-code knockout |
+
+The earlier mixed C331 was a real §27.7 defect. History now contains C331a
+code-only and C331b config-only; the project’s own per-commit `gates-check`
+passes every one of the 41 commits from `origin/main` through this candidate.
+
+`REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-11. Defect classes
+F-0108…F-0116 record the final repair rather than letting Addendum 4’s invalid
+claim disappear.
+
+## A5.4 Boundary of the stop
+
+M6 does not claim scene-level posterior selection, full-resolution final
+likelihood, compound topology/geometry search, optimizer convergence,
+selective-delivery confidence, sealed export or post-quantization SVG
+verification. Those are successor milestones.
+
+The sealed audit remains unopened. M7 is not started until the required
+independent verdicts accept this exact HEAD.

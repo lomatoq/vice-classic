@@ -4352,3 +4352,144 @@ generation/gating and committed replay have runners.
 **Status.** Closed in C335. Ubuntu CI runs the corpus population and a fresh
 five-arm gated report; Windows CI replays every row of the committed Tier-A
 artifact.
+
+## F-0108 — Ranking a constrained solve by its unconstrained residual selects a geometry that was never judged (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold reviews A and B.
+
+**What happened.** Joint refit changed control geometry, but ranking and
+corridor checks retained a residual computed before that solve. The row could
+charge one geometry and deliver another.
+
+**Class rule.** Every score, feasibility check and exported witness must be
+derived from the same materialized candidate after its last constraint.
+
+**Status.** Closed in C339. Refit returns the delivered geometry; residual,
+proposal comparison and corridor validation are recomputed from it, with a
+regression where the old and new rankings disagree.
+
+## F-0109 — A selected Stage-H sibling can exist only as an accounting delta (M6 final cold review/red team, 2026-07-29)
+
+**Found by.** Both cold reviews and the red team.
+
+**What happened.** Relations and whole-loop primitives could reduce the code
+while `BoundaryModel` continued to carry and flatten the unconstrained typed
+chain. Deleting the constrained geometry still reproduced the artifact.
+
+**Class rule.** A selected hypothesis is a value, not a discount. Downstream
+consumers must be unable to flatten the losing sibling after charging the
+winner.
+
+**Status.** Closed in C340 with `SelectedBoundaryGeometry`. Relation and
+primitive winners store their own constrained geometry; mirror and repeated
+transform siblings are generated and materialized; deletion knockouts change
+the result.
+
+## F-0110 — A closed chain can satisfy every stored interior join while its seam is unconstrained (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review A.
+
+**What happened.** Smoothness was represented between consecutive spans, but
+the implicit last-to-first seam of a closed contour had no corresponding
+constraint or measurement.
+
+**Class rule.** Cyclic invariants include the wrap edge. A list proof is not a
+cycle proof unless it names the seam.
+
+**Status.** Closed in C341. `closure_smooth` is explicit, participates in the
+joint solve and exact-G1 instrument, and has positive and malformed witnesses.
+
+## F-0111 — Unmaterializable grammar paths consumed the frozen K slots (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review B.
+
+**What happened.** The DP returned the eight cheapest discrete paths before
+checking whether their smooth joins could be represented. Eight impossible
+paths could hide the first valid ninth path.
+
+**Class rule.** A bounded top-K over deliverable candidates filters
+non-candidates before K, not after.
+
+**Status.** Closed in C344. Reachability of the materializer is part of the
+transition predicate; the permanent witness places valid geometry behind more
+than K impossible prefixes.
+
+## F-0112 — A one-sided corridor admits geometry that leaves the evidence between samples (M6 final red team, 2026-07-29)
+
+**Found by.** Red team.
+
+**What happened.** Evidence samples were close to the model, but no check
+bounded model points back to the evidence. A curve could make a 714 px
+excursion between observed samples and pass.
+
+**Class rule.** Geometric corridor feasibility is symmetric unless the missing
+direction is proved redundant.
+
+**Status.** Closed in C345. Solver, relation and primitive candidates publish
+and enforce both directions; the excursion is a permanent knockout.
+
+## F-0113 — Opening a loop once turns a cyclic search into an arbitrary linear hypothesis (M6 final cold review/red team, 2026-07-29)
+
+**Found by.** Both cold reviews and the red team.
+
+**What happened.** Forced G20 dropped closed semantics, and automatic fitting
+used one canonical opening. The closure seam disappeared; a different start
+could change which K paths were available and each opening could spend a fresh
+candidate budget.
+
+**Class rule.** Representation choices are hypotheses when they affect search.
+Enumerate a bounded declared set and charge one physical-object budget across
+them.
+
+**Status.** Closed in C346–C347. Forced fits preserve closure; automatic fits
+rank at most four persistent-corner openings; repeated seam samples carry zero
+span weight; candidate cost is aggregated over all cuts.
+
+## F-0114 — A large oracle population can be an inverse crime with no Stage-F input path (M6 final red team, 2026-07-29)
+
+**Found by.** Red team and both cold reviews.
+
+**What happened.** The 205-row geometry artifact sampled canonical GT curves
+directly, so it bypassed raster decode, Flat2 evidence and Stage-F boundary
+observation. Most rows were also single-span, leaving joint/family claims
+untested.
+
+**Class rule.** An oracle may use GT for intervention labels and scoring, but
+the fitted observation must traverse the production inverse path. Population
+size does not compensate for missing requirement families.
+
+**Status.** Closed in C348–C352. The common population comes from independent
+rasters and production Stage F; certified raster witnesses cover heterogeneous
+quad/cubic spans, arcs, forced alternatives, smooth joints and Stage-H
+selection.
+
+## F-0115 — A selector-change counter can change without selected geometry changing (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review A.
+
+**What happened.** Source labels or object identity could count as G01/G10/G11
+changes even if both paths materialized the same geometry. Aggregate counters
+were accepted as report inputs.
+
+**Class rule.** A geometry-selector positive control compares geometry, and a
+gate re-derives claims from primary rows rather than trusting their summary.
+
+**Status.** Closed in C348. Each arm stores SHA-256 of serialized
+`SelectedBoundaryGeometry`; selector counts and all coverage counts are
+re-derived from rows. Every gate row has a negative knockout.
+
+## F-0116 — A gate-only rule that fails on historical commits is not repaired by a clean tip (M6 final cold review, 2026-07-29)
+
+**Found by.** Independent cold review B.
+
+**What happened.** C331 changed `configs/GATES_V1.toml` and a Rust universe
+witness together. Later commits were clean, but CI walks every commit in the
+pushed range, so the complete delivery still failed §27.7.
+
+**Class rule.** Commit-level governance is a property of the delivered history,
+not only the final tree.
+
+**Status.** The mixed commit was split into C331a code-only and C331b
+config-only with a content-identical replay of later commits. The project’s own
+checker passes all 41 commits from `origin/main` to the repaired candidate; the
+pre-rewrite history remains recoverable on `codex/m6-pre-history-repair`.

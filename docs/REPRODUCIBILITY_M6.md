@@ -11,14 +11,17 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
   `[geometry_pricing]` and `[m6_geometry]`;
 - geometry artifact: `docs/gt/GEOMETRY_M6.json`;
 - model universe:
-  `fdcd283a01c3987aa58caa5698e5dd17fab36f595bf55e18e25613713c107359`;
+  `47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097`;
 - geometry pricing surface:
-  `4d90681d4b77129d9017ddfe5809ee249611e9c3dc7f8a56f908e40ca2b81d42`;
+  `a8df2e99b1f22ff0288f44f7256059c9f481a2565254eb16bff0b83bd5195360`;
+- Stage G/H backend source:
+  `7cd987a466f3a5fa1914eb80e7fc6ef03ec16d1e4d36dcc90184047161ce4563`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
-`GEOMETRY_M6.json.measurements.config` carries both hashes. Therefore a grammar
-or pricing change changes the §27.6 compatibility key instead of silently
-retaining the old fingerprint.
+`GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
+budget, K and the four-cut closed-loop policy. Therefore a model, price,
+materialization or search-policy change changes the §27.6 compatibility key
+instead of silently retaining the old fingerprint.
 
 ## 2. Build and default verification
 
@@ -69,7 +72,7 @@ occur.
 
 ## 4. Five-arm geometry artifact
 
-Record and gate the full development population:
+Record and gate the raster-derived common population:
 
 ```text
 cargo run --locked --release --bin gt-corpus -- geometry-m6 \
@@ -89,26 +92,34 @@ Expected population and gate witnesses:
 
 | clause | measured | frozen requirement |
 |---|---|---|
-| common population | 205/205 boundaries; 0 exclusions | `>= 100` |
+| common population | 6 of 18 observed closed chains complete all five arms | `>= 6` |
 | exact arm set | G00, G10, G01, G11, G20 on every boundary | exactly 5 |
-| compatibility | 1,025 arm rows share key `c74a63c…e2888` | one identical five-component key |
-| oracle candidate injection | 205 forced-discrete fits | `>= 100` |
-| oracle selector positive control | 14 G01 choices differ from G00 | `>= 1` |
+| compatibility | 30 arm rows share key `00b0bb04…e33d5` | one identical five-component key |
+| raster provenance | 6 rows from independent ExactClip raster → production Stage F | `>= 6` |
+| oracle candidate injection | 11 forced-discrete fits | `>= 10` |
+| material selector changes | G01/G10/G11 = 2/4/1 geometry hashes | `>= 1/1/1` |
+| multi-span / heterogeneous | 6 / 2 rows | `>= 6/2` |
+| arc / quad / cubic GT labels | 1 / 1 / 2 rows | `>= 1/1/2` |
+| forced joint alternatives / smooth | 2 / 2 rows | `>= 2/2` |
+| selected Stage H relations / primitives | 3 / 2 rows | `>= 2/1` |
 
 Aggregate symmetric maximum error:
 
 | arm | mean max px | worst max px | interpretation |
 |---|---:|---:|---|
-| G00 | 0.0059325734 | 0.1520221988 | auto candidates + auto selector |
-| G10 | 0.0059325734 | 0.1520221988 | forced candidate union + auto selector |
-| G01 | 0.0004072413 | 0.0104374370 | auto set + oracle selector |
-| G11 | 0.0004072413 | 0.0104374370 | forced set + oracle selector |
-| G20 | 0.0004072413 | 0.0104374370 | forced families/breakpoints + production parameter fit |
+| G00 | 0.5240710784 | 1.2397753223 | auto candidates + auto selector |
+| G10 | 0.2626356432 | 0.6218945873 | forced candidate union + auto selector |
+| G01 | 0.5176101068 | 1.2010094931 | auto set + oracle selector |
+| G11 | 0.2622747938 | 0.6218945873 | forced set + oracle selector |
+| G20 | 0.2626356432 | 0.6218945873 | forced families/breakpoints + production parameter fit |
 
-G10 matching G00 is a measured result, not a vacuous arm: 205 forced candidates
-were injected. G01 is the selector positive control. G20 never receives GT
-parameters; it calls the typed forced-discrete API and the production joint
-solver.
+All fit inputs are `BoundaryChain`s extracted by the production Stage-F path
+from an independently rendered 128 px raster. GT is used only to bind a
+Stage-F chain to a face loop, label families/breakpoints for the forced arms,
+and build the scoring target. G20 never receives GT parameters; it calls the
+typed forced-discrete API and the production joint solver. Selector changes
+compare SHA-256 of serialized materialized geometry, not pointers, source
+labels or code bits.
 
 The artifact is Tier A because the geometry contains libm-derived floats.
 `geometry-m6-check` therefore performs the full comparison only on the
@@ -121,12 +132,18 @@ float rows as if they were portable bytes.
 The relevant sequence is intentionally split:
 
 1. C325/C326 register placeholder gate keys;
-2. C327 lands consumers and the five-arm harness;
-3. C328 freezes measured thresholds in a gate-file-only commit;
+2. C327 lands consumers and the first five-arm harness;
+3. C328 freezes its first thresholds in a gate-file-only commit;
 4. C330 changes the primitive/relation model universe and pricing;
-5. C331 freezes the resulting universe/pricing hashes in a gate-only commit;
-6. C333 binds both hashes into the intervention config;
-7. C334 records the artifact produced by that exact config.
+5. C331a changes the universe witness; C331b separately freezes pricing;
+6. C339–C348 repair materialization, seam/search semantics and the
+   raster-derived oracle;
+7. C342 binds the repaired model/search surface and C343 is its config-only
+   re-freeze;
+8. C348 lands the final row-derived consumers and C349 freezes their thresholds
+   in a config-only commit;
+9. C351 splits the repaired source under the hygiene bound while extending the
+   backend digest to the new modules, and C352 records the final artifact.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 
@@ -139,11 +156,11 @@ CI applies this per commit over the whole pushed range.
 
 ## 6. What is and is not claimed
 
-M6 claims a boundary-observation MDL selector and constrained hypotheses. It
-does not call `ChainCode::total_bits()` the final pixel posterior: the
-correlation-aware full-resolution likelihood, scene-level compound search,
-trust-region constrained re-solve, local-isotopy binding, export and
-post-quantization verification are M7 work.
+M6 claims a boundary-observation MDL selector and materialized constrained
+hypotheses. It does not call `ChainCode::total_bits()` the final pixel
+posterior: the correlation-aware full-resolution likelihood, scene-level
+compound search, local-isotopy binding, export and post-quantization
+verification remain successor work.
 
 Whole-loop promotion is not permission to emit a native SVG primitive. Native
 emission still requires the three §15 conditions: exact canonical boundary

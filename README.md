@@ -4,8 +4,10 @@
 Единственный source of truth: `VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`
 (SHA-256 `652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1`).
 
-**Текущее состояние: M4.5 (cubical event topology envelope), автор
-остановлен на gate; ждёт независимого cold review.**
+**Текущее состояние: M6 completion candidate.** Stage G/H, joint refit,
+relations/primitives і растра-выведзены пяцірукі geometry oracle дастаўлены;
+аўтар спынены перад M7 і чакае два незалежныя cold review плюс асобны red-team
+вердыкт на дакладным HEAD.
 
 Приняты независимыми review: M0, M1 ([REVIEW_M0](docs/REVIEW_M0.md),
 [REVIEW_M1](docs/REVIEW_M1.md)); M2 — двумя review плюс отдельный
@@ -19,8 +21,10 @@ M4 получил от независимого cold review **REJECT** с тре
 **ACCEPT** в addendum-е после дельты ([docs/REVIEW_M4.md](docs/REVIEW_M4.md)),
 с условиями D1 и D2 к следующему гейту. Оба закрыты в M4.5.
 
-M4.5 остановлен на своём гейте: `docs/STATUS_M4_5.md`. Автор НЕ
-самосертифицирует (§32 п. 29, §34), поэтому **M5 не начат и не разрешён**.
+M4.5 і M5 прыняты пасля сваіх незалежных review-цыклаў. Бягучы M6 gate і
+рэпрадукцыйны кантракт знаходзяцца ў `docs/STATUS_M6.md` і
+`docs/REPRODUCIBILITY_M6.md`. Аўтар НЕ самасертыфікуе (§32 п. 29, §34), таму
+**M7 яшчэ не пачаты**.
 
 ## Что здесь есть
 
@@ -53,24 +57,26 @@ M4.5 остановлен на своём гейте: `docs/STATUS_M4_5.md`. А�
   тремя уровнями pruning и dual/primal continuation, честная относительно
   того, чего без DCEL сделать нельзя. Ничто здесь не выбирает победителя:
   §11.3 требует конверта, и гейт мерит RECALL.
+- `crates/vice-fit` (M6) — hierarchical span generation, budgeted k-best
+  jet-compatible grammar, joint constrained refit, physical-bit coding,
+  materialized Stage-H relation/primitive siblings і closed-loop semantics.
 - `crates/vice-cli` (M4) — `vicec evidence`: исполняемый путь милестоуна.
   `vicec vectorize` НЕ объявлен, потому что за ним пока нет ни топологии,
-  ни фиттера.
+  ни scene-level search/posterior/sealed export plan.
 - `tests/fixtures/smoke/` — фиксированный smoke corpus (5 PNG, побайтово
   воспроизводится `gen-smoke`-ом, зафиксирован `SMOKE_MANIFEST.toml`).
 - `configs/baselines.toml` — явные команды baseline-ов, лимиты ресурсов.
 - Provenance: `SOURCE_PINS.toml`, `PORTING_MANIFEST.toml` (ноль
   перенесённых блоков), `THIRD_PARTY_NOTICES.md`.
-- `docs/gt/` (M3, M3.5, M4, M4.5) — GT-корпус, его manifest и seal, oracle-,
-  corridor- и topology-артефакты. Все три отчётных артефакта — Tier A: несут
-  свою платформу и отказываются сравниваться с чужой.
+- `docs/gt/` (M3…M6) — GT-корпус, manifest/seal, oracle-, corridor-,
+  topology-, DCEL- і geometry-артефакты. Tier-A справаздачы нясуць сваю
+  платформу і адмаўляюцца параўноўвацца з чужой.
 - Governance: `REQUIREMENTS_TRACEABILITY.md`, `FAILURE_LEDGER.md`,
   `docs/ADR/`.
 
-Чего здесь осознанно НЕТ: topology envelope, fitter, optimizer,
-SVG-экспорт, UI/WASM/AI — они появляются только в своих milestones. M4
-производит ГИПОТЕЗЫ и наблюдения, а не доставку: ни одной сцены он не
-доставляет и ни одного confidence-числа не производит.
+Чего здесь осознанно НЕТ: M7 scene search/full posterior, M8 optimizer,
+selective-delivery confidence, sealed export plan, SVG-экспорт, UI/WASM/AI.
+M6 выбірае boundary-local geometry, але не выдае яе за завершаную сцэну.
 
 ## Быстрые команды
 
