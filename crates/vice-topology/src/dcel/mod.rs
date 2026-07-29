@@ -66,6 +66,26 @@
 //! [`lattice::Dir::ALL`], every face id comes from raster order of its first
 //! pixel, and the exterior is always [`FaceId::EXTERIOR`]. §5.5 Tier A is a
 //! byte comparison for this structure: it contains no float.
+//!
+//! **What of that is CHECKED, and what is only promised** (REVIEW_M5_A D5-N1).
+//! The class the reviewer named generalises five deltas in one sentence:
+//! everything bound to the input is bound as a SET or as a CYCLIC SEQUENCE, and
+//! every freedom left over — the choice of INDEX and the choice of ORDER — is
+//! bound only to itself. Two instances were executed against this tree and both
+//! left `audit` returning nothing: permuting `vertices` with a consistent remap
+//! of every `start`/`end`, and permuting the ids of two faces carrying the SAME
+//! label, which the labelling anchor cannot see because it compares LABELS
+//! rather than ids.
+//!
+//! - vertex ORDER is checked, since delta-6: the canonical order is the one the
+//!   derived `BTreeSet` produces and [`loops::vertices_agree_with_the_labelling`]
+//!   compares sequences, not sets;
+//! - face NUMBERING and the order of `loops` within a face are NOT checked. The
+//!   paragraph above promises them and nothing enforces them; a permutation
+//!   consistent everywhere is invisible. It costs the topology nothing — no
+//!   count, no class and no clause moves — and it is stated here rather than
+//!   left as an unexamined promise. **Owner M6**, where §14.2 turns chains into
+//!   span candidates and an index becomes something a later stage quotes.
 
 pub mod audit;
 pub mod certificate;

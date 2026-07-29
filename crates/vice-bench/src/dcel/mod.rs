@@ -238,19 +238,27 @@ pub struct DcelArm {
     pub dcel_class: GtSignature,
     pub agrees_with_the_independent_chain: bool,
     pub audit_ok: bool,
-    /// Directed boundary steps. ZERO means the labelling has no interface at
-    /// all — `adv/sliver` digitizes to nothing under the §5.3 majority rule —
-    /// and such an arm carries a valid but EMPTY arrangement. It is measured
-    /// like any other and then counted separately, because a clause carried by
-    /// arms that contain nothing is a clause about nothing.
-    pub directed_steps: u32,
+    /// What the audit COUNTED, or `None` when the audit refused.
+    ///
+    /// REDTEAM_M5 RT5-A21: these were flat fields and the error path wrote
+    /// `(0, 0, 0, 0, 0, 0)` into them. `directed_steps == 0` is also the
+    /// definition of "the labelling has no interface", so an arm the INSTRUMENT
+    /// rejected became indistinguishable from an arm with nothing in it —
+    /// F-0058 and meta-rule M-4 collapsed into one number. Measured under a
+    /// corruption: 8 empty arms became 22, and the 14 were audit failures.
+    ///
+    /// Three consequences, all live in the run a reviewer reads: the evidence
+    /// row described those 14 as "valid but EMPTY … `adv/sliver` is thinner
+    /// than a pixel", which is false of them; the refusals left the DENOMINATOR
+    /// the floors are measured against; and the two conditions could not be
+    /// told apart at all.
+    ///
+    /// The rule the fix encodes: **an error path may not write ZERO into a
+    /// field that elsewhere means "there was no subject".** `Option` says
+    /// "the instrument did not report" in a way no count can imitate.
+    pub audit: Option<ArmAudit>,
     pub is_its_own_assembly: bool,
-    pub vertices: u32,
-    pub boundaries: u32,
-    pub segments: u32,
-    pub loops: u32,
-    pub faces: u32,
-    pub skeleton_components: u32,
+
     /// The longest face loop, in HALF-EDGES, and how many loops have three
     /// or more.
     ///
@@ -264,10 +272,7 @@ pub struct DcelArm {
     /// exercised TOMORROW.
     pub longest_loop: u32,
     pub loops_of_three_or_more: u32,
-    /// `V - B + L` and `2C`: the Euler identity, both sides published so a
-    /// reader can check the arithmetic rather than trust the boolean.
-    pub euler_lhs: i64,
-    pub euler_rhs: i64,
+
     /// The class this arm carries OUT of the M5 stage. Equal to `dcel_class`
     /// in production; under the proxy knockout the stage overwrites it with
     /// the group's first class, which is what "picking a winner" does. §32
@@ -285,6 +290,25 @@ pub struct DcelArm {
     /// (REVIEW_M5_A N2). F-0058's own rule is that a filter deciding membership
     /// by looking at the answer must publish what it excluded.
     pub excluded_from_transactions_as_compound: bool,
+}
+
+/// The counts one audit produced. Absent when the audit refused (RT5-A21).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct ArmAudit {
+    /// Directed boundary steps. ZERO means the labelling has no interface at
+    /// all — `adv/sliver` digitizes to nothing under the §5.3 majority rule —
+    /// and such an arm carries a valid but EMPTY arrangement.
+    pub directed_steps: u32,
+    pub vertices: u32,
+    pub boundaries: u32,
+    pub segments: u32,
+    pub loops: u32,
+    pub faces: u32,
+    pub skeleton_components: u32,
+    /// `V - B + L` and `2C`: the Euler identity, both sides published so a
+    /// reader can check the arithmetic rather than trust the boolean.
+    pub euler_lhs: i64,
+    pub euler_rhs: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -594,17 +618,19 @@ fn arm_from_labelling(
         holes: d.holes() as u32,
     };
 
-    let (v, b, l, f, c, steps) = match &a {
-        Ok(r) => (
-            r.vertices,
-            r.boundaries,
-            r.loops,
-            r.faces,
-            r.skeleton_components,
-            r.directed_steps,
-        ),
-        Err(_) => (0, 0, 0, 0, 0, 0),
-    };
+    // No zero-filled error arm: `None` is what the instrument not reporting
+    // looks like, and it cannot be mistaken for a count (RT5-A21).
+    let arm_audit = a.as_ref().ok().map(|r| ArmAudit {
+        directed_steps: r.directed_steps,
+        vertices: r.vertices,
+        boundaries: r.boundaries,
+        loops: r.loops,
+        faces: r.faces,
+        skeleton_components: r.skeleton_components,
+        segments: d.segment_count() as u32,
+        euler_lhs: i64::from(r.vertices) - i64::from(r.boundaries) + i64::from(r.loops),
+        euler_rhs: 2 * i64::from(r.skeleton_components),
+    });
 
     // The M5 stage carries topologies through. `topologies_out` is where §32
     // rule 14 becomes falsifiable, and the knockout is the world where it is.
@@ -662,18 +688,10 @@ fn arm_from_labelling(
         dcel_class,
         agrees_with_the_independent_chain: dcel_class == truth,
         audit_ok: a.is_ok(),
-        directed_steps: steps,
+        audit: arm_audit,
         is_its_own_assembly: own,
-        vertices: v,
-        boundaries: b,
-        segments: d.segment_count() as u32,
-        loops: l,
-        faces: f,
-        skeleton_components: c,
         longest_loop: longest_loop as u32,
         loops_of_three_or_more: long_loops as u32,
-        euler_lhs: i64::from(v) - i64::from(b) + i64::from(l),
-        euler_rhs: 2 * i64::from(c),
         class_out: dcel_class,
         excluded_from_transactions_as_compound: transaction.is_none() && t.width_px >= 16,
         transaction,

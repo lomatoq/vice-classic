@@ -124,6 +124,11 @@ pub struct DcelReport {
     /// is evidence for nothing.
     pub arms_with_an_empty_arrangement: u64,
     pub arms_with_a_non_empty_arrangement: u64,
+    /// Arms on which the AUDIT REFUSED. Its own number, because an arm the
+    /// instrument rejected is not an arm with nothing in it: the error path used
+    /// to write zero into `directed_steps`, which is also the definition of
+    /// "empty", so F-0058 and meta-rule M-4 shared one counter (RT5-A21).
+    pub arms_where_the_audit_refused: u64,
     pub sealed_audit_groups_skipped: u64,
 
     // --- clause 1 -------------------------------------------------------
@@ -261,10 +266,17 @@ pub fn build(run: &DcelRun) -> DcelReport {
         corpus_arms: run.arms.iter().filter(|a| a.source == "corpus").count() as u64,
         structural_arms: run.arms.iter().filter(|a| a.source == "structural").count() as u64,
         arms_refused: run.refused.len() as u64,
-        arms_with_an_empty_arrangement: run.arms.iter().filter(|a| a.directed_steps == 0).count()
-            as u64,
-        arms_with_a_non_empty_arrangement: run.arms.iter().filter(|a| a.directed_steps > 0).count()
-            as u64,
+        arms_with_an_empty_arrangement: run
+            .arms
+            .iter()
+            .filter(|a| a.audit.is_some_and(|x| x.directed_steps == 0))
+            .count() as u64,
+        arms_with_a_non_empty_arrangement: run
+            .arms
+            .iter()
+            .filter(|a| a.audit.is_some_and(|x| x.directed_steps > 0))
+            .count() as u64,
+        arms_where_the_audit_refused: run.arms.iter().filter(|a| a.audit.is_none()).count() as u64,
         sealed_audit_groups_skipped: run.sealed_audit_groups_skipped,
 
         groups: in_classes.len() as u64,
@@ -283,7 +295,7 @@ pub fn build(run: &DcelRun) -> DcelReport {
         arms_failing_the_euler_identity: run
             .arms
             .iter()
-            .filter(|a| a.euler_lhs != a.euler_rhs)
+            .filter(|a| a.audit.is_some_and(|x| x.euler_lhs != x.euler_rhs))
             .count() as u64,
         distinct_classes: classes.len() as u64,
         classes: classes.into_iter().collect(),
@@ -293,7 +305,7 @@ pub fn build(run: &DcelRun) -> DcelReport {
         transactions_committed_on_non_empty_arms: run
             .arms
             .iter()
-            .filter(|a| a.directed_steps > 0)
+            .filter(|a| a.audit.is_some_and(|x| x.directed_steps > 0))
             .filter_map(|a| a.transaction.as_ref())
             .filter(|t| t.committed)
             .count() as u64,
@@ -591,7 +603,13 @@ impl DcelReport {
                      - `adv/sliver` is thinner than a pixel and the §5.3 majority rule digitizes \
                      it to nothing - and they are audited like the rest while no clause is allowed \
                      to stand on them, because an arm that contains nothing is evidence for \
-                     nothing. What makes those zeros evidence rather than silence is the \
+                     nothing. SEPARATELY from those, {} arm(s) are ones the AUDIT REFUSED, which \
+                     is a different thing and until delta-6 was not: the error path wrote zero \
+                     into the step count, and zero is also how an empty labelling is recognised, \
+                     so an arm the instrument rejected was counted as an arm with nothing in it \
+                     and this sentence described it as a sliver thinner than a pixel (RT5-A21). \
+                     An error path may not write a value that elsewhere means the subject was \
+                     absent. What makes those zeros evidence rather than silence is the \
                      MUTATION WALK, which is the world in which the audit is red: on {} sampled \
                      arrangements out of {} arms seen it perturbed {} derived slots one at a time \
                      - the walk is an exhaustive destructuring of the structure, so a field added \
@@ -621,7 +639,20 @@ impl DcelReport {
                      alone catches 3 the rebuild does not, and 160 fall to both - so citing both is \
                      not citing one twice. The §12 ORIENTED clause is a third check, added in \
                      delta-3: loops re-derived from the labelling, which is what a reordering of \
-                     one loop moves and neither of the other two can see (RT5-A13). ITS \
+                     one loop moves and neither of the other two can see (RT5-A13). WHAT THIS \
+                     ROW DOES NOT CERTIFY, in the same tone as the anchor sentence above: it \
+                     certifies the fields the structure has TODAY, not a property of the \
+                     structure. A field ADDED by a later commit whose type serialises to \
+                     nothing - a newtype writing `serialize_none()` - is invisible to the \
+                     perturbation walk, to the leaf count that guards the walk's completeness \
+                     and to this artifact, and it can carry a systematically wrong value \
+                     behind a public accessor with all four clauses MET (REDTEAM_M5 RT5-A16, \
+                     nine lines). The leaf count is keyed on the serialization, so a type that \
+                     serialises to nothing moves the ruler rather than the measurement. \
+                     Closing the CLASS needs a proc-macro deriving the perturbation sites and \
+                     the leaf count from ONE definition, which is a new crate and is owned by \
+                     M6; this row states the boundary instead of implying it is not there. \
+                     ITS \
                      POPULATION, which delta-3 published nowhere: {} arm(s) carry a face \
                      loop of three or more half-edges - {} from the corpus and {} from the \
                      structural register - the longest is {} half-edges, and {} such loops \
@@ -635,6 +666,7 @@ impl DcelReport {
                     self.arms_with_a_non_empty_arrangement,
                     self.arms_that_are_not_their_own_assembly,
                     self.arms_with_an_empty_arrangement,
+                    self.arms_where_the_audit_refused,
                     p.arrangements_probed,
                     p.arms_seen,
                     p.slots_perturbed,
@@ -671,6 +703,7 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "arms_refused",
         "arms_with_an_empty_arrangement",
         "arms_with_a_non_empty_arrangement",
+        "arms_where_the_audit_refused",
         "sealed_audit_groups_skipped",
         "groups",
         "classes_in",

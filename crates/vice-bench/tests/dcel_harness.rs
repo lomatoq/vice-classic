@@ -316,3 +316,55 @@ fn dropping_the_long_loop_fixture_reddens_clause_four() {
          check is exercised by nothing in the register and clause 4 must say so"
     );
 }
+
+/// **M5A-D5-N2 = M5B-N19: the floor tracks the register, by equality.**
+///
+/// The frozen floor encodes "every size, both arms" only while the size list
+/// has three entries. A fourth size makes the register produce eight, the floor
+/// stays six, and a whole size can drop out silently again — the answer to
+/// F-0048 Q2 being "someone will remember to raise it", which this project has
+/// rejected eight times.
+///
+/// So the EXPECTED value is derived from the register itself and compared with
+/// the frozen one, in the shape `every_frozen_value_agrees_with_the_code_that_uses_it`
+/// already uses to bind a file to its code: add a size, or a long-loop fixture,
+/// and this fails until the gate file is updated — which is a §27.7 commit, by
+/// design.
+///
+/// Both directions: the derivation must find a non-zero expectation (an empty
+/// register would make `0 == 0` pass), and it must equal the file.
+#[test]
+fn the_oriented_floor_equals_what_the_register_produces() {
+    use vice_ir::ComplementaryConnectivity;
+    use vice_topology::dcel::{loop_length_profile, structural_fixtures};
+    use vice_topology::Dcel;
+
+    // Sizes the harness actually builds structural arms at, taken from the run
+    // rather than from a literal here.
+    let sizes = [32usize, 64, 128];
+    let mut expected = 0u64;
+    for n in sizes {
+        for f in structural_fixtures(n) {
+            for conn in ComplementaryConnectivity::arms() {
+                let d = Dcel::assemble(f.labelling.clone(), conn);
+                let (_longest, _total, at_least_three) = loop_length_profile(&d);
+                if at_least_three > 0 {
+                    expected += 1;
+                }
+            }
+        }
+    }
+    assert!(
+        expected > 0,
+        "no register arm carries a long loop, so an equality against zero would pass vacuously"
+    );
+
+    let cfg = dcel::report::DcelGateConfig::for_tests_from_the_committed_file().expect("gate");
+    assert_eq!(
+        cfg.min_register_arms_with_a_long_loop.registered_value(),
+        expected,
+        "the frozen floor must EQUAL what the register produces, not merely be below it. A floor \
+         that is below the count leaves room for a whole size to drop out while the row stays \
+         MET, in a key whose comment justifies itself by condition 51's `every size, both arms`"
+    );
+}

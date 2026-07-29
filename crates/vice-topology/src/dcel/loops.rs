@@ -230,6 +230,13 @@ pub struct VertexDisagreement {
 
 impl std::fmt::Display for VertexDisagreement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.stored_only.is_empty() && self.derived_only.is_empty() {
+            return write!(
+                f,
+                "the vertex SET is right and its ORDER is not: {} vertices, stored in an order the                  canonical one does not produce (REVIEW_M5_A D5-N1)",
+                self.stored
+            );
+        }
         write!(
             f,
             "{} stored vertices against {} the labelling requires; {} point(s) are vertices only \
@@ -320,6 +327,21 @@ pub fn vertices_agree_with_the_labelling(d: &Dcel) -> Result<usize, VertexDisagr
         vertices_of_the_labelling(d).into_iter().collect();
     let stored: std::collections::BTreeSet<(u32, u32)> = d.vertices().iter().copied().collect();
     if derived == stored {
+        // ORDER, not only membership (REVIEW_M5_A D5-N1). The determinism
+        // paragraph of `dcel` promises a canonical order and nothing checked
+        // that `assemble` produces one: permuting `vertices` with a consistent
+        // remap of every `start`/`end` left `audit` returning None. The derived
+        // set is a `BTreeSet`, so its iteration order IS the canonical one, and
+        // comparing sequences rather than sets costs nothing extra.
+        let want: Vec<(u32, u32)> = derived.iter().copied().collect();
+        if d.vertices() != want.as_slice() {
+            return Err(VertexDisagreement {
+                stored_only: Vec::new(),
+                derived_only: Vec::new(),
+                stored: d.vertices().len(),
+                derived: want.len(),
+            });
+        }
         return Ok(derived.len());
     }
     Err(VertexDisagreement {
@@ -586,6 +608,50 @@ mod maximality_tests {
         assert!(super::super::audit(&broken).is_err());
     }
 
+    /// **M5A-D5-N1: the vertex ORDER, not only the set.**
+    ///
+    /// Permuting `vertices` with a consistent remap of every `start`/`end` left
+    /// `audit` returning nothing before delta-6. The class the reviewer named:
+    /// everything bound to the input is bound as a SET or a CYCLIC SEQUENCE,
+    /// and the freedoms left over — index and order — are bound only to
+    /// themselves.
+    #[test]
+    fn a_consistently_permuted_vertex_list_is_caught_by_order() {
+        let d = super::super::Dcel::assemble(
+            Labelling::new(
+                6,
+                6,
+                (0..36)
+                    .map(|i| {
+                        let (x, y) = (i % 6, i / 6);
+                        (x < 3 && y < 3) || (x >= 3 && y >= 3)
+                    })
+                    .collect(),
+            ),
+            ComplementaryConnectivity::arms()[0],
+        );
+        assert!(super::super::audit(&d).is_ok(), "positive control");
+        if d.vertices().len() < 2 {
+            return; // nothing to permute; the register covers the rest
+        }
+        let mut parts = d.parts().clone();
+        parts.vertices.swap(0, 1);
+        for b in parts.boundaries.iter_mut() {
+            let remap = |v: super::super::VertexId| match v.0 {
+                0 => super::super::VertexId(1),
+                1 => super::super::VertexId(0),
+                other => super::super::VertexId(other),
+            };
+            b.start = remap(b.start);
+            b.end = remap(b.end);
+        }
+        let broken = d.clone().with_parts(parts);
+        let e = vertices_agree_with_the_labelling(&broken)
+            .expect_err("the vertex order is part of the canonical form");
+        assert!(e.stored_only.is_empty() && e.derived_only.is_empty(), "{e}");
+        assert!(super::super::audit(&broken).is_err());
+    }
+
     /// The other direction: a junction swallowed INSIDE a chain. Delta-4 caught
     /// this one, and it must stay caught.
     #[test]
@@ -649,23 +715,52 @@ mod branch_label_tests {
     /// Both directions: the scan must FIND the labels (an empty scan is
     /// vacuously distinct, F-0039), and duplicates must fail.
     ///
-    /// **Residual, named where the strength is claimed:** this reads source
-    /// text, so a label computed at run time rather than written as a literal
-    /// escapes it — the same class as the serde-attribute scan, and closed the
-    /// same way if it ever needs closing.
+    /// **Residual, named where the strength is claimed, with its price.** Two
+    /// holes were found separately and both are closed here: the scan read ONE
+    /// hardcoded file, so a branch elsewhere was invisible for ZERO lines
+    /// (RT5-A22), and it matched literals, so `const R: &str = "empty";` hid a
+    /// duplicate for TWO (REVIEW_M5_B E18b). It now walks the whole module tree
+    /// and REFUSES a non-literal rather than skipping it.
+    ///
+    /// What remains: a label produced by a macro that expands to a literal, or
+    /// a branch in a file outside `src/dcel`. Cheapest known bypass: **one
+    /// line**, a `branch:` written through a macro. Same class as the
+    /// serde-attribute scan and the same closure — a derive that emits the
+    /// labels and their distinctness proof together.
     #[test]
     fn every_judge_branch_has_a_distinct_label() {
-        let src = std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/dcel/audit.rs"),
-        )
-        .expect("audit.rs");
-        let mut labels: Vec<&str> = Vec::new();
+        // EVERY file of the dcel module tree, not one hardcoded path.
+        // REDTEAM_M5 RT5-A22: the scan read `audit.rs` alone, so a branch in
+        // `loops.rs`, `crossing.rs` or a new file was invisible to it at a cost
+        // of ZERO lines. The walk is over the directory now, and it asserts it
+        // found more than one file so an empty walk cannot pass.
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/dcel");
+        let mut files = 0usize;
+        let mut src = String::new();
+        for e in std::fs::read_dir(&dir).expect("src/dcel").flatten() {
+            let p = e.path();
+            if p.extension().is_some_and(|x| x == "rs") {
+                src.push_str(&std::fs::read_to_string(&p).expect("read"));
+                files += 1;
+            }
+        }
+        assert!(
+            files > 4,
+            "the scan found {files} files; it is not covering the module"
+        );
+        let mut labels: Vec<String> = Vec::new();
         for line in src.lines() {
             let t = line.trim();
-            if let Some(rest) = t.strip_prefix("branch: \"") {
-                if let Some(end) = rest.find('"') {
-                    labels.push(&rest[..end]);
-                }
+            if let Some(rest) = t.strip_prefix("branch: ") {
+                let v = rest.trim_end_matches(',').trim();
+                // A LITERAL is required. `branch: SOME_CONST` hides a duplicate
+                // for two lines (REVIEW_M5_B E18b), so an indirection is a
+                // failure here rather than something the scan quietly skips.
+                assert!(
+                    v.starts_with('"') && v.ends_with('"'),
+                    "branch label {v:?} is not a string literal. An indirection -                      `const X: &str = \"empty\";` - hides a duplicate from this scan for two                      lines, so it is refused rather than skipped"
+                );
+                labels.push(v.trim_matches('"').to_string());
             }
         }
         assert!(
@@ -673,7 +768,7 @@ mod branch_label_tests {
             "found {} branch labels; the scan is not reading the judge",
             labels.len()
         );
-        let mut sorted = labels.clone();
+        let mut sorted: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
         sorted.sort_unstable();
         let before = sorted.len();
         sorted.dedup();
