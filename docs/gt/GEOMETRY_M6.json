@@ -22,13 +22,13 @@
       "max_canonical_cuts": 4,
       "model_universe_hash": "47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097",
       "geometry_pricing_sha256": "e8cd9a8a7d04ebb0dcacf0696ba38342b40216625d43c4331055d89a6094c38a",
-      "backend_source_sha256": "aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f"
+      "backend_source_sha256": "5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594"
     },
-    "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+    "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
     "fixture_set_hash": "b5bb0b8fe594c7a65005b3c917385a4ae2657e6e8c6c298d763b930ad8d240f8",
     "compatibility_key": {
-      "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-      "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+      "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+      "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
       "candidate_budget": {
         "kind": "candidates",
         "max": 65536
@@ -231,8 +231,8 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -280,8 +280,8 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -329,8 +329,8 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -378,8 +378,8 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -424,8 +424,8 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -495,8 +495,8 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -538,8 +538,8 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -581,8 +581,8 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -624,8 +624,8 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -670,8 +670,8 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -741,8 +741,8 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -802,8 +802,8 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -848,8 +848,8 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -909,8 +909,8 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -955,8 +955,8 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1026,8 +1026,8 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1084,8 +1084,8 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1130,8 +1130,8 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1188,8 +1188,8 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1234,8 +1234,8 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1305,8 +1305,8 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1354,8 +1354,8 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1403,8 +1403,8 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1452,8 +1452,8 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1498,8 +1498,8 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1567,8 +1567,8 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1628,8 +1628,8 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1671,8 +1671,8 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1732,8 +1732,8 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1775,8 +1775,8 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1847,8 +1847,8 @@
           {
             "arm": "G00",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1914,8 +1914,8 @@
           {
             "arm": "G10",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -1966,8 +1966,8 @@
           {
             "arm": "G01",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -2033,8 +2033,8 @@
           {
             "arm": "G11",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -2085,8 +2085,8 @@
           {
             "arm": "G20",
             "compatibility_key": {
-              "backend_id": "vice-fit/stage-g-h/v2/aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f",
-              "config_hash": "4d21d66142d47a51b337027298f4c2441b5ca1cb00717194cf64d700a6b9d287",
+              "backend_id": "vice-fit/stage-g-h/v2/5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594",
+              "config_hash": "1fb254cdf8621b1db5f9b1ef671db003040816d56479b5ab9101855589f5eac3",
               "candidate_budget": {
                 "kind": "candidates",
                 "max": 65536
@@ -2162,7 +2162,7 @@
       {
         "clause": "no_subtraction_across_incompatible_arms",
         "met": true,
-        "measured": "35 arm measurements share key 5cb7ce787c5098ab9e0b9d80e4bb7f452bb4691ca99ccea07ad7b1821eea54ee",
+        "measured": "35 arm measurements share key 6a8b6dfca2f8ea7660262f033f41897072eb22628c699400eb98a9b51f06898f",
         "required": "one identical five-component §27.6 key"
       },
       {
