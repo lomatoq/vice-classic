@@ -392,9 +392,9 @@ mod tests {
     /// It asserts only what would make the printed numbers meaningless — an
     /// empty population, a family that vanished, a refusal that should never
     /// fire on well-formed evidence. The numbers themselves are PRINTED, not
-    /// gated: §28 M6's gate is about the joint solve and the oracle
-    /// decomposition, neither of which exists, and inventing a floor here
-    /// would be a gate on the half of the milestone that happens to be built.
+    /// gated: §28 M6's frozen gate is enforced by the focused grammar tests and
+    /// the five-arm geometry artifact. This run publishes the broader corpus
+    /// population and checks that none of those focused clauses is vacuous.
     #[test]
     #[ignore = "walks the corpus; renders and analyses every non-sealed scene"]
     fn the_candidate_stage_over_the_corpus() {

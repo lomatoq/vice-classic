@@ -297,6 +297,18 @@ jobs:
       # caught only by a test connected to nothing (REVIEW_M5_B attack A3).
       - name: M5 DCEL proof domain (release, --ignored)
         run: cargo test --locked --release -p vice-topology --test dcel_props -- --ignored --nocapture
+      # §28 M6. The first step exercises candidate generation, k-best, the
+      # joint solve and Stage H over every development chain in one cell per
+      # scene. The second measures all five geometry interventions over the
+      # frozen 205-boundary population and exits non-zero if any gate row is
+      # not met.
+      - name: M6 Stage G/H corpus population (release, --ignored)
+        run: cargo test --locked --release -p vice-bench fit::tests::the_candidate_stage_over_the_corpus -- --ignored --nocapture
+      - name: M6 five-arm geometry decomposition and gate table
+        run: |
+          cargo run --locked --release --bin gt-corpus -- geometry-m6 \
+            --gates configs/GATES_V1.toml \
+            --out runs/ci-geometry-m6/report.json
 
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
   # verified by nobody: the ubuntu job above physically cannot, because
@@ -330,6 +342,8 @@ jobs:
         run: cargo run --locked --release --bin gt-corpus -- topology-check --report docs/gt/TOPOLOGY_M4_5.json
       - name: The committed DCEL report reproduces (Tier A, every metric)
         run: cargo run --locked --release --bin gt-corpus -- dcel-check --report docs/gt/DCEL_M5.json
+      - name: The committed M6 geometry report reproduces (Tier A, every boundary and arm)
+        run: cargo run --locked --release --bin gt-corpus -- geometry-m6-check --gates configs/GATES_V1.toml --report docs/gt/GEOMETRY_M6.json
 
 # Reproducing the pinned donor baselines needs local mirrors and a 104 MiB
 # hash-pinned asset, which CI has neither of; that step is executed by the
