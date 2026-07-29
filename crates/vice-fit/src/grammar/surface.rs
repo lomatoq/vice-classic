@@ -7,6 +7,63 @@ use crate::span::{SpanCandidate, SpanFamily};
 
 use super::{GrammarEdge, JET_CLASSES};
 
+pub(super) fn family_ord(family: SpanFamily) -> usize {
+    match family {
+        SpanFamily::Line => 0,
+        SpanFamily::CircularArc => 1,
+        SpanFamily::Quad => 2,
+        SpanFamily::Cubic => 3,
+    }
+}
+
+pub(super) const FAMILY_BY_ORD: [SpanFamily; 4] = [
+    SpanFamily::Line,
+    SpanFamily::CircularArc,
+    SpanFamily::Quad,
+    SpanFamily::Cubic,
+];
+
+pub(super) fn validate_partial_cost(
+    partial: super::Partial,
+) -> Result<super::Partial, crate::FitRefusal> {
+    let valid = [
+        partial.bits,
+        partial.geometry,
+        partial.topology,
+        partial.residual,
+        partial.proposal,
+    ]
+    .into_iter()
+    .all(|value| value.is_finite() && value >= 0.0);
+    if valid {
+        Ok(partial)
+    } else {
+        Err(crate::FitRefusal::InvalidGrammarPathCost {
+            edge: partial.edge,
+            total_bits: partial.bits,
+            geometry_bits: partial.geometry,
+            topology_bits: partial.topology,
+            residual_bits: partial.residual,
+            proposal_cost_px: partial.proposal,
+        })
+    }
+}
+
+pub(super) fn compare_partial(a: &super::Partial, b: &super::Partial) -> std::cmp::Ordering {
+    a.bits
+        .total_cmp(&b.bits)
+        .then(a.proposal.total_cmp(&b.proposal))
+}
+
+pub(super) fn compare_path_rank(
+    a: &super::GrammarPath,
+    b: &super::GrammarPath,
+) -> std::cmp::Ordering {
+    a.total_bits()
+        .total_cmp(&b.total_bits())
+        .then(a.proposal_cost_px.total_cmp(&b.proposal_cost_px))
+}
+
 /// Directions a candidate leaves its first sample with and arrives at its last
 /// sample with, in radians.
 pub fn candidate_jets(candidate: &SpanCandidate, samples: &[BoundarySample]) -> Option<(f64, f64)> {

@@ -53,7 +53,10 @@ mod surface;
 use closure::{close_finished_path, ClosureMode, ClosureState};
 pub use control::{k_best_proposal_control_paths, ProposalControlPath};
 pub use surface::{candidate_jets, free_scalars};
-use surface::{validate_candidate, validate_grammar_edges};
+use surface::{
+    compare_partial, compare_path_rank, family_ord, validate_candidate, validate_grammar_edges,
+    validate_partial_cost, FAMILY_BY_ORD,
+};
 
 /// Buckets the endpoint tangent direction is quantized into for the DP state.
 ///
@@ -256,32 +259,6 @@ struct Partial {
     prev: Option<usize>,
 }
 
-impl Partial {
-    fn validate_cost(self) -> Result<Self, crate::FitRefusal> {
-        let valid = [
-            self.bits,
-            self.geometry,
-            self.topology,
-            self.residual,
-            self.proposal,
-        ]
-        .into_iter()
-        .all(|value| value.is_finite() && value >= 0.0);
-        if valid {
-            Ok(self)
-        } else {
-            Err(crate::FitRefusal::InvalidGrammarPathCost {
-                edge: self.edge,
-                total_bits: self.bits,
-                geometry_bits: self.geometry,
-                topology_bits: self.topology,
-                residual_bits: self.residual,
-                proposal_cost_px: self.proposal,
-            })
-        }
-    }
-}
-
 /// The DP state key at a node.
 ///
 /// The suffix of a path depends on the prefix only through these three things —
@@ -296,22 +273,6 @@ struct StateKey {
     head_shared: bool,
     closure: Option<ClosureState>,
 }
-
-fn family_ord(f: SpanFamily) -> usize {
-    match f {
-        SpanFamily::Line => 0,
-        SpanFamily::CircularArc => 1,
-        SpanFamily::Quad => 2,
-        SpanFamily::Cubic => 3,
-    }
-}
-
-const FAMILY_BY_ORD: [SpanFamily; 4] = [
-    SpanFamily::Line,
-    SpanFamily::CircularArc,
-    SpanFamily::Quad,
-    SpanFamily::Cubic,
-];
 
 /// **§28 M6 bullet 3.** The k best jet-compatible grammar paths over one chain.
 ///
@@ -473,8 +434,8 @@ fn k_best_paths_for_objective(
             smooth_here: false,
             closure: closure_mode.state_for_seed(e),
             prev: None,
-        }
-        .validate_cost()?;
+        };
+        let p = validate_partial_cost(p)?;
         push_state(
             &mut arena,
             &mut states[e.to],
@@ -535,8 +496,8 @@ fn k_best_paths_for_objective(
                                 .closure
                                 .map(|state| state.after_join(p.prev.is_none(), smooth)),
                             prev: Some(pi),
-                        }
-                        .validate_cost()?;
+                        };
+                        let q = validate_partial_cost(q)?;
                         push_state(
                             &mut arena,
                             &mut states[e.to],
@@ -564,7 +525,7 @@ fn k_best_paths_for_objective(
                 closure_mode.is_smooth(),
             );
             if closed {
-                if let Err(refusal) = arena[*end].validate_cost() {
+                if let Err(refusal) = validate_partial_cost(arena[*end]) {
                     invalid = Some(refusal);
                     return false;
                 }
@@ -645,18 +606,6 @@ fn push_state(
     v.push(idx);
     v.sort_by(|a, b| compare_partial(&arena[*a], &arena[*b]));
     v.truncate(k);
-}
-
-fn compare_partial(a: &Partial, b: &Partial) -> std::cmp::Ordering {
-    a.bits
-        .total_cmp(&b.bits)
-        .then(a.proposal.total_cmp(&b.proposal))
-}
-
-fn compare_path_rank(a: &GrammarPath, b: &GrammarPath) -> std::cmp::Ordering {
-    a.total_bits()
-        .total_cmp(&b.total_bits())
-        .then(a.proposal_cost_px.total_cmp(&b.proposal_cost_px))
 }
 
 /// Turn a discrete path into the shared-parameter representation the joint
