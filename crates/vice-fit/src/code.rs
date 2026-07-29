@@ -197,6 +197,8 @@ pub fn gap_bits(n_samples: usize) -> f64 {
 /// stated residual.
 pub fn pricing_surface_v1() -> String {
     use crate::grammar::{free_scalars, jet_compatible, JET_CLASSES};
+    use crate::primitive::LoopPrimitiveKind;
+    use crate::relation::RelationKind;
     use crate::span::FITTED_FAMILIES;
 
     let mut out = String::from(
@@ -210,6 +212,25 @@ pub fn pricing_surface_v1() -> String {
             f.universe_name(),
             f.flag_bits(),
             f.free_parameters()
+        ));
+    }
+    for kind in LoopPrimitiveKind::ALL {
+        out.push_str(&format!(
+            "loop_primitive {} flag_bits {} free_parameters {} code_bits_at_256 {}
+",
+            kind.universe_name(),
+            kind.flag_bits(),
+            kind.free_parameters(),
+            kind.code_bits(&GEOMETRY_CODE_TABLE_V1, 256.0)
+        ));
+    }
+    for kind in RelationKind::ALL {
+        out.push_str(&format!(
+            "relation {} flag_bits {} scalars_determined {}
+",
+            kind.universe_name(),
+            kind.flag_bits(),
+            kind.scalars_determined()
         ));
     }
     for f in FITTED_FAMILIES {

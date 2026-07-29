@@ -140,15 +140,28 @@ fn the_admissible_subset_matches_what_the_core_executes_today() {
         vec!["box"],
         "the renderer refuses Triangle/Gaussian with UnsupportedPixelFilter"
     );
-    // M6 activated four of §15's six relation families. The two that
-    // remain planned are the SCENE-level ones, and the list is compared
+    // M6 activated the four boundary-local §15 relation families. The two
+    // scene-level families remain planned, and the list is compared
     // whole rather than by count: a fifth appearing without a hypothesis
     // generator would be a widening of the grammar with the old
     // calibration, which is exactly what §1.5 forbids.
     assert_eq!(
         SupportedModelUniverseV1::admissible_names(&u.relations.families),
-        vec!["equal_radius", "concentric", "axis_aligned", "collinear"],
+        vec![
+            "equal_radius",
+            "concentric",
+            "parallel_perpendicular",
+            "shared_baseline"
+        ],
         "the admissible relation set is what `vice_fit::RelationKind` generates hypotheses for"
+    );
+    assert_eq!(
+        SupportedModelUniverseV1::admissible_names(&u.geometry.loop_primitives),
+        vice_fit::LoopPrimitiveKind::ALL
+            .iter()
+            .map(|kind| kind.universe_name())
+            .collect::<Vec<_>>(),
+        "the admissible whole-loop set is exactly what vice-fit generates"
     );
     assert_eq!(u.search.unexplored_mass_bound, BoundStatus::Unknown);
     assert_eq!(u.search.retained_mass_bound, BoundStatus::Unknown);
@@ -182,12 +195,10 @@ fn model_universe_hash_is_frozen() {
 ///
 /// WAS `fed2af86…8f5d`. IS `e9e7f7e6…2cfb`.
 ///
-/// What moved, and nothing else did: `equal_radius`, `concentric`,
-/// `axis_aligned` and `collinear` became ADMISSIBLE, because M6 delivered
-/// `vice_fit::relation`, which forms and judges hypotheses for exactly those
-/// four; `mirror_symmetry` and `repetition` stayed planned and were
-/// retargeted from M6 to M7, because both are properties of a SCENE and
-/// Stage G is handed one chain at a time.
+/// The current M6 delta replaces the earlier axis/collinear approximation with
+/// §15's actual `parallel_perpendicular` and `shared_baseline` families, and
+/// admits the seven delivered whole-loop primitive generators. The hash below
+/// is re-frozen by the corresponding §27.7 gate-only commit.
 ///
 /// **What recalibration is owed, and by whom.** §1.5 attaches confidence
 /// thresholds and search-mass bounds to the universe version. This tree has
@@ -219,10 +230,12 @@ fn every_admissible_relation_family_has_a_hypothesis_generator() {
         !admissible.is_empty(),
         "the declared universe admits no relation family, so the loops below compare nothing"
     );
-    let generated: Vec<&str> = RelationKind::ALL
+    let mut generated: Vec<&str> = RelationKind::ALL
         .iter()
         .map(|k| k.universe_name())
         .collect();
+    generated.sort_unstable();
+    generated.dedup();
 
     for name in &admissible {
         assert!(

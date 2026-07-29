@@ -57,29 +57,32 @@ pub enum RelationKind {
     EqualRadius,
     /// Two arcs share one centre.
     Concentric,
-    /// A line is horizontal or vertical.
-    AxisAligned,
-    /// Two lines share one direction parameter.
-    Collinear,
+    /// Two lines share one direction parameter but retain independent offsets.
+    Parallel,
+    /// Two line directions differ by exactly one quarter turn.
+    Perpendicular,
+    /// Two lines lie on the same infinite supporting line.
+    SharedBaseline,
 }
 
 impl RelationKind {
     /// Every generator this type can name. The relation/universe judge consumes
     /// this value instead of retyping the variants, so adding a variant cannot
     /// silently evade the reverse direction of that judge (M6B-N6).
-    pub const ALL: [RelationKind; 4] = [
+    pub const ALL: [RelationKind; 5] = [
         RelationKind::EqualRadius,
         RelationKind::Concentric,
-        RelationKind::AxisAligned,
-        RelationKind::Collinear,
+        RelationKind::Parallel,
+        RelationKind::Perpendicular,
+        RelationKind::SharedBaseline,
     ];
 
     pub fn universe_name(self) -> &'static str {
         match self {
             RelationKind::EqualRadius => "equal_radius",
             RelationKind::Concentric => "concentric",
-            RelationKind::AxisAligned => "axis_aligned",
-            RelationKind::Collinear => "collinear",
+            RelationKind::Parallel | RelationKind::Perpendicular => "parallel_perpendicular",
+            RelationKind::SharedBaseline => "shared_baseline",
         }
     }
 
@@ -93,7 +96,19 @@ impl RelationKind {
     /// of its two anchors together; two collinear lines tie one coordinate of
     /// the second's far anchor to the first's direction.
     pub fn scalars_determined(self) -> usize {
-        1
+        match self {
+            RelationKind::SharedBaseline => 2,
+            _ => 1,
+        }
+    }
+
+    /// Parallel and perpendicular are the two flags of the one
+    /// `parallel_perpendicular` universe family named by §15's slash.
+    pub fn flag_bits(self) -> f64 {
+        match self {
+            RelationKind::Parallel | RelationKind::Perpendicular => 1.0,
+            _ => 0.0,
+        }
     }
 }
 
@@ -143,26 +158,10 @@ pub fn relation_hypotheses(
     } else {
         0.0
     };
-    let single_code = (n_seg as f64).log2();
     let base_residual = residual_code(&model.chain, samples, table);
 
     let mut out = Vec::new();
     for (i, a) in model.chain.segments.iter().enumerate() {
-        // Single-segment relations.
-        if matches!(a, RefitSegment::Line) {
-            let mut constrained = model.chain.clone();
-            snap_to_axis(&mut constrained, i);
-            out.push(evaluate(
-                RelationKind::AxisAligned,
-                vec![i],
-                constrained,
-                table.bits_per_relation() + single_code,
-                cb,
-                base_residual,
-                samples,
-                table,
-            ));
-        }
         for (j, b) in model.chain.segments.iter().enumerate().skip(i + 1) {
             match (a, b) {
                 (RefitSegment::Arc(_), RefitSegment::Arc(_)) => {
@@ -184,20 +183,26 @@ pub fn relation_hypotheses(
                     }
                 }
                 (RefitSegment::Line, RefitSegment::Line) => {
-                    let mut constrained = model.chain.clone();
-                    if !make_collinear(&mut constrained, i, j) {
-                        continue;
+                    for kind in [
+                        RelationKind::Parallel,
+                        RelationKind::Perpendicular,
+                        RelationKind::SharedBaseline,
+                    ] {
+                        let mut constrained = model.chain.clone();
+                        if !bind_lines(&mut constrained, i, j, kind) {
+                            continue;
+                        }
+                        out.push(evaluate(
+                            kind,
+                            vec![i, j],
+                            constrained,
+                            table.bits_per_relation() + pair_code + kind.flag_bits(),
+                            cb,
+                            base_residual,
+                            samples,
+                            table,
+                        ));
                     }
-                    out.push(evaluate(
-                        RelationKind::Collinear,
-                        vec![i, j],
-                        constrained,
-                        table.bits_per_relation() + pair_code,
-                        cb,
-                        base_residual,
-                        samples,
-                        table,
-                    ));
                 }
                 _ => {}
             }
@@ -273,41 +278,35 @@ fn worst_deviation(chain: &RefitChain, samples: &[BoundarySample]) -> (f64, f64)
     (worst, allowed)
 }
 
-/// Move a line's two anchors onto a common horizontal or vertical, whichever is
-/// nearer, by averaging the coordinate they must share.
-fn snap_to_axis(chain: &mut RefitChain, seg: usize) {
-    let (a, b) = (chain.nodes[seg].pos, chain.nodes[seg + 1].pos);
-    let d = b - a;
-    if d.x.abs() >= d.y.abs() {
-        let y = 0.5 * (a.y + b.y);
-        chain.nodes[seg].pos = Pt::new(a.x, y);
-        chain.nodes[seg + 1].pos = Pt::new(b.x, y);
-    } else {
-        let x = 0.5 * (a.x + b.x);
-        chain.nodes[seg].pos = Pt::new(x, a.y);
-        chain.nodes[seg + 1].pos = Pt::new(x, b.y);
-    }
-}
-
-/// Rotate the second line's far anchor about its near anchor so that its
-/// direction equals the first line's.
-fn make_collinear(chain: &mut RefitChain, i: usize, j: usize) -> bool {
+/// Project the second line onto the parallel, perpendicular or shared-baseline
+/// sibling of the first while preserving its length and direction of travel.
+fn bind_lines(chain: &mut RefitChain, i: usize, j: usize, kind: RelationKind) -> bool {
     let d0 = chain.nodes[i + 1].pos - chain.nodes[i].pos;
     let l0 = d0.length();
     if !l0.is_finite() || l0 <= 0.0 {
         return false;
     }
-    let u = d0 * (1.0 / l0);
-    let base = chain.nodes[j].pos;
-    let len = (chain.nodes[j + 1].pos - base).length();
-    // Keep the far anchor on the same side, so "collinear" does not silently
-    // reverse the chain's direction.
-    let sign = if (chain.nodes[j + 1].pos - base).dot(u) < 0.0 {
-        -1.0
-    } else {
-        1.0
+    let first_u = d0 * (1.0 / l0);
+    let old_base = chain.nodes[j].pos;
+    let old_d = chain.nodes[j + 1].pos - old_base;
+    let len = old_d.length();
+    if !len.is_finite() || len <= 0.0 {
+        return false;
+    }
+    let target_u = match kind {
+        RelationKind::Parallel | RelationKind::SharedBaseline => first_u,
+        RelationKind::Perpendicular => Pt::new(-first_u.y, first_u.x),
+        _ => return false,
     };
-    chain.nodes[j + 1].pos = base + u * (sign * len);
+    let sign = if old_d.dot(target_u) < 0.0 { -1.0 } else { 1.0 };
+    let base = if kind == RelationKind::SharedBaseline {
+        let first_base = chain.nodes[i].pos;
+        first_base + first_u * (old_base - first_base).dot(first_u)
+    } else {
+        old_base
+    };
+    chain.nodes[j].pos = base;
+    chain.nodes[j + 1].pos = base + target_u * (sign * len);
     true
 }
 
@@ -383,10 +382,27 @@ fn arc_centre(chain: &RefitChain, seg: usize) -> Option<Pt> {
 /// relation, not an absence.
 pub fn apply_accepted(model: &mut BoundaryModel, hypotheses: &[RelationHypothesis]) -> usize {
     let mut kept = 0usize;
-    for h in hypotheses.iter().filter(|h| h.accepted) {
+    let mut order: Vec<usize> = hypotheses
+        .iter()
+        .enumerate()
+        .filter_map(|(i, h)| h.accepted.then_some(i))
+        .collect();
+    order.sort_by(|&a, &b| hypotheses[b].net_bits.total_cmp(&hypotheses[a].net_bits));
+    let mut bound = vec![false; model.chain.segments.len()];
+    for i in order {
+        let h = &hypotheses[i];
+        // Every hypothesis was evaluated against the same unconstrained
+        // sibling. Overlapping ones cannot add their individual savings and
+        // penalties without double-counting the same scalar.
+        if h.segments.iter().any(|&segment| bound[segment]) {
+            continue;
+        }
         model.code.relation_bits += h.cost_bits;
         model.code.geometry_bits -= h.saving_bits;
         model.code.residual_bits += h.residual_penalty_bits;
+        for &segment in &h.segments {
+            bound[segment] = true;
+        }
         kept += 1;
     }
     kept
@@ -398,63 +414,24 @@ mod tests {
 
     #[test]
     fn every_relation_kind_names_a_universe_family() {
-        let names: Vec<&str> = [
-            RelationKind::EqualRadius,
-            RelationKind::Concentric,
-            RelationKind::AxisAligned,
-            RelationKind::Collinear,
-        ]
-        .iter()
-        .map(|k| k.universe_name())
-        .collect();
+        let names: Vec<&str> = RelationKind::ALL
+            .iter()
+            .map(|k| k.universe_name())
+            .collect();
         assert_eq!(
             names,
-            vec!["equal_radius", "concentric", "axis_aligned", "collinear"]
+            vec![
+                "equal_radius",
+                "concentric",
+                "parallel_perpendicular",
+                "parallel_perpendicular",
+                "shared_baseline"
+            ]
         );
     }
 
-    /// Snapping a nearly-horizontal line to the axis puts both anchors on one
-    /// `y`, and snapping a nearly-vertical one puts both on one `x`. The wrong
-    /// axis would be a relation that always loses, which is invisible from the
-    /// accepted list alone.
     #[test]
-    fn a_line_snaps_to_the_axis_it_is_nearest_to() {
-        let mut c = RefitChain {
-            nodes: vec![
-                crate::refit::RefitNode {
-                    pos: Pt::new(0.0, 0.0),
-                    tangent_rad: None,
-                },
-                crate::refit::RefitNode {
-                    pos: Pt::new(10.0, 0.2),
-                    tangent_rad: None,
-                },
-            ],
-            segments: vec![RefitSegment::Line],
-        };
-        snap_to_axis(&mut c, 0);
-        assert!((c.nodes[0].pos.y - c.nodes[1].pos.y).abs() < 1e-12);
-        assert!((c.nodes[0].pos.x - 0.0).abs() < 1e-12);
-
-        let mut v = RefitChain {
-            nodes: vec![
-                crate::refit::RefitNode {
-                    pos: Pt::new(0.0, 0.0),
-                    tangent_rad: None,
-                },
-                crate::refit::RefitNode {
-                    pos: Pt::new(0.2, 10.0),
-                    tangent_rad: None,
-                },
-            ],
-            segments: vec![RefitSegment::Line],
-        };
-        snap_to_axis(&mut v, 0);
-        assert!((v.nodes[0].pos.x - v.nodes[1].pos.x).abs() < 1e-12);
-    }
-
-    #[test]
-    fn collinear_keeps_the_length_and_the_direction_of_travel() {
+    fn line_constraints_are_geometrically_distinct() {
         let mut c = RefitChain {
             nodes: vec![
                 crate::refit::RefitNode {
@@ -466,17 +443,74 @@ mod tests {
                     tangent_rad: None,
                 },
                 crate::refit::RefitNode {
-                    pos: Pt::new(19.0, 3.0),
+                    pos: Pt::new(12.0, 3.0),
                     tangent_rad: None,
                 },
             ],
             segments: vec![RefitSegment::Line, RefitSegment::Line],
         };
         let before = (c.nodes[2].pos - c.nodes[1].pos).length();
-        assert!(make_collinear(&mut c, 0, 1));
+        assert!(bind_lines(&mut c, 0, 1, RelationKind::Parallel));
         let after = c.nodes[2].pos - c.nodes[1].pos;
         assert!((after.length() - before).abs() < 1e-9, "length changed");
-        assert!(after.y.abs() < 1e-9, "not collinear with the x axis");
+        assert!(after.y.abs() < 1e-9, "not parallel with the x axis");
         assert!(after.x > 0.0, "the direction of travel reversed");
+
+        let mut perpendicular = RefitChain {
+            nodes: vec![
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(10.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(12.0, 3.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line, RefitSegment::Line],
+        };
+        assert!(bind_lines(
+            &mut perpendicular,
+            0,
+            1,
+            RelationKind::Perpendicular
+        ));
+        let d = perpendicular.nodes[2].pos - perpendicular.nodes[1].pos;
+        assert!(d.dot(Pt::new(10.0, 0.0)).abs() < 1e-9);
+
+        let mut baseline = RefitChain {
+            nodes: vec![
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(10.0, 2.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(12.0, 5.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line, RefitSegment::Line],
+        };
+        assert!(bind_lines(
+            &mut baseline,
+            0,
+            1,
+            RelationKind::SharedBaseline
+        ));
+        let first = baseline.nodes[1].pos - baseline.nodes[0].pos;
+        assert!(
+            (baseline.nodes[2].pos - baseline.nodes[0].pos)
+                .cross(first)
+                .abs()
+                < 1e-9
+        );
     }
 }

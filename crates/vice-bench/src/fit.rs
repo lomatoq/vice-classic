@@ -148,6 +148,9 @@ pub struct FitRun {
     /// §15 relation hypotheses formed and accepted over the run.
     pub relations_considered: u64,
     pub relations_accepted: u64,
+    /// §15 whole-loop primitive siblings formed and selected.
+    pub primitives_considered: u64,
+    pub primitives_accepted: u64,
 }
 
 impl FitRun {
@@ -251,6 +254,8 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                         Ok(mr) => {
                             run.relations_considered += mr.relations_considered as u64;
                             run.relations_accepted += mr.relations_accepted as u64;
+                            run.primitives_considered += mr.primitives_considered as u64;
+                            run.primitives_accepted += mr.primitives_accepted as u64;
                             for (name, n) in &mr.refused {
                                 match run.path_refusals.iter_mut().find(|e| e.0 == *name) {
                                     Some(e) => e.1 += *n as u64,
@@ -450,6 +455,10 @@ mod tests {
         println!(
             "relations                   {} considered, {} accepted",
             run.relations_considered, run.relations_accepted
+        );
+        println!(
+            "whole-loop primitives       {} considered, {} selected",
+            run.primitives_considered, run.primitives_accepted
         );
         println!(
             "worst selected |d_n|        {:.5} px",

@@ -66,6 +66,12 @@ pub struct BoundaryModel {
     pub worst_normal_deviation_px: f64,
     pub residual_before: f64,
     pub residual_after: f64,
+    /// §15 whole-loop constrained siblings, accepted and rejected alike.
+    /// Empty on an open chain.
+    pub primitives: Vec<crate::primitive::LoopPrimitiveHypothesis>,
+    /// Index into `primitives` when a whole-loop primitive beat both the free
+    /// chain and the best composable relation sibling.
+    pub primitive_kept: Option<usize>,
     /// §15 Stage H: every relation hypothesis formed on this model, ACCEPTED
     /// and rejected alike. A list of accepted relations alone says nothing
     /// about how many were considered, and §15's comparison against the
@@ -96,6 +102,44 @@ pub struct ModelRun {
     /// whether Stage H is deciding anything.
     pub relations_considered: usize,
     pub relations_accepted: usize,
+    pub primitives_considered: usize,
+    pub primitives_accepted: usize,
+}
+
+/// Judge the primitive and relation constrained siblings against the same free
+/// model, then keep exactly the shortest sibling.  This is the §15 comparison
+/// and prevents a circle, for example, from also claiming equal-radius savings
+/// that its own parameterization already contains.
+fn apply_stage_h(
+    model: &mut BoundaryModel,
+    samples: &[BoundarySample],
+    table: &GeometryCodeTable,
+    canvas_dim_px: f64,
+    closed: bool,
+) {
+    let relations = crate::relation::relation_hypotheses(model, samples, table, canvas_dim_px);
+    let primitives =
+        crate::primitive::loop_primitive_hypotheses(model, samples, table, canvas_dim_px, closed);
+
+    let mut relation_sibling = model.clone();
+    let relations_kept = crate::relation::apply_accepted(&mut relation_sibling, &relations);
+    let mut primitive_sibling = model.clone();
+    let primitive_kept =
+        crate::primitive::apply_best_primitive(&mut primitive_sibling, &primitives);
+
+    if primitive_kept.is_some()
+        && primitive_sibling.code.total_bits() < relation_sibling.code.total_bits()
+    {
+        model.code = primitive_sibling.code;
+        model.primitive_kept = primitive_kept;
+        model.relations_kept = 0;
+    } else {
+        model.code = relation_sibling.code;
+        model.primitive_kept = None;
+        model.relations_kept = relations_kept;
+    }
+    model.primitives = primitives;
+    model.relations = relations;
 }
 
 /// Why an oracle-forced discrete path could not be fitted.
@@ -299,13 +343,12 @@ pub fn fit_forced_boundary_models(
                     worst_normal_deviation_px: out.worst_normal_deviation_px,
                     residual_before: out.residual_before,
                     residual_after: out.residual_after,
+                    primitives: Vec::new(),
+                    primitive_kept: None,
                     relations: Vec::new(),
                     relations_kept: 0,
                 };
-                let hypotheses =
-                    crate::relation::relation_hypotheses(&model, samples, table, canvas_dim_px);
-                model.relations_kept = crate::relation::apply_accepted(&mut model, &hypotheses);
-                model.relations = hypotheses;
+                apply_stage_h(&mut model, samples, table, canvas_dim_px, chain.closed);
                 models.push(model);
             }
             Err(why) => bump(&mut refused, refusal_name(&why)),
@@ -322,9 +365,13 @@ pub fn fit_forced_boundary_models(
     refused.sort_unstable();
     let relations_considered = models.iter().map(|m| m.relations.len()).sum();
     let relations_accepted = models.iter().map(|m| m.relations_kept).sum();
+    let primitives_considered = models.iter().map(|m| m.primitives.len()).sum();
+    let primitives_accepted = models.iter().filter(|m| m.primitive_kept.is_some()).count();
     Ok(ModelRun {
         relations_considered,
         relations_accepted,
+        primitives_considered,
+        primitives_accepted,
         models,
         candidates: candidates.len(),
         edges: edges.len(),
@@ -552,16 +599,12 @@ fn models_for_open_chain(
                     worst_normal_deviation_px: out.worst_normal_deviation_px,
                     residual_before: out.residual_before,
                     residual_after: out.residual_after,
+                    primitives: Vec::new(),
+                    primitive_kept: None,
                     relations: Vec::new(),
                     relations_kept: 0,
                 };
-                // §15: the constrained model is compared with its unconstrained
-                // sibling through the SAME code length, and only a net saving in
-                // bits promotes it.
-                let hypotheses =
-                    crate::relation::relation_hypotheses(&m, samples, table, canvas_dim_px);
-                m.relations_kept = crate::relation::apply_accepted(&mut m, &hypotheses);
-                m.relations = hypotheses;
+                apply_stage_h(&mut m, samples, table, canvas_dim_px, chain.closed);
                 models.push(m);
             }
             Err(why) => bump(&mut refused, refusal_name(&why)),
@@ -577,9 +620,13 @@ fn models_for_open_chain(
 
     let relations_considered = models.iter().map(|m| m.relations.len()).sum();
     let relations_accepted = models.iter().map(|m| m.relations_kept).sum();
+    let primitives_considered = models.iter().map(|m| m.primitives.len()).sum();
+    let primitives_accepted = models.iter().filter(|m| m.primitive_kept.is_some()).count();
     Ok(ModelRun {
         relations_considered,
         relations_accepted,
+        primitives_considered,
+        primitives_accepted,
         models,
         candidates: cands.candidates.len(),
         edges: edges.len(),

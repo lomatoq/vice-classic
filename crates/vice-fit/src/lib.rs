@@ -1,7 +1,7 @@
 //! **vice-fit — spec v1.3 Stage G/H (§14–§15).**
 //!
-//! §28 M6 has six bullets. This crate implements the chain-local part of all
-//! six; scene-level whole-loop primitives and relations require the
+//! §28 M6 has six bullets. This crate implements the boundary-chain part of all
+//! six; only the scene-level symmetry/repetition relations require the
 //! scene/partition binding named below:
 //!
 //! | §28 M6 bullet | here |
@@ -11,7 +11,7 @@
 //! | k-best jet-compatible grammar paths | [`grammar`] and [`models`] |
 //! | joint constrained chain refit | [`refit`] and [`solve`] |
 //! | explicit code lengths | [`code`] |
-//! | primitive/relation hypotheses | chain-local relations in [`relation`]; whole-loop primitives require the scene binding named below |
+//! | primitive/relation hypotheses | closed-chain models in [`primitive`] and constrained relations in [`relation`] |
 //!
 //! Exact G1 is held by [`RefitChain`]'s representation: a smooth node stores one
 //! direction and both incident non-line segments derive their handles from it;
@@ -48,6 +48,7 @@ pub mod cost;
 pub mod gate;
 pub mod grammar;
 pub mod models;
+pub mod primitive;
 pub mod refit;
 pub mod relation;
 pub mod schedule;
@@ -77,6 +78,10 @@ pub use grammar::{
 pub use models::{
     canonical_cuts, fit_forced_boundary_models, k_best_boundary_models, models_at_cut,
     path_families, BoundaryModel, ForcedFitRefusal, ModelRun, DUPLICATE_EPSILON_PX,
+};
+pub use primitive::{
+    apply_best_primitive, loop_primitive_hypotheses, LoopPrimitiveGeometry,
+    LoopPrimitiveHypothesis, LoopPrimitiveKind,
 };
 pub use refit::{
     canonical_angle, g1_readings, ArcAnchor, G1Reading, Handle, RefitChain, RefitNode,

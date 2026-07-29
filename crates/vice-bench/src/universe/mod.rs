@@ -122,6 +122,8 @@ pub struct GeometryUniverse {
     /// Segment families. Kept in lockstep with `vice_ir::Segment` by an
     /// exhaustive match in [`ir_segment_family`].
     pub segment_families: Vec<Family>,
+    /// Whole-loop constrained siblings of the free typed chain (§15).
+    pub loop_primitives: Vec<Family>,
     pub join_kinds: Vec<Family>,
     pub abs_coord_px: Range,
     pub canvas_dim_px: Range,
@@ -291,6 +293,24 @@ impl SupportedModelUniverseV1 {
                     Family::admissible("quadratic_bezier", "one control point"),
                     Family::admissible("cubic_bezier", "two control points"),
                 ],
+                loop_primitives: vec![
+                    Family::admissible("circle", "closed loop with one centre and radius"),
+                    Family::admissible(
+                        "ellipse",
+                        "closed loop with two radii and an axis angle",
+                    ),
+                    Family::admissible("rect", "axis-aligned rectangle"),
+                    Family::admissible("rotated_rect", "oriented rectangle"),
+                    Family::admissible(
+                        "rounded_rect",
+                        "oriented rectangle with one shared corner radius",
+                    ),
+                    Family::admissible("capsule", "two semicircles joined by parallel lines"),
+                    Family::admissible(
+                        "regular_polygon",
+                        "regular polygon with side count in 3..=12",
+                    ),
+                ],
                 join_kinds: vec![
                     Family::admissible("corner", "no tangent constraint"),
                     Family::admissible(
@@ -319,8 +339,14 @@ impl SupportedModelUniverseV1 {
                 families: vec![
                     Family::admissible("equal_radius", "two arcs share one radius parameter"),
                     Family::admissible("concentric", "two arcs share one centre parameter"),
-                    Family::admissible("axis_aligned", "a line is horizontal or vertical"),
-                    Family::admissible("collinear", "two lines share one direction parameter"),
+                    Family::admissible(
+                        "parallel_perpendicular",
+                        "two line directions are equal or differ by one quarter turn",
+                    ),
+                    Family::admissible(
+                        "shared_baseline",
+                        "two lines lie on the same infinite supporting line",
+                    ),
                     // Both remaining families are properties of a SCENE, not of
                     // a boundary: Stage G is handed one chain at a time and has
                     // no scene to reflect or to translate. Their owner is the
@@ -424,6 +450,7 @@ impl SupportedModelUniverseV1 {
         };
         families("topology.operators", &self.topology.operators);
         families("geometry.segment_families", &self.geometry.segment_families);
+        families("geometry.loop_primitives", &self.geometry.loop_primitives);
         families("geometry.join_kinds", &self.geometry.join_kinds);
         families("relations.families", &self.relations.families);
         families("formation.blend_spaces", &self.formation.blend_spaces);

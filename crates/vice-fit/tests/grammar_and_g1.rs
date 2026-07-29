@@ -705,29 +705,57 @@ fn the_solver_refuses_some_of_the_k_paths_and_says_which() {
 // §15 Stage H: a relation is a hypothesis judged by the same code length
 // ---------------------------------------------------------------------------
 
-/// **§15's comparison, in both directions.** A chain whose two straight runs
-/// really are axis-aligned accepts the relation; the same instrument on a chain
-/// deliberately off-axis rejects it — so acceptance is a statement about the
-/// shape rather than about the relation always paying for itself.
+#[test]
+fn a_closed_circle_promotes_a_whole_loop_primitive_and_an_open_chain_does_not() {
+    let points: Vec<Pt> = (0..128)
+        .map(|i| {
+            let a = std::f64::consts::TAU * i as f64 / 128.0;
+            Pt::new(80.0 + 30.0 * a.cos(), 70.0 + 30.0 * a.sin())
+        })
+        .collect();
+    let closed = chain_from(&points, true);
+    let run = k_best_boundary_models(&closed, &FIT_BUDGET_V1, CANVAS_PX, K_DISCRETE_PATHS)
+        .expect("closed circle fits");
+    assert!(
+        run.primitives_considered >= 13,
+        "the seven families plus ten polygon side hypotheses were not judged"
+    );
+    let model = run.models.first().expect("circle model");
+    let kept = model
+        .primitive_kept
+        .map(|i| &model.primitives[i])
+        .expect("a circle should beat its free typed-chain sibling");
+    assert_eq!(kept.kind, vice_fit::LoopPrimitiveKind::Circle);
+    assert!(kept.accepted && kept.net_bits > 0.0);
+    assert_eq!(
+        model.relations_kept, 0,
+        "a primitive and its implied relations were both charged"
+    );
+
+    let open = chain_from(&points, false);
+    let open_run = k_best_boundary_models(&open, &FIT_BUDGET_V1, CANVAS_PX, K_DISCRETE_PATHS)
+        .expect("open chain fits");
+    assert_eq!(open_run.primitives_considered, 0);
+    assert!(open_run.models.iter().all(|m| m.primitives.is_empty()));
+}
+
+/// **§15's comparison, in both directions.** Two exactly perpendicular runs
+/// accept the relation; moving only the second run seven degrees away rejects
+/// it. Rotating the whole shape must not matter to a geometric relation.
 #[test]
 fn a_relation_is_accepted_only_when_it_shortens_the_code() {
     // An L: a long horizontal run, a corner, a long vertical run.
-    let mut on_axis: Vec<Pt> = (0..=80)
+    let mut related: Vec<Pt> = (0..=80)
         .map(|i| Pt::new(20.0 + i as f64 * 0.5, 40.0))
         .collect();
-    on_axis.extend((1..=80).map(|i| Pt::new(60.0, 40.0 + i as f64 * 0.5)));
-    // The same L, rotated by 7 degrees, so no run is on an axis.
+    related.extend((1..=80).map(|i| Pt::new(60.0, 40.0 + i as f64 * 0.5)));
+    // Keep the first run fixed and rotate only the second around the corner.
     let th = 7.0f64.to_radians();
-    let off_axis: Vec<Pt> = on_axis
-        .iter()
-        .map(|p| {
-            let (x, y) = (p.x - 60.0, p.y - 40.0);
-            Pt::new(
-                60.0 + x * th.cos() - y * th.sin(),
-                40.0 + x * th.sin() + y * th.cos(),
-            )
-        })
-        .collect();
+    let mut unrelated: Vec<Pt> = related[..=80].to_vec();
+    unrelated.extend((1..=80).map(|i| {
+        let y = i as f64 * 0.5;
+        Pt::new(60.0 - y * th.sin(), 40.0 + y * th.cos())
+    }));
 
     let report = |pts: &[Pt], label: &str| -> (usize, usize) {
         let chain = chain_from(pts, false);
@@ -757,8 +785,8 @@ fn a_relation_is_accepted_only_when_it_shortens_the_code() {
         (m.relations.len(), m.relations_kept)
     };
 
-    let (considered_on, kept_on) = report(&on_axis, "on axis ");
-    let (considered_off, kept_off) = report(&off_axis, "off axis");
+    let (considered_on, kept_on) = report(&related, "perpendicular");
+    let (considered_off, kept_off) = report(&unrelated, "off relation ");
     assert!(
         considered_on > 0 && considered_off > 0,
         "no relation hypothesis was formed at all ({considered_on} / {considered_off}), so this \
@@ -766,12 +794,13 @@ fn a_relation_is_accepted_only_when_it_shortens_the_code() {
     );
     assert!(
         kept_on > 0,
-        "an L of two exactly axis-aligned runs accepted no relation; then §15's constrained model \
+        "an L of two exactly perpendicular runs accepted no relation; then §15's constrained model \
          never wins and the relation code is decoration"
     );
     assert!(
         kept_off < kept_on,
-        "the same L rotated by 7 degrees accepted {kept_off} relations against {kept_on}; then \
+        "an L moved seven degrees off perpendicular accepted {kept_off} relations against \
+         {kept_on}; then \
          acceptance is not a statement about the shape"
     );
 }
