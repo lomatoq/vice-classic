@@ -1314,8 +1314,8 @@ The current identities are:
 
 - model universe `47903d73…0f097`;
 - pricing surface `e8cd9a8a…4c38a`;
-- backend source `aeab41c7…1e27f`;
-- five-arm compatibility fingerprint `5cb7ce78…1eea54ee`.
+- backend source `5bd44d0a…9b1594`;
+- five-arm compatibility fingerprint `6a8b6dfc…1f06898f`.
 
 C349 is the config-only freeze of the measured floors. C351 keeps every
 production module under 800 lines. C363 extends the source digest over every
@@ -1323,7 +1323,9 @@ fitting/intervention Rust source and mechanically guards the manifest; C369
 splits the residual-only control under that bound. C373–C377 close the next
 independent-review findings; C378 is their config-only pricing freeze, C379
 adds the independent smooth-seam raster witness, and C380 is the current
-Tier-A artifact, reproduced byte-for-byte on `windows-x86_64`.
+Tier-A geometry record. C382 restores the module-size bound by splitting tests,
+and C383 is the current content-bound Tier-A artifact, reproduced byte-for-byte
+on `windows-x86_64`.
 
 ## A5.3 Materialized broad-corpus population
 
@@ -1364,7 +1366,7 @@ The §28 M6 gate is **MET as a completion candidate**:
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
-passes every one of the 69 commits from `origin/main` through this candidate.
+passes every one of the 72 commits from `origin/main` through this candidate.
 
 `REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-11. Defect classes
 F-0108…F-0122 record the final repair rather than letting Addendum 4’s invalid

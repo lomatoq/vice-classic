@@ -15,7 +15,7 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - geometry pricing surface:
   `e8cd9a8a7d04ebb0dcacf0696ba38342b40216625d43c4331055d89a6094c38a`;
 - Stage G/H backend source:
-  `aeab41c783aa45922794b6d5a0dcfa105bce11739c678232b69b6bdff231e27f`;
+  `5bd44d0a5f10ec5dee404c657e3d276ab8417eab90d16a2302b21ebfeb9b1594`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -99,7 +99,7 @@ Expected population and gate witnesses:
 |---|---|---|
 | common population | 7 of 19 observed closed chains complete all five arms | `>= 6` |
 | exact arm set | G00, G10, G01, G11, G20 on every boundary | exactly 5 |
-| compatibility | 35 arm rows share key `5cb7ce78…1eea54ee` | one identical five-component key |
+| compatibility | 35 arm rows share key `6a8b6dfc…1f06898f` | one identical five-component key |
 | raster provenance | 7 rows from independent ExactClip raster → production Stage F | `>= 6` |
 | oracle candidate injection | 16 forced-discrete fits | `>= 10` |
 | material selector changes | G01/G10/G11 = 2/4/1 geometry hashes | `>= 1/1/1` |
@@ -160,6 +160,8 @@ The relevant sequence is intentionally split:
 13. C378 freezes the changed pricing surface alone, C379 adds the
     raster-derived smooth-seam witness, and C380 records the repaired Tier-A
     artifact alone.
+14. C382 splits grammar tests below the 800-line production-module bound, and
+    C383 records the content-bound backend identity alone.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 

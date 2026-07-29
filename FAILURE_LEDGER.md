@@ -4597,4 +4597,6 @@ The DP state retains exactly the first-family data needed by the final
 transition, filters seam-invalid paths before K, and re-derives both endpoint
 scalar counts. C379 adds an independent raster-derived smooth four-cubic seam
 witness; C380 records the seven-boundary, 35-arm artifact with 16 genuine
-forced candidate injections.
+forced candidate injections. C382 splits its grammar tests under the
+production-module bound and C383 records the resulting content-bound backend
+identity.
