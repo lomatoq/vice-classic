@@ -413,3 +413,16 @@ fn the_geometry_code_table_agrees_with_the_universe_it_codes_over() {
     // §14.5 code would price an unbounded grammar at nothing.
     assert!(vice_fit::GeometryCodeTable::new(0.0, 0.0, 0.0).is_none());
 }
+
+/// The pricing-surface hash, printed so the freeze commit can quote it and a
+/// reviewer can recompute it. Run with `--nocapture`.
+#[test]
+fn the_pricing_surface_hash_is_printed_for_the_freeze() {
+    let surface = vice_fit::pricing_surface_v1();
+    let hash = crate::hashing::sha256_hex(surface.as_bytes());
+    println!("--- pricing surface v1 ---");
+    println!("{surface}");
+    println!("sha256 {hash}");
+    // The surface enumerates something: 4 families, 16 free-scalar rows.
+    assert!(surface.lines().count() > 30, "the surface shrank");
+}

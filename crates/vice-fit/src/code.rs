@@ -158,6 +158,138 @@ pub const GEOMETRY_CODE_TABLE_V1: GeometryCodeTable = GeometryCodeTable {
     bits_per_relation: 2.584963,
 };
 
+/// Bits a segment pays for its own LENGTH: a uniform prefix code over the
+/// `n - 1` possible gaps of a chain with `n` samples.
+///
+/// A function rather than an inline expression, because it is part of the
+/// pricing surface [`pricing_surface_v1`] freezes — an inline formula is a
+/// price nothing can enumerate.
+pub fn gap_bits(n_samples: usize) -> f64 {
+    ((n_samples - 1) as f64).log2()
+}
+
+/// **The COMPLETE pricing surface of the grammar, canonically serialized.**
+///
+/// RT6-A3: the gate file froze the code table's three numbers and the rest of
+/// the price of every grammar decision — `flag_bits`, `free_parameters`,
+/// `free_scalars` over its whole domain, `JOIN_KINDS`, the Huber knee, the
+/// coordinate-bits factor, the gap code, the jet-compatibility pruning — lived
+/// in code beside the code it judges. One line (`flag_bits` of the arc,
+/// 2.0 → 0.0) flipped arc-vs-line decisions and moved the published corpus
+/// numbers, including the G1 clause's own population, with every test green
+/// and the gate file untouched. "A number that decides whether a §28 clause is
+/// green is a gate, wherever it is written" (RT45-A5 / M45-N6), recreated one
+/// level up.
+///
+/// This string enumerates that surface by CALLING the real functions — not by
+/// re-listing their values, which would be a guard sharing its origin with the
+/// mechanism (F-0048 Q4). Its SHA-256 is frozen in
+/// `configs/GATES_V1.toml [geometry_pricing]` and cross-checked by
+/// `every_frozen_value_agrees_with_the_code_that_uses_it`, so the one-line
+/// repricing now moves a frozen value and requires a §27.7 commit.
+///
+/// The continuous pieces (the Huber loss, the gap code) are pinned at probe
+/// points. A probe list is a literal (F-0048 Q1) and its bypass is exact: a
+/// change to the function BETWEEN the probes — a reshaped loss agreeing at
+/// 0.5, 1, 2 and 4 — passes. The probes bracket the knee, which is the one
+/// structural feature the loss has, so the cheapest real repricing (moving or
+/// removing the knee) is caught; a same-knee reshaping is not, and that is the
+/// stated residual.
+pub fn pricing_surface_v1() -> String {
+    use crate::grammar::{free_scalars, jet_compatible, JET_CLASSES};
+    use crate::span::FITTED_FAMILIES;
+
+    let mut out = String::from(
+        "vice-classic/geometry-pricing/v1
+",
+    );
+    for f in FITTED_FAMILIES {
+        out.push_str(&format!(
+            "family {} flag_bits {} free_parameters {}
+",
+            f.universe_name(),
+            f.flag_bits(),
+            f.free_parameters()
+        ));
+    }
+    for f in FITTED_FAMILIES {
+        for head in [false, true] {
+            for tail in [false, true] {
+                out.push_str(&format!(
+                    "free_scalars {} head {} tail {} = {}
+",
+                    f.universe_name(),
+                    head,
+                    tail,
+                    free_scalars(f, head, tail)
+                ));
+            }
+        }
+    }
+    out.push_str(&format!(
+        "join_kinds {JOIN_KINDS}
+"
+    ));
+    for u in [0.5f64, 1.0, 2.0, 4.0] {
+        out.push_str(&format!(
+            "huber_rho {} = {}
+",
+            u,
+            crate::cost::rho(u)
+        ));
+    }
+    for n in [2usize, 17, 257] {
+        out.push_str(&format!(
+            "gap_bits {} = {}
+",
+            n,
+            gap_bits(n)
+        ));
+    }
+    out.push_str(&format!(
+        "coordinate_bits_at_reference = {}
+",
+        GEOMETRY_CODE_TABLE_V1.coordinate_bits(REFERENCE_CANVAS_DIM_PX)
+    ));
+    out.push_str(&format!(
+        "anchor_bits_at_256 = {}
+",
+        GEOMETRY_CODE_TABLE_V1.anchor_bits(256.0)
+    ));
+    out.push_str(&format!(
+        "jet_classes {JET_CLASSES}
+"
+    ));
+    for (a, b) in [(0usize, 0usize), (0, 1), (0, 2), (0, JET_CLASSES - 1)] {
+        out.push_str(&format!(
+            "jet_compatible {a} {b} = {}
+",
+            jet_compatible(a, b)
+        ));
+    }
+    // A quad smooth at both ends and an arc smooth at both ends are priced by
+    // `free_scalars` above but UNREACHABLE (`path_is_representable`); the
+    // reachability itself is part of the surface, because RT6-A1's exploit was
+    // precisely a priced-but-unheld configuration.
+    for f in FITTED_FAMILIES {
+        let path = crate::grammar::GrammarPath {
+            candidates: vec![0, 1],
+            breakpoints: vec![1],
+            smooth: vec![true],
+            code: ChainCode::default(),
+            proposal_cost_px: 0.0,
+        };
+        out.push_str(&format!(
+            "smooth_join_representable {}-{} = {}
+",
+            f.universe_name(),
+            f.universe_name(),
+            crate::grammar::path_is_representable(&path, &[f, f])
+        ));
+    }
+    out
+}
+
 /// `log2` of the binomial coefficient, by summing logarithms so it is finite
 /// for the chain lengths this crate sees rather than overflowing a `u64`.
 pub fn log2_binomial(n: usize, k: usize) -> f64 {

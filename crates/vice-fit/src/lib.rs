@@ -57,8 +57,8 @@ pub mod span;
 use serde::Serialize;
 
 pub use code::{
-    log2_binomial, residual_bits, ChainCode, GeometryCodeTable, GEOMETRY_CODE_TABLE_V1, JOIN_KINDS,
-    REFERENCE_CANVAS_DIM_PX,
+    gap_bits, log2_binomial, pricing_surface_v1, residual_bits, ChainCode, GeometryCodeTable,
+    GEOMETRY_CODE_TABLE_V1, JOIN_KINDS, REFERENCE_CANVAS_DIM_PX,
 };
 pub use corner::{corner_anchors, corner_proposals, CornerProposal};
 pub use cost::{

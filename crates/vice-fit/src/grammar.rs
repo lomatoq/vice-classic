@@ -297,7 +297,7 @@ pub fn k_best_paths(
     let cb = table.coordinate_bits(canvas_dim_px);
     let anchor = table.anchor_bits(canvas_dim_px);
     let join_bits = (crate::code::JOIN_KINDS as f64).log2();
-    let gap_bits = ((n - 1) as f64).log2();
+    let gap_bits = crate::code::gap_bits(n);
     let precision = table.coordinate_precision_px();
     // The chain's first sample, charged once so it is not free and not double
     // counted (§17.2). Its deviation is zero for every candidate — both

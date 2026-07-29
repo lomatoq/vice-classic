@@ -343,6 +343,22 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
             "bits_per_relation",
             GateExpectation::num(vice_fit::GEOMETRY_CODE_TABLE_V1.bits_per_relation()),
         ),
+        // --- geometry pricing surface (RT6-A3; frozen at delta-1) ---
+        // The gate above froze the code table's three numbers and the red
+        // team repriced the grammar around them in one line (flag_bits of the
+        // arc, 2.0 -> 0.0): decisions flipped and published corpus numbers
+        // moved, including the G1 clause's population, with every test green
+        // and the gate file untouched. The WHOLE pricing surface is therefore
+        // frozen by content hash: `pricing_surface_v1` enumerates it by
+        // calling the real functions, and this claim binds the frozen hash to
+        // that enumeration. One repriced line now reddens this walk.
+        (
+            "geometry_pricing",
+            "pricing_surface_sha256",
+            GateExpectation::text(&crate::hashing::sha256_hex(
+                vice_fit::pricing_surface_v1().as_bytes(),
+            )),
+        ),
         // --- likelihood --------------------------------------------
         (
             "likelihood",
