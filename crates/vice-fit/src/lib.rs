@@ -55,7 +55,7 @@ pub use schedule::{
 pub use span::{
     fit, flattening_error_px, proposal_cost, NoFit, SpanCandidate, SpanFamily,
     DEVIATION_CHORD_TOLERANCE_PX, FAMILIES_DELIBERATELY_NOT_FITTED, FITTED_FAMILIES,
-    PARAMETER_REFINEMENT_PASSES,
+    MATERIAL_DEVIATION_FRACTION, PARAMETER_REFINEMENT_PASSES,
 };
 
 use vice_evidence::BoundaryChain;
@@ -111,12 +111,27 @@ pub struct ChainCandidates {
     /// quietly becoming a working limit is visible before it binds.
     pub budget_headroom: usize,
     /// The largest angular departure, in degrees, between a sample's normal
-    /// and the direction to its closest point on a candidate.
+    /// and the direction to its closest point on a candidate, over the samples
+    /// whose deviation is at least [`MATERIAL_DEVIATION_FRACTION`] of their
+    /// corridor halfwidth.
     ///
     /// This is the size of the gap between the Euclidean deviation this crate
     /// measures and §14.4's normal-direction `d_n`. Published rather than
     /// argued: an approximation whose error is not measured is an assumption.
+    ///
+    /// The restriction to material deviations is not cosmetic and is recorded
+    /// on the constant: unrestricted, the corpus reported exactly 90.000
+    /// degrees, which was the instrument saturating on samples sitting on the
+    /// curve rather than a property of any candidate.
     pub max_normal_departure_deg: f64,
+    /// The Euclidean deviation, in px, at the sample where that worst
+    /// departure occurred.
+    ///
+    /// Without it the angle cannot be interpreted: 90 degrees at 0.001 px is
+    /// numerical noise and 90 degrees at 3 px is the cost measuring the wrong
+    /// thing on a real candidate. The two are the same number and different
+    /// findings.
+    pub departure_at_deviation_px: f64,
 }
 
 /// **§28 M6 bullets 1 and 2 for one chain.**
@@ -163,6 +178,7 @@ pub fn span_candidates(
     let mut candidates = Vec::with_capacity(would_generate);
     let mut no_fits: Vec<(&'static str, NoFit, usize)> = Vec::new();
     let mut worst_departure = 0.0f64;
+    let mut worst_departure_at = 0.0f64;
 
     for support in &supports {
         for family in FITTED_FAMILIES {
@@ -173,11 +189,16 @@ pub fn span_candidates(
                     continue;
                 }
             };
-            let Some((cost, worst, departure_deg)) = proposal_cost(samples, *support, &seg) else {
+            let Some((cost, worst, departure_deg, departure_at)) =
+                proposal_cost(samples, *support, &seg)
+            else {
                 bump(&mut no_fits, family.universe_name(), NoFit::NonFiniteFit);
                 continue;
             };
-            worst_departure = worst_departure.max(departure_deg);
+            if departure_deg > worst_departure {
+                worst_departure = departure_deg;
+                worst_departure_at = departure_at;
+            }
             candidates.push(SpanCandidate {
                 support: *support,
                 family,
@@ -204,6 +225,7 @@ pub fn span_candidates(
         families_present,
         no_fits,
         max_normal_departure_deg: worst_departure,
+        departure_at_deviation_px: worst_departure_at,
     })
 }
 

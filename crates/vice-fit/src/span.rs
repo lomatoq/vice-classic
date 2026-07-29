@@ -131,10 +131,25 @@ pub struct SpanCandidate {
     /// deviation along the sample's normal.** They agree when the closest
     /// point of the curve lies on the sample's normal ray and otherwise the
     /// Euclidean one is strictly smaller, so this cost is a LOWER BOUND on
-    /// §14.4's. It is stated here rather than in a document because the
-    /// difference is a property of this field. [`ChainCandidates`] publishes
-    /// `max_normal_departure_deg`, which is how far the two can be apart on
-    /// the population actually run, so the size of the gap is a number.
+    /// §14.4's.
+    ///
+    /// **How loose a bound is now measured, and the answer is: loose.** On the
+    /// corpus (`vice_bench::fit`, 36 chains, 11 157 candidates) the worst
+    /// departure between the closest-point direction and the sample normal is
+    /// **90.000 degrees, at a deviation of 1.503 px** — a right angle at a
+    /// deviation four times the clean-corridor median halfwidth, so it is not
+    /// a sample sitting on the curve and it is not rounding. Where the
+    /// departure is a right angle the normal ray does not meet the curve at
+    /// all near that sample, and §14.4's integrand there is not merely larger
+    /// than this one, it is unbounded.
+    ///
+    /// So this field ORDERS candidates by a quantity that agrees with §14.4
+    /// where a candidate is close to the chain and diverges from it where the
+    /// candidate is wrong — which flatters bad candidates. It is adequate for
+    /// the coarse ordering the DP consumes and it is NOT §14.4's integral.
+    /// Closing it means computing the deviation along the sample's normal ray
+    /// and deciding what a miss means, which is a decision about evidence and
+    /// belongs with the stage that uses it. Owner: §28 M6 bullet 3.
     pub proposal_cost_px: f64,
     /// The largest Euclidean deviation of any sample in the support from the
     /// fitted primitive, in px. Not a certified Hausdorff distance: it is
@@ -260,6 +275,25 @@ fn deviation_to_polyline(p: Pt, poly: &[Pt]) -> (f64, Pt) {
     }
     (best, best_dir)
 }
+
+/// The deviation, as a fraction of the corridor halfwidth, below which a
+/// sample is not asked where its closest point lies.
+///
+/// A quarter. Under the Huber loss below, a sample at `0.25 h` contributes
+/// `0.0625` against a knee of `1.0` — under a sixteenth of what a sample at
+/// the corridor edge contributes. The direction to the closest point of a
+/// curve a sample is already sitting on is numerical noise, and including it
+/// made `max_normal_departure_deg` report exactly 90 degrees on the corpus:
+/// the maximum the range allows, which is what a saturated instrument reports
+/// rather than what a measuring one does.
+///
+/// This is a threshold, and thresholds in this project have to say what they
+/// would hide. It hides a large Euclidean-vs-normal discrepancy at a sample
+/// whose deviation is under a quarter of its corridor — where §14.4's `d_n`
+/// and the Euclidean `d` differ by at most `0.25 h / cos(theta) - 0.25 h`,
+/// and where the cost contribution being bounded by `0.0625 * ds` bounds what
+/// that difference can do to a ranking.
+pub const MATERIAL_DEVIATION_FRACTION: f64 = 0.25;
 
 /// The robust loss of §14.4. Huber with unit knee: the argument is already
 /// normalised by the corridor halfwidth, so "one" means "one corridor", and a
@@ -554,7 +588,7 @@ pub fn proposal_cost(
     samples: &[BoundarySample],
     support: Support,
     segment: &Segment,
-) -> Option<(f64, f64, f64)> {
+) -> Option<(f64, f64, f64, f64)> {
     let p0 = samples[support.lo()].p;
     let p1 = samples[support.hi()].p;
     let (poly, _bound) = flatten(segment, p0, p1)?;
@@ -565,6 +599,7 @@ pub fn proposal_cost(
     let mut cost = 0.0f64;
     let mut worst = 0.0f64;
     let mut worst_departure_rad = 0.0f64;
+    let mut worst_departure_at_px = 0.0f64;
     for s in &samples[support.lo()..=support.hi()] {
         let (d, dir) = deviation_to_polyline(s.p, &poly);
         if !d.is_finite() {
@@ -573,15 +608,33 @@ pub fn proposal_cost(
         cost += rho(d / s.halfwidth) * s.weight_ds;
         worst = worst.max(d);
 
-        // How far the closest-point direction is from the sample's normal.
-        // Zero deviation has no direction, so it contributes nothing.
+        // How far the closest-point direction is from the sample's normal —
+        // over the samples where that question has an answer worth having.
+        //
+        // The first version of this took the max over ALL samples and the
+        // corpus reported exactly 90.000 degrees. That is not a fact about
+        // the data: a sample sitting essentially ON the curve has a closest
+        // point one ulp away in an arbitrary direction, usually the tangent,
+        // and reports a right angle while contributing nothing to the cost.
+        // The predicate was named for one set and computed over another
+        // (F-0030), and the value it produced was the maximum the range
+        // allows, which is the shape a saturated instrument has.
         let dl = dir.length();
-        if dl > 0.0 {
+        if dl > 0.0 && d >= MATERIAL_DEVIATION_FRACTION * s.halfwidth {
             let c = (dir.dot(s.normal) / dl).clamp(-1.0, 1.0);
             // The normal is signed; a closest point on either side is equally
             // "along the normal", so fold to the acute angle.
-            worst_departure_rad = worst_departure_rad.max(c.abs().acos());
+            let departure = c.abs().acos();
+            if departure > worst_departure_rad {
+                worst_departure_rad = departure;
+                worst_departure_at_px = d;
+            }
         }
     }
-    Some((cost, worst, worst_departure_rad.to_degrees()))
+    Some((
+        cost,
+        worst,
+        worst_departure_rad.to_degrees(),
+        worst_departure_at_px,
+    ))
 }

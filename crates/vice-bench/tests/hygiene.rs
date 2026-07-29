@@ -784,6 +784,16 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         // only through `exact_ink_coverage`, i.e. the same oracle truth field
         // the M4.5 recall clause is scored against, and it renders nothing.
         "vice-bench/src/dcel/mod.rs",
+        // M6: the §28 M6 candidate-stage measurement. It walks the corpus the
+        // same way `corridor/mod.rs` does and skips the sealed audit by the
+        // same `split_of_group` test at run time, reporting the count of
+        // groups it skipped so that the skip is visible rather than asserted.
+        // It FREEZES NOTHING and reads no threshold: §28 M6's gate is about
+        // the joint solve and the oracle decomposition, and neither exists, so
+        // every number it produces is a published count. It reaches a fixture
+        // only through `render_cell`, i.e. the same rendering path the M4
+        // corridor harness uses, and it adds no new route to one.
+        "vice-bench/src/fit.rs",
         // The ONE mint site of the frozen-measurement handle. It names the
         // split-filtered accessor and nothing wider, which
         // `the_only_mint_site_for_the_legal_handle_cannot_widen_it` checks.
@@ -1170,6 +1180,11 @@ fn only_declared_modules_call_the_render_pipeline() {
         "vice-bench/src/gt/adversarial.rs",
         // Harness runs: they report, they freeze nothing.
         "vice-bench/src/corridor/mod.rs",
+        // M6: the candidate-stage measurement calls `render_cell` for the same
+        // reason the corridor harness does — the M4 evidence path begins at a
+        // rendered degradation cell, and Stage G consumes what that path
+        // observes. It renders, so it belongs here.
+        "vice-bench/src/fit.rs",
         "vice-bench/src/oracle/ceiling.rs",
         "vice-bench/src/topology/mod.rs",
         "vice-bench/src/topology/ambiguity.rs",

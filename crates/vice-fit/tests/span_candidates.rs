@@ -104,7 +104,7 @@ fn the_line_family_reproduces_a_line_and_does_not_reproduce_an_arc() {
     let straight = chain_from(&line_points(Pt::new(10.0, 10.0), Pt::new(90.0, 40.0), 40));
     let s = whole_run(&straight);
     let seg = fit(&straight.samples, s, SpanFamily::Line).expect("line always fits");
-    let (_, worst, _) = proposal_cost(&straight.samples, s, &seg).expect("line flattens");
+    let (_, worst, _, _) = proposal_cost(&straight.samples, s, &seg).expect("line flattens");
     assert!(
         worst < 1e-9,
         "the line family deviates by {worst} px from a chain that IS a line"
@@ -113,7 +113,7 @@ fn the_line_family_reproduces_a_line_and_does_not_reproduce_an_arc() {
     let curved = chain_from(&arc_points(40.0, 1.2, 0.5));
     let s2 = whole_run(&curved);
     let seg2 = fit(&curved.samples, s2, SpanFamily::Line).expect("line always fits");
-    let (_, worst2, _) = proposal_cost(&curved.samples, s2, &seg2).expect("line flattens");
+    let (_, worst2, _, _) = proposal_cost(&curved.samples, s2, &seg2).expect("line flattens");
     assert!(
         worst2 > 1.0,
         "the line family deviates by only {worst2} px from a 1.2 rad arc of radius 40; then the \
@@ -157,7 +157,7 @@ fn the_arc_family_recovers_its_radius_and_its_arc_flags() {
             // number chosen to make the test pass — this assertion was
             // written as `< 0.05` and the run reported 0.0599 px, which is
             // the tolerance showing through, not a bad fit.
-            let (_, worst, _) = proposal_cost(&chain.samples, s, &seg).expect("arc flattens");
+            let (_, worst, _, _) = proposal_cost(&chain.samples, s, &seg).expect("arc flattens");
             let certified = flattening_error_px(&seg, chain.samples[0].p, chain.samples[s.hi()].p);
             assert!(
                 worst <= certified,
@@ -220,7 +220,7 @@ fn the_cubic_family_fits_a_cubic_to_a_measured_floor_and_ranks_it_first() {
     let mut by_family = Vec::new();
     for fam in [SpanFamily::Cubic, SpanFamily::Quad, SpanFamily::Line] {
         let seg = fit(&chain.samples, s, fam).expect("fits");
-        let (cost, worst, _) = proposal_cost(&chain.samples, s, &seg).expect("flattens");
+        let (cost, worst, _, _) = proposal_cost(&chain.samples, s, &seg).expect("flattens");
         println!(
             "{:>16}: max deviation {worst:8.5} px | proposal cost {cost:11.4}",
             fam.universe_name()
@@ -270,7 +270,7 @@ fn the_proposal_cost_is_invariant_to_the_sample_step() {
         let chain = chain_from(&arc_points(40.0, 1.2, step));
         let s = whole_run(&chain);
         let seg = fit(&chain.samples, s, SpanFamily::Line).expect("line always fits");
-        let (cost, worst, _) = proposal_cost(&chain.samples, s, &seg).expect("line flattens");
+        let (cost, worst, _, _) = proposal_cost(&chain.samples, s, &seg).expect("line flattens");
         println!(
             "step {step:>5} px: samples {:5} | cost {cost:12.5} | max deviation {worst:8.5} px",
             chain.samples.len()

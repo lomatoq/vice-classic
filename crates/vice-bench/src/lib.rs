@@ -32,6 +32,7 @@ pub mod dcel;
 pub mod envinfo;
 pub mod error;
 pub mod exec;
+pub mod fit;
 pub mod fsutil;
 pub mod gates;
 pub mod gt;
