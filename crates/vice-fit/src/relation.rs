@@ -262,11 +262,18 @@ fn evaluate(
     let saving_bits = scalars_determined as f64 * coordinate_bits;
     let after = residual_code(&constrained, samples, table);
     let residual_penalty_bits = after - base_residual;
-    let (worst, allowed) = worst_deviation(&constrained, samples);
-    let worst_reverse = flatten_chain(&constrained).map_or(f64::INFINITY, |poly| {
-        crate::solve::model_to_evidence_deviation(&poly, samples)
-    });
-    let reverse_allowed = crate::solve::reverse_corridor_allowance(samples);
+    let (forward, reverse) = flatten_chain(&constrained).map_or_else(
+        |_| {
+            let invalid = crate::solve::evidence_to_model_corridor(&[], samples);
+            (invalid, invalid)
+        },
+        |poly| {
+            (
+                crate::solve::evidence_to_model_corridor(&poly, samples),
+                crate::solve::model_to_evidence_corridor(&poly, samples),
+            )
+        },
+    );
     let net_bits = saving_bits - cost_bits - residual_penalty_bits;
     RelationHypothesis {
         kind,
@@ -276,17 +283,14 @@ fn evaluate(
         saving_bits,
         residual_penalty_bits,
         net_bits,
-        worst_normal_deviation_px: worst,
-        worst_model_to_evidence_px: worst_reverse,
-        allowed_px: allowed,
+        worst_normal_deviation_px: forward.deviation_px,
+        worst_model_to_evidence_px: reverse.deviation_px,
+        allowed_px: forward.allowed_px,
         // §15's two conditions, both required: a net saving in bits AND a chain
         // the evidence still supports. A relation that pays for itself by
         // moving the boundary out of its corridor is the "relation prior
         // compensating a salient residual" §15 forbids.
-        accepted: net_bits > 0.0
-            && worst <= allowed
-            && worst_reverse <= reverse_allowed
-            && after.is_finite(),
+        accepted: net_bits > 0.0 && forward.feasible() && reverse.feasible() && after.is_finite(),
     }
 }
 
@@ -373,23 +377,6 @@ fn residual_code(chain: &RefitChain, samples: &[BoundarySample], table: &Geometr
             w * crate::code::residual_bits(dn, s.halfwidth, precision)
         })
         .sum()
-}
-
-fn worst_deviation(chain: &RefitChain, samples: &[BoundarySample]) -> (f64, f64) {
-    let Ok(poly) = flatten_chain(chain) else {
-        return (f64::INFINITY, 0.0);
-    };
-    let mut worst = 0.0f64;
-    let mut allowed = 0.0f64;
-    for s in samples {
-        let dn = crate::cost::normal_deviation(s.p, s.normal, &poly)
-            .map_or_else(|| crate::cost::euclidean_deviation(s.p, &poly), f64::abs);
-        if dn > worst {
-            worst = dn;
-            allowed = crate::refit::FEASIBLE_HALFWIDTHS * s.halfwidth;
-        }
-    }
-    (worst, allowed)
 }
 
 /// Project the second line onto the parallel, perpendicular or shared-baseline

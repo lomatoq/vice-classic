@@ -203,9 +203,8 @@ pub fn loop_primitive_hypotheses(
             let characteristic_radius_px = geometry.half_width_px.max(geometry.half_height_px);
             let primitive_bits = kind.code_bits(table, canvas_dim_px, characteristic_radius_px);
             let net_bits = free_structure_bits - primitive_bits - residual_penalty_bits;
-            let (worst, allowed) = worst_deviation(&poly, samples);
-            let worst_reverse = crate::solve::model_to_evidence_deviation(&poly, samples);
-            let reverse_allowed = crate::solve::reverse_corridor_allowance(samples);
+            let forward = crate::solve::evidence_to_model_corridor(&poly, samples);
+            let reverse = crate::solve::model_to_evidence_corridor(&poly, samples);
             Some(LoopPrimitiveHypothesis {
                 kind,
                 geometry,
@@ -214,12 +213,12 @@ pub fn loop_primitive_hypotheses(
                 free_structure_bits,
                 residual_penalty_bits,
                 net_bits,
-                worst_normal_deviation_px: worst,
-                worst_model_to_evidence_px: worst_reverse,
-                allowed_px: allowed,
+                worst_normal_deviation_px: forward.deviation_px,
+                worst_model_to_evidence_px: reverse.deviation_px,
+                allowed_px: forward.allowed_px,
                 accepted: net_bits > 0.0
-                    && worst <= allowed
-                    && worst_reverse <= reverse_allowed
+                    && forward.feasible()
+                    && reverse.feasible()
                     && after.is_finite()
                     && primitive_bits.is_finite(),
             })
@@ -523,20 +522,6 @@ fn polyline_residual(poly: &[Pt], samples: &[BoundarySample], table: &GeometryCo
             w * residual_bits(dn, s.halfwidth, precision)
         })
         .sum()
-}
-
-fn worst_deviation(poly: &[Pt], samples: &[BoundarySample]) -> (f64, f64) {
-    let mut worst = 0.0f64;
-    let mut allowed = 0.0f64;
-    for s in samples {
-        let dn = crate::cost::normal_deviation(s.p, s.normal, poly)
-            .map_or_else(|| crate::cost::euclidean_deviation(s.p, poly), f64::abs);
-        if dn > worst {
-            worst = dn;
-            allowed = crate::refit::FEASIBLE_HALFWIDTHS * s.halfwidth;
-        }
-    }
-    (worst, allowed)
 }
 
 #[cfg(test)]

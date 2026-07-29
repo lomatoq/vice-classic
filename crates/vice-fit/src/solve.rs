@@ -29,10 +29,12 @@
 use vice_evidence::BoundarySample;
 use vice_geom::{ChordTolerancePx, Pt};
 
-use crate::cost::{euclidean_deviation, normal_deviation};
-use crate::refit::{
-    ArcAnchor, Handle, RefitChain, RefitRefusal, RefitSegment, FEASIBLE_HALFWIDTHS,
-};
+use crate::cost::euclidean_deviation;
+use crate::refit::{ArcAnchor, Handle, RefitChain, RefitRefusal, RefitSegment};
+
+mod corridor;
+
+pub(crate) use corridor::{evidence_to_model_corridor, model_to_evidence_corridor, worse};
 
 /// Passes of the damped Gauss–Newton, fixed.
 ///
@@ -142,24 +144,9 @@ fn residual(chain: &RefitChain, samples: &[BoundarySample]) -> f64 {
         .sum()
 }
 
-/// The reverse half of corridor feasibility: every point of the delivered
-/// curve must stay near the ordered Stage-F evidence, not merely vice versa.
+/// The deviation at the most violated local reverse corridor.
 pub fn model_to_evidence_deviation(poly: &[Pt], samples: &[BoundarySample]) -> f64 {
-    let evidence: Vec<Pt> = samples.iter().map(|sample| sample.p).collect();
-    if poly.len() < 2 || evidence.len() < 2 {
-        return f64::INFINITY;
-    }
-    poly.iter()
-        .map(|point| euclidean_deviation(*point, &evidence))
-        .fold(0.0f64, f64::max)
-}
-
-pub fn reverse_corridor_allowance(samples: &[BoundarySample]) -> f64 {
-    FEASIBLE_HALFWIDTHS
-        * samples
-            .iter()
-            .map(|sample| sample.halfwidth)
-            .fold(0.0f64, f64::max)
+    model_to_evidence_corridor(poly, samples).deviation_px
 }
 
 /// Pack the free scalars of a chain into a vector.
@@ -415,27 +402,13 @@ pub fn joint_constrained_refit(
     // Feasibility, in §14.4's own quantity: the deviation along the sample
     // normal, not the Euclidean one the optimiser minimised.
     let poly = flatten_chain(&best)?;
-    let mut worst = 0.0f64;
-    let mut allowed = 0.0f64;
-    for s in samples {
-        let dn = normal_deviation(s.p, s.normal, &poly)
-            .map_or_else(|| euclidean_deviation(s.p, &poly), f64::abs);
-        if dn > worst {
-            worst = dn;
-            allowed = FEASIBLE_HALFWIDTHS * s.halfwidth;
-        }
-    }
-    let worst_reverse = model_to_evidence_deviation(&poly, samples);
-    let reverse_allowed = reverse_corridor_allowance(samples);
-    if worst > allowed || worst_reverse > reverse_allowed {
-        let (worst_deviation_px, allowed_px) = if worst_reverse > reverse_allowed {
-            (worst_reverse, reverse_allowed)
-        } else {
-            (worst, allowed)
-        };
+    let forward = evidence_to_model_corridor(&poly, samples);
+    let reverse = model_to_evidence_corridor(&poly, samples);
+    if !forward.feasible() || !reverse.feasible() {
+        let rejected = worse(forward, reverse);
         return Err(RefitRefusal::OutsideCorridor {
-            worst_deviation_px,
-            allowed_px,
+            worst_deviation_px: rejected.deviation_px,
+            allowed_px: rejected.allowed_px,
         });
     }
 
@@ -445,8 +418,8 @@ pub fn joint_constrained_refit(
         residual_before: start,
         residual_after: best_r,
         pass_kept,
-        worst_normal_deviation_px: worst,
-        worst_model_to_evidence_px: worst_reverse,
+        worst_normal_deviation_px: forward.deviation_px,
+        worst_model_to_evidence_px: reverse.deviation_px,
     })
 }
 
@@ -463,7 +436,7 @@ fn residual_vector(chain: &RefitChain, samples: &[BoundarySample]) -> Option<Vec
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::refit::{g1_readings, RefitNode};
+    use crate::refit::{g1_readings, RefitNode, FEASIBLE_HALFWIDTHS};
 
     fn samples_from(points: &[Pt]) -> Vec<BoundarySample> {
         points
@@ -596,10 +569,103 @@ mod tests {
                 .all(|sample| euclidean_deviation(sample.p, &poly) == 0.0),
             "the old forward-only corridor leg sees no defect"
         );
-        assert!(
-            model_to_evidence_deviation(&poly, &s) > reverse_corridor_allowance(&s),
-            "the reverse leg must reject the 100 px excursion"
-        );
+        assert!(!model_to_evidence_corridor(&poly, &s).feasible());
+    }
+
+    #[test]
+    fn a_narrow_local_corridor_cannot_borrow_a_wide_samples_allowance() {
+        let init = RefitChain {
+            nodes: vec![
+                RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                RefitNode {
+                    pos: Pt::new(10.0, 0.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line],
+        };
+        let s = vec![
+            BoundarySample {
+                p: Pt::new(0.0, 0.0),
+                normal: Pt::new(0.0, 1.0),
+                halfwidth: 1.0,
+                confidence: 1.0,
+                weight_ds: 1.0,
+                corr_length_px: 1.0,
+            },
+            BoundarySample {
+                p: Pt::new(3.0, 1.0),
+                normal: Pt::new(0.0, 1.0),
+                halfwidth: 1.0,
+                confidence: 1.0,
+                weight_ds: 1.0,
+                corr_length_px: 1.0,
+            },
+            BoundarySample {
+                p: Pt::new(7.0, 0.8),
+                normal: Pt::new(0.0, 1.0),
+                halfwidth: 0.1,
+                confidence: 1.0,
+                weight_ds: 1.0,
+                corr_length_px: 1.0,
+            },
+            BoundarySample {
+                p: Pt::new(10.0, 0.0),
+                normal: Pt::new(0.0, 1.0),
+                halfwidth: 1.0,
+                confidence: 1.0,
+                weight_ds: 1.0,
+                corr_length_px: 1.0,
+            },
+        ];
+        assert!(matches!(
+            joint_constrained_refit(&init, &s),
+            Err(RefitRefusal::OutsideCorridor {
+                worst_deviation_px,
+                allowed_px,
+            }) if (worst_deviation_px - 0.8).abs() < 1e-12
+                && (allowed_px - 0.3).abs() < 1e-12
+        ));
+    }
+
+    #[test]
+    fn a_reverse_excursion_uses_the_halfwidth_at_its_projection() {
+        let init = RefitChain {
+            nodes: vec![
+                RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                RefitNode {
+                    pos: Pt::new(5.0, 0.0),
+                    tangent_rad: None,
+                },
+                RefitNode {
+                    pos: Pt::new(7.0, 2.0),
+                    tangent_rad: None,
+                },
+                RefitNode {
+                    pos: Pt::new(10.0, 0.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line, RefitSegment::Line, RefitSegment::Line],
+        };
+        let mut s = samples_from(&[Pt::new(0.0, 0.0), Pt::new(5.0, 0.0), Pt::new(10.0, 0.0)]);
+        s[0].halfwidth = 1.0;
+        s[1].halfwidth = 0.1;
+        s[2].halfwidth = 0.1;
+        assert!(matches!(
+            joint_constrained_refit(&init, &s),
+            Err(RefitRefusal::OutsideCorridor {
+                worst_deviation_px,
+                allowed_px,
+            }) if (worst_deviation_px - 2.0).abs() < 1e-12
+                && (allowed_px - 0.3).abs() < 1e-12
+        ));
     }
 
     /// The solve never returns something worse than what it was handed, at any
