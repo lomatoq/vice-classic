@@ -273,7 +273,22 @@ pub fn build(run: &DcelRun) -> DcelReport {
         // The rule it broke is the one this project keeps paying for: a
         // denominator and its numerator must come from the same population.
         transactions_attempted: all.len() as u64,
-        transaction_shapes: 3,
+        // MEASURED: the count of edit-shape SLOTS that produced at least one
+        // attempted transaction anywhere in the run. This was the literal `3`
+        // until reviewer A ran the world its own gate comment names — the
+        // hole-fill shape deleted — and all four clauses stayed MET: the
+        // frozen floor was being compared against a copy of itself, a guard
+        // and a mechanism that were one number written twice (M6A-N1,
+        // F-0048 Q4's terminal form). Now the deleted-shape world reads 2 and
+        // the row is NOT MET, which is the regression the floor was built for.
+        transaction_shapes: [
+            run.arms.iter().any(|a| a.transaction.is_some()),
+            run.arms.iter().any(|a| a.transaction_ring.is_some()),
+            run.arms.iter().any(|a| a.transaction_hole_fill.is_some()),
+        ]
+        .iter()
+        .filter(|present| **present)
+        .count() as u64,
         transactions_committed: tx(|t| t.committed),
         transactions_committed_on_non_empty_arms: run
             .arms
