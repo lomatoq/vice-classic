@@ -104,7 +104,9 @@ fn the_line_family_reproduces_a_line_and_does_not_reproduce_an_arc() {
     let straight = chain_from(&line_points(Pt::new(10.0, 10.0), Pt::new(90.0, 40.0), 40));
     let s = whole_run(&straight);
     let seg = fit(&straight.samples, s, SpanFamily::Line).expect("line always fits");
-    let (_, worst, _, _) = proposal_cost(&straight.samples, s, &seg).expect("line flattens");
+    let worst = proposal_cost(&straight.samples, s, &seg)
+        .expect("line flattens")
+        .max_normal_deviation_px;
     assert!(
         worst < 1e-9,
         "the line family deviates by {worst} px from a chain that IS a line"
@@ -113,7 +115,9 @@ fn the_line_family_reproduces_a_line_and_does_not_reproduce_an_arc() {
     let curved = chain_from(&arc_points(40.0, 1.2, 0.5));
     let s2 = whole_run(&curved);
     let seg2 = fit(&curved.samples, s2, SpanFamily::Line).expect("line always fits");
-    let (_, worst2, _, _) = proposal_cost(&curved.samples, s2, &seg2).expect("line flattens");
+    let worst2 = proposal_cost(&curved.samples, s2, &seg2)
+        .expect("line flattens")
+        .max_normal_deviation_px;
     assert!(
         worst2 > 1.0,
         "the line family deviates by only {worst2} px from a 1.2 rad arc of radius 40; then the \
@@ -157,7 +161,9 @@ fn the_arc_family_recovers_its_radius_and_its_arc_flags() {
             // number chosen to make the test pass — this assertion was
             // written as `< 0.05` and the run reported 0.0599 px, which is
             // the tolerance showing through, not a bad fit.
-            let (_, worst, _, _) = proposal_cost(&chain.samples, s, &seg).expect("arc flattens");
+            let worst = proposal_cost(&chain.samples, s, &seg)
+                .expect("arc flattens")
+                .max_euclidean_deviation_px;
             let certified = flattening_error_px(&seg, chain.samples[0].p, chain.samples[s.hi()].p);
             assert!(
                 worst <= certified,
@@ -220,10 +226,13 @@ fn the_cubic_family_fits_a_cubic_to_a_measured_floor_and_ranks_it_first() {
     let mut by_family = Vec::new();
     for fam in [SpanFamily::Cubic, SpanFamily::Quad, SpanFamily::Line] {
         let seg = fit(&chain.samples, s, fam).expect("fits");
-        let (cost, worst, _, _) = proposal_cost(&chain.samples, s, &seg).expect("flattens");
+        let c = proposal_cost(&chain.samples, s, &seg).expect("flattens");
+        let (cost, worst) = (c.cost_px, c.max_normal_deviation_px);
         println!(
-            "{:>16}: max deviation {worst:8.5} px | proposal cost {cost:11.4}",
-            fam.universe_name()
+            "{:>16}: max d_n {worst:8.5} px | max d_euclid {:8.5} px | ratio {:6.3} | proposal              cost {cost:11.4}",
+            fam.universe_name(),
+            c.max_euclidean_deviation_px,
+            c.max_normal_to_euclidean_ratio,
         );
         by_family.push((fam, cost, worst));
     }
@@ -270,9 +279,10 @@ fn the_proposal_cost_is_invariant_to_the_sample_step() {
         let chain = chain_from(&arc_points(40.0, 1.2, step));
         let s = whole_run(&chain);
         let seg = fit(&chain.samples, s, SpanFamily::Line).expect("line always fits");
-        let (cost, worst, _, _) = proposal_cost(&chain.samples, s, &seg).expect("line flattens");
+        let c = proposal_cost(&chain.samples, s, &seg).expect("line flattens");
+        let (cost, worst) = (c.cost_px, c.max_normal_deviation_px);
         println!(
-            "step {step:>5} px: samples {:5} | cost {cost:12.5} | max deviation {worst:8.5} px",
+            "step {step:>5} px: samples {:5} | cost {cost:12.5} | max d_n {worst:8.5} px",
             chain.samples.len()
         );
         measured.push(cost);
@@ -305,7 +315,7 @@ fn the_proposal_cost_is_invariant_to_translation() {
         let seg = fit(&chain.samples, s, SpanFamily::Line).expect("line always fits");
         proposal_cost(&chain.samples, s, &seg)
             .expect("line flattens")
-            .0
+            .cost_px
     };
     let (a, b) = (cost_of(&base), cost_of(&shifted));
     assert!(
@@ -345,18 +355,20 @@ fn a_run_over_a_real_shape_publishes_its_own_population() {
     // Every candidate's support is an interval of THIS chain.
     for c in &out.candidates {
         assert!(c.support.hi() < out.chain_samples);
-        assert!(c.proposal_cost_px.is_finite() && c.proposal_cost_px >= 0.0);
-        assert!(c.max_deviation_px.is_finite());
+        assert!(c.proposal_cost_px().is_finite() && c.proposal_cost_px() >= 0.0);
+        assert!(c.max_deviation_px().is_finite());
     }
     println!(
-        "samples {} | supports {} | candidates {} | families {:?} | headroom {} | max normal \
-         departure {:.3} deg",
+        "samples {} | supports {} | candidates {} | families {:?} | headroom {} | worst d_n / \
+         d_euclid {:.3} at {:.5} px | cost refusals {:?}",
         out.chain_samples,
         out.supports,
         out.candidates.len(),
         out.families_present,
         out.budget_headroom,
-        out.max_normal_departure_deg
+        out.max_normal_to_euclidean_ratio,
+        out.ratio_at_deviation_px,
+        out.no_costs,
     );
 }
 

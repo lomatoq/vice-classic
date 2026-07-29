@@ -13,10 +13,10 @@
 //! the candidate stage over whatever chains come out. The numbers it publishes
 //! are the ones a later gate row would have to stand on: how many chains,
 //! how many samples, how many candidates, which families were present, how
-//! many refusals of each kind, and the largest normal departure — the last
-//! being the size of the gap between the Euclidean deviation `vice-fit`
-//! measures and §14.4's `d_n`, which is an approximation nobody should accept
-//! on my description of it.
+//! many refusals of each kind, and the largest ratio between §14.4's `d_n` and
+//! the Euclidean deviation — the last being what the approximation `vice-fit`
+//! integrated until C302 was worth, measured on the population rather than
+//! bounded by an argument.
 //!
 //! **§27.1 is respected**: groups in the sealed-audit split are skipped, and
 //! the count of skipped groups is reported. Scoring the sealed audit is what
@@ -60,10 +60,18 @@ pub struct FitRun {
     /// Family names that produced at least one candidate anywhere in the run,
     /// MEASURED. An absent family is an absent name rather than silence.
     pub families_present: Vec<String>,
-    /// Largest `max_normal_departure_deg` over every chain of the run, and the
-    /// deviation at which it occurred.
-    pub max_normal_departure_deg: f64,
-    pub departure_at_deviation_px: f64,
+    /// Largest `d_n / d_euclidean` over every candidate of the run, and the
+    /// Euclidean deviation at which it occurred. `1.0` would mean the
+    /// pre-C302 lower bound was §14.4's integrand all along.
+    pub max_normal_to_euclidean_ratio: f64,
+    pub ratio_at_deviation_px: f64,
+    /// Candidates that FITTED and whose §14.4 cost then refused them, by
+    /// reason. Overwhelmingly `normal_line_misses`: a candidate no sample of
+    /// its own support can see along its own normal.
+    pub cost_refusals: Vec<(&'static str, u64)>,
+    /// Candidates offered before the cost stage refused any. `candidates` is
+    /// what survived; the difference is what the correction removed.
+    pub candidates_before_cost: u64,
     /// Smallest headroom any chain left against the hard cap.
     pub min_budget_headroom: usize,
     /// Longest chain seen, in samples.
@@ -79,6 +87,14 @@ impl FitRun {
             return 0.0;
         }
         self.supports as f64 / self.chain_samples as f64
+    }
+}
+
+fn cost_refusal_name(r: &vice_fit::CostRefusal) -> &'static str {
+    match r {
+        vice_fit::CostRefusal::NormalLineMisses { .. } => "normal_line_misses",
+        vice_fit::CostRefusal::NotFlattenable => "not_flattenable",
+        vice_fit::CostRefusal::NonFinite { .. } => "non_finite",
     }
 }
 
@@ -150,9 +166,18 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                             run.chain_samples += c.chain_samples as u64;
                             run.supports += c.supports as u64;
                             run.candidates += c.candidates.len() as u64;
-                            if c.max_normal_departure_deg > run.max_normal_departure_deg {
-                                run.max_normal_departure_deg = c.max_normal_departure_deg;
-                                run.departure_at_deviation_px = c.departure_at_deviation_px;
+                            if c.max_normal_to_euclidean_ratio > run.max_normal_to_euclidean_ratio {
+                                run.max_normal_to_euclidean_ratio = c.max_normal_to_euclidean_ratio;
+                                run.ratio_at_deviation_px = c.ratio_at_deviation_px;
+                            }
+                            run.candidates_before_cost += c.candidates.len() as u64;
+                            for (_, why, n) in &c.no_costs {
+                                run.candidates_before_cost += *n as u64;
+                                let name = cost_refusal_name(why);
+                                match run.cost_refusals.iter_mut().find(|e| e.0 == name) {
+                                    Some(e) => e.1 += *n as u64,
+                                    None => run.cost_refusals.push((name, *n as u64)),
+                                }
                             }
                             run.min_budget_headroom =
                                 run.min_budget_headroom.min(c.budget_headroom);
@@ -175,6 +200,7 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
 
     run.families_present = families.into_iter().collect();
     run.refusals.sort_unstable();
+    run.cost_refusals.sort_unstable();
     if run.min_budget_headroom == usize::MAX {
         run.min_budget_headroom = 0;
     }
@@ -223,8 +249,12 @@ mod tests {
         println!("families present            {:?}", run.families_present);
         println!("refusals                    {:?}", run.refusals);
         println!(
-            "max normal departure        {:.3} deg, at a deviation of {:.5} px",
-            run.max_normal_departure_deg, run.departure_at_deviation_px
+            "candidates before cost      {} (cost refusals {:?})",
+            run.candidates_before_cost, run.cost_refusals
+        );
+        println!(
+            "worst d_n / d_euclid        {:.4}, at a Euclidean deviation of {:.5} px",
+            run.max_normal_to_euclidean_ratio, run.ratio_at_deviation_px
         );
         println!("min budget headroom         {}", run.min_budget_headroom);
 

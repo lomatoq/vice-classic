@@ -43,19 +43,22 @@
 
 #![forbid(unsafe_code)]
 
+pub mod cost;
 pub mod schedule;
 pub mod span;
 
 use serde::Serialize;
 
+pub use cost::{
+    normal_deviation, proposal_cost, CostRefusal, ProposalCost, MATERIAL_DEVIATION_FRACTION,
+};
 pub use schedule::{
     hierarchical_schedule, FitBudget, Support, FIT_BUDGET_V1, MIN_SUPPORT_SAMPLES,
     SUPPORTS_PER_SAMPLE_BOUND,
 };
 pub use span::{
-    fit, flattening_error_px, proposal_cost, NoFit, SpanCandidate, SpanFamily,
-    DEVIATION_CHORD_TOLERANCE_PX, FAMILIES_DELIBERATELY_NOT_FITTED, FITTED_FAMILIES,
-    MATERIAL_DEVIATION_FRACTION, PARAMETER_REFINEMENT_PASSES,
+    fit, flattening_error_px, NoFit, SpanCandidate, SpanFamily, DEVIATION_CHORD_TOLERANCE_PX,
+    FAMILIES_DELIBERATELY_NOT_FITTED, FITTED_FAMILIES, PARAMETER_REFINEMENT_PASSES,
 };
 
 use vice_evidence::BoundaryChain;
@@ -107,31 +110,27 @@ pub struct ChainCandidates {
     pub families_present: Vec<&'static str>,
     /// `(family, reason)` counts for supports where a family produced nothing.
     pub no_fits: Vec<(&'static str, NoFit, usize)>,
+    /// `(family, reason)` counts for supports where a family FITTED and the
+    /// §14.4 cost then refused it — overwhelmingly because some sample's
+    /// normal line does not meet the candidate at all, which is a candidate
+    /// the corridor cannot see. Counted separately from `no_fits` because "no
+    /// curve" and "a curve the evidence has no opinion about" are different
+    /// facts about the same family.
+    pub no_costs: Vec<(&'static str, CostRefusal, usize)>,
     /// How many candidates the cap had left over. Published so that a backstop
     /// quietly becoming a working limit is visible before it binds.
     pub budget_headroom: usize,
-    /// The largest angular departure, in degrees, between a sample's normal
-    /// and the direction to its closest point on a candidate, over the samples
-    /// whose deviation is at least [`MATERIAL_DEVIATION_FRACTION`] of their
-    /// corridor halfwidth.
+    /// The largest `|d_n| / d_euclidean` over every candidate of this chain,
+    /// and the Euclidean deviation at which it occurred.
     ///
-    /// This is the size of the gap between the Euclidean deviation this crate
-    /// measures and §14.4's normal-direction `d_n`. Published rather than
-    /// argued: an approximation whose error is not measured is an assumption.
-    ///
-    /// The restriction to material deviations is not cosmetic and is recorded
-    /// on the constant: unrestricted, the corpus reported exactly 90.000
-    /// degrees, which was the instrument saturating on samples sitting on the
-    /// curve rather than a property of any candidate.
-    pub max_normal_departure_deg: f64,
-    /// The Euclidean deviation, in px, at the sample where that worst
-    /// departure occurred.
-    ///
-    /// Without it the angle cannot be interpreted: 90 degrees at 0.001 px is
-    /// numerical noise and 90 degrees at 3 px is the cost measuring the wrong
-    /// thing on a real candidate. The two are the same number and different
-    /// findings.
-    pub departure_at_deviation_px: f64,
+    /// This is the size of the correction C302 made: `1.0` would mean the
+    /// Euclidean lower bound this crate used to integrate was §14.4's `d_n`
+    /// all along, and anything above it is what that approximation was
+    /// costing. Published rather than argued, at the deviation where it
+    /// happened, because a ratio without the magnitude it occurred at is the
+    /// shape F-0085 records.
+    pub max_normal_to_euclidean_ratio: f64,
+    pub ratio_at_deviation_px: f64,
 }
 
 /// **§28 M6 bullets 1 and 2 for one chain.**
@@ -177,8 +176,9 @@ pub fn span_candidates(
 
     let mut candidates = Vec::with_capacity(would_generate);
     let mut no_fits: Vec<(&'static str, NoFit, usize)> = Vec::new();
-    let mut worst_departure = 0.0f64;
-    let mut worst_departure_at = 0.0f64;
+    let mut no_costs: Vec<(&'static str, CostRefusal, usize)> = Vec::new();
+    let mut worst_ratio = 1.0f64;
+    let mut worst_ratio_at = 0.0f64;
 
     for support in &supports {
         for family in FITTED_FAMILIES {
@@ -189,22 +189,22 @@ pub fn span_candidates(
                     continue;
                 }
             };
-            let Some((cost, worst, departure_deg, departure_at)) =
-                proposal_cost(samples, *support, &seg)
-            else {
-                bump(&mut no_fits, family.universe_name(), NoFit::NonFiniteFit);
-                continue;
+            let cost = match proposal_cost(samples, *support, &seg) {
+                Ok(c) => c,
+                Err(why) => {
+                    bump(&mut no_costs, family.universe_name(), why);
+                    continue;
+                }
             };
-            if departure_deg > worst_departure {
-                worst_departure = departure_deg;
-                worst_departure_at = departure_at;
+            if cost.max_normal_to_euclidean_ratio > worst_ratio {
+                worst_ratio = cost.max_normal_to_euclidean_ratio;
+                worst_ratio_at = cost.ratio_at_deviation_px;
             }
             candidates.push(SpanCandidate {
                 support: *support,
                 family,
                 segment: seg,
-                proposal_cost_px: cost,
-                max_deviation_px: worst,
+                cost,
             });
         }
     }
@@ -224,12 +224,13 @@ pub fn span_candidates(
         candidates,
         families_present,
         no_fits,
-        max_normal_departure_deg: worst_departure,
-        departure_at_deviation_px: worst_departure_at,
+        no_costs,
+        max_normal_to_euclidean_ratio: worst_ratio,
+        ratio_at_deviation_px: worst_ratio_at,
     })
 }
 
-fn bump(acc: &mut Vec<(&'static str, NoFit, usize)>, family: &'static str, why: NoFit) {
+fn bump<T: PartialEq>(acc: &mut Vec<(&'static str, T, usize)>, family: &'static str, why: T) {
     if let Some(e) = acc.iter_mut().find(|e| e.0 == family && e.1 == why) {
         e.2 += 1;
     } else {
