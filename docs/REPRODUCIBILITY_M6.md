@@ -15,7 +15,7 @@ This is the reproducibility contract for §28 M6. It supersedes the historical
 - geometry pricing surface:
   `932c083e0a330ca2983a6cf3d96d9e8d6e80fffc93d7c1a3874f7e15670e418e`;
 - Stage G/H backend source:
-  `0c52e7dcb68bf1db0dee1c1a87ddff23cd2f5602d318a82b535cdd73260a9bed`;
+  `3992a614bce47af59332ee847d8fe5e780b9047845e01ebfac1339c59ebaf588`;
 - recording platform for the Tier-A artifact: `windows-x86_64`.
 
 `GEOMETRY_M6.json.measurements.config` carries all three hashes, the candidate
@@ -99,7 +99,7 @@ Expected population and gate witnesses:
 |---|---|---|
 | common population | 11 of 19 observed closed chains complete all five arms | `>= 6` |
 | exact arm set | G00, G10, G01, G11, G20 on every boundary | exactly 5 |
-| compatibility | 55 arm rows share key `5ecba2ac…bee19b3` | one identical five-component key |
+| compatibility | 55 arm rows share key `eaf43a1f…b21ed93` | one identical five-component key |
 | raster provenance | 11 rows from independent ExactClip raster → production Stage F | `>= 6` |
 | oracle candidate injection | 27 forced-discrete fits | `>= 10` |
 | material selector changes | G01/G10/G11 = 3/6/1 geometry hashes | `>= 1/1/1` |
@@ -167,6 +167,8 @@ The relevant sequence is intentionally split:
     proposal tie-break at every truncation.
 16. C387 freezes that changed pricing/search surface alone, and C388 records
     the resulting 11-boundary, 55-arm Tier-A artifact alone.
+17. C390 restores the 800-line production-module bound without changing
+    behavior, and C391 separately records its content-bound backend identity.
 
 To audit the rule over a commit range, feed `git diff --name-status` rows to:
 

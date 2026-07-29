@@ -4690,7 +4690,8 @@ the same feasibility, pricing and K truncation as every interior join.
 **Status.** Closed in C386. Closed search runs exact corner and smooth branches,
 merges them under the frozen rank and carries the chosen seam on
 `GrammarPath`. The 19-sample circle requires one family set at every canonical
-cut. C388 records the resulting 11-boundary, 55-arm artifact.
+cut. C388 records the resulting 11-boundary, 55-arm artifact; C391 supersedes
+only its content-bound backend identity after the module-size repair.
 
 ## F-0128 — A known-degenerate corner closure consumed a global K slot (M6 final cold review, 2026-07-29)
 
