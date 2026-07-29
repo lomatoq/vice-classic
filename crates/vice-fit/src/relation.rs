@@ -114,6 +114,12 @@ impl RelationKind {
             _ => 0.0,
         }
     }
+
+    /// An adjacent second line already starts on the first line's endpoint,
+    /// so `SharedBaseline` would duplicate `Parallel` without a second saving.
+    pub fn identifiable_for_adjacent_segments(self) -> bool {
+        self != RelationKind::SharedBaseline
+    }
 }
 
 /// One relation hypothesis, with the whole trade published.
@@ -206,6 +212,9 @@ pub fn relation_hypotheses(
                         RelationKind::SharedBaseline,
                         RelationKind::RepeatedTransform,
                     ] {
+                        if j == i + 1 && !kind.identifiable_for_adjacent_segments() {
+                            continue;
+                        }
                         let mut constrained = free_chain.clone();
                         let bound = if kind == RelationKind::RepeatedTransform {
                             bind_repeated_line(&mut constrained, i, j)

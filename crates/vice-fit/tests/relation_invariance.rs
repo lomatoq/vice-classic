@@ -56,6 +56,26 @@ fn probe_model(chain: RefitChain) -> BoundaryModel {
     }
 }
 
+fn line_model(points: &[Pt]) -> BoundaryModel {
+    let chain = RefitChain {
+        nodes: points
+            .iter()
+            .copied()
+            .map(|pos| RefitNode {
+                pos,
+                tangent_rad: None,
+            })
+            .collect(),
+        segments: vec![RefitSegment::Line; points.len() - 1],
+    };
+    let mut model = probe_model(chain);
+    model.families = vec![SpanFamily::Line; points.len() - 1];
+    model.breakpoints = (1..points.len() - 1).collect();
+    model.code.geometry_bits = 200.0;
+    model.code.topology_bits = 200.0;
+    model
+}
+
 fn observations(chain: &RefitChain) -> Vec<BoundarySample> {
     chain
         .nodes
@@ -95,4 +115,38 @@ fn translated_concentric_candidate_keeps_the_stage_h_decision() {
         decision(&run(&origin)),
         "translation changed the formed or accepted Stage-H relation set"
     );
+}
+
+#[test]
+fn shared_baseline_is_not_formed_for_the_adjacent_pair_it_cannot_identify() {
+    let adjacent = line_model(&[Pt::new(0.0, 0.0), Pt::new(4.0, 0.0), Pt::new(10.0, 0.0)]);
+    let chain = adjacent.geometry.typed_chain().expect("typed chain");
+    let hypotheses = relation_hypotheses(
+        &adjacent,
+        &observations(chain),
+        &GEOMETRY_CODE_TABLE_V1,
+        16_384.0,
+    );
+    assert!(hypotheses
+        .iter()
+        .any(|h| h.kind == RelationKind::Parallel && h.segments == [0, 1]));
+    assert!(!hypotheses
+        .iter()
+        .any(|h| h.kind == RelationKind::SharedBaseline && h.segments == [0, 1]));
+
+    let separated = line_model(&[
+        Pt::new(0.0, 0.0),
+        Pt::new(4.0, 0.0),
+        Pt::new(7.0, 2.0),
+        Pt::new(11.0, 2.0),
+    ]);
+    let chain = separated.geometry.typed_chain().expect("typed chain");
+    assert!(relation_hypotheses(
+        &separated,
+        &observations(chain),
+        &GEOMETRY_CODE_TABLE_V1,
+        16_384.0,
+    )
+    .iter()
+    .any(|h| h.kind == RelationKind::SharedBaseline && h.segments == [0, 2]));
 }

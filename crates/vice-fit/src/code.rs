@@ -228,12 +228,13 @@ pub fn pricing_surface_v1() -> String {
     }
     for kind in RelationKind::ALL {
         out.push_str(&format!(
-            "relation {} flag_bits {} scalars_determined {} saving_component {}
+            "relation {} flag_bits {} scalars_determined {} saving_component {} adjacent_identifiable {}
 ",
             kind.universe_name(),
             kind.flag_bits(),
             kind.scalars_determined(),
-            kind.saving_component()
+            kind.saving_component(),
+            kind.identifiable_for_adjacent_segments()
         ));
     }
     for f in FITTED_FAMILIES {
