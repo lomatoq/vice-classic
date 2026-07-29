@@ -192,12 +192,11 @@ fn model_universe_hash_is_frozen() {
 /// recalibration; нельзя молча расширить grammar и сохранить старый
 /// confidence threshold."
 ///
-/// WAS `e9e7f7e6…2cfb`. IS `fdcd283a…7359`.
+/// WAS `fdcd283a…7359`. IS `47903d73…f097`.
 ///
-/// The current M6 delta replaces the earlier axis/collinear approximation with
-/// §15's actual `parallel_perpendicular` and `shared_baseline` families, and
-/// admits the seven delivered whole-loop primitive generators. The hash below
-/// is re-frozen by the corresponding §27.7 gate-only commit.
+/// The final M6 closure admits the previously deferred `mirror_symmetry` and
+/// `repeated_transforms` families and binds selected constrained geometry.
+/// The hash below is re-frozen by the corresponding §27.7 gate-only commit.
 ///
 /// **What recalibration is owed, and by whom.** §1.5 attaches confidence
 /// thresholds and search-mass bounds to the universe version. This tree has
@@ -206,11 +205,11 @@ fn model_universe_hash_is_frozen() {
 /// confidence threshold exists — §28 M7 owns the selective-delivery
 /// calibration. So the recalibration debt this change creates is not a
 /// number that must be re-measured now; it is that **M7 must calibrate
-/// against `e9e7f7e6…`, not against `fed2af86…`**, and a calibration
+/// against `47903d73…`, not against `fdcd283a…`**, and a calibration
 /// inherited across this hash would be a calibration for a smaller grammar.
 /// That is the whole of the obligation and it is stated here so M7 does not
 /// have to reconstruct it.
-const FROZEN_V1_HASH: &str = "fdcd283a01c3987aa58caa5698e5dd17fab36f595bf55e18e25613713c107359";
+const FROZEN_V1_HASH: &str = "47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097";
 
 /// **The default is "an admissible relation family has a hypothesis
 /// generator"**, the same inverted default

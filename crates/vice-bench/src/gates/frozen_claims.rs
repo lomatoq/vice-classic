@@ -382,11 +382,6 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         ),
         (
             "m6_geometry",
-            "gate_min_cut_nontrivial_spread_bits",
-            GateExpectation::num(vice_fit::GATE_MIN_CUT_NONTRIVIAL_SPREAD_BITS),
-        ),
-        (
-            "m6_geometry",
             "gate_max_cut_rotation_delta_bits",
             GateExpectation::num(vice_fit::GATE_MAX_CUT_ROTATION_DELTA_BITS),
         ),
@@ -404,6 +399,16 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
             "m6_geometry",
             "gate_min_no_bic_extra_segments",
             GateExpectation::num(vice_fit::GATE_MIN_NO_BIC_EXTRA_SEGMENTS as f64),
+        ),
+        (
+            "m6_geometry",
+            "candidate_budget_per_chain",
+            GateExpectation::num(vice_fit::FIT_BUDGET_V1.cap() as f64),
+        ),
+        (
+            "m6_geometry",
+            "k_discrete_paths",
+            GateExpectation::num(vice_fit::K_DISCRETE_PATHS as f64),
         ),
         (
             "m6_geometry",

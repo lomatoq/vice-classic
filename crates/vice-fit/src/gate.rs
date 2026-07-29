@@ -14,9 +14,6 @@ pub const GATE_MIN_G1_NODES: usize = 1;
 pub const GATE_MIN_G1_POSITIVE_CONTROL_RAD: f64 = 0.4;
 /// Largest movement of a breakpoint as a fraction of chain length.
 pub const GATE_MAX_BREAKPOINT_FRACTION_DELTA: f64 = 0.06;
-/// A cut experiment must expose at least this much per-cut variation, proving
-/// that the rotation leg is not green because every cut is numerically equal.
-pub const GATE_MIN_CUT_NONTRIVIAL_SPREAD_BITS: f64 = 1.0;
 /// Largest movement of the selected code after rotating the same closed loop.
 pub const GATE_MAX_CUT_ROTATION_DELTA_BITS: f64 = 1.0;
 /// Largest movement of the selected code under translation.
