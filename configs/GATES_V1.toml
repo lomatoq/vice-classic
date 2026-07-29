@@ -549,3 +549,4 @@ gate_min_no_bic_extra_segments = 0
 gate_min_geometry_boundaries = 0
 gate_min_geometry_arms_per_boundary = 0
 gate_min_oracle_candidate_injections = 0
+gate_min_oracle_selector_changes = 0
