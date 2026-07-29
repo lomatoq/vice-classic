@@ -835,6 +835,7 @@ dependencies = [
  "tiny-skia",
  "toml",
  "vice-evidence",
+ "vice-fit",
  "vice-geom",
  "vice-image",
  "vice-ir",

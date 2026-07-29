@@ -664,4 +664,85 @@ mod tests {
     }
 
     const FROZEN_V1_HASH: &str = "fed2af8642ee3bdd6be85fead97f5ae834622ad0f68525cad9889d17845b8f5d";
+
+    /// **The default is "an admissible segment family has a fitter".**
+    ///
+    /// `vice_fit::FITTED_FAMILIES` is a literal enumerating its subjects, and
+    /// `span.rs` says so at its true price: the cheapest bypass is one family
+    /// nobody wrote a fitter for. A literal cannot be argued out of being one,
+    /// but the DEFAULT around it can be inverted, and that is what this does —
+    /// the same move `doc_claims` made when it stopped listing the documents it
+    /// checked and started walking `docs/` and stopping on anything
+    /// unclassified.
+    ///
+    /// This test lives in `vice-bench` because it is the only crate that can
+    /// see both sides: `vice-fit` must not depend on the declared universe (it
+    /// is a consumer of geometry, not of the benchmark), and the universe must
+    /// not depend on the fitter. Neither side can hold the invariant alone.
+    ///
+    /// Adding an admissible geometry family and no fitter is now RED, and
+    /// closing it needs either a fitter or a line in
+    /// `FAMILIES_DELIBERATELY_NOT_FITTED` carrying a reason. That is weaker
+    /// than a type and stronger than a list: the exception must be WRITTEN, and
+    /// what it costs to write is a sentence a reviewer reads.
+    #[test]
+    fn every_admissible_segment_family_has_a_fitter_or_a_declared_reason() {
+        let u = SupportedModelUniverseV1::v1();
+        let admissible = SupportedModelUniverseV1::admissible_names(&u.geometry.segment_families);
+        assert!(
+            !admissible.is_empty(),
+            "the declared universe admits no segment family at all, so the loop below would \
+             compare nothing and pass (F-0039)"
+        );
+
+        let fitted: Vec<&str> = vice_fit::FITTED_FAMILIES
+            .iter()
+            .map(|f| f.universe_name())
+            .collect();
+        let excused: Vec<&str> = vice_fit::FAMILIES_DELIBERATELY_NOT_FITTED
+            .iter()
+            .map(|(name, _)| *name)
+            .collect();
+
+        for name in &admissible {
+            assert!(
+                fitted.contains(name) || excused.contains(name),
+                "the declared universe admits segment family `{name}`, `vice-fit` has no fitter \
+                 for it, and `FAMILIES_DELIBERATELY_NOT_FITTED` does not say why. Either write \
+                 the fitter or write the reason; a family that is admissible and unfitted with \
+                 nobody saying so is a hole in the candidate stage that no run reports"
+            );
+        }
+
+        // The other direction. A fitter for a family the universe does NOT
+        // admit produces candidates that cannot legally be selected, and it
+        // would move `model_universe_hash` to make them legal — a §1.5
+        // model-version change, not a routine edit.
+        for name in &fitted {
+            assert!(
+                admissible.contains(name),
+                "`vice-fit` fits `{name}`, which the declared universe does not admit"
+            );
+        }
+
+        // And the excuses are about real families rather than about names
+        // nobody uses, which is how an exception list rots (F-0047).
+        for (name, reason) in vice_fit::FAMILIES_DELIBERATELY_NOT_FITTED {
+            assert!(
+                admissible.contains(&name),
+                "`FAMILIES_DELIBERATELY_NOT_FITTED` excuses `{name}`, which is not an admissible \
+                 family: the exception is about nothing and is now permanently green"
+            );
+            assert!(
+                !fitted.contains(&name),
+                "`{name}` is both fitted and excused from being fitted"
+            );
+            assert!(
+                reason.len() > 40,
+                "the reason given for not fitting `{name}` is {} characters; an exception whose \
+                 reason is a word is a list entry wearing a justification",
+                reason.len()
+            );
+        }
+    }
 }
