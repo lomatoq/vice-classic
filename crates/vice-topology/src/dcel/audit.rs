@@ -123,6 +123,15 @@ pub enum InvariantViolation {
     },
     #[error("the exterior face {0:?} is not a background face")]
     ExteriorIsNotBackground(FaceId),
+    #[error(
+        "boundary {boundary} passes through vertex {vertex:?} at interior position {position} of          {length}; §12 asks for MAXIMAL shared boundary chains, and a chain that contains a vertex          is two chains"
+    )]
+    ChainIsNotMaximal {
+        boundary: usize,
+        vertex: (u32, u32),
+        position: usize,
+        length: usize,
+    },
     #[error("the face loops disagree with the loops of the labelling: {0}")]
     LoopsDisagreeWithTheLabelling(String),
     #[error(
@@ -178,6 +187,11 @@ pub struct AuditReport {
     /// probe would never learn of it. The judge names its own branches now,
     /// and the harness buckets by whatever it reports — a third branch
     /// creates a third bucket without anyone remembering to add one.
+    ///
+    /// N17: the label carries its own RETURN SITE, via `line!()`. A hand
+    /// label alone let a new branch reuse an existing name and hide from the
+    /// probe for zero lines; two returns cannot share a line number, so the
+    /// name is unique whether or not its author wanted it to be.
     pub branch: &'static str,
     pub vertices: u32,
     pub boundaries: u32,
@@ -292,6 +306,38 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
         }
     }
 
+    // (A2) MAXIMALITY. §12 asks for "maximal shared boundary chains", and
+    // nothing bound the word.
+    //
+    // REVIEW_M5_A D3-N2: splitting one chain at an interior degree-two point
+    // leaves `audit()` returning None, `loops_agree` true, `face_map_agrees`
+    // true, and V and B growing together so Euler is preserved. Reviewer A
+    // rated it MINOR because clause 3 catches it on the corpus by comparing
+    // lattice PATHS, and found it by publishing two refuted assumptions of
+    // their own.
+    //
+    // It is one comparison, so it is closed here rather than carried: a chain
+    // is maximal exactly when none of its INTERIOR points is a vertex. The
+    // vertex set is built from lattice degree, which is a function of the
+    // labelling, so this does not share a provenance with the chain splitting
+    // it judges.
+    {
+        let verts: std::collections::BTreeSet<(u32, u32)> = d.vertices().iter().copied().collect();
+        for (i, b) in d.boundaries().iter().enumerate() {
+            let n = b.path.len();
+            for (k, p) in b.path.iter().enumerate().take(n.saturating_sub(1)).skip(1) {
+                if verts.contains(p) {
+                    return Err(InvariantViolation::ChainIsNotMaximal {
+                        boundary: i,
+                        vertex: *p,
+                        position: k,
+                        length: n,
+                    });
+                }
+            }
+        }
+    }
+
     // (B) THE ORIENTED HALF of §12's "face cycles closed and oriented".
     //
     // RT5-A13 / M5A-D2-N1, found independently by two contexts: `target(h) ==
@@ -351,7 +397,7 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
             });
         }
         return Ok(AuditReport {
-            branch: "empty",
+            branch: concat!("empty@", line!()),
             vertices: 0,
             boundaries: 0,
             segments: 0,
@@ -600,7 +646,7 @@ pub fn audit(d: &Dcel) -> Result<AuditReport, InvariantViolation> {
     }
 
     Ok(AuditReport {
-        branch: "arrangement",
+        branch: concat!("arrangement@", line!()),
         vertices: v as u32,
         boundaries: bnd as u32,
         segments: d.segment_count() as u32,

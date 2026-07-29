@@ -46,6 +46,7 @@ pub const MIN_TRANSACTIONS: u32 = 50;
 pub const MIN_UNRELATED_CHAIN_POPULATION: u32 = 40;
 pub const MIN_RESOLVING_POWER_PROBES: u32 = 10;
 pub const MIN_SLOTS_PERTURBED: u32 = 40000;
+pub const MIN_REGISTER_ARMS_WITH_A_LONG_LOOP: u32 = 4;
 
 /// The population thresholds of the §28 M5 rows, LOADED from the frozen gate
 /// file.
@@ -66,6 +67,9 @@ pub struct DcelGateConfig {
     /// stood here and was not a gate: a walk that visited one slot satisfied
     /// it. A floor read off a run is (RT5-A2's neighbourhood).
     pub min_slots_perturbed: Threshold,
+    /// Register arms carrying a face loop of three or more half-edges: the
+    /// population §12's ORIENTED clause stands on (RT5-A17, M5A-D3-N1).
+    pub min_register_arms_with_a_long_loop: Threshold,
 }
 
 impl DcelGateConfig {
@@ -95,6 +99,7 @@ impl DcelGateConfig {
             min_unrelated_chain_population: t("gate_min_unrelated_chain_population")?,
             min_resolving_power_probes: t("gate_min_resolving_power_probes")?,
             min_slots_perturbed: t("gate_min_slots_perturbed")?,
+            min_register_arms_with_a_long_loop: t("gate_min_register_arms_with_a_long_loop")?,
         })
     }
 }
@@ -178,6 +183,14 @@ pub struct DcelReport {
     pub unreachable_refusals_on_this_population: Vec<&'static str>,
 
     // --- clause 4 -------------------------------------------------------
+    /// The population the §12 ORIENTED check stands on: loops long enough to
+    /// have an ORDER. Published because a row standing on a population
+    /// publishes its size (RT5-A17, M5A-D3-N1).
+    pub arms_with_a_loop_of_three_or_more: u64,
+    pub arms_with_a_loop_of_three_or_more_from_corpus: u64,
+    pub arms_with_a_loop_of_three_or_more_from_register: u64,
+    pub longest_loop_seen: u32,
+    pub loops_of_three_or_more_total: u64,
     pub arms_failing_the_audit: u64,
     pub arms_that_are_not_their_own_assembly: u64,
     pub audit_resolving_power: ResolvingPower,
@@ -223,6 +236,11 @@ pub fn build(run: &DcelRun) -> DcelReport {
         .map(|a| (a.dcel_class.components, a.dcel_class.holes))
         .collect();
 
+    let long: Vec<&DcelArm> = run
+        .arms
+        .iter()
+        .filter(|a| a.loops_of_three_or_more > 0)
+        .collect();
     let tx = |f: fn(&super::ArmTransaction) -> bool| {
         run.arms
             .iter()
@@ -315,6 +333,21 @@ pub fn build(run: &DcelRun) -> DcelReport {
             "NotTheDeclaredEdit",
         ],
 
+        arms_with_a_loop_of_three_or_more: long.len() as u64,
+        arms_with_a_loop_of_three_or_more_from_corpus: long
+            .iter()
+            .filter(|a| a.source == "corpus")
+            .count() as u64,
+        arms_with_a_loop_of_three_or_more_from_register: long
+            .iter()
+            .filter(|a| a.source == "structural")
+            .count() as u64,
+        longest_loop_seen: run.arms.iter().map(|a| a.longest_loop).max().unwrap_or(0),
+        loops_of_three_or_more_total: run
+            .arms
+            .iter()
+            .map(|a| u64::from(a.loops_of_three_or_more))
+            .sum(),
         arms_failing_the_audit: run.arms.iter().filter(|a| !a.audit_ok).count() as u64,
         arms_that_are_not_their_own_assembly: run
             .arms
@@ -442,7 +475,15 @@ impl DcelReport {
             // must be at least two, so a run that only ever took one branch
             // cannot satisfy it by having nothing to miss.
             && p.branches_seen.len() >= 2
-            && p.branches_seen.iter().all(|b| b.arms_probed > 0);
+            && p.branches_seen.iter().all(|b| b.arms_probed > 0)
+            // RT5-A17 / M5A-D3-N1. §12's ORIENTED half is only exercised by a
+            // loop long enough to HAVE an order, and delta-3 gave that clause a
+            // fixture and no floor - the fourth population of this gate to need
+            // one, and the only one that did not get it. A fixture makes a check
+            // exercised today; a floor makes it exercised tomorrow.
+            && cfg
+                .min_register_arms_with_a_long_loop
+                .met_by(self.arms_with_a_loop_of_three_or_more_from_register);
 
         vec![
             (
@@ -537,12 +578,15 @@ impl DcelReport {
                 "no dangling/invalid faces",
                 faces_row,
                 format!(
-                    "Six of the seven §12 invariants have no failure mode in this representation - \
-                     the twin is a bit flip, the owners are a pair, a loop is a cyclic sequence, a \
-                     crack is not constructible, segments are integer-lattice unit steps and the \
-                     exterior is an ordinary face - so there is nothing there to measure and \
-                     nothing there is claimed. The seventh IS a computation, and this row is about \
-                     it: {} of {} non-empty arms failed the audit, and {} were not the assembly of \
+                    "§12 lists seven invariants and one of them - face cycles closed AND oriented - \
+                     is a conjunction held two different ways, so the table splits it into eight \
+                     rows. SIX are held by the representation: the twin is a bit flip, the owners \
+                     are a pair, a loop is a cyclic sequence, a crack is not constructible, \
+                     segments are integer-lattice unit steps and the exterior is an ordinary face - \
+                     so there is nothing there to measure and nothing there is claimed. TWO are \
+                     computations: the Euler/cubical signature, and - since delta-3 - whether the \
+                     face cycles are ORIENTED, which the cyclic-sequence argument never \
+                     established. This row is about both: {} of {} non-empty arms failed the audit, and {} were not the assembly of \
                      their own labelling. A further {} arm(s) carry a valid but EMPTY arrangement \
                      - `adv/sliver` is thinner than a pixel and the §5.3 majority rule digitizes \
                      it to nothing - and they are audited like the rest while no clause is allowed \
@@ -577,7 +621,16 @@ impl DcelReport {
                      alone catches 3 the rebuild does not, and 160 fall to both - so citing both is \
                      not citing one twice. The §12 ORIENTED clause is a third check, added in \
                      delta-3: loops re-derived from the labelling, which is what a reordering of \
-                     one loop moves and neither of the other two can see (RT5-A13)",
+                     one loop moves and neither of the other two can see (RT5-A13). ITS \
+                     POPULATION, which delta-3 published nowhere: {} arm(s) carry a face \
+                     loop of three or more half-edges - {} from the corpus and {} from the \
+                     structural register - the longest is {} half-edges, and {} such loops \
+                     exist in total. A loop of one or two has no reordering that changes \
+                     it, so those are the arms on which the ORIENTED check is a test at \
+                     all. The floor is on the REGISTER's share because that is where the \
+                     population is guaranteed BY CONSTRUCTION at every size under both \
+                     convention arms; the corpus's share is incidental and is published \
+                     rather than relied on",
                     self.arms_failing_the_audit,
                     self.arms_with_a_non_empty_arrangement,
                     self.arms_that_are_not_their_own_assembly,
@@ -587,7 +640,12 @@ impl DcelReport {
                     p.slots_perturbed,
                     p.caught_by_audit,
                     p.uncaught_by_audit,
-                    p.no_ops
+                    p.no_ops,
+                    self.arms_with_a_loop_of_three_or_more,
+                    self.arms_with_a_loop_of_three_or_more_from_corpus,
+                    self.arms_with_a_loop_of_three_or_more_from_register,
+                    self.longest_loop_seen,
+                    self.loops_of_three_or_more_total
                 ),
             ),
         ]
@@ -633,6 +691,11 @@ pub fn structural_projection(v: &serde_json::Value) -> serde_json::Value {
         "transaction_arms_excluded_as_compound",
         "reachable_refusals_on_this_population",
         "unreachable_refusals_on_this_population",
+        "arms_with_a_loop_of_three_or_more",
+        "arms_with_a_loop_of_three_or_more_from_corpus",
+        "arms_with_a_loop_of_three_or_more_from_register",
+        "longest_loop_seen",
+        "loops_of_three_or_more_total",
         "arms_failing_the_audit",
         "arms_that_are_not_their_own_assembly",
         "audit_resolving_power",

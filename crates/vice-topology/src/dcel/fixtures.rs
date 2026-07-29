@@ -107,11 +107,15 @@ pub fn structural_fixtures(n: usize) -> Vec<Fixture> {
         Fixture {
             // RT5-A13's other half. The check for §12's ORIENTED clause is
             // only exercised by loops long enough to HAVE an order, and
-            // neither M5 population had them: the corpus averages 1.082
-            // half-edges per loop with at most 55 of 1334 loops of length
-            // three or more, and this register had ZERO. A check whose
-            // population cannot exercise it is green for the reason the
-            // absent one was.
+            // THIS REGISTER had zero, measured. The corpus does carry them —
+            // with this fixture removed a reordering defect still reddens the
+            // gate on fourteen corpus arms — and the delta-3 comment claiming
+            // otherwise restated the red team's UPPER BOUND ("at most 55 of
+            // 1334") as a measurement of absence. Corrected in delta-4.
+            //
+            // The fixture's justification is condition 51's standard, which is
+            // coverage BY CONSTRUCTION at every size under both arms; fourteen
+            // incidental corpus arms are not that.
             //
             // A staircase of blocks touching corner to corner puts one
             // degree-four vertex between each consecutive pair, so the loop

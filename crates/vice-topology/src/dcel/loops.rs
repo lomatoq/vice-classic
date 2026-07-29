@@ -23,6 +23,27 @@
 //! evaluates — the eighth level of the F-0048 class, a third time, now on
 //! `next`.
 //!
+//! ## Where the protection against a wrong `succ` rule actually comes from
+//!
+//! The residual below said the sweep and the Euler identity cover the `succ`
+//! rule. Two cold contexts ran experiments that looked contradictory — the red
+//! team's `succ` defect was invisible to the sweep, reviewer A's was caught by
+//! it — and reading both shows one mechanism and one limit:
+//!
+//! - the PREDICATE that fires in both reports is the same one, and it is
+//!   neither this file nor the Euler identity: it is the owner/site check in
+//!   [`super::audit`], which notices that a half-edge's owners no longer agree
+//!   with the loop it sits in;
+//! - the SWEEP is that predicate's carrier, and its reach ends at `w = 4`. The
+//!   red team's defect fires only at `w >= 16`, so the sweep never reached it;
+//!   reviewer A's is unconditional, so the sweep caught it on labelling 18
+//!   under foreground-4. That difference is F-8 — a judge whose domain of
+//!   proof is smaller than its domain of use — and it is why the structural
+//!   register runs to 512 px.
+//!
+//! So the protection exists and is not what the first version of this comment
+//! named, and its reach is bounded in a way that comment did not state.
+//!
 //! ## Q4 first, because this is the third time
 //!
 //! The obvious check is `target(h) == origin(next(h))` over every half-edge.
@@ -198,10 +219,20 @@ pub fn loops_agree_with_the_labelling(d: &Dcel) -> Result<usize, LoopDisagreemen
 ///
 /// Published because the check above is only exercised by loops long enough to
 /// have an order: a loop of one or two half-edges has no reordering that
-/// changes it. RT5-A13's other half is that neither M5 population had them —
-/// the corpus averages 1.082 half-edges per loop with at most 55 of 1334 loops
-/// of length 3 or more, and the structural register had **zero**. A check whose
-/// population cannot exercise it is green for the reason the old one was.
+/// changes it.
+///
+/// **Corrected in delta-4, and the correction is mine to make.** This said
+/// "neither M5 population had them". That is false, and it was false when I
+/// wrote it: the red team's figure was an UPPER BOUND — "at most 55 of 1334" —
+/// and I restated a bound as a measurement of absence. Measured since: with the
+/// staircase fixture REMOVED, a reordering defect still reddens the gate on
+/// **fourteen corpus arms**. The corpus carries loops of three or more.
+///
+/// What was measured to be zero is the STRUCTURAL REGISTER, and that is what
+/// justifies the fixture — not the corpus's supposed emptiness. Condition 51's
+/// standard is coverage BY CONSTRUCTION at every size under both arms, which
+/// fourteen incidental corpus arms do not provide and the staircase does. The
+/// fixture stands; the sentence that argued for it did not.
 pub fn loop_length_profile(d: &Dcel) -> (usize, usize, usize) {
     let mut longest = 0usize;
     let mut total = 0usize;
@@ -328,5 +359,64 @@ mod tests {
             ComplementaryConnectivity::arms()[0],
         );
         assert_eq!(loops_agree_with_the_labelling(&d), Ok(0));
+    }
+}
+
+#[cfg(test)]
+mod maximality_tests {
+    use super::*;
+    use crate::cubical::Labelling;
+    use vice_ir::ComplementaryConnectivity;
+
+    /// **M5A-D3-N2: splitting a chain at an interior degree-two point.**
+    ///
+    /// It passed everything before delta-4: `audit()` returned no violation,
+    /// `loops_agree_with_the_labelling` returned true — the WALK is unchanged,
+    /// only its chunking is — `face_map_agrees` returned true, and V and B grew
+    /// together so the Euler identity was preserved.
+    ///
+    /// Both directions: the intact structure is maximal, the split one is not.
+    #[test]
+    fn a_chain_split_at_an_interior_point_is_not_maximal() {
+        let d = super::super::Dcel::assemble(
+            Labelling::new(
+                9,
+                9,
+                (0..81)
+                    .map(|i| (2..7).contains(&(i % 9)) && (2..7).contains(&(i / 9)))
+                    .collect(),
+            ),
+            ComplementaryConnectivity::arms()[0],
+        );
+        assert!(super::super::audit(&d).is_ok(), "positive control");
+        let b0 = &d.boundaries()[0];
+        assert!(
+            b0.path.len() > 4,
+            "the fixture needs a chain with an interior"
+        );
+
+        // Split boundary 0 in the middle by promoting an interior point to a
+        // vertex — the chain still walks the same lattice cycle, it is simply
+        // no longer maximal.
+        let mut parts = d.parts().clone();
+        let mid = parts.boundaries[0].path.len() / 2;
+        let pt = parts.boundaries[0].path[mid];
+        parts.vertices.push(pt);
+        parts.vertices.sort_unstable();
+        let broken = d.clone().with_parts(parts);
+
+        // The loop walk is untouched: same steps, same cycle.
+        assert!(
+            loops_agree_with_the_labelling(&broken).is_ok(),
+            "a chain's chunking is not its walk, so this check cannot see it - which is why              maximality needed its own comparison"
+        );
+        let e = super::super::audit(&broken).expect_err("§12 asks for MAXIMAL chains");
+        assert!(
+            matches!(
+                e,
+                super::super::InvariantViolation::ChainIsNotMaximal { .. }
+            ),
+            "{e}"
+        );
     }
 }

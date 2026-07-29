@@ -118,12 +118,29 @@ pub enum FaceMapKnockout {
     SwapLabels,
 }
 
+/// Whether the structural register keeps the fixture that carries long loops.
+///
+/// The red side of the ORIENTED clause's population floor: with the staircase
+/// gone the register's share falls to zero and clause 4 must go NOT MET. Q5's
+/// three directions for this floor are red (here), empty (the same run - the
+/// population IS zero, which is what a floor is for) and idle (the count comes
+/// from `loop_length_profile` over real loops, so it cannot be satisfied by a
+/// constant; `the_oriented_clause_has_a_population_and_it_is_split_by_source`
+/// asserts the longest loop is genuinely >= 3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RegisterKnockout {
+    Off,
+    /// Knockout: drop every fixture carrying a loop of three or more.
+    DropLongLoops,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RunKnockouts {
     pub proxy: ProxyKnockout,
     pub roi: RoiKnockout,
     pub class: ClassKnockout,
     pub face_map: FaceMapKnockout,
+    pub register: RegisterKnockout,
 }
 
 impl RunKnockouts {
@@ -140,6 +157,7 @@ impl RunKnockouts {
             roi: _,
             class: _,
             face_map: _,
+            register: _,
         } = PRODUCTION;
         vec![
             (
@@ -179,6 +197,7 @@ pub const PRODUCTION: RunKnockouts = RunKnockouts {
     roi: RoiKnockout::Off,
     class: ClassKnockout::Off,
     face_map: FaceMapKnockout::Off,
+    register: RegisterKnockout::Off,
 };
 
 /// One measured arm: one scene, one degradation cell, one convention.
@@ -218,6 +237,19 @@ pub struct DcelArm {
     pub loops: u32,
     pub faces: u32,
     pub skeleton_components: u32,
+    /// The longest face loop, in HALF-EDGES, and how many loops have three
+    /// or more.
+    ///
+    /// REDTEAM_M5 RT5-A17 / REVIEW_M5_A D3-N1, found independently: the §12
+    /// ORIENTED check is only exercised by a loop long enough to HAVE an
+    /// order, and nothing published that population or required it to be
+    /// non-empty. `report.rs`'s own header says every row standing on a
+    /// population publishes its size and is false when it is empty; this was
+    /// the fourth such population and the only one that got a fixture instead
+    /// of a floor. A fixture makes a check exercised TODAY; a floor makes it
+    /// exercised TOMORROW.
+    pub longest_loop: u32,
+    pub loops_of_three_or_more: u32,
     /// `V - B + L` and `2C`: the Euler identity, both sides published so a
     /// reader can check the arithmetic rather than trust the boolean.
     pub euler_lhs: i64,
@@ -405,6 +437,9 @@ pub fn run(scope: TopologyScope, k: RunKnockouts) -> Result<DcelRun, String> {
         .collect();
     for n in &sizes {
         for f in structural_fixtures(*n as usize) {
+            if k.register == RegisterKnockout::DropLongLoops && f.name == "diagonal_staircase" {
+                continue;
+            }
             let witnessed = with_a_distant_witness(&f.labelling, *n as usize);
             let t = ViewTransform {
                 scale: 1.0,
@@ -559,6 +594,8 @@ fn arm_from_labelling(
 
     // The M5 stage carries topologies through. `topologies_out` is where §32
     // rule 14 becomes falsifiable, and the knockout is the world where it is.
+    let (longest_loop, _total_half_edges, long_loops) =
+        vice_topology::dcel::loop_length_profile(&d);
     let transaction = transaction_for(&d, t, k.roi);
 
     // Probed on a stride. `arms_seen` counts every arm and the probe fires on
@@ -619,6 +656,8 @@ fn arm_from_labelling(
         loops: l,
         faces: f,
         skeleton_components: c,
+        longest_loop: longest_loop as u32,
+        loops_of_three_or_more: long_loops as u32,
         euler_lhs: i64::from(v) - i64::from(b) + i64::from(l),
         euler_rhs: 2 * i64::from(c),
         class_out: dcel_class,

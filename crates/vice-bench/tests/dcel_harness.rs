@@ -239,3 +239,79 @@ fn the_relabelling_that_survived_delta_one_now_reddens_clause_four() {
         "and it must be the AUDIT that fails, not a population floor"
     );
 }
+
+/// **RT5-A17 / M5A-D3-N1: the population the §12 ORIENTED check stands on.**
+///
+/// Measured rather than quoted, and split by source, because delta-3's
+/// justification for the staircase fixture said "neither M5 population had
+/// them" — which restated the red team's UPPER BOUND ("at most 55 of 1334") as
+/// a measurement of absence. It is false: the corpus carries such loops.
+#[test]
+#[ignore = "walks the corpus; wired into CI in release"]
+fn the_oriented_clause_has_a_population_and_it_is_split_by_source() {
+    let r = run_at(TopologyScope::Full, PRODUCTION);
+    println!(
+        "arms with a loop of >=3 half-edges: {} ({} corpus, {} register); longest {}; total such \
+         loops {}",
+        r.arms_with_a_loop_of_three_or_more,
+        r.arms_with_a_loop_of_three_or_more_from_corpus,
+        r.arms_with_a_loop_of_three_or_more_from_register,
+        r.longest_loop_seen,
+        r.loops_of_three_or_more_total
+    );
+    assert!(
+        r.arms_with_a_loop_of_three_or_more_from_register > 0,
+        "the register must carry the population BY CONSTRUCTION - that is condition 51's standard \
+         and the reason the staircase fixture exists"
+    );
+    assert!(
+        r.longest_loop_seen >= 3,
+        "no loop anywhere is long enough to have an order, so the ORIENTED check is not exercised"
+    );
+}
+
+/// **The ORIENTED floor, in the three directions F-0059 requires.**
+///
+/// RED: with the fixture that carries long loops dropped from the register, the
+/// register's share falls to zero, the floor is unmet and clause 4 goes NOT MET.
+/// EMPTY: that same run IS the empty population — which is what a floor exists
+/// to notice, and what delta-3 had no way to notice.
+/// IDLE: the count comes from `loop_length_profile` over real loops rather than
+/// from a constant, so it cannot be satisfied without loops;
+/// `the_oriented_clause_has_a_population_and_it_is_split_by_source` asserts the
+/// longest is genuinely three or more.
+#[test]
+#[ignore = "walks the corpus; wired into CI in release"]
+fn dropping_the_long_loop_fixture_reddens_clause_four() {
+    let cfg = dcel::report::DcelGateConfig::for_tests_from_the_committed_file().expect("gate");
+    let row = |r: &dcel::report::DcelReport| {
+        r.gate_table(&cfg)
+            .into_iter()
+            .find(|(n, _, _)| *n == "no dangling/invalid faces")
+            .expect("clause 4")
+            .1
+    };
+    let clean = run_at(TopologyScope::Full, PRODUCTION);
+    assert!(
+        row(&clean),
+        "positive control: clause 4 is MET on the clean run"
+    );
+    assert!(clean.arms_with_a_loop_of_three_or_more_from_register > 0);
+
+    let knocked = run_at(
+        TopologyScope::Full,
+        RunKnockouts {
+            register: dcel::RegisterKnockout::DropLongLoops,
+            ..PRODUCTION
+        },
+    );
+    assert_eq!(
+        knocked.arms_with_a_loop_of_three_or_more_from_register, 0,
+        "the knockout must actually empty the register's share"
+    );
+    assert!(
+        !row(&knocked),
+        "with no register arm carrying a loop long enough to have an ORDER, the §12 ORIENTED \
+         check is exercised by nothing in the register and clause 4 must say so"
+    );
+}

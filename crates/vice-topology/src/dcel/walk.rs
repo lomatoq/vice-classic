@@ -683,10 +683,13 @@ mod tests {
         for (i, line) in body.lines().enumerate() {
             let t = line.trim();
             assert!(
-                !t.starts_with("#[serde(") && !t.contains("serde(skip"),
-                "line {i} of `Parts` carries a serde attribute: {t:?}. The leaf-count judge is \
-                 keyed on the serialization, so an attribute here moves the judge's own ruler \
-                 (RT5-A12, M5B-N14)"
+                !t.starts_with("#["),
+                "line {i} of `Parts` carries an ATTRIBUTE: {t:?}. The leaf-count judge is keyed \
+                 on the serialization, so any attribute here can move the judge's own ruler. \
+                 The predicate used to be `starts_with(\"#[serde(\")` OR `contains(\"serde(skip\")`, \
+                 and `#[cfg_attr(all(), serde(default, skip))]` matched NEITHER - the comma \
+                 breaks the substring (REVIEW_M5_B N16, three lines). No attribute at all is \
+                 the predicate now, which closes the SPELLING class"
             );
         }
         // And the positive control: the derive the judge depends on is present.

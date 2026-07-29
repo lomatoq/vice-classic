@@ -695,6 +695,11 @@ mod tests {
                 GateExpectation::num(f64::from(dcelr::MIN_SLOTS_PERTURBED)),
             ),
             (
+                "dcel",
+                "gate_min_register_arms_with_a_long_loop",
+                GateExpectation::num(f64::from(dcelr::MIN_REGISTER_ARMS_WITH_A_LONG_LOOP)),
+            ),
+            (
                 "topology",
                 "gate_min_recall_arms",
                 GateExpectation::num(f64::from(topo::MIN_RECALL_ARMS)),

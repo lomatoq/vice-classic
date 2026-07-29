@@ -23,7 +23,9 @@ seven invariants are seven checks, and the next finding is an eighth check.
 ## Decision
 
 **1. The invariants are properties of the representation, not entries in a
-checker.** Six of the seven have no failure mode to check for:
+checker.** Eight rows, because §12's "closed and oriented" is a conjunction
+held two different ways (erratum 3). Six have no failure mode to check for, and
+two - ORIENTED and Euler - are computations:
 
 | §12 invariant | how it is held | can a value violate it? |
 |---|---|---|

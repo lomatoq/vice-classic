@@ -18,7 +18,18 @@
 //! | Euler / cubical signature preserved | [`audit`] — this one IS a computation | YES, and that is why it is the audited one |
 //! | non-adjacent boundaries do not intersect | segments are unit steps of an integer lattice; two distinct ones meet only at a lattice point, and every lattice point of degree three or four is a vertex | no |
 //!
-//! Six of the seven have no failure mode to check for, because the
+//! **Eight rows, six of them held by the representation and TWO of them
+//! computations.** §12 lists seven invariants and one of the seven -
+//! "face cycles closed and oriented" - is a conjunction of two properties
+//! that are held in different ways, so the table splits it. Delta-3 split
+//! the row and left the arithmetic around it at "six of the seven", which
+//! then disagreed with `report.rs` (one computation) and with STATUS (five
+//! representational). Three counts of one table, in the milestone's most
+//! load-bearing text; the governor found it after three cold contexts did
+//! not. It is the swapped-format-argument class of delta-1: the edit was
+//! right and the arithmetic around it was not recomputed.
+//!
+//! Six have no failure mode to check for, because the
 //! representation cannot express the violation. That is the difference between
 //! this module and `vice_ir::validate`, which checks the same list AFTER the
 //! fact on a `PlanarGraph` whose fields are public: M1 built a validator
