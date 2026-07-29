@@ -140,6 +140,13 @@ pub enum FitRefusal {
     NonPositiveHalfwidth { sample: usize, halfwidth_px: f64 },
     /// A non-finite sample position, normal, or arclength weight.
     NonFiniteSample { sample: usize },
+    /// A negative physical arclength weight.
+    ///
+    /// Zero is meaningful for a duplicated observation or the repeated
+    /// closure sample. A negative value is not: it turns a nonnegative
+    /// proposal integral into a reward and cannot be silently clamped away
+    /// when the residual code counts independent observations.
+    NegativeWeight { sample: usize, weight_ds_px: f64 },
     /// A normal that is not a unit vector.
     ///
     /// `BoundarySample::normal` is documented as a UNIT normal, and every
@@ -343,6 +350,12 @@ pub(crate) fn validate_chain(chain: &BoundaryChain) -> Result<(), FitRefusal> {
     for (i, s) in samples.iter().enumerate() {
         if !s.p.is_finite() || !s.normal.is_finite() || !s.weight_ds.is_finite() {
             return Err(FitRefusal::NonFiniteSample { sample: i });
+        }
+        if s.weight_ds < 0.0 {
+            return Err(FitRefusal::NegativeWeight {
+                sample: i,
+                weight_ds_px: s.weight_ds,
+            });
         }
         if !(s.halfwidth.is_finite() && s.halfwidth > 0.0) {
             return Err(FitRefusal::NonPositiveHalfwidth {

@@ -11,9 +11,10 @@
 
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
-    fit, flattening_error_px, hierarchical_schedule, models_at_cut, proposal_cost, span_candidates,
-    FitRefusal, SpanFamily, Support, DEVIATION_CHORD_TOLERANCE_PX, FITTED_FAMILIES, FIT_BUDGET_V1,
-    MIN_SUPPORT_SAMPLES, PARAMETER_REFINEMENT_PASSES,
+    fit, fit_forced_boundary_models, flattening_error_px, hierarchical_schedule,
+    k_best_boundary_models, models_at_cut, proposal_cost, span_candidates, FitRefusal,
+    ForcedFitRefusal, SpanFamily, Support, DEVIATION_CHORD_TOLERANCE_PX, FITTED_FAMILIES,
+    FIT_BUDGET_V1, K_DISCRETE_PATHS, MIN_SUPPORT_SAMPLES, PARAMETER_REFINEMENT_PASSES,
 };
 use vice_geom::Pt;
 
@@ -456,6 +457,42 @@ fn a_non_finite_sample_is_refused_before_anything_is_fitted() {
         Err(FitRefusal::NonFiniteSample { sample }) => assert_eq!(sample, 3),
         other => panic!("expected NonFiniteSample, got {other:?}"),
     }
+}
+
+#[test]
+fn a_negative_arclength_weight_is_refused_by_every_public_entry() {
+    let mut chain = chain_from(&arc_points(40.0, 2.0, 0.5));
+    chain.samples[3].weight_ds = -1.0;
+    let expected = FitRefusal::NegativeWeight {
+        sample: 3,
+        weight_ds_px: -1.0,
+    };
+    assert_eq!(span_candidates(&chain, &FIT_BUDGET_V1), Err(expected));
+    assert_eq!(
+        k_best_boundary_models(&chain, &FIT_BUDGET_V1, 256.0, K_DISCRETE_PATHS),
+        Err(expected)
+    );
+    assert_eq!(
+        models_at_cut(&chain, 0, &FIT_BUDGET_V1, 256.0, K_DISCRETE_PATHS),
+        Err(expected)
+    );
+    assert!(matches!(
+        fit_forced_boundary_models(
+            &chain,
+            &[SpanFamily::Line],
+            &[],
+            256.0,
+            K_DISCRETE_PATHS
+        ),
+        Err(ForcedFitRefusal::Input { refusal }) if refusal == expected
+    ));
+    assert_eq!(vice_fit::code::independent_observations(-1.0, 1.0), None);
+
+    chain.samples[3].weight_ds = 0.0;
+    assert!(
+        span_candidates(&chain, &FIT_BUDGET_V1).is_ok(),
+        "zero is the legitimate seam/duplicate weight"
+    );
 }
 
 /// A straight chain makes the arc family degenerate, and the refusal is

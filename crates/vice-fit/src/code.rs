@@ -367,11 +367,15 @@ pub fn log2_binomial(n: usize, k: usize) -> f64 {
 /// sample carries `weight_ds` near zero. It is also the correlation-aware count
 /// §17.1 asks for rather than an iid one.
 ///
-/// `None` when the correlation length is not strictly positive: an observation
-/// count divided by zero is not a large number, it is absent (F-0075).
+/// `None` when the correlation length is not strictly positive or the physical
+/// arclength is negative: neither an observation count divided by zero nor a
+/// negative count can be silently repaired into evidence (F-0075).
 pub fn independent_observations(weight_ds_px: f64, corr_length_px: f64) -> Option<f64> {
-    (corr_length_px.is_finite() && corr_length_px > 0.0 && weight_ds_px.is_finite())
-        .then(|| (weight_ds_px / corr_length_px).max(0.0))
+    (corr_length_px.is_finite()
+        && corr_length_px > 0.0
+        && weight_ds_px.is_finite()
+        && weight_ds_px >= 0.0)
+        .then(|| weight_ds_px / corr_length_px)
 }
 
 /// The robust quantized residual code for ONE observation, in bits.

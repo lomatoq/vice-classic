@@ -192,6 +192,7 @@ fn refusal_name(r: &FitRefusal) -> &'static str {
         FitRefusal::CutSearchBudgetExceeded { .. } => "cut_search_budget_exceeded",
         FitRefusal::NonPositiveHalfwidth { .. } => "non_positive_halfwidth",
         FitRefusal::NonFiniteSample { .. } => "non_finite_sample",
+        FitRefusal::NegativeWeight { .. } => "negative_weight",
         FitRefusal::NonUnitNormal { .. } => "non_unit_normal",
         FitRefusal::NonPositiveCorrLength { .. } => "non_positive_corr_length",
         FitRefusal::CutOutOfRange { .. } => "cut_out_of_range",
