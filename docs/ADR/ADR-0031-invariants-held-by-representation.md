@@ -267,3 +267,18 @@ were quoted back at me from three independent cold contexts.
    predicate has to be asked separately.
 3. **Determinism: vertex ORDER is checked since delta-6; face numbering and loop
    order within a face are promised and not checked** (M5A-D5-N1).
+
+
+## Erratum 7 — delta-7 (C279)
+
+1. **"Derived" is a claim about a LINE.** The floor-equality test's fixture axis
+   was derived and its size axis was a literal under a comment saying otherwise
+   (F-0078). A derivation is only as derived as its least-derived input; the
+   sweep over every mechanism deltas 3–6 declared derived is in STATUS A7.2.
+2. **The residual price in §3 was above the true cheapest, for the second
+   time** (F-0079). The cheapest bypass of the leaf-count judge is a field on
+   `Dcel` rather than in `Parts` — outside the ruler entirely, and untouched by
+   the proc-macro that would close the type axis.
+3. **The source-reading judges now walk `src/dcel` recursively.** One level was
+   a live door given §4.1's size rule, and delta-7's own splits are the first
+   thing that would have used it.

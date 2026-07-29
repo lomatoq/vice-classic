@@ -1176,3 +1176,129 @@ Four rows do not pass. Each has a residual, an owner and — since delta-6 — a
 consequence stated in the gate row a reviewer actually reads.
 
 **STOPPED AFTER M5 DELTA-6 — M5.5 NOT STARTED.**
+
+
+---
+
+# Addendum 7 — delta-7 (C278–C279)
+
+**GATE §28 M5 MET**, recorded in C277: `REVIEW_M5_A` ACCEPT WITH CONDITIONS,
+`REVIEW_M5_B` ACCEPT WITH CONDITIONS, `REDTEAM_M5` **PASS** — the first after six
+FAILs, argued against the red team's own four-point criterion rather than
+declared.
+
+Delta-7 closes the conditions named with that verdict. It is not a new
+milestone: M5.5 remains not started.
+
+## A7.1 D6-N1 = M5B-N20 — the derivation that was not one
+
+The floor-equality test — the strong form both reviewers asked for in delta-5 —
+carried:
+
+```rust
+// Sizes the harness actually builds structural arms at, taken from the run
+// rather than from a literal here.
+let sizes = [32usize, 64, 128];
+```
+
+Its **fixture** axis was derived and would catch a new fixture. Its **size** axis
+was a literal under a comment claiming otherwise. Grow the cell list: the
+register produces eight, the test compares its stale six against the frozen six
+and **passes**, reopening the gap it exists to close.
+
+Fixed with one source — `structural_sizes(scope)`, which `run()` itself calls.
+
+**Rule: a derivation is only as derived as its least-derived input**, and
+"derived from X" is a claim checkable by pointing at the line where X is read. A
+comment beside a literal states an intention.
+
+## A7.2 The sweep the rule demands, over deltas 3–6
+
+| claim | reads | verdict |
+|---|---|---|
+| knockout count from `gate_table()` | `run_at(...).gate_table(&cfg)`, compared by length | **holds** |
+| the transaction edit from the CANVAS | `t.width_px` / `t.height_px` | **holds** |
+| leaf count from the `Serialize` derive | `serde_json::to_value(d.parts())` | **holds**, with its own two limits already stated |
+| the ORIENTED floor from the register | `structural_sizes` + `structural_fixtures` + `loop_length_profile` | **holds since C278** |
+| register counts in `dcel_props` (fixture axis) | `structural_fixtures(...).len()`, `.filter(...)` | **holds** |
+| `doc_claims` document set | `read_dir` over `docs/` | **holds** |
+| the branch set | the judge's own `AuditReport::branch` | **holds** |
+| `by_family` | `SLOT_FAMILIES` + the family each site declares | **holds** |
+| the CI claim checker | `.github/workflows/*.yml` | **holds** |
+| the name judge's file set | `src/dcel`, recursively since C278 | **holds** |
+
+**One gap found by the sweep and named rather than fixed.** `dcel_props`'s SIZE
+axis is `FAST_SIZES_PX`, a literal in the crate's own tests, while the harness
+takes its sizes from the degradation cells. Nothing claims the two track each
+other, and `vice-topology` cannot read `vice-bench` — the dependency runs the
+other way — so they are two independent declarations of "the sizes the register
+is built at". **Consequence:** a new harness size gets floor coverage and gate
+coverage but no crate-level property coverage until someone adds it here too.
+**Limitation 53, owner M6**, price: move the size list into `vice-topology`
+beside `structural_fixtures` and have the harness read it, which inverts the
+declaration to the crate that owns the register.
+
+## A7.3 D6-N2 — a residual named at a price above the true one, for the second time
+
+The clause-4 row named the cheapest bypass as a field whose TYPE serialises to
+nothing. Reviewer A ran a cheaper one: an ordinary `u32` on **`Dcel` itself** —
+one level above `Parts` — behind a public accessor and wrong above 16 px. Every
+judge green, four clauses MET, **artifact byte-identical**. The leaf count is
+taken over `d.parts()`, so a field there is outside the ruler entirely, and the
+proc-macro that closes the TYPE axis would not close this one.
+
+F-0048's last paragraph requires the boundary at the **cheapest known** bypass
+price, because the decision not to close a class is made on that price. Naming a
+higher one makes the decision on a false input. **Second time this milestone.**
+
+Closed in the shape the project already uses: every field of `Dcel` is `parts`
+or a declared exception with a reason. The rule caught my own too-short reason
+on its first run.
+
+## A7.4 RT5-A23 = M5B-E22 — "the module tree" was one level
+
+`read_dir` does not descend, and a subdirectory has no `.rs` extension, so it was
+skipped whole — with §4.1's 800-line rule making subdirectories likely and
+`audit.rs` already split once. The red team offered recording the depth as a
+limitation and warned that doing it silently would be F-0048 for the ninth time.
+
+**One line of recursion is cheaper than a limitation**, so it is closed rather
+than declared, and F-0078 records the class. Delta-7's own module splits are the
+first thing that would have walked into it.
+
+## A7.5 Erratum to A6.4 and to limitation 52
+
+**A6.4** said the floor "tracks the register by equality". True of the fixture
+axis and false of the size axis until C278; the sentence is corrected here rather
+than edited above.
+
+**Limitation 52** was created in delta-6 out of a reviewer claim explicitly
+marked *not run*. The governor's rule, which I adopt: **a reviewer's claim marked
+"not run" may not become a limitation of the tree without a run** — either it is
+executed, or the limitation carries the mark. It is executed now
+(`the_order_of_loops_within_a_face_is_bound_by_nothing_and_this_is_measured`) and
+it holds: swapping a face's two loops leaves `audit`, the anchor, `crossing`, the
+loop comparison and the vertex order all silent. Limitation 52 is **measured**,
+and the test states what would have to change for it to be struck.
+
+## A7.6 New limitations
+
+53. **The crate's test sizes and the harness's sizes are two declarations.**
+    A7.2. **Owner M6.**
+
+## A7.7 F-0048 after delta-7
+
+Unchanged from A6.8 except:
+
+| mechanism | change |
+|---|---|
+| the floor–register equality | **Q1 was YES and is now no** — its size axis was a literal (D6-N1) |
+| `Parts::perturbations` / clause 4's residual | the stated price is now the **true cheapest**: a field on `Dcel`, not an exotic type (D6-N2). The `Dcel` field rule closes that level; the type axis stays open with the proc-macro price |
+| the name judge | Q3's domain is the module tree **recursively** (RT5-A23) |
+
+Four rows still do not pass — `crossing` (Q4), `Parts::perturbations` (Q4),
+`audit()` (Q1), `transaction_for` (Q1) — each with a residual, an owner, and a
+price that has now been checked against a cold context's actual bypass rather
+than against my estimate of one.
+
+**STOPPED AFTER M5 DELTA-7 — M5.5 NOT STARTED.**
