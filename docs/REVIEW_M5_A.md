@@ -1338,3 +1338,144 @@ The two minors are both of the same shape and both small: a number that must be 
 **The M6/§14.2 date I have carried since addendum 2 is now clear.** Chain decomposition is bound in both directions, so the thing M6 consumes is anchored. What remains open against M6 is unchanged and unrelated: limitation 36 (52b/53b), limitation 37 (55b), and CI (54c) — yours.
 
 **GATE §28 M5: MET**
+
+---
+
+# REVIEW_M5_A — addendum 6 (delta-6)
+
+Reviewer A, independent cold review, Opus 5. Signed §0–§9 and addenda 1–5 untouched.
+Object: **`bda56f5`**, commits **C274–C276** on top of `a8576cc`.
+
+## §F0. Hygiene
+
+```
+start / end:  main repo  git status --porcelain → (empty)   HEAD = bda56f5436945460e4de621bbc35b2cb4c00b2b1
+              measuring clone …/m5a-delta6-rev-jx58r  (empty)  HEAD = bda56f5
+              experiment clone …/m5a-delta6-exp-jx58r  M mod.rs, M walk.rs  (deliberately dirty)
+              git worktree list → one entry, the main tree
+```
+
+`CARGO_TARGET_DIR=…/tgt-m5a-delta6-jx58r` asserted **not to exist** before the first command. Every cargo call blocking. No `git worktree`.
+
+**§27.7 verified:** `git log a8576cc..bda56f5 -- configs/GATES_V1.toml` is **empty** — the gate file was not touched. C275 → `docs/gt/DCEL_M5.json` only.
+
+## §F1. Reproduced
+
+| command | result |
+|---|---|
+| `cargo fmt --all --check` | `FMT_EXIT=0` |
+| `cargo clippy --workspace --all-targets -- -D warnings`, **cold target** | `CLIPPY_EXIT=0`, zero diagnostics |
+| `cargo test --locked --workspace` | `DEBUG_EXIT=0` — **549 passed, 0 failed, 15 ignored** |
+| `cargo test --locked --release --workspace` | `RELEASE_EXIT=0` — **549 passed, 0 failed, 15 ignored** |
+| `gt-corpus dcel --scope full` | `GATE_EXIT=0`, **four `[MET]`** |
+| artifact | `36875DDC…15CB3496` — **byte-identical** |
+| `dcel_props -- --ignored` · `dcel_harness -- --ignored` | 2 passed · **8 passed** |
+
+## §F2. The artifact: shape, not values — verified key by key
+
+I diffed the delta-5 and delta-6 artifacts programmatically rather than reading the 9601-line diff:
+
+```
+arms_measured 480/480  corpus 444/444  structural 36/36  refused 0/0
+empty 8/8  non_empty 472/472  groups 240/240  classes_in 253/253  classes_out 253/253
+convention_dependent 13/13  tx 170/170/0  unrelated 130/0  failing_audit 0/0
+long-loop arms 20/20  corpus 14/14  register 6/6  longest 8/8  loops total 28/28
+audit_resolving_power identical: True     classes identical: True
+value changes among checked keys: 0
+```
+
+**Every number from my addendum 5 matches.** The change is per-arm: nine flat fields (`vertices`, `boundaries`, `segments`, `loops`, `faces`, `skeleton_components`, `euler_lhs`, `euler_rhs`, `directed_steps`) replaced by one `audit` field. Measured on the committed artifact: **0 arms with `audit: null`, 8 with `audit.directed_steps == 0`**, all `adv/sliver#a`. "The instrument did not report" and "the subject was absent" are now different states, which is RT5-A21's point.
+
+And a smaller thing I want to record because it is mine: the artifact now carries `reachable_refusals_on_this_population = [UnrelatedGraphMutation, CandidateFailedAudit]` and `unreachable_refusals_on_this_population = [EditLeftTheCanvas, EditLeftTheRoi, EditIsANoOp, NotTheDeclaredEdit]`. That is **addendum 1 §M5A-D1-N2** — four of six refusal reasons unreachable by construction — turned from a limitation into published data.
+
+## §F3. D5-N1: what was done, and all three cases run
+
+The response is a **split**, and it is the right split. Verified by execution against this HEAD:
+
+| my instance | delta-6 | my measurement |
+|---|---|---|
+| **(a)** order of `vertices` | **CHECKED** — `vertices_agree_with_the_labelling` now compares **sequences**, not sets | E27 → `audit: Some("§12 asks for MAXIMAL shared boundary chains: the vertex SET is right and its ORDER is not: 2 vertices, stored in an order the canonical one does not produce (REVIEW_M5_A D5-N1)")` — **caught** |
+| **(b)** order of `loops` within a face | **NARROWED**, owner M6 | E28, *the case I named by symmetry and did not run in addendum 5, now run*: face 1 has 2 loops, swap them, rebuild `site` → `audit: None`, `loops_agree: true`, `parts changed: true` — **not caught, exactly as the narrowing says** |
+| **(c)** face ids among same-label faces | **NARROWED**, owner M6 | E29: labels `[false, true, true]`, swap ids 1↔2 through map, owners and loops → `audit: None` — **not caught, exactly as the narrowing says** |
+
+**A narrowing has to be checked for accuracy, not only for honesty, and this one is accurate on both counts it makes.** That is the substantive test of a narrowing and it passes.
+
+**Q4 by code on the new check.** `vertices_agree_with_the_labelling` compares `d.vertices()` (ordered) against `vertices_of_the_labelling(d)`, which reads `d.labelling().inside()`, `d.width_px()`, `d.height_px()` and `d.connectivity()` — the two **inputs** and no derived field. Q4 passes. The residual it shares is the algorithm (`orbits`, `arr.degree`, the `min` rule) — already declared — plus one new and smaller thing: the *canonical order* is now defined as "what the derived `BTreeSet` produces", and `assemble` produces the same order for the same reason. Both sides take "sorted" as canonical, and the tie to §5.5's "fixed lattice order" is prose on both sides. Not a defect; worth one sentence somewhere, and I am not raising it as a finding.
+
+## §F4. Findings
+
+### M5A-D6-N1 — MAJOR. The floor derivation closes D5-N2 in the strong form and reads its own size list from a literal, under a comment saying it does not.
+
+`the_oriented_floor_equals_what_the_register_produces` is exactly the mechanism I asked for: it walks `structural_fixtures(n)` × sizes × arms, counts arms with `at_least_three > 0`, guards against a vacuous `0 == 0`, and asserts **equality** against `cfg.min_register_arms_with_a_long_loop.registered_value()`. Add a size or a long-loop fixture and it fails until the gate file moves — a §27.7 commit by design. The answer to F-0048 Q2 is no longer "someone will remember".
+
+But:
+
+```rust
+// Sizes the harness actually builds structural arms at, taken from the run
+// rather than from a literal here.
+let sizes = [32usize, 64, 128];
+```
+
+The production path derives them (`dcel/mod.rs:470-475`): `cells.iter().map(|c| c.size_px)` into a `BTreeSet`. The test hardcodes them **two lines below a comment asserting it does not**. If the cell list gained a size, the register would produce eight arms, the *measured* count would be eight, and this test would compare the frozen six against its own stale literal six — and pass. The mechanism that exists to catch drift is itself keyed on the thing that drifts.
+
+**Class rule.** This is delta-5's own lesson — *"these two sentences look the same; therefore Q4 is now asked of the call site"* — applied to a comment about **provenance of the test's inputs** rather than of the check's. **A derivation is only as derived as its least-derived input, and a comment claiming derivation is not evidence of it.** The fix is three lines: take the sizes from `matrix_v1()`/`TOPOLOGY_CELL_IDS` the way `run()` does.
+
+### M5A-D6-N2 — MAJOR. The clause-4 negative claim is keyed on the field's TYPE; the LOCATION axis is open, and needs no exotic type at all. Verified.
+
+The row says it certifies "the fields the structure has TODAY", and names the bypass as *a field whose type serialises to nothing — a newtype writing `serialize_none()`*, with the proc-macro remedy owned by M6.
+
+That names one axis. I tested the other: an **ordinary `u32`** added to **`Dcel`** rather than to `Parts`, set to `0xDEAD` above 16 px, behind a public accessor. No exotic type, no custom `Serialize`.
+
+```
+every_scalar_leaf_of_parts_has_exactly_one_perturbation ... ok
+every_slot_family_is_non_empty_and_declared             ... ok   (families unchanged)
+every_perturbation_of_every_slot_is_caught_by_the_audit  ... ok   (slots 372 | caught 372)
+gt-corpus dcel --scope full                              ... four [MET], EXIT 0
+artifact                                                 ... BYTE-IDENTICAL
+```
+
+The leaf count is computed over `d.parts()`, so a field on `Dcel` is outside the ruler as well as outside the measurement. **The proc-macro remedy the row names would close the type axis and not this one** — it would still have to be pointed at `Parts`.
+
+*(My experiment did trip `no_production_module_is_over_the_size_rule` — on `walk.rs` at 842 lines, which is my own probe file, not the shadow field. The size rule is not a defence here.)*
+
+**Class rule.** F-0048's last paragraph requires the honest boundary to be stated **at the cheapest known bypass price**. The row states a price — an exotic serialisation — that is higher than the cheapest one, which is a plain field one struct up. This is the second time in this milestone I have found a residual priced above its true cost (addendum 1 §M5A-D1-N5, where `with_parts` already existed and the doc priced the bypass at writing a new `pub fn`). The closure has the shape this project already uses for documents: **take the subject set from the side the attacker does not edit** — every field of `Dcel` reachable by a public accessor is either in `Parts` or declared exempt with a reason.
+
+## §F5. Conditions, by halves (condition 38)
+
+| | half | status |
+|---|---|---|
+| **52** | (a) swapped args · (b) rows bound positionally | **CLOSED** · **OPEN**, limitation 36, M6 |
+| **53** | (a) stale numbers · (b) numbers derived | **CLOSED** · **OPEN**, M6 |
+| **54** | (a) CI steps · (b) claim derived from `ci.yml` · (c) CI observed green | **CLOSED · CLOSED · OPEN — yours** |
+| **55** | (a) excluded count published · (b) compound transactions attempted | **CLOSED** · **OPEN**, limitation 37, M6 |
+| **56–61** | all halves as recorded in addendum 5 | **CLOSED** |
+| **62** | (a) floor gated · (b) profile in artifact · (c) maximality both directions | **CLOSED · CLOSED · CLOSED** |
+| **63** | (a) vertex set from the labelling · (b) `DropLongLoops` narrowed to two legs · (c) floor matches its standard | **CLOSED · CLOSED · CLOSED** |
+| **64** | (a) floor derived from the register, `==` | **CLOSED IN FORM** — the equality is right; its size input is a literal. See D6-N1 |
+| | (b) index/order freedoms checked or narrowed | **CLOSED** — (a) checked, (b) and (c) narrowed with owner M6, all three verified by me |
+| **65** *(new)* | (a) the floor test's size list taken from the cell matrix | **OPEN** — D6-N1 |
+| | (b) the clause-4 negative claim extended to the location axis, or the walk's subject derived | **OPEN** — D6-N2 |
+
+## §F6. F-0048 on my own method
+
+**Q1 — literal enumerating my subjects?** Your asks again, but the two findings this round came from elsewhere: E28 from my own addendum-5 label "*not run*", and E30 from asking Q1 of the negative claim's **key** rather than its content.
+
+**Q3 — who was my judge?** The test binary for E27–E30. For §F2 the judge was a key-by-key programmatic diff of the two artifacts, not reading a 9601-line patch — which is the only way that claim could have been checked honestly.
+
+**A new risk of my own method, and it nearly landed.** In addendum 5 I named instance (c) by symmetry and did not run it. Delta-6 turned that unverified claim into a **declared limitation with an owner**. It happened to be correct — E28 confirms it — but had it been wrong, my untested symmetry would now be a documented property of the tree. **A reviewer's unverified claim can become a milestone's declared limitation, and the label "not run" is the only thing standing between the two.** The label worked here because you read it and made me run it. That is not a mechanism, it is you; and the mechanism version is the one I have been asking the author for all milestone: ship the transformation, not the description.
+
+**Q5 — both directions?** E27 red (the new check works), E28/E29 green-where-unchecked (the narrowing is accurate), E30 green-where-it-should-be-red (the residual), baseline green throughout.
+
+## §F7. What I could not verify
+
+CI execution (yours). Cross-platform / A7.1. Donor sources (D-3). Whether the proc-macro remedy would in fact close the type axis — it is unbuilt and I judged only its stated scope.
+
+## §F8. Verdict
+
+**VERDICT (addendum 6): ACCEPT WITH CONDITIONS — two major (D6-N1, D6-N2), no blocker.**
+
+The artifact re-record is shape-only and I verified it key by key; D5-N1 is answered with one check and two accurate narrowings, all three of which I ran; D5-N2 is closed in the strong form I asked for; and my delta-1 refusal-reachability finding is now published data rather than prose. Both new findings are claim-boundary defects of the same family the milestone has been closing all cycle — a derivation whose own input is a literal, and a residual priced above its cheapest bypass. Neither touches a §28 M5 clause, neither moves a count, and the shipped tree contains no such field and no such drift.
+
+**The M6 ledger against this milestone is unchanged and none of it is topology:** limitation 36 (52b/53b), limitation 37 (55b), the two narrowed index/order freedoms (64b), and CI (54c) — yours.
+
+**GATE §28 M5: MET**
