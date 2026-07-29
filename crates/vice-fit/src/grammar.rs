@@ -47,7 +47,9 @@ use crate::code::{ChainCode, GeometryCodeTable};
 use crate::refit::{ArcAnchor, Handle, RefitChain, RefitNode, RefitSegment};
 use crate::span::{SpanCandidate, SpanFamily};
 
+mod closure;
 mod control;
+use closure::{close_finished_path, ClosureMode, ClosureState};
 pub use control::{k_best_proposal_control_paths, ProposalControlPath};
 
 /// Buckets the endpoint tangent direction is quantized into for the DP state.
@@ -269,6 +271,7 @@ struct Partial {
     /// `true` when the join at the node this partial's last edge STARTS from
     /// was smooth. `false` for the seed, which starts at the chain end.
     smooth_here: bool,
+    closure: Option<ClosureState>,
     prev: Option<usize>,
 }
 
@@ -284,6 +287,7 @@ struct StateKey {
     exit_class: usize,
     family_ord: usize,
     head_shared: bool,
+    closure: Option<ClosureState>,
 }
 
 fn family_ord(f: SpanFamily) -> usize {
@@ -321,6 +325,27 @@ pub fn k_best_paths(
         canvas_dim_px,
         k,
         PathObjective::PhysicalCode,
+        ClosureMode::Open,
+    )
+}
+
+pub(crate) fn k_best_paths_with_closure(
+    edges: &[GrammarEdge],
+    samples: &[BoundarySample],
+    table: &GeometryCodeTable,
+    canvas_dim_px: f64,
+    k: usize,
+    closed: bool,
+    closure_smooth: bool,
+) -> Vec<GrammarPath> {
+    k_best_paths_for_objective(
+        edges,
+        samples,
+        table,
+        canvas_dim_px,
+        k,
+        PathObjective::PhysicalCode,
+        ClosureMode::for_chain(closed, closure_smooth),
     )
 }
 
@@ -330,13 +355,14 @@ pub(super) enum PathObjective {
     ProposalResidual,
 }
 
-pub(super) fn k_best_paths_for_objective(
+fn k_best_paths_for_objective(
     edges: &[GrammarEdge],
     samples: &[BoundarySample],
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
     objective: PathObjective,
+    closure_mode: ClosureMode,
 ) -> Vec<GrammarPath> {
     let n = samples.len();
     if n < 2 || edges.is_empty() || k == 0 {
@@ -421,6 +447,7 @@ pub(super) fn k_best_paths_for_objective(
             proposal: e.proposal_cost_px,
             edge: ei,
             smooth_here: false,
+            closure: closure_mode.state_for_seed(e),
             prev: None,
         };
         push_state(
@@ -461,20 +488,15 @@ pub(super) fn k_best_paths_for_objective(
                         continue;
                     }
                     let angle_free = smooth && tangent_is_free(f_in) && tangent_is_free(e.family);
-                    let node_bits = join_bits
-                        + anchor
-                        + if smooth {
-                            f64::from(u8::from(angle_free)) * cb - tail_saving * cb
-                        } else {
-                            0.0
-                        };
+                    let node_bits = join_bits + anchor + f64::from(u8::from(angle_free)) * cb;
                     let g = seg_bits(e.family, smooth);
+                    let geometry_delta = g - if smooth { tail_saving * cb } else { 0.0 };
                     let residual = edge_objective(e);
                     for &pi in &partials {
                         let p = arena[pi];
                         let q = Partial {
-                            bits: p.bits + g + node_bits + residual,
-                            geometry: p.geometry + g,
+                            bits: p.bits + geometry_delta + node_bits + residual,
+                            geometry: p.geometry + geometry_delta,
                             topology: p.topology + node_bits,
                             residual: if physical {
                                 p.residual + e.residual_bits
@@ -484,6 +506,9 @@ pub(super) fn k_best_paths_for_objective(
                             proposal: p.proposal + e.proposal_cost_px,
                             edge: ei,
                             smooth_here: smooth,
+                            closure: p
+                                .closure
+                                .map(|state| state.after_join(p.prev.is_none(), smooth)),
                             prev: Some(pi),
                         };
                         push_state(
@@ -502,6 +527,17 @@ pub(super) fn k_best_paths_for_objective(
         }
     }
 
+    if closure_mode.is_closed() {
+        finished.retain(|end| {
+            close_finished_path(
+                &mut arena[*end],
+                edges,
+                cb,
+                join_bits,
+                closure_mode.is_smooth(),
+            )
+        });
+    }
     finished.sort_by(|a, b| arena[*a].bits.total_cmp(&arena[*b].bits));
     finished.truncate(k);
     finished
@@ -552,6 +588,7 @@ fn push_state(
         exit_class: e.exit_class,
         family_ord: family_ord(e.family),
         head_shared,
+        closure: p.closure,
     };
     let v = slot.entry(key).or_default();
     v.push(idx);
@@ -710,17 +747,15 @@ pub(crate) fn materialize_with_closure(
 /// - a smooth join between two LINES: their directions are their chords, and
 ///   two collinear lines are one line.
 pub fn path_is_representable(path: &GrammarPath, families: &[SpanFamily]) -> bool {
-    let smooth_at = |i: usize| path.smooth.get(i).copied().unwrap_or(false);
-    families.iter().enumerate().all(|(i, f)| {
-        let head = i > 0 && smooth_at(i - 1);
-        let tail = smooth_at(i);
-        match f {
-            SpanFamily::Quad => !tail,
-            SpanFamily::CircularArc => !(head && tail),
-            SpanFamily::Line => !(tail && matches!(families.get(i + 1), Some(SpanFamily::Line))),
-            SpanFamily::Cubic => true,
-        }
-    })
+    closure::path_is_representable(path, families, false)
+}
+
+pub(crate) fn path_is_representable_with_closure(
+    path: &GrammarPath,
+    families: &[SpanFamily],
+    closure_smooth: bool,
+) -> bool {
+    closure::path_is_representable(path, families, closure_smooth)
 }
 
 #[cfg(test)]

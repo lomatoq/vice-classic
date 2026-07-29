@@ -29,6 +29,7 @@ pub fn k_best_proposal_control_paths(
         crate::REFERENCE_CANVAS_DIM_PX,
         k,
         PathObjective::ProposalResidual,
+        super::ClosureMode::Open,
     )
     .into_iter()
     .map(|path| ProposalControlPath {

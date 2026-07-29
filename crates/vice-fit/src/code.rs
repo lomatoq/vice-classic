@@ -345,6 +345,13 @@ pub fn pricing_surface_v1() -> String {
             f.universe_name(),
             crate::grammar::path_is_representable(&path, &[f, f])
         ));
+        out.push_str(&format!(
+            "smooth_closure_representable {}-{} = {}
+",
+            f.universe_name(),
+            f.universe_name(),
+            crate::grammar::path_is_representable_with_closure(&path, &[f, f], true)
+        ));
     }
     out
 }

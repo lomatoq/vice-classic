@@ -42,8 +42,8 @@ use vice_evidence::{BoundaryChain, BoundarySample};
 
 use crate::code::{ChainCode, GeometryCodeTable};
 use crate::grammar::{
-    build_edges, k_best_paths, materialize, materialize_with_closure, path_is_representable,
-    GrammarPath,
+    build_edges, k_best_paths_with_closure, materialize_with_closure,
+    path_is_representable_with_closure, GrammarPath,
 };
 use crate::refit::{closure_g1_spread_rad, g1_readings, RefitChain, RefitRefusal};
 use crate::schedule::{FitBudget, Support};
@@ -386,7 +386,15 @@ pub fn fit_forced_boundary_models(
             family: missing.1.family,
         });
     }
-    let paths = k_best_paths(&edges, samples, table, canvas_dim_px, k);
+    let paths = k_best_paths_with_closure(
+        &edges,
+        samples,
+        table,
+        canvas_dim_px,
+        k,
+        closed,
+        closure_smooth,
+    );
     if paths.is_empty() {
         return Err(ForcedFitRefusal::NoPath);
     }
@@ -395,13 +403,12 @@ pub fn fit_forced_boundary_models(
     let mut refused = Vec::new();
     let mut not_representable = 0usize;
     for path in &paths {
-        if !path_is_representable(path, families) {
+        if !path_is_representable_with_closure(path, families, closure_smooth) {
             not_representable += 1;
             continue;
         }
         let Some(init) =
             materialize_with_closure(path, &edges, &candidates, samples, closure_smooth)
-                .or_else(|| materialize(path, &edges, &candidates, samples))
         else {
             not_representable += 1;
             continue;
@@ -434,9 +441,6 @@ pub fn fit_forced_boundary_models(
                     worst_g1 = worst_g1.max(spread);
                 }
                 let mut code = path.code;
-                if closed {
-                    code.topology_bits += (crate::JOIN_KINDS as f64).log2();
-                }
                 code.residual_bits = crate::code::chain_residual_bits(&out.chain, samples, table);
                 if !code.residual_bits.is_finite() {
                     bump(&mut refused, "non_finite_post_refit_code");
@@ -612,7 +616,15 @@ fn models_for_open_chain(
     let cands = span_candidates(chain, budget)?;
     let samples = &chain.samples;
     let edges = build_edges(&cands.candidates, samples, table, canvas_dim_px);
-    let paths = k_best_paths(&edges, samples, table, canvas_dim_px, k);
+    let paths = k_best_paths_with_closure(
+        &edges,
+        samples,
+        table,
+        canvas_dim_px,
+        k,
+        chain.closed,
+        closure_smooth,
+    );
 
     let mut models = Vec::new();
     let mut refused: Vec<(&'static str, usize)> = Vec::new();
@@ -624,13 +636,12 @@ fn models_for_open_chain(
             .iter()
             .map(|c| cands.candidates[*c].family)
             .collect();
-        if !path_is_representable(path, &families) {
+        if !path_is_representable_with_closure(path, &families, closure_smooth) {
             not_representable += 1;
             continue;
         }
         let Some(init) =
             materialize_with_closure(path, &edges, &cands.candidates, samples, closure_smooth)
-                .or_else(|| materialize(path, &edges, &cands.candidates, samples))
         else {
             not_representable += 1;
             continue;
@@ -663,9 +674,6 @@ fn models_for_open_chain(
                     worst_g1 = worst_g1.max(spread);
                 }
                 let mut code = path.code;
-                if chain.closed {
-                    code.topology_bits += (crate::JOIN_KINDS as f64).log2();
-                }
                 code.residual_bits = crate::code::chain_residual_bits(&out.chain, samples, table);
                 if !code.residual_bits.is_finite() {
                     bump(&mut refused, "non_finite_post_refit_code");
