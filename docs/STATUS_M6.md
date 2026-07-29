@@ -1343,7 +1343,7 @@ emptied:
 | chains with a model / solver emptied k-best | 35 / 1 |
 | selected typed chains / whole-loop primitives | 7 / 28 |
 | typed selected segments / smooth joins | 18 / 1 |
-| relation hypotheses considered / promoted | 498 / 4 |
+| relation hypotheses considered / promoted | 446 / 2 |
 | whole-loop hypotheses considered / promoted among k-best models | 3,920 / 209 |
 | path refusals | 43 outside-corridor |
 | worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
@@ -1371,7 +1371,7 @@ The §28 M6 gate is **MET as a completion candidate**:
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
-passes every one of the 85 commits from `origin/main` through this candidate.
+passes every one of the 86 commits from `origin/main` through this candidate.
 
 `REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-12. Defect classes
 F-0108…F-0130 record the final repair rather than letting Addendum 4’s invalid
@@ -1429,6 +1429,11 @@ The row-derived geometry measurements did not move: 11 common boundaries,
 55 arms, 27 injections, selector changes 3/6/1, four relation-selected rows,
 five primitive-selected rows, and all 18 clauses MET. Exact replay succeeds on
 `windows-x86_64`.
+
+The broader ignored corpus now forms 446 relation hypotheses and promotes two,
+instead of the pre-repair 498/four: the removed adjacent duplicate accounted
+for both the excess considered population and the two false promotions. The
+frozen Stage-H floor is still met exactly.
 
 - model universe `47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097`;
 - pricing surface `1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691`;

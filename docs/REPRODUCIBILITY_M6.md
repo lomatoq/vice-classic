@@ -61,7 +61,7 @@ The 2026-07-29 Windows run (one cell per non-sealed scene) measured:
 | selected typed chains / whole-loop primitives | 7 / 28 |
 | typed selected segments / smooth joins | 18 / 1 |
 | path refusals | 43 outside-corridor |
-| relation hypotheses considered / promoted | 498 / 4 |
+| relation hypotheses considered / promoted | 446 / 2 |
 | whole-loop hypotheses considered / promoted among k-best models | 3,920 / 209 |
 | worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
 | lowering failures | 0 |
