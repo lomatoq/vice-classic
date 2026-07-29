@@ -1317,7 +1317,30 @@ production module under 800 lines and extends the source digest over the moved
 modules. C352 is the Tier-A artifact, reproduced byte-for-byte on
 `windows-x86_64`.
 
-## A5.3 Gate and governance
+## A5.3 Materialized broad-corpus population
+
+The final ignored Stage G/H corpus walk classifies the geometry actually
+delivered by all 36 winners:
+
+| quantity | measured |
+|---|---:|
+| selected typed chains / whole-loop primitives | 6 / 30 |
+| typed selected segments / smooth joins | 18 / 1 |
+| relation hypotheses considered / promoted | 457 / 8 |
+| whole-loop hypotheses considered / promoted among k-best models | 3,488 / 183 |
+| path refusals | 23 degenerate-span; 11 G1-violation; 36 outside-corridor |
+| worst exact-G1 spread | `3.553e-15 rad` over 1 selected typed node |
+| lowering failures | 0 |
+
+The instrument also retains all-chain generation totals: 36 chains, 1,910
+samples, 4,065 supports under a 10,187 structural bound, and 14,326 candidates
+after 333 cost refusals. C355 fixed the population walk so a primitive winner
+cannot bypass those outer-chain totals and so G1 is read only from selected
+typed geometry, including an explicit closure seam. Thus `6 + 30 = 36`; the
+old Addendum 4 counts of 105 free-chain segments and 18 joins were not a claim
+about materialized winners.
+
+## A5.4 Gate and governance
 
 The §28 M6 gate is **MET as a completion candidate**:
 
@@ -1330,13 +1353,13 @@ The §28 M6 gate is **MET as a completion candidate**:
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
-passes every one of the 42 commits from `origin/main` through this candidate.
+passes every one of the 44 commits from `origin/main` through this candidate.
 
 `REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-11. Defect classes
-F-0108…F-0116 record the final repair rather than letting Addendum 4’s invalid
+F-0108…F-0117 record the final repair rather than letting Addendum 4’s invalid
 claim disappear.
 
-## A5.4 Boundary of the stop
+## A5.5 Boundary of the stop
 
 M6 does not claim scene-level posterior selection, full-resolution final
 likelihood, compound topology/geometry search, optimizer convergence,

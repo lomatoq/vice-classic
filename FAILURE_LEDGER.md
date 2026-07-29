@@ -4491,5 +4491,29 @@ not only the final tree.
 
 **Status.** The mixed commit was split into C331a code-only and C331b
 config-only with a content-identical replay of later commits. The project’s own
-checker passes all 42 commits from `origin/main` to the repaired candidate; the
+checker passes all 44 commits from `origin/main` to the repaired candidate; the
 pre-rewrite history remains recoverable on `codex/m6-pre-history-repair`.
+
+## F-0117 — A population instrument counted the losing representation and skipped primitive winners (M6 final verification, 2026-07-29)
+
+**Found by.** The release ignored Stage G/H corpus run on the repaired
+candidate.
+
+**What happened.** When a whole-loop primitive won, the corpus walk used an
+early `continue`; that winner therefore did not contribute to the outer chain
+and candidate population. For the remaining winners, selected segment and G1
+counts came from the underlying free-chain candidate even when the delivered
+geometry was a relation or primitive. The report printed 6 chains beside 36
+models and attributed 18 smooth joins to geometry that was not selected.
+
+**Class rule.** A population instrument must branch on the representation
+actually delivered, while representation-specific branches must not skip
+representation-independent totals. The subtype partition must sum to the
+reported whole.
+
+**Status.** Closed in C355. `FitRun` records selected typed chains and
+whole-loop primitives separately; every winner contributes to the common
+chain/candidate population; only selected typed geometry contributes
+segment-family and G1 readings; the cyclic seam is measured explicitly. The
+release witness reports `6 + 30 = 36` materialized winners and rejects any
+future mismatch.
