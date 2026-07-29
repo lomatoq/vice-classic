@@ -339,11 +339,15 @@ fn the_oriented_floor_equals_what_the_register_produces() {
     use vice_topology::dcel::{loop_length_profile, structural_fixtures};
     use vice_topology::Dcel;
 
-    // Sizes the harness actually builds structural arms at, taken from the run
-    // rather than from a literal here.
-    let sizes = [32usize, 64, 128];
+    // The sizes the harness actually builds structural arms at, from the ONE
+    // function `run()` itself calls. This line was `let sizes = [32usize, 64,
+    // 128];` under a comment claiming exactly what it did not do (D6-N1, N20):
+    // grow the cell list and the register produces eight while this compares a
+    // stale six against the frozen six and passes, reopening the gap it exists
+    // to close. A derivation is only as derived as its least-derived input.
+    let sizes = dcel::structural_sizes(TopologyScope::Full).expect("structural sizes");
     let mut expected = 0u64;
-    for n in sizes {
+    for n in sizes.iter().map(|n| *n as usize) {
         for f in structural_fixtures(n) {
             for conn in ComplementaryConnectivity::arms() {
                 let d = Dcel::assemble(f.labelling.clone(), conn);

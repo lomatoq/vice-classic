@@ -241,10 +241,15 @@ pub fn build(run: &DcelRun) -> DcelReport {
         .map(|a| (a.dcel_class.components, a.dcel_class.holes))
         .collect();
 
+    // `audit.is_some()` as well as the loop count: a REFUSED arm still carries a
+    // loop profile, because `loop_length_profile` runs whatever the audit says.
+    // Harmless today — no refusals on the clean run — but it is the RT5-A21
+    // class, an instrument's silence counted as a measurement, and the fix is
+    // one predicate (REVIEW_M5_B, delta-6 minor).
     let long: Vec<&DcelArm> = run
         .arms
         .iter()
-        .filter(|a| a.loops_of_three_or_more > 0)
+        .filter(|a| a.audit.is_some() && a.loops_of_three_or_more > 0)
         .collect();
     let tx = |f: fn(&super::ArmTransaction) -> bool| {
         run.arms

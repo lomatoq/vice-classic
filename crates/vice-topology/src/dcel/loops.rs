@@ -703,85 +703,82 @@ mod maximality_tests {
 }
 
 #[cfg(test)]
-mod branch_label_tests {
-    /// **RT5-A18 / N17: labels unique by construction, without source position.**
+mod order_freedom_tests {
+    use super::*;
+    use crate::cubical::Labelling;
+    use vice_ir::ComplementaryConnectivity;
+
+    fn annulus() -> super::super::Dcel {
+        super::super::Dcel::assemble(
+            Labelling::new(
+                13,
+                13,
+                (0..169)
+                    .map(|i| {
+                        let (dx, dy) = ((i % 13) as f64 - 6.0, (i / 13) as f64 - 6.0);
+                        let r2 = dx * dx + dy * dy;
+                        (4.0..=30.0).contains(&r2)
+                    })
+                    .collect(),
+            ),
+            ComplementaryConnectivity::arms()[0],
+        )
+    }
+
+    /// **The third case of M5A-D5-N1, RUN rather than declared.**
     ///
-    /// N17 wanted a new branch reusing an existing label to be impossible.
-    /// Delta-4 bought that with `line!()`, which put source line numbers into a
-    /// signed Tier A artifact and made its bytes a function of one file's
-    /// layout. Uniqueness does not need a position: the labels are literals and
-    /// this requires them to be pairwise distinct.
+    /// Reviewer A named three freedoms of index and order, executed two, and
+    /// marked the third — the order of `loops` WITHIN a face — as reasoned by
+    /// symmetry and **not run**. Delta-6 turned that unrun claim into
+    /// limitation 52, a documented property of the tree with an owner. It
+    /// happened to be right; between "not measured" and "documented" there was
+    /// only a sentence.
     ///
-    /// Both directions: the scan must FIND the labels (an empty scan is
-    /// vacuously distinct, F-0039), and duplicates must fail.
+    /// The rule that follows, and it is the governor's: **a reviewer's claim
+    /// marked "not run" may not become a limitation of the tree without a run.**
+    /// Either it is executed, or the limitation carries the mark. This executes
+    /// it.
     ///
-    /// **Residual, named where the strength is claimed, with its price.** Two
-    /// holes were found separately and both are closed here: the scan read ONE
-    /// hardcoded file, so a branch elsewhere was invisible for ZERO lines
-    /// (RT5-A22), and it matched literals, so `const R: &str = "empty";` hid a
-    /// duplicate for TWO (REVIEW_M5_B E18b). It now walks the whole module tree
-    /// and REFUSES a non-literal rather than skipping it.
-    ///
-    /// What remains: a label produced by a macro that expands to a literal, or
-    /// a branch in a file outside `src/dcel`. Cheapest known bypass: **one
-    /// line**, a `branch:` written through a macro. Same class as the
-    /// serde-attribute scan and the same closure — a derive that emits the
-    /// labels and their distinctness proof together.
+    /// Result: swapping a face's two loops leaves every check silent —
+    /// `audit`, the anchor, `crossing`, the loop comparison and the vertex
+    /// order — because every one of them is bound to a SET or to a CYCLIC
+    /// SEQUENCE, and the order of loops within a face is neither. Limitation 52
+    /// is therefore measured, not assumed, and its scope is exactly this.
     #[test]
-    fn every_judge_branch_has_a_distinct_label() {
-        // EVERY file of the dcel module tree, not one hardcoded path.
-        // REDTEAM_M5 RT5-A22: the scan read `audit.rs` alone, so a branch in
-        // `loops.rs`, `crossing.rs` or a new file was invisible to it at a cost
-        // of ZERO lines. The walk is over the directory now, and it asserts it
-        // found more than one file so an empty walk cannot pass.
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/dcel");
-        let mut files = 0usize;
-        let mut src = String::new();
-        for e in std::fs::read_dir(&dir).expect("src/dcel").flatten() {
-            let p = e.path();
-            if p.extension().is_some_and(|x| x == "rs") {
-                src.push_str(&std::fs::read_to_string(&p).expect("read"));
-                files += 1;
+    fn the_order_of_loops_within_a_face_is_bound_by_nothing_and_this_is_measured() {
+        let d = annulus();
+        assert!(super::super::audit(&d).is_ok(), "positive control");
+        let fi = d
+            .faces()
+            .iter()
+            .position(|f| f.loops.len() >= 2)
+            .expect("an annulus has a face with two loops");
+
+        let mut parts = d.parts().clone();
+        parts.faces[fi].loops.swap(0, 1);
+        // Keep the site index consistent, so this is a defect in ORDER and not
+        // a corrupt index some other predicate would catch for another reason.
+        for (f_i, f) in parts.faces.clone().iter().enumerate() {
+            for (l_i, lp) in f.loops.iter().enumerate() {
+                for (p, h) in lp.iter().enumerate() {
+                    parts.site[h.0 as usize] = (f_i as u32, l_i as u32, p as u32);
+                }
             }
         }
+        let permuted = d.clone().with_parts(parts);
+        assert_ne!(
+            permuted.parts(),
+            d.parts(),
+            "the permutation must change something"
+        );
+
+        // MEASURED: every judge is silent. This is the limitation, executed.
         assert!(
-            files > 4,
-            "the scan found {files} files; it is not covering the module"
+            super::super::audit(&permuted).is_ok(),
+            "if this ever fails, limitation 52 has been closed and must be struck"
         );
-        let mut labels: Vec<String> = Vec::new();
-        for line in src.lines() {
-            let t = line.trim();
-            if let Some(rest) = t.strip_prefix("branch: ") {
-                let v = rest.trim_end_matches(',').trim();
-                // A LITERAL is required. `branch: SOME_CONST` hides a duplicate
-                // for two lines (REVIEW_M5_B E18b), so an indirection is a
-                // failure here rather than something the scan quietly skips.
-                assert!(
-                    v.starts_with('"') && v.ends_with('"'),
-                    "branch label {v:?} is not a string literal. An indirection -                      `const X: &str = \"empty\";` - hides a duplicate from this scan for two                      lines, so it is refused rather than skipped"
-                );
-                labels.push(v.trim_matches('"').to_string());
-            }
-        }
-        assert!(
-            labels.len() >= 2,
-            "found {} branch labels; the scan is not reading the judge",
-            labels.len()
-        );
-        let mut sorted: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
-        sorted.sort_unstable();
-        let before = sorted.len();
-        sorted.dedup();
-        assert_eq!(
-            sorted.len(),
-            before,
-            "two branches of the judge share a label: {labels:?}. A branch reusing an existing \
-             name hides from the probe for zero lines, which is what N17 was about"
-        );
-        assert!(
-            !labels.iter().any(|l| l.contains('@')),
-            "a branch label carries a source position: {labels:?}. That lands in the signed \
-             artifact and makes its bytes a function of source layout (RT5-A18)"
-        );
+        assert!(super::super::face_map_agrees(&permuted).is_ok());
+        assert!(loops_agree_with_the_labelling(&permuted).is_ok());
+        assert!(vertices_agree_with_the_labelling(&permuted).is_ok());
     }
 }

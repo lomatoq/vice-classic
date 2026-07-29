@@ -93,6 +93,7 @@ pub mod crossing;
 pub mod fixtures;
 pub mod lattice;
 pub mod loops;
+pub mod surface;
 pub mod sweep;
 pub mod transaction;
 pub mod walk;

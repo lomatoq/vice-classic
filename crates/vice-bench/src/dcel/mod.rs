@@ -41,9 +41,15 @@
 //! this run is therefore a differential comparison of the judge at a corpus
 //! size, and the count is published.
 
+pub mod knockouts;
 pub mod report;
 
 use serde::Serialize;
+
+pub use knockouts::{
+    ClassKnockout, FaceMapKnockout, ProxyKnockout, RegisterKnockout, RoiKnockout, RunKnockouts,
+    PRODUCTION,
+};
 use vice_ir::ComplementaryConnectivity;
 use vice_topology::continuation::EditKind;
 use vice_topology::dcel::{apply, audit, is_the_assembly_of_its_own_labelling, Edit, Roi};
@@ -62,157 +68,6 @@ use crate::topology::{
 use vice_topology::{structural_fixtures, with_a_distant_witness};
 
 pub const DCEL_RUN_SCHEMA: &str = "vice-classic/dcel-transactions/v1";
-
-/// Whether the M5 stage is allowed to reduce a set of topologies to one.
-///
-/// It is not, and this type is how "it is not" becomes falsifiable: §32 rule 14
-/// forbids a topology winner from the M5 proxy, and a clause asserting that it
-/// does not happen is worth exactly as much as the world in which it does.
-/// [`ProxyKnockout::Select`] is that world, it is reachable from the harness,
-/// and the test `the_proxy_knockout_takes_the_row_down` runs it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProxyKnockout {
-    /// Production: the stage carries every topology through.
-    Off,
-    /// Knockout: the stage keeps the candidate with the smallest surrogate
-    /// cost and drops the rest. Never used outside the control.
-    Select,
-}
-
-/// Whether the transaction's edit is allowed to reach outside its ROI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RoiKnockout {
-    Off,
-    /// Knockout: add one pixel far from the declared region.
-    Reach,
-}
-
-/// Whether the arrangement's class is reported as the arrangement computed it.
-///
-/// Clause 2 had NO knockout, which REDTEAM_M5 §3 lists as one of the three
-/// mechanisms that fail F-0048: `RunKnockouts` was one field per clause that
-/// happened to have a knockout, so "add a field" was the answer to Q2 and two
-/// of the four clauses had no world in which they are false.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ClassKnockout {
-    Off,
-    /// Knockout: report one more component than the arrangement has, so the
-    /// DCEL and the independent chain disagree.
-    Shift,
-}
-
-/// Whether the pixel-to-face map is left as `assemble` built it.
-///
-/// This is REDTEAM_M5 RT5-A1 itself, wired in as a control: rotate every entry
-/// of `face_of_padded_px` above 16 px. Before delta-1 it passed 530 tests, four
-/// `[MET]` clauses and a byte-identical artifact. Clause 4 must now go red.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FaceMapKnockout {
-    Off,
-    /// Knockout: the red team's own ten-line edit (RT5-A1).
-    Rotate,
-    /// Knockout: REVIEW_M5_A D1-N1 / REDTEAM_M5 RT5-A9 — a relabelling that
-    /// keeps EVERY count and every structural relation and attaches the wrong
-    /// label to a face's pixels. It passed the whole of delta-1 with a
-    /// byte-identical artifact and 529 of 1089 pixels reporting the wrong ink.
-    SwapLabels,
-}
-
-/// Whether the structural register keeps the fixture that carries long loops.
-///
-/// The red side of the ORIENTED clause's population floor: with the staircase
-/// gone the register's share falls to zero and clause 4 must go NOT MET.
-///
-/// **TWO legs, not three, and delta-4 claimed three** (REDTEAM_M5 RT5-A19,
-/// REVIEW_M5_A D4-N2). With a floor above zero, `count == 0` ANALYTICALLY
-/// implies `!row`, so "red" and "empty" are one demonstration wearing two
-/// names — the RT5-A2 shape moved from a gate row onto its own control.
-///
-/// - **red / empty (one leg):** this knockout. The population goes to zero and
-///   the row goes NOT MET;
-/// - **idle (independent, and it holds):** the count comes from
-///   `loop_length_profile` over real loop lengths rather than from a constant,
-///   so it cannot be satisfied without loops;
-///   `the_oriented_clause_has_a_population_and_it_is_split_by_source` asserts
-///   the longest is genuinely three or more.
-///
-/// A third leg would need a run where the population is NON-zero and still
-/// below the floor. That is now reachable — the floor is six and the register
-/// produces exactly six — but only by removing a size from the register, which
-/// is a change to the register rather than a knockout over it. Recorded as what
-/// it is instead of counted as a leg it is not.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RegisterKnockout {
-    Off,
-    /// Knockout: drop every fixture carrying a loop of three or more.
-    DropLongLoops,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RunKnockouts {
-    pub proxy: ProxyKnockout,
-    pub roi: RoiKnockout,
-    pub class: ClassKnockout,
-    pub face_map: FaceMapKnockout,
-    pub register: RegisterKnockout,
-}
-
-impl RunKnockouts {
-    /// One knockout per §28 M5 clause, in clause order.
-    ///
-    /// The DESTRUCTURING is the mechanism: a field added without an entry does
-    /// not compile, and `every_gate_clause_has_a_knockout_that_reddens_it`
-    /// compares the length of this against the length of the gate table, which
-    /// is derived from `gate_table()` rather than written here. A fifth clause
-    /// with no knockout fails that test.
-    pub fn one_per_clause() -> Vec<(&'static str, RunKnockouts)> {
-        let RunKnockouts {
-            proxy: _,
-            roi: _,
-            class: _,
-            face_map: _,
-            register: _,
-        } = PRODUCTION;
-        vec![
-            (
-                "no final-topology claim from proxy",
-                RunKnockouts {
-                    proxy: ProxyKnockout::Select,
-                    ..PRODUCTION
-                },
-            ),
-            (
-                "candidate recall maintained after budget pruning",
-                RunKnockouts {
-                    class: ClassKnockout::Shift,
-                    ..PRODUCTION
-                },
-            ),
-            (
-                "no unrelated graph mutation",
-                RunKnockouts {
-                    roi: RoiKnockout::Reach,
-                    ..PRODUCTION
-                },
-            ),
-            (
-                "no dangling/invalid faces",
-                RunKnockouts {
-                    face_map: FaceMapKnockout::Rotate,
-                    ..PRODUCTION
-                },
-            ),
-        ]
-    }
-}
-
-pub const PRODUCTION: RunKnockouts = RunKnockouts {
-    proxy: ProxyKnockout::Off,
-    roi: RoiKnockout::Off,
-    class: ClassKnockout::Off,
-    face_map: FaceMapKnockout::Off,
-    register: RegisterKnockout::Off,
-};
 
 /// One measured arm: one scene, one degradation cell, one convention.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -416,6 +271,33 @@ fn resolve_cells(ids: &[&str]) -> Result<Vec<DegradationCell>, String> {
         .collect()
 }
 
+/// The sizes the structural register is built at: one source, so that anything
+/// asserting a property of the register asks the register rather than a copy.
+///
+/// REVIEW_M5_A D6-N1 = REVIEW_M5_B N20, found independently. The floor-equality
+/// test — the strong form both reviewers asked for in delta-5 — carried
+/// `let sizes = [32usize, 64, 128];` under a comment saying the sizes were
+/// "taken from the run rather than from a literal here". Grow the cell list and
+/// the register produces eight while the test compares its stale six against
+/// the frozen six and PASSES, reopening the exact gap it was written to close.
+///
+/// The fixture axis of that test was derived and would have caught a new
+/// fixture; the size axis was not. **A derivation is only as derived as its
+/// least-derived input**, and a comment beside a literal states an intention
+/// rather than proving one.
+pub fn structural_sizes(scope: TopologyScope) -> Result<Vec<u32>, String> {
+    let ids: Vec<&str> = match scope {
+        TopologyScope::Full => TOPOLOGY_CELL_IDS.to_vec(),
+        TopologyScope::Test => TOPOLOGY_CELL_IDS.iter().take(1).copied().collect(),
+    };
+    Ok(resolve_cells(&ids)?
+        .iter()
+        .map(|c| c.size_px)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect())
+}
+
 /// Run the M5 harness.
 pub fn run(scope: TopologyScope, k: RunKnockouts) -> Result<DcelRun, String> {
     let ids: Vec<&str> = match scope {
@@ -467,12 +349,7 @@ pub fn run(scope: TopologyScope, k: RunKnockouts) -> Result<DcelRun, String> {
     // corpus uses. It is not decoration beside the corpus: it is the ONLY
     // population here that carries a convention-dependent class, and clause 1's
     // control has nothing to measure without one.
-    let sizes: Vec<u32> = cells
-        .iter()
-        .map(|c| c.size_px)
-        .collect::<std::collections::BTreeSet<_>>()
-        .into_iter()
-        .collect();
+    let sizes = structural_sizes(scope)?;
     for n in &sizes {
         for f in structural_fixtures(*n as usize) {
             if k.register == RegisterKnockout::DropLongLoops && f.name == "diagonal_staircase" {
