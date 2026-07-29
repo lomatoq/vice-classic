@@ -5,7 +5,6 @@
 //! M6 report say “0 of 5 arms producible”. It uses the development split only,
 //! one scene per independent source group, and never renders or opens the
 //! sealed audit.
-//!
 //! Arms are distinct interventions over one common compatibility key:
 //!
 //! - G00: automatic candidates, automatic physical-bit selector;
@@ -66,9 +65,8 @@ pub struct GeometryOracleConfig {
     pub truth_chord_tolerance_px: f64,
     pub candidate_budget: usize,
     pub k_discrete_paths: usize,
-    /// Bind the intervention key to the exact finite grammar and every
-    /// load-bearing price used by the automatic selector. Without these, a
-    /// model-version change can retain the old compatibility fingerprint.
+    /// Bind the key to the exact grammar and every load-bearing selector price;
+    /// otherwise a model-version change can retain the old fingerprint.
     pub model_universe_hash: String,
     pub geometry_pricing_sha256: String,
 }
