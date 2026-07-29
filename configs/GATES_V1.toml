@@ -416,17 +416,27 @@ gate_min_slots_perturbed = 40000
 # already uses (C178/C179/C180 for [topology], C239/C240/C241 for [dcel]): the
 # keys land here with no code, the consumer lands next, the freeze lands after.
 # A placeholder is not a threshold and no row may gate on one.
+# FROZEN. Measured at C288 on the full scope: 178 compound transactions, all
+# 178 committed, 4 distinct compound deltas, 3 edit shapes.
+#
+# The first two floors sit BELOW the measurement, on this file's own rule that
+# a threshold equal to today's count is a fingerprint rather than a floor. The
+# SHAPE floor is the exception and is set AT the measurement, 3 of 3, because
+# losing a shape is precisely the regression it exists to catch and a floor of
+# two would permit it. The cost is named rather than hidden: this floor now
+# moves whenever the shape set does, which is a gate-file commit under §27.7.
+# That is the correct price for a number meaning "all three shapes".
 [dcel_compound]
-status = "placeholder"
+status = "frozen"
 set_by_milestone = "M6"
 
 # Transactions whose declared edit is worth two or more unit steps.
-gate_min_compound_transactions = 0
+gate_min_compound_transactions = 100
 # Distinct compound DELTAS the run must exercise. A floor on the count alone is
 # satisfied by one delta repeated: 118 copies of (+1,+1) would meet a floor of
 # 100 and would test one shape's one behaviour. Measured: four distinct.
-gate_min_distinct_compound_deltas = 0
+gate_min_distinct_compound_deltas = 3
 # Edit shapes the harness applies per arm. The count above is a CONSEQUENCE of
 # this one, and losing a shape is the cheapest way to empty the population, so
 # it gets its own floor rather than being inferred from the consequence.
-gate_min_transaction_shapes = 0
+gate_min_transaction_shapes = 3
