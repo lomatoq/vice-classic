@@ -216,6 +216,26 @@ fn every_geometry_gate_row_has_a_negative_knockout() {
     assert_clause_red(&run, "published_aggregates_rederive_from_rows");
 
     let mut run = baseline.clone();
+    run.aggregates[0].boundaries += 1;
+    assert_clause_red(&run, "published_aggregates_rederive_from_rows");
+
+    let mut run = baseline.clone();
+    run.aggregates[0].mean_symmetric_max_px += 1.0;
+    assert_clause_red(&run, "published_aggregates_rederive_from_rows");
+
+    let mut run = baseline.clone();
+    run.aggregates[0].worst_symmetric_max_px += 1.0;
+    assert_clause_red(&run, "published_aggregates_rederive_from_rows");
+
+    let mut run = baseline.clone();
+    run.aggregates[0].selected_auto += 1;
+    assert_clause_red(&run, "published_aggregates_rederive_from_rows");
+
+    let mut run = baseline.clone();
+    run.aggregates[0].selected_forced += 1;
+    assert_clause_red(&run, "published_aggregates_rederive_from_rows");
+
+    let mut run = baseline.clone();
     run.boundaries_measured = 0;
     assert_clause_red(&run, "common_geometry_population");
 

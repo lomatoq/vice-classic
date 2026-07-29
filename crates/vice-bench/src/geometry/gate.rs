@@ -191,6 +191,7 @@ pub fn evaluate_gate(run: &GeometryMeasurements, gates: GeometryGateConfig) -> G
         relation_selected_rows: run.relation_selected_rows,
         primitive_selected_rows: run.primitive_selected_rows,
     };
+    let rederived_aggregates = super::aggregate(&run.rows);
     let aggregates_rederive = published == derived
         && run.boundaries_measured == run.rows.len()
         && run.rows.iter().all(|row| {
@@ -204,14 +205,7 @@ pub fn evaluate_gate(run: &GeometryMeasurements, gates: GeometryGateConfig) -> G
                 && row.injection_selector_changed == changed("G00", "G10")
                 && row.forced_selector_changed == changed("G20", "G11")
         })
-        && run.aggregates.iter().all(|aggregate| {
-            aggregate.boundaries
-                == run
-                    .rows
-                    .iter()
-                    .filter(|row| row.arms.iter().any(|arm| arm.arm == aggregate.arm))
-                    .count()
-        });
+        && run.aggregates == rederived_aggregates;
     let arms_found = run.rows.iter().map(|row| row.arms.len()).min().unwrap_or(0);
     let arms_met = arms_found >= gates.min_arms_per_boundary
         && run.rows.iter().all(|row| {
@@ -230,8 +224,10 @@ pub fn evaluate_gate(run: &GeometryMeasurements, gates: GeometryGateConfig) -> G
         GeometryGateRow {
             clause: "published_aggregates_rederive_from_rows",
             met: aggregates_rederive,
-            measured: format!("{published:?}"),
-            required: "exact row-derived counts and aggregate populations".to_string(),
+            measured: format!("{published:?}; aggregates {:?}", run.aggregates),
+            required:
+                "exact row-derived counts, selector-change flags, means, worsts and source totals"
+                    .to_string(),
         },
         GeometryGateRow {
             clause: "common_geometry_population",
