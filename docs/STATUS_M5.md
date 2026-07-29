@@ -1302,3 +1302,65 @@ price that has now been checked against a cold context's actual bypass rather
 than against my estimate of one.
 
 **STOPPED AFTER M5 DELTA-7 — M5.5 NOT STARTED.**
+
+---
+
+## Erratum — governor's, after M5 was closed: THE STOP LINE NAMED A MILESTONE THAT DOES NOT EXIST
+
+Every STOP line in this document — the milestone's own and all seven deltas',
+nine occurrences in total — reads `M5.5 NOT STARTED`. **§28 of the spec contains
+no M5.5.** Measured against `VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`, SHA-256
+`652FD0B6…9BB1`, the same file and the same hash this milestone verified at every
+delta:
+
+```
+occurrences of "M5.5" in the spec ......... 0     (positive control: "M4.5" 4, "M3.5" 2)
+§28 ladder, headings read whole ........... M0 M1 M2 M3 M3.5 M4 M4.5 M5 M6 M7 M8 M9 M10 M11 M12
+occurrences of "M5.5" in the tree ......... 9, all of them in this file, all in STOP lines
+```
+
+The `.5` milestones of this project are entities of the SPEC, not a convention of
+the repository: M3.5 and M4.5 each have a §28 heading, bullets and a `Gate:` line.
+M5.5 has no heading, no bullet, no gate and no mention anywhere. **The successor
+of M5 under §28 is M6.**
+
+**The false claim is the governor's.** The string `STOPPED AFTER M5 DELTA-N —
+M5.5 NOT STARTED` was prescribed verbatim in the dispatch of every delta, and the
+original in the milestone's own report came from the same source. It was copied
+eight times and measured zero times.
+
+**What it cost, and what it did not.** It cost nothing in the code: no clause, no
+artifact, no gate row and no limitation refers to M5.5, and §6 and §7 of this
+document say plainly that the next milestone is M6 — the body was right and the
+signature was wrong. What it cost is that a signed document ends by pointing at a
+milestone that does not exist, and that a fresh author context dispatched to
+build M5.5 could not begin.
+
+**The class, and it is this milestone's own.** A STOP line is a CLAIM ABOUT THE
+LADDER, and no one checked it against §28 — not the author across seven deltas,
+not reviewer A, not reviewer B across seven addenda each, and not the red team
+across six FAILs and two PASSes. It survived because it was inherited and
+inheritance reads as verification. That is F-0049 exactly — a prescription from
+the coordinator is a claim like any other — and the ninth instance of the class
+this milestone spent seven deltas closing, sitting in the eight lines nobody
+measured because they were boilerplate.
+
+**Found by the first measurement of the next author context**, whose first act
+was to read §28 and count. It refused to invent a scope, refused to write
+`STATUS_M5_5.md`, changed no file, and reported a blocker instead — which is
+§36's rule (a blocker report beats a new fallback layer) and the correct
+response.
+
+**Correction.** The successor of M5 is **M6**. The STOP lines above are left
+unedited, as this project leaves every reviewed text unedited; this erratum is
+what corrects them. No verdict in `REVIEW_M5_A.md`, `REVIEW_M5_B.md` or
+`REDTEAM_M5.md` is affected: all three judged §28 M5's four clauses, none of them
+judged the STOP line, and the gate stands MET at `bb2ae20`.
+
+**The limitation this does NOT dissolve.** §28 M5's bullet on local COMPOUND
+topology transactions is not delivered — 307 of 474 arms excluded, limitations 37
+and 44, recorded with owner M6 and with reviewer A's explicit finding that the
+price is honest and that it **must not be deferred twice**. That obligation now
+falls on the milestone that actually exists.
+
+— governor, recorded after the gate, before M6 is dispatched
