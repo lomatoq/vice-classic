@@ -228,11 +228,12 @@ pub fn pricing_surface_v1() -> String {
     }
     for kind in RelationKind::ALL {
         out.push_str(&format!(
-            "relation {} flag_bits {} scalars_determined {}
+            "relation {} flag_bits {} scalars_determined {} saving_component {}
 ",
             kind.universe_name(),
             kind.flag_bits(),
-            kind.scalars_determined()
+            kind.scalars_determined(),
+            kind.saving_component()
         ));
     }
     for f in FITTED_FAMILIES {
@@ -273,7 +274,12 @@ pub fn pricing_surface_v1() -> String {
 ",
         residual_bits(0.0, 0.01, 0.35)
     ));
-    for (weight, correlation) in [(0.0f64, 1.0f64), (0.5, 1.0), (1.0, 2.0)] {
+    for (weight, correlation) in [
+        (0.0f64, 1.0f64),
+        (0.5, 1.0),
+        (1.0, 2.0),
+        (f64::MAX, f64::MIN_POSITIVE),
+    ] {
         out.push_str(&format!(
             "independent_observations weight={weight} correlation={correlation} = {:?}
 ",
@@ -291,6 +297,11 @@ pub fn pricing_surface_v1() -> String {
         "relation_composition_policy {}
 ",
         crate::relation::RELATION_COMPOSITION_POLICY
+    ));
+    out.push_str(&format!(
+        "relation_saving_ownership_policy {}
+",
+        crate::relation::RELATION_SAVING_OWNERSHIP_POLICY
     ));
     for n in [2usize, 17, 257] {
         out.push_str(&format!(
@@ -388,11 +399,15 @@ pub fn log2_binomial(n: usize, k: usize) -> f64 {
 /// arclength is negative: neither an observation count divided by zero nor a
 /// negative count can be silently repaired into evidence (F-0075).
 pub fn independent_observations(weight_ds_px: f64, corr_length_px: f64) -> Option<f64> {
-    (corr_length_px.is_finite()
+    if !(corr_length_px.is_finite()
         && corr_length_px > 0.0
         && weight_ds_px.is_finite()
         && weight_ds_px >= 0.0)
-        .then(|| weight_ds_px / corr_length_px)
+    {
+        return None;
+    }
+    let observations = weight_ds_px / corr_length_px;
+    (observations.is_finite() && observations >= 0.0).then_some(observations)
 }
 
 /// The robust quantized residual code for ONE observation, in bits.
@@ -443,17 +458,16 @@ pub(crate) fn chain_residual_bits(
     let precision = table.coordinate_precision_px();
     samples
         .iter()
-        .map(|sample| {
+        .try_fold(0.0, |total, sample| {
             let deviation = crate::cost::normal_deviation(sample.p, sample.normal, &poly)
                 .map_or_else(
                     || crate::cost::euclidean_deviation(sample.p, &poly),
                     f64::abs,
                 );
-            let weight =
-                independent_observations(sample.weight_ds, sample.corr_length_px).unwrap_or(0.0);
-            weight * residual_bits(deviation, sample.halfwidth, precision)
+            let weight = independent_observations(sample.weight_ds, sample.corr_length_px)?;
+            Some(total + weight * residual_bits(deviation, sample.halfwidth, precision))
         })
-        .sum()
+        .unwrap_or(f64::INFINITY)
 }
 
 /// The explicit code length of one grammar path over one chain, term by term.

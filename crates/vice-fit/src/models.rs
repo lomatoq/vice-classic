@@ -252,6 +252,7 @@ pub enum ForcedFitRefusal {
 
 fn refusal_name(r: &RefitRefusal) -> &'static str {
     match r {
+        RefitRefusal::Input { .. } => "invalid_input",
         RefitRefusal::Malformed => "malformed",
         RefitRefusal::DegenerateSpan { .. } => "degenerate_span",
         RefitRefusal::ArcIsALine { .. } => "arc_is_a_line",

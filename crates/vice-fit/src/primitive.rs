@@ -515,13 +515,13 @@ fn polyline_residual(poly: &[Pt], samples: &[BoundarySample], table: &GeometryCo
     let precision = table.coordinate_precision_px();
     samples
         .iter()
-        .map(|s| {
+        .try_fold(0.0, |total, s| {
             let dn = crate::cost::normal_deviation(s.p, s.normal, poly)
                 .map_or_else(|| crate::cost::euclidean_deviation(s.p, poly), f64::abs);
-            let w = independent_observations(s.weight_ds, s.corr_length_px).unwrap_or(0.0);
-            w * residual_bits(dn, s.halfwidth, precision)
+            let w = independent_observations(s.weight_ds, s.corr_length_px)?;
+            Some(total + w * residual_bits(dn, s.halfwidth, precision))
         })
-        .sum()
+        .unwrap_or(f64::INFINITY)
 }
 
 #[cfg(test)]

@@ -304,6 +304,7 @@ pub fn joint_constrained_refit(
     init: &RefitChain,
     samples: &[BoundarySample],
 ) -> Result<RefitOutcome, RefitRefusal> {
+    crate::validate_samples(samples).map_err(|refusal| RefitRefusal::Input { refusal })?;
     // A lowering failure of the INPUT is a refusal about the input.
     let _ = init.lower()?;
     let mut best = init.clone();

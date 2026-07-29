@@ -12,9 +12,10 @@
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
     fit, fit_forced_boundary_models, flattening_error_px, hierarchical_schedule,
-    k_best_boundary_models, models_at_cut, proposal_cost, span_candidates, FitRefusal,
-    ForcedFitRefusal, SpanFamily, Support, DEVIATION_CHORD_TOLERANCE_PX, FITTED_FAMILIES,
-    FIT_BUDGET_V1, K_DISCRETE_PATHS, MIN_SUPPORT_SAMPLES, PARAMETER_REFINEMENT_PASSES,
+    joint_constrained_refit, k_best_boundary_models, models_at_cut, proposal_cost, span_candidates,
+    CostRefusal, FitRefusal, ForcedFitRefusal, RefitChain, RefitNode, RefitRefusal, RefitSegment,
+    SpanFamily, Support, DEVIATION_CHORD_TOLERANCE_PX, FITTED_FAMILIES, FIT_BUDGET_V1,
+    K_DISCRETE_PATHS, MIN_SUPPORT_SAMPLES, PARAMETER_REFINEMENT_PASSES,
 };
 use vice_geom::Pt;
 
@@ -487,11 +488,55 @@ fn a_negative_arclength_weight_is_refused_by_every_public_entry() {
         Err(ForcedFitRefusal::Input { refusal }) if refusal == expected
     ));
     assert_eq!(vice_fit::code::independent_observations(-1.0, 1.0), None);
+    let support = whole_run(&chain);
+    assert_eq!(
+        proposal_cost(&chain.samples, support, &vice_ir::Segment::Line),
+        Err(CostRefusal::Input { refusal: expected })
+    );
+    let init = RefitChain {
+        nodes: vec![
+            RefitNode {
+                pos: chain.samples[0].p,
+                tangent_rad: None,
+            },
+            RefitNode {
+                pos: chain.samples.last().expect("last").p,
+                tangent_rad: None,
+            },
+        ],
+        segments: vec![RefitSegment::Line],
+    };
+    assert_eq!(
+        joint_constrained_refit(&init, &chain.samples),
+        Err(RefitRefusal::Input { refusal: expected })
+    );
 
     chain.samples[3].weight_ds = 0.0;
     assert!(
         span_candidates(&chain, &FIT_BUDGET_V1).is_ok(),
         "zero is the legitimate seam/duplicate weight"
+    );
+}
+
+#[test]
+fn an_overflowing_independent_observation_count_is_refused_at_the_input() {
+    let mut chain = chain_from(&line_points(Pt::new(0.0, 0.0), Pt::new(3.0, 0.0), 3));
+    for sample in &mut chain.samples {
+        sample.weight_ds = f64::MAX;
+        sample.corr_length_px = f64::MIN_POSITIVE;
+    }
+    let expected = FitRefusal::NonFiniteIndependentWeight {
+        sample: 0,
+        weight_ds_px: f64::MAX,
+        corr_length_px: f64::MIN_POSITIVE,
+    };
+    assert_eq!(
+        k_best_boundary_models(&chain, &FIT_BUDGET_V1, 256.0, K_DISCRETE_PATHS),
+        Err(expected)
+    );
+    assert_eq!(
+        vice_fit::code::independent_observations(f64::MAX, f64::MIN_POSITIVE),
+        None
     );
 }
 

@@ -1045,6 +1045,69 @@ fn a_relation_is_accepted_only_when_it_shortens_the_code() {
     );
 }
 
+#[test]
+fn a_line_relation_removes_anchor_bits_from_topology_not_geometry() {
+    let points = [
+        (0.0, 0.0),
+        (3.0, 0.0),
+        (6.0, 0.0),
+        (10.0, 0.0),
+        (10.0, 3.0),
+        (10.0, 6.0),
+        (10.0, 10.0),
+        (13.0, 10.0),
+        (17.0, 10.0),
+        (20.0, 10.0),
+    ];
+    let diagonal = std::f64::consts::FRAC_1_SQRT_2;
+    let samples = points
+        .into_iter()
+        .map(|(x, y)| BoundarySample {
+            p: Pt::new(x, y),
+            normal: Pt::new(diagonal, diagonal),
+            halfwidth: 1.0,
+            confidence: 1.0,
+            weight_ds: 1.0,
+            corr_length_px: 1.0,
+        })
+        .collect::<Vec<_>>();
+    let chain = BoundaryChain {
+        samples,
+        closed: false,
+        length_px: 20.0,
+        corr_length_px: 1.0,
+        vertices: 10,
+    };
+    let run = fit_forced_boundary_models(
+        &chain,
+        &[SpanFamily::Line, SpanFamily::Line, SpanFamily::Line],
+        &[3, 6],
+        16_384.0,
+        K_DISCRETE_PATHS,
+    )
+    .expect("the exact three-line chain fits");
+    let selected = run.models.first().expect("a selected model");
+    let kept = selected
+        .relation_kept_indices
+        .first()
+        .map(|index| &selected.relations[*index])
+        .expect("the repeated transform relation is selected");
+    assert_eq!(kept.kind, vice_fit::RelationKind::RepeatedTransform);
+    assert_eq!(kept.geometry_saving_bits, 0.0);
+    assert!(kept.topology_saving_bits > 0.0);
+    for component in [
+        selected.code.geometry_bits,
+        selected.code.topology_bits,
+        selected.code.relation_bits,
+        selected.code.residual_bits,
+    ] {
+        assert!(
+            component.is_finite() && component >= 0.0,
+            "accepted code component is negative or non-finite: {component}"
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------
 // RT6-A1: the configurations the red team drove through the G1 clause
 // ---------------------------------------------------------------------------

@@ -176,6 +176,14 @@ pub enum FitRefusal {
     /// This guard now covers every field of `BoundarySample` this crate reads:
     /// `p`, `normal`, `weight_ds`, `halfwidth`, `corr_length_px`.
     NonPositiveCorrLength { sample: usize, corr_length_px: f64 },
+    /// Finite positive operands whose ratio is not a finite observation
+    /// count. Accepting them makes the residual infinite and used to empty the
+    /// grammar graph without a refusal.
+    NonFiniteIndependentWeight {
+        sample: usize,
+        weight_ds_px: f64,
+        corr_length_px: f64,
+    },
     /// A public single-cut request named a sample that does not exist.
     CutOutOfRange { cut: usize, samples: usize },
     /// The physical coordinate range used by the code is not finite and
@@ -345,8 +353,9 @@ pub fn span_candidates(
 /// Validate the complete public input contract before either automatic or
 /// oracle-forced candidate generation. Keeping one guard is important: G20
 /// must not reopen RT6-A2 merely because it bypasses the automatic schedule.
-pub(crate) fn validate_chain(chain: &BoundaryChain) -> Result<(), FitRefusal> {
-    let samples = &chain.samples;
+pub(crate) fn validate_samples(
+    samples: &[vice_evidence::BoundarySample],
+) -> Result<(), FitRefusal> {
     for (i, s) in samples.iter().enumerate() {
         if !s.p.is_finite() || !s.normal.is_finite() || !s.weight_ds.is_finite() {
             return Err(FitRefusal::NonFiniteSample { sample: i });
@@ -376,8 +385,20 @@ pub(crate) fn validate_chain(chain: &BoundaryChain) -> Result<(), FitRefusal> {
                 corr_length_px: s.corr_length_px,
             });
         }
+        if crate::code::independent_observations(s.weight_ds, s.corr_length_px).is_none() {
+            return Err(FitRefusal::NonFiniteIndependentWeight {
+                sample: i,
+                weight_ds_px: s.weight_ds,
+                corr_length_px: s.corr_length_px,
+            });
+        }
     }
+    Ok(())
+}
 
+pub(crate) fn validate_chain(chain: &BoundaryChain) -> Result<(), FitRefusal> {
+    let samples = &chain.samples;
+    validate_samples(samples)?;
     if samples.len() < MIN_SUPPORT_SAMPLES {
         return Err(FitRefusal::ChainTooShort {
             samples: samples.len(),

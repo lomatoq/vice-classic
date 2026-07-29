@@ -111,6 +111,8 @@ pub struct RefitChain {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(tag = "refit_refusal", rename_all = "snake_case")]
 pub enum RefitRefusal {
+    /// A malformed observation was supplied directly to the public solver.
+    Input { refusal: crate::FitRefusal },
     /// Fewer segments than nodes minus one, or no segment at all.
     Malformed,
     /// A segment's two endpoints coincide, so it has no direction.

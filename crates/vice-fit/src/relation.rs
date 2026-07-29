@@ -42,6 +42,11 @@ use crate::solve::flatten_chain;
 /// Selecting more than one would require a newly evaluated joint constrained
 /// sibling, so M6 keeps the single best admissible one.
 pub const RELATION_COMPOSITION_POLICY: &str = "best_single_constrained_sibling_v1";
+/// A relation removes bits from the component that originally encoded the
+/// determined scalar. Segment-local arc radii live in geometry; line anchors
+/// and whole-loop vertices live in topology.
+pub const RELATION_SAVING_OWNERSHIP_POLICY: &str =
+    "arc_parameters_geometry_line_and_loop_anchors_topology_v1";
 
 /// The relation families of §15, named exactly as the model universe names
 /// them.
@@ -110,6 +115,17 @@ impl RelationKind {
         }
     }
 
+    pub fn saving_component(self) -> &'static str {
+        match self {
+            RelationKind::EqualRadius | RelationKind::Concentric => "geometry",
+            RelationKind::Parallel
+            | RelationKind::Perpendicular
+            | RelationKind::SharedBaseline
+            | RelationKind::MirrorSymmetry
+            | RelationKind::RepeatedTransform => "topology",
+        }
+    }
+
     /// Parallel and perpendicular are the two flags of the one
     /// `parallel_perpendicular` universe family named by §15's slash.
     pub fn flag_bits(self) -> f64 {
@@ -132,6 +148,10 @@ pub struct RelationHypothesis {
     pub cost_bits: f64,
     /// `scalars_determined * coordinate_bits`.
     pub saving_bits: f64,
+    /// Part of `saving_bits` removed from segment-local parameters.
+    pub geometry_saving_bits: f64,
+    /// Part of `saving_bits` removed from coded anchors/vertices.
+    pub topology_saving_bits: f64,
     /// Residual code of the constrained chain minus that of the unconstrained
     /// one. Non-negative in practice: constraining cannot improve a fit that
     /// was already optimised without the constraint.
@@ -191,6 +211,8 @@ pub fn relation_hypotheses(
                             table.bits_per_relation() + pair_code,
                             cb,
                             kind.scalars_determined(),
+                            model.code.geometry_bits,
+                            model.code.topology_bits,
                             base_residual,
                             samples,
                             table,
@@ -220,6 +242,8 @@ pub fn relation_hypotheses(
                             table.bits_per_relation() + pair_code + kind.flag_bits(),
                             cb,
                             kind.scalars_determined(),
+                            model.code.geometry_bits,
+                            model.code.topology_bits,
                             base_residual,
                             samples,
                             table,
@@ -239,6 +263,8 @@ pub fn relation_hypotheses(
             table.bits_per_relation(),
             cb,
             determined,
+            model.code.geometry_bits,
+            model.code.topology_bits,
             base_residual,
             samples,
             table,
@@ -255,11 +281,18 @@ fn evaluate(
     cost_bits: f64,
     coordinate_bits: f64,
     scalars_determined: usize,
+    available_geometry_bits: f64,
+    available_topology_bits: f64,
     base_residual: f64,
     samples: &[BoundarySample],
     table: &GeometryCodeTable,
 ) -> RelationHypothesis {
     let saving_bits = scalars_determined as f64 * coordinate_bits;
+    let (geometry_saving_bits, topology_saving_bits) = match kind.saving_component() {
+        "geometry" => (saving_bits, 0.0),
+        "topology" => (0.0, saving_bits),
+        _ => unreachable!("every relation saving has one owning code component"),
+    };
     let after = residual_code(&constrained, samples, table);
     let residual_penalty_bits = after - base_residual;
     let (forward, reverse) = flatten_chain(&constrained).map_or_else(
@@ -281,6 +314,8 @@ fn evaluate(
         constrained_chain: constrained,
         cost_bits,
         saving_bits,
+        geometry_saving_bits,
+        topology_saving_bits,
         residual_penalty_bits,
         net_bits,
         worst_normal_deviation_px: forward.deviation_px,
@@ -290,7 +325,12 @@ fn evaluate(
         // the evidence still supports. A relation that pays for itself by
         // moving the boundary out of its corridor is the "relation prior
         // compensating a salient residual" §15 forbids.
-        accepted: net_bits > 0.0 && forward.feasible() && reverse.feasible() && after.is_finite(),
+        accepted: net_bits > 0.0
+            && forward.feasible()
+            && reverse.feasible()
+            && after.is_finite()
+            && geometry_saving_bits <= available_geometry_bits
+            && topology_saving_bits <= available_topology_bits,
     }
 }
 
@@ -369,14 +409,13 @@ fn residual_code(chain: &RefitChain, samples: &[BoundarySample], table: &Geometr
     let precision = table.coordinate_precision_px();
     samples
         .iter()
-        .map(|s| {
+        .try_fold(0.0, |total, s| {
             let dn = crate::cost::normal_deviation(s.p, s.normal, &poly)
                 .map_or_else(|| crate::cost::euclidean_deviation(s.p, &poly), f64::abs);
-            let w =
-                crate::code::independent_observations(s.weight_ds, s.corr_length_px).unwrap_or(0.0);
-            w * crate::code::residual_bits(dn, s.halfwidth, precision)
+            let w = crate::code::independent_observations(s.weight_ds, s.corr_length_px)?;
+            Some(total + w * crate::code::residual_bits(dn, s.halfwidth, precision))
         })
-        .sum()
+        .unwrap_or(f64::INFINITY)
 }
 
 /// Project the second line onto the parallel, perpendicular or shared-baseline
@@ -503,7 +542,8 @@ pub fn apply_accepted(model: &mut BoundaryModel, hypotheses: &[RelationHypothesi
     };
     let hypothesis = &hypotheses[index];
     model.code.relation_bits += hypothesis.cost_bits;
-    model.code.geometry_bits -= hypothesis.saving_bits;
+    model.code.geometry_bits -= hypothesis.geometry_saving_bits;
+    model.code.topology_bits -= hypothesis.topology_saving_bits;
     model.code.residual_bits += hypothesis.residual_penalty_bits;
     model.geometry = crate::models::SelectedBoundaryGeometry::TypedChain {
         chain: hypothesis.constrained_chain.clone(),

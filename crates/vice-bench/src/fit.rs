@@ -171,6 +171,8 @@ impl FitRun {
 
 fn cost_refusal_name(r: &vice_fit::CostRefusal) -> &'static str {
     match r {
+        vice_fit::CostRefusal::Input { .. } => "invalid_input",
+        vice_fit::CostRefusal::SupportOutOfRange { .. } => "support_out_of_range",
         vice_fit::CostRefusal::NormalLineMisses { .. } => "normal_line_misses",
         vice_fit::CostRefusal::NotFlattenable => "not_flattenable",
         vice_fit::CostRefusal::NonFinite { .. } => "non_finite",
@@ -195,6 +197,7 @@ fn refusal_name(r: &FitRefusal) -> &'static str {
         FitRefusal::NegativeWeight { .. } => "negative_weight",
         FitRefusal::NonUnitNormal { .. } => "non_unit_normal",
         FitRefusal::NonPositiveCorrLength { .. } => "non_positive_corr_length",
+        FitRefusal::NonFiniteIndependentWeight { .. } => "non_finite_independent_weight",
         FitRefusal::CutOutOfRange { .. } => "cut_out_of_range",
         FitRefusal::InvalidCanvasDimension { .. } => "invalid_canvas_dimension",
     }

@@ -97,9 +97,18 @@ pub struct RatioReading {
 }
 
 /// Why a candidate has no §14.4 cost.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(tag = "cost_refusal", rename_all = "snake_case")]
 pub enum CostRefusal {
+    /// A malformed observation was supplied directly to this public low-level
+    /// entry point.
+    Input { refusal: crate::FitRefusal },
+    /// The support names samples outside the supplied slice.
+    SupportOutOfRange {
+        lo: usize,
+        hi: usize,
+        samples: usize,
+    },
     /// The sample's normal line does not meet the candidate anywhere, so
     /// §14.4's integrand at that sample does not exist. The index is into the
     /// chain, not into the support.
@@ -201,6 +210,14 @@ pub fn proposal_cost(
     support: Support,
     segment: &Segment,
 ) -> Result<ProposalCost, CostRefusal> {
+    crate::validate_samples(samples).map_err(|refusal| CostRefusal::Input { refusal })?;
+    if support.hi() >= samples.len() {
+        return Err(CostRefusal::SupportOutOfRange {
+            lo: support.lo(),
+            hi: support.hi(),
+            samples: samples.len(),
+        });
+    }
     let p0 = samples[support.lo()].p;
     let p1 = samples[support.hi()].p;
     let Some((poly, _bound)) = flatten(segment, p0, p1) else {
