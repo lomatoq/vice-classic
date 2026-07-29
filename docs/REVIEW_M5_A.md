@@ -1037,3 +1037,154 @@ The two new findings are of a kind the milestone has repeatedly closed elsewhere
 **The date at which this stops being MET is the same one I named in addendum 2 and it is now closer:** M6/§14.2 consumes the chain decomposition, and 62(a–c) are owed before it does.
 
 **GATE §28 M5: MET**
+
+---
+
+# REVIEW_M5_A — addendum 4 (delta-4)
+
+Reviewer A, independent cold review, Opus 5. Signed §0–§9 and addenda 1–3 untouched.
+Object: **`2c7bac4`**, commits **C264–C267** on top of `4205d87`.
+
+## §D0. Hygiene
+
+```
+start / end:  main repo  git status --porcelain → (empty)   HEAD = 2c7bac48790a1db896f9a3d26003a737b47dc180
+              measuring clone …/m5a-delta4-rev-kw39s  (empty)  HEAD = 2c7bac4
+              experiment clone …/m5a-delta4-exp-kw39s  M walk.rs  (deliberately dirty)
+              git worktree list → one entry, the main tree
+```
+
+`CARGO_TARGET_DIR=…/tgt-m5a-delta4-kw39s` asserted **not to exist** before the first command. Every cargo call blocking. No `git worktree`.
+
+**§27.7 verified independently:** C264 → `configs/GATES_V1.toml` only; C266 → `docs/gt/DCEL_M5.json` only. Each on its own commit, as you said.
+
+## §D1. Reproduced
+
+| command | result |
+|---|---|
+| `cargo fmt --all --check` | `FMT_EXIT=0` |
+| `cargo clippy --workspace --all-targets -- -D warnings`, **cold target** | `CLIPPY_EXIT=0`, zero diagnostics |
+| `cargo test --locked --workspace` | `DEBUG_EXIT=0` — **544 passed, 0 failed, 15 ignored** |
+| `cargo test --locked --release --workspace` | `RELEASE_EXIT=0` — **544 passed, 0 failed, 15 ignored** |
+| `gt-corpus dcel --scope full` | `GATE_EXIT=0`, **four `[MET]`**; 480 arms, 240 groups, 13 convention-dependent, 170/170 committed, 30 probes, 179 253 slots, UNCAUGHT 0 |
+| artifact | `D6A3CF6E…A026300` — **byte-identical** |
+| `dcel_props -- --ignored` | 2 passed |
+| `dcel_harness -- --ignored` | **8 passed**; printed `arms with a loop of >=3 half-edges: 20 (14 corpus, 6 register); longest 8; total such loops 28` |
+
+## §D2. Your three questions
+
+### D2.1 — The floor stands on the register share. What it does not bind.
+
+**62(b) is fully closed** and I want that on the record first: `arms_with_a_loop_of_three_or_more`, `…_from_corpus`, `…_from_register`, `longest_loop_seen` and `loops_of_three_or_more_total` are all in the artifact, per arm and in totals. The half of D3-N1 that said "these numbers are under no mechanism" no longer holds anywhere.
+
+And the author corrected a sentence nobody challenged: delta-3 said "neither M5 population had them", which restated the red team's *upper bound* ("at most 55 of 1334") as a measurement of absence. Measured, it is false — the corpus carries **14** such arms. He found that by measuring a number he had previously inherited. That is the F-0028 class caught by its own author before a reviewer reached it.
+
+**What the floor does not bind — and it is narrower than your hypothesis.** Your candidate was: corpus stops carrying long loops, floor stays met, corpus check goes vacuous silently. That is right in form, and the honest statement of it is:
+
+> The floor guarantees the ORIENTED check is **exercised**; it does not guarantee it is exercised on **the population the clause is about**. Clause 4 is measured over 480 arms, 444 of them corpus; the ORIENTED half is floored at ≥4 **register** arms — 0.8 % of the population, all synthetic, all one fixture.
+
+The corpus's 14 are published beside it and floored by nothing, exactly as the gate-file comment says. I accept the author's reason for putting the floor on the register — that is where condition 51's by-construction guarantee lives — and the residual is the price of that choice, correctly stated in the file.
+
+**But the floor does not encode the standard it cites.** Measured: the register's entire long-loop contribution is `diagonal_staircase` at s32/s64/s128 × 2 arms = **6**. The floor is **4**. So one whole size can drop out and the floor still passes. The gate-file comment justifies the placement by "condition 51's standard: every size, both arms" — a floor of 4 encodes *at least two of the three sizes*. Enforcing the stated standard needs 6, or a per-size assertion. **M5A-D4-N3, MINOR.**
+
+### D2.2 — Are `DropLongLoops`'s "red" and "empty" independent? **No.**
+
+`row()` in the harness is `gate_table(&cfg)` filtered to the clause-4 row, i.e. the full conjunction — which now contains `min_register_arms_with_a_long_loop.met_by(count)` with the floor at 4. The knockout asserts:
+
+```rust
+assert_eq!(knocked.arms_with_a_loop_of_three_or_more_from_register, 0, ...);
+assert!(!row(&knocked), ...);
+```
+
+Given a floor > 0, `count == 0` **analytically implies** `!row`. The second assertion carries no information the first does not. What it demonstrates is that the **floor** fires — worth demonstrating, and it is the same thing twice, not two directions.
+
+The third leg the author names — no-op excluded, because the count is computed from real loop lengths rather than from a flag — *is* independent and does hold. So the control has **two** independent legs presented as three. **M5A-D4-N2, MINOR.**
+
+### D2.3 — Q4 on the maximality check, by provenance
+
+**The check reads `d.vertices()` and `d.boundaries()[i].path` — both outputs of the same `assemble`.** The justification in the code says: *"the vertex set is built from lattice degree, which is a function of the labelling, so this does not share a provenance with the chain splitting it judges."* That sentence describes how `assemble` **builds** the set; it does not describe what the check **reads**. The check never consults the labelling. It is a consistency comparison between two stored fields of one constructor — RT5-A9's shape, a fourth time, inside the fix for a finding whose entire content was provenance.
+
+And the consequence is not hypothetical. See D4-N1.
+
+## §D3. Findings
+
+### M5A-D4-N1 — MAJOR. 62(c) is declared closed and is half closed: the check catches under-splitting, and D3-N2 as I ran it is over-splitting.
+
+Non-maximality has two directions:
+
+| | violation | delta-4's criterion (`no interior point of a chain is a vertex`) |
+|---|---|---|
+| **under-split** | a junction lies *inside* a chain | **catches it** — this is what the new test exercises |
+| **over-split** | a chain *endpoint* is not a junction | **does not catch it** — no vertex is interior |
+
+Delta-4's test promotes an interior point to a vertex and leaves the chain whole, so the vertex is interior and the check fires. **My D3-N2 experiment split the chain**, making the split point an endpoint of both halves. Re-run verbatim against `2c7bac4`:
+
+```
+REV-A E8c/d4 boundaries 2 -> 3
+REV-A E8c/d4 split point (30, 17) has lattice degree 2  (a junction needs != 2)
+REV-A E8c/d4 vertices interior to a chain: 0
+REV-A E8c/d4 audit(broken) -> None
+REV-A E8c/d4 loops_agree   -> true
+```
+
+A chain endpoint at a degree-2 lattice point — not a junction — and the audit accepts it. §12's "maximal" is still unbound in the direction my experiment demonstrated.
+
+**Why, in one line:** the check binds the decomposition to the *stored* vertex set. Nothing binds the stored vertex set to the junctions. **Remedy, one comparison, anchored to the input:** re-derive the vertex set from the labelling (`arr.degree(v) != 2`, plus the artificial-vertex rule for junction-free loops) and compare against `d.vertices()`. That binds both directions at once and does not share a provenance with what it judges.
+
+**Severity.** The underlying gap is what I rated MINOR in addendum 3 and I do not raise it: it needs a defect inside `assemble`, and on the corpus clause 3's path comparison catches it (I measured 2 and 8 rolled-back transactions in addendum 3's E8/E8b). What is MAJOR is that it is **recorded as closed**. In this project a closure claim is an instrument like any other, and this one reports green on half its domain.
+
+**Class rule, and I own part of it.** The author reproduced D3-N2 from my *prose* — "splitting a chain at an interior degree-two point" — which is ambiguous between promoting a vertex and splitting the chain. My report did carry the disambiguating numbers (`boundaries 2 -> 3` **and** `vertices 2 -> 3`); his reproduction moved only the second. **A finding must ship as the exact transformation, not as a description of it** — which is F-0067's own rule ("a finding named in a report and absent from the tree"), applied to the reviewer's side of the boundary. Had I shipped the twenty lines instead of the sentence, this delta would have closed both directions.
+
+## §D4. Conditions, by halves (condition 38)
+
+| | half | status |
+|---|---|---|
+| **52** | (a) swapped args | **CLOSED** |
+| | (b) M5 rows bound positionally | **OPEN**, limitation 36, owner M6 |
+| **53** | (a) eight stale numbers | **CLOSED** |
+| | (b) numbers derived, not errata'd | **OPEN**, same owner |
+| **54** | (a) four M5 CI steps | **CLOSED** |
+| | (b) claim derived from `ci.yml` | **CLOSED** |
+| | (c) CI observed green | **OPEN — yours** |
+| **55** | (a) excluded count published | **CLOSED** |
+| | (b) compound transactions attempted | **OPEN**, limitation 37, owner M6 |
+| **56** | tautological conjunct removed | **CLOSED** |
+| **57** | (a) degree multiset · (b) junction detection | **CLOSED · CLOSED** |
+| **58** | (a) `path[j].1` · (b) leaf-count judge | **CLOSED · CLOSED** |
+| **59** | (a) range guards · (b) residual priced | **CLOSED · CLOSED** |
+| **60** | (a) knockout non-emptiness · (b) traceability · (c) saddle axis | **CLOSED · CLOSED · CLOSED** |
+| **61** | (a) §12 claim corrected · (b) ORIENTED anchored to labelling · (c) row states guarded-not-measured | **CLOSED · CLOSED · CLOSED** |
+| **62** | (a) population floor, gated | **CLOSED**, with D4-N3 on its margin |
+| | (b) `loop_length_profile` in the artifact | **CLOSED** |
+| | (c) chain maximality | **HALF CLOSED — under-split bound, over-split not.** Reopened as 63 |
+| **63** *(new)* | (a) vertex set re-derived from the labelling and compared | **OPEN** — closes both directions; owed **before M6 walks chains** |
+| | (b) `DropLongLoops` gains a leg that is not implied by the floor | **OPEN** — D4-N2 |
+| | (c) floor raised to 6, or per-size, to match the standard it cites | **OPEN** — D4-N3 |
+
+## §D5. F-0048 on my own method
+
+**Q1 — literal enumerating my subjects?** Your three questions, again. The mitigation that worked was not planning: it was re-running a *previous* experiment against the new tree rather than reasoning about whether the fix covered it. E8c-against-delta-4 took four minutes and settled what an hour of reading the diff would have left ambiguous.
+
+**Q2 — what happens at the next finding?** Unchanged: you name a fourth. I still have no fix, and I now think the fix is not mine to build — it is that a reviewer's findings should be *executable artifacts* in the tree, which is exactly what 63(a) would make of this one.
+
+**Q3 — who was my judge?** The compiler and the test binary for E8c. For D2.1 and D2.2 the judge was reading the conjunction and the artifact — weaker, and I say so: D2.2's conclusion is analytic, derived from `row()` being the full `gate_table` row and the floor being 4. I did not construct a case with `count == 3` to show the row still falls; the implication is sound without it, but that is an argument, not a measurement.
+
+**Q4 — did my guard share a key with the mechanism?** For E8c the verdict is `audit()` returning `Ok`, which is the mechanism judging itself — legitimate, because the question is "does it accept", not "is it right". The independent input was `arr.degree(split_pt) == 2`, computed from the labelling, which is the fact that makes "endpoint that is not a junction" a claim rather than an opinion.
+
+**Where I was wrong, and it is the same shape as the finding.** My addendum 3 wrote the finding as a sentence and the reproduction lost half of it. I have now spent two deltas asking others to ship mechanisms rather than descriptions, and shipped a description. That is the honest reading of why 62(c) is half closed, and it is not primarily the author's error.
+
+## §D6. What I could not verify
+
+CI execution (yours). Cross-platform / A7.1. Donor sources (D-3). Whether a `count == 3` run reddens the row — see Q3 above; the implication is analytic and unmeasured.
+
+## §D7. Verdict
+
+**VERDICT (addendum 4): ACCEPT WITH CONDITIONS — one major (M5A-D4-N1), two minor (D4-N2, D4-N3), no blocker.**
+
+62(a) and 62(b) are genuinely closed, the floor is gated and knocked out, the population is published per arm and by source, and the author corrected two of his own statements — the "neither population had them" sentence and the §12 arithmetic across three documents — without a reviewer asking. The §12 recount in particular is my delta-1 N1 class, found and fixed by its author.
+
+62(c) is recorded as closed and covers one of the two directions of non-maximality; the direction my experiment actually demonstrated still passes the audit, verified by re-running it against this HEAD. The underlying defect keeps the MINOR rating it had — clause 3 catches it on the corpus — so the gate is unaffected. The closure *claim* is what I am rejecting, and half of why it is wrong is that I shipped prose where I should have shipped the transformation.
+
+**The date remains the one I named in addendum 2 and it has not moved:** M6/§14.2 consumes the chain decomposition, and 63(a) is owed before it does.
+
+**GATE §28 M5: MET**
