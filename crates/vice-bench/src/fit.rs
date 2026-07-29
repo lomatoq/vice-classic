@@ -22,18 +22,25 @@
 //! the count of skipped groups is reported. Scoring the sealed audit is what
 //! opens it, and a measurement is a score.
 //!
-//! **This is not a gate.** No threshold is read, no clause is evaluated, no
-//! row is emitted. §28 M6's gate is "exact G1 after joint solve; sample/cut/
-//! transform invariance; oracle G00–G20; no BIC-only promotion", and none of
-//! those four is evaluable while bullets 3–6 do not exist. What is here is a
-//! population and its measurement, which is what a gate would later need and
-//! is not itself one.
+//! **This is still not a gate ROW.** No threshold is read from
+//! `configs/GATES_V1.toml` and no clause is emitted into a scorecard. What it
+//! now does assert is the §28 M6 gate's FIRST clause as a property — every
+//! smooth node of every selected model, measured on the corpus by the same
+//! instrument that reads 0.4949 rad on `vice-ir`'s canonical fixture — because
+//! that clause is about the geometry rather than about a threshold, and a
+//! property with no number to compare against is asserted or it is nothing.
+//! The other three clauses are addressed in `tests/grammar_and_g1.rs`
+//! (invariance, no BIC-only promotion) and in `oracle::design` (G00–G20, which
+//! is NOT met and says why).
 
 use serde::Serialize;
 use vice_evidence::analysis::{analyze_full, ANALYSIS_CONFIG_V1};
 use vice_evidence::boundary::{observe_boundaries, BOUNDARY_CONFIG_V1};
 use vice_evidence::corridor::CORRIDOR_CONFIG_V1;
-use vice_fit::{span_candidates, FitRefusal, FIT_BUDGET_V1};
+use vice_fit::{
+    g1_readings, k_best_boundary_models, span_candidates, FitRefusal, FIT_BUDGET_V1,
+    GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS,
+};
 use vice_image::{CanonicalImage, IccAssumption};
 
 use crate::gt::corpus::all_groups;
@@ -88,6 +95,37 @@ pub struct FitRun {
     pub min_budget_headroom: usize,
     /// Longest chain seen, in samples.
     pub longest_chain_samples: usize,
+
+    // --- §28 M6 bullets 3-6: the grammar, the joint solve and Stage H -------
+    /// Chains for which at least one discrete path survived the joint solve.
+    pub chains_with_a_model: u64,
+    /// Chains where every one of the k paths was refused. Counted separately
+    /// from "no chain": a chain the grammar could not explain is a finding, and
+    /// it looks exactly like a chain that was never offered if only successes
+    /// are counted (F-0075).
+    pub chains_with_no_model: u64,
+    /// Segments in the SELECTED model, summed over chains, and how many of the
+    /// joins between them are smooth.
+    pub selected_segments: u64,
+    pub selected_smooth_joins: u64,
+    /// Family names present in selected models, MEASURED.
+    pub selected_families: Vec<String>,
+    /// **The §28 M6 gate's first clause, over the corpus**: the largest G1
+    /// spread at any smooth node of any SELECTED model, in radians, measured
+    /// from the lowered control points by the same instrument that reads
+    /// 0.4949 rad on `vice-ir`'s canonical fixture.
+    pub worst_g1_spread_rad: f64,
+    /// Smooth nodes the clause was evaluated over. A worst-of-nothing is zero
+    /// and says nothing (F-0039).
+    pub g1_nodes_measured: u64,
+    /// Worst `|d_n|` of any selected model after the solve, px.
+    pub worst_selected_deviation_px: f64,
+    /// Discrete paths the joint solve refused, by reason. §24's reason for
+    /// k-best is that this is not zero.
+    pub path_refusals: Vec<(String, u64)>,
+    /// §15 relation hypotheses formed and accepted over the run.
+    pub relations_considered: u64,
+    pub relations_accepted: u64,
 }
 
 impl FitRun {
@@ -136,6 +174,7 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
         ..FitRun::default()
     };
     let mut families = std::collections::BTreeSet::new();
+    let mut selected_families = std::collections::BTreeSet::new();
 
     for group in &groups {
         if SPLIT_POLICY_V1.split_of_group(group) == Split::SealedAudit {
@@ -172,6 +211,51 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                 }
 
                 for chain in &obs.chains {
+                    match k_best_boundary_models(
+                        chain,
+                        &FIT_BUDGET_V1,
+                        &GEOMETRY_CODE_TABLE_V1,
+                        f64::from(fixture.width_px.max(fixture.height_px)),
+                        K_DISCRETE_PATHS,
+                    ) {
+                        Ok(mr) => {
+                            run.relations_considered += mr.relations_considered as u64;
+                            run.relations_accepted += mr.relations_accepted as u64;
+                            for (name, n) in &mr.refused {
+                                match run.path_refusals.iter_mut().find(|e| e.0 == *name) {
+                                    Some(e) => e.1 += *n as u64,
+                                    None => {
+                                        run.path_refusals.push(((*name).to_string(), *n as u64))
+                                    }
+                                }
+                            }
+                            match mr.models.first() {
+                                Some(m) => {
+                                    run.chains_with_a_model += 1;
+                                    run.selected_segments += m.families.len() as u64;
+                                    run.selected_smooth_joins +=
+                                        m.smooth.iter().filter(|s| **s).count() as u64;
+                                    for f in &m.families {
+                                        selected_families.insert(f.universe_name().to_string());
+                                    }
+                                    run.worst_selected_deviation_px = run
+                                        .worst_selected_deviation_px
+                                        .max(m.worst_normal_deviation_px);
+                                    if let Ok(lowered) = m.chain.lower() {
+                                        let r =
+                                            g1_readings(&lowered, m.chain.start(), m.chain.end());
+                                        run.g1_nodes_measured += r.len() as u64;
+                                        for x in &r {
+                                            run.worst_g1_spread_rad =
+                                                run.worst_g1_spread_rad.max(x.spread_rad);
+                                        }
+                                    }
+                                }
+                                None => run.chains_with_no_model += 1,
+                            }
+                        }
+                        Err(_) => run.chains_with_no_model += 1,
+                    }
                     run.chains += 1;
                     run.longest_chain_samples = run.longest_chain_samples.max(chain.samples.len());
                     match span_candidates(chain, &FIT_BUDGET_V1) {
@@ -221,8 +305,10 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
     }
 
     run.families_present = families.into_iter().collect();
+    run.selected_families = selected_families.into_iter().collect();
     run.refusals.sort_unstable();
     run.cost_refusals.sort_unstable();
+    run.path_refusals.sort_unstable();
     if run.min_budget_headroom == usize::MAX {
         run.min_budget_headroom = 0;
     }
@@ -249,7 +335,7 @@ mod tests {
     fn the_candidate_stage_over_the_corpus() {
         let run = measure(1).expect("corpus run");
 
-        println!("--- §28 M6 bullets 1 and 2, over the corpus, 1 cell per scene ---");
+        println!("--- §28 M6 bullets 1-6, over the corpus, 1 cell per scene ---");
         println!("arms                        {}", run.arms);
         println!(
             "  without a boundary        {}",
@@ -284,6 +370,28 @@ mod tests {
             run.max_normal_to_euclidean_ratio, run.ratio_at_deviation_px
         );
         println!("min budget headroom         {}", run.min_budget_headroom);
+        println!("--- bullets 3-6: grammar, joint solve, Stage H ---");
+        println!(
+            "chains with a model         {} (none: {})",
+            run.chains_with_a_model, run.chains_with_no_model
+        );
+        println!(
+            "selected segments           {} ({} smooth joins), families {:?}",
+            run.selected_segments, run.selected_smooth_joins, run.selected_families
+        );
+        println!("path refusals               {:?}", run.path_refusals);
+        println!(
+            "relations                   {} considered, {} accepted",
+            run.relations_considered, run.relations_accepted
+        );
+        println!(
+            "worst selected |d_n|        {:.5} px",
+            run.worst_selected_deviation_px
+        );
+        println!(
+            "WORST G1 SPREAD             {:.3e} rad over {} smooth nodes",
+            run.worst_g1_spread_rad, run.g1_nodes_measured
+        );
 
         assert!(
             run.arms > 0 && run.chains > 0,
@@ -308,6 +416,21 @@ mod tests {
             "the corpus produced {} supports against a structural bound of {}",
             run.supports,
             run.supports_bound
+        );
+        assert!(
+            run.chains_with_a_model > 0,
+            "no chain on the corpus produced a model that survived the joint solve; every number \
+             about the grammar above is then about nothing (F-0039)"
+        );
+        assert!(
+            run.g1_nodes_measured > 0,
+            "no selected model on the corpus has a single smooth join, so the G1 clause was \
+             evaluated over an empty population"
+        );
+        assert!(
+            run.worst_g1_spread_rad < 1e-9,
+            "a model selected on the corpus has a G1 spread of {} rad",
+            run.worst_g1_spread_rad
         );
         assert!(
             run.corner_anchors > 0,

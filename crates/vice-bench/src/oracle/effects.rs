@@ -170,7 +170,7 @@ pub fn geometry_deltas(arms: &CommensurableArms) -> Vec<GeometryDelta> {
                     Err(e) => ArmOutcome::NotYetApplicable(NotYetApplicable::limitation(
                         *name,
                         e.to_string(),
-                        "M6",
+                        "M7",
                     )),
                 }
             } else {
@@ -298,7 +298,10 @@ mod tests {
         assert_eq!(d.len(), 4);
         for entry in &d {
             let r = entry.outcome.refusal().expect("must refuse");
-            assert_eq!(r.owner_milestone, "M6");
+            assert_eq!(
+                r.owner_milestone, "M7",
+                "after M6 the geometry ladder is blocked on the harness rather than on the                  candidate stage, and its owner moved with it"
+            );
             assert!(!entry.isolates.is_empty());
         }
         assert!(d.iter().any(|e| e.name == "G10-G00"));

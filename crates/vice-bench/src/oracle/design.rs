@@ -37,30 +37,57 @@ pub enum MissingCapability {
     // doc comment promised would happen — "adding the capability means
     // deleting the variant's use" — and deleting the variant itself is the
     // stronger form: nothing can now record an absence that ended.
-    /// Generating typed span candidates (§28 M6).
-    CandidateGeneration,
-    /// Selecting among candidates by an explicit code length (§28 M6).
-    Selector,
-    /// Fitting continuous parameters of a chosen family (§28 M6).
-    ParameterFit,
+    // `CandidateGeneration`, `Selector` and `ParameterFit` USED to be here and
+    // are gone, not filled in. M6 delivered all three — `vice_fit::span` and
+    // `vice_fit::schedule` generate typed span candidates, `vice_fit::grammar`
+    // selects among them by the explicit §14.5 code length, and
+    // `vice_fit::solve` fits the continuous parameters of a chosen family — so
+    // the variants that recorded their absence have no subject. This is the
+    // same deletion `FormationEstimation` got when M4 delivered it, and it is
+    // the stronger form of "adding the capability means deleting the variant's
+    // use": nothing can now record an absence that ended.
+    //
+    // What remains, and what the G ladder is ACTUALLY blocked on, is below.
+    /// Driving the Stage G/H pipeline from an INJECTED partition and scoring
+    /// the geometry it returns against ground truth (§27.6's G arms are all
+    /// stated "при GT partition + GT formation").
+    ///
+    /// `vice_fit` consumes `vice_evidence::BoundaryChain`, which
+    /// `observe_boundaries` produces from the analysed image — an AUTO
+    /// partition. There is no path from a fixture's GT partition into Stage G,
+    /// and no geometry error metric against GT geometry. Both need the chain
+    /// identity STATUS_M6 limitation 57 prices: a chain carries no boundary or
+    /// vertex id, so nothing ties a fitted curve to the GT boundary it is
+    /// supposed to be a curve for.
+    GeometryPipelineArm,
+    /// Injecting an oracle into the geometry search: a GT-compatible candidate
+    /// (G10), a selector that ranks by agreement with GT rather than by code
+    /// length (G01), both (G11), or forced GT-equivalent families and
+    /// breakpoints (G20).
+    ///
+    /// Strictly more than [`Self::GeometryPipelineArm`]: it needs not only the
+    /// correspondence but a way to express a GT boundary as a candidate over an
+    /// observed chain's samples.
+    OracleInjection,
 }
 
 impl MissingCapability {
     pub fn id(&self) -> &'static str {
         match self {
             MissingCapability::AutoPartition => "auto_partition",
-            MissingCapability::CandidateGeneration => "candidate_generation",
-            MissingCapability::Selector => "selector",
-            MissingCapability::ParameterFit => "parameter_fit",
+            MissingCapability::GeometryPipelineArm => "geometry_pipeline_arm",
+            MissingCapability::OracleInjection => "oracle_injection",
         }
     }
 
     pub fn owner_milestone(&self) -> &'static str {
         match self {
             MissingCapability::AutoPartition => "M4.5",
-            MissingCapability::CandidateGeneration
-            | MissingCapability::Selector
-            | MissingCapability::ParameterFit => "M6",
+            // Both need a fitted chain bound to the arrangement it is a
+            // boundary of, which is where M7's export and verification path
+            // starts and where STATUS_M6 limitation 57 says the binding is
+            // owed.
+            MissingCapability::GeometryPipelineArm | MissingCapability::OracleInjection => "M7",
         }
     }
 
@@ -200,14 +227,15 @@ impl GArm {
             // it needs nothing the harness lacks. It is the one arm M3.5
             // can measure, and §28 M3.5 asks for exactly it.
             GArm::G30 => Vec::new(),
-            GArm::G00 => vec![
-                MissingCapability::CandidateGeneration,
-                MissingCapability::Selector,
+            // The auto candidate stage and the auto selector both EXIST after
+            // M6. What G00 still lacks is the harness half: a way to run them
+            // from the GT partition every G arm is stated at, and a geometry
+            // error against GT to report.
+            GArm::G00 => vec![MissingCapability::GeometryPipelineArm],
+            GArm::G10 | GArm::G01 | GArm::G11 | GArm::G20 => vec![
+                MissingCapability::GeometryPipelineArm,
+                MissingCapability::OracleInjection,
             ],
-            GArm::G10 => vec![MissingCapability::Selector],
-            GArm::G01 => vec![MissingCapability::CandidateGeneration],
-            GArm::G11 => vec![MissingCapability::ParameterFit],
-            GArm::G20 => vec![MissingCapability::ParameterFit],
         }
     }
 }
@@ -400,19 +428,41 @@ mod tests {
         }
     }
 
-    /// The geometry ladder: G30 is the M3.5 arm and every other G arm is
-    /// owned by M6.
+    /// The geometry ladder after M6: G30 is still the only producible arm, and
+    /// every other G arm is now owned by **M7** rather than by M6.
+    ///
+    /// The change is the point. M6 delivered candidate generation, the
+    /// code-length selector and the parameter fit, so the three variants that
+    /// recorded their absence are deleted. What the G ladder is actually
+    /// blocked on is the HARNESS: no path from a fixture's GT partition into
+    /// Stage G, no geometry error against GT geometry, and no way to express a
+    /// GT boundary as a candidate over an observed chain's samples. All three
+    /// need the chain identity STATUS_M6 limitation 57 prices.
+    ///
+    /// **So §28 M6's third gate clause — "oracle G00–G20 decomposition" — is
+    /// NOT MET**, and this test is where that is recorded as a fact about the
+    /// tree rather than as a sentence in a report.
     #[test]
-    fn g30_is_the_only_geometry_arm_this_milestone_owns() {
+    fn g30_is_still_the_only_producible_geometry_arm_and_the_rest_moved_to_m7() {
         assert!(GArm::G30.missing().is_empty());
         for arm in [GArm::G00, GArm::G01, GArm::G10, GArm::G11, GArm::G20] {
             let missing = arm.missing();
             assert!(!missing.is_empty(), "{} claims to be producible", arm.id());
             assert_eq!(
                 NotYetApplicable::from_missing(arm.id(), &missing).owner_milestone,
-                "M6"
+                "M7"
             );
         }
+        // And the capabilities M6 delivered are GONE rather than renamed: the
+        // whole id set of the enum is two entries plus the M4.5 one.
+        let mut ids: Vec<&str> = [GArm::G00, GArm::G01, GArm::G10, GArm::G11, GArm::G20]
+            .iter()
+            .flat_map(|a| a.missing())
+            .map(|m| m.id())
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids, vec!["geometry_pipeline_arm", "oracle_injection"]);
     }
 
     /// A refusal with nothing missing is a placeholder, and must not exist.

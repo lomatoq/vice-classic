@@ -640,7 +640,7 @@ mod tests {
         for a in refused {
             let x = a.outcome.refusal().unwrap();
             assert!(!x.missing.is_empty());
-            assert!(["M4.5", "M6"].contains(&x.owner_milestone));
+            assert!(["M4.5", "M7"].contains(&x.owner_milestone));
         }
         for arm in ["PF10", "PF11"] {
             assert!(
