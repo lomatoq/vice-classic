@@ -17,8 +17,8 @@
 
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
-    g1_readings, k_best_boundary_models, BoundaryModel, SpanFamily, FIT_BUDGET_V1,
-    GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS,
+    build_edges, g1_readings, k_best_boundary_models, k_best_paths, path_families, span_candidates,
+    BoundaryModel, SpanFamily, FIT_BUDGET_V1, GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS,
 };
 use vice_geom::Pt;
 use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
@@ -100,14 +100,8 @@ fn s_curve(step: f64) -> Vec<Pt> {
 }
 
 fn best(chain: &BoundaryChain, canvas: f64) -> BoundaryModel {
-    let run = k_best_boundary_models(
-        chain,
-        &FIT_BUDGET_V1,
-        &GEOMETRY_CODE_TABLE_V1,
-        canvas,
-        K_DISCRETE_PATHS,
-    )
-    .expect("a well-formed chain");
+    let run = k_best_boundary_models(chain, &FIT_BUDGET_V1, canvas, K_DISCRETE_PATHS)
+        .expect("a well-formed chain");
     assert!(
         !run.models.is_empty(),
         "no model survived the joint solve: {} candidates, {} edges, {} paths, refused {:?}",
@@ -148,14 +142,8 @@ fn exact_g1_holds_on_every_model_the_solver_accepts() {
     let mut worst = 0.0f64;
     for step in [0.25f64, 0.5, 1.0] {
         let chain = chain_from(&s_curve(step), false);
-        let run = k_best_boundary_models(
-            &chain,
-            &FIT_BUDGET_V1,
-            &GEOMETRY_CODE_TABLE_V1,
-            CANVAS_PX,
-            K_DISCRETE_PATHS,
-        )
-        .expect("well formed");
+        let run = k_best_boundary_models(&chain, &FIT_BUDGET_V1, CANVAS_PX, K_DISCRETE_PATHS)
+            .expect("well formed");
         assert!(!run.models.is_empty());
         for m in &run.models {
             let lowered = m.chain.lower().expect("lowers");
@@ -364,7 +352,6 @@ fn the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected() {
             &chain,
             *c,
             &FIT_BUDGET_V1,
-            &GEOMETRY_CODE_TABLE_V1,
             CANVAS_PX,
             K_DISCRETE_PATHS,
         )
@@ -578,21 +565,23 @@ fn the_lower_residual_model_does_not_win_when_its_code_is_longer() {
         GEOMETRY_CODE_TABLE_V1.bits_per_relation(),
     )
     .expect("positive");
-    let run = k_best_boundary_models(&chain, &FIT_BUDGET_V1, &cheap, CANVAS_PX, K_DISCRETE_PATHS)
-        .expect("well formed");
-    let cheapest = run.models.first().expect("a model");
+    let candidates = span_candidates(&chain, &FIT_BUDGET_V1).expect("candidates");
+    let edges = build_edges(&candidates.candidates, &chain.samples, &cheap, CANVAS_PX);
+    let paths = k_best_paths(&edges, &chain.samples, &cheap, CANVAS_PX, K_DISCRETE_PATHS);
+    let cheapest = paths.first().expect("a discrete path");
+    let cheap_families = path_families(cheapest, &candidates.candidates);
     println!(
         "cheap table  : families {:?} | segments {} | residual {:8.3} | total {:9.3} bits",
-        cheapest.families,
-        cheapest.families.len(),
+        cheap_families,
+        cheap_families.len(),
         cheapest.code.residual_bits,
         cheapest.code.total_bits()
     );
     assert!(
-        cheapest.families.len() > m.families.len(),
+        cheap_families.len() > m.families.len(),
         "making the parameter code free did not buy a single extra segment ({} against {}); then \
          the code table is not what is selecting the grammar and this clause is vacuous",
-        cheapest.families.len(),
+        cheap_families.len(),
         m.families.len()
     );
     assert!(
@@ -613,14 +602,8 @@ fn the_solver_refuses_some_of_the_k_paths_and_says_which() {
     let mut kinds: Vec<&'static str> = Vec::new();
     for step in [0.25f64, 0.5, 1.0] {
         let chain = chain_from(&s_curve(step), false);
-        let run = k_best_boundary_models(
-            &chain,
-            &FIT_BUDGET_V1,
-            &GEOMETRY_CODE_TABLE_V1,
-            CANVAS_PX,
-            K_DISCRETE_PATHS,
-        )
-        .expect("well formed");
+        let run = k_best_boundary_models(&chain, &FIT_BUDGET_V1, CANVAS_PX, K_DISCRETE_PATHS)
+            .expect("well formed");
         println!(
             "step {step}: {} candidates, {} edges, {} paths -> {} models, refused {:?}, not \
              representable {}",
@@ -674,14 +657,8 @@ fn a_relation_is_accepted_only_when_it_shortens_the_code() {
 
     let report = |pts: &[Pt], label: &str| -> (usize, usize) {
         let chain = chain_from(pts, false);
-        let run = k_best_boundary_models(
-            &chain,
-            &FIT_BUDGET_V1,
-            &GEOMETRY_CODE_TABLE_V1,
-            CANVAS_PX,
-            K_DISCRETE_PATHS,
-        )
-        .expect("well formed");
+        let run = k_best_boundary_models(&chain, &FIT_BUDGET_V1, CANVAS_PX, K_DISCRETE_PATHS)
+            .expect("well formed");
         let m = run.models.first().expect("a model");
         println!(
             "{label}: families {:?} | relations {} considered, {} kept | {:9.3} bits",
@@ -822,14 +799,8 @@ fn the_red_team_chain_no_longer_produces_an_accepted_g1_violation() {
         s += ds;
     }
     let chain = chain_from(&pts, false);
-    let run = k_best_boundary_models(
-        &chain,
-        &FIT_BUDGET_V1,
-        &GEOMETRY_CODE_TABLE_V1,
-        CANVAS_PX,
-        K_DISCRETE_PATHS,
-    )
-    .expect("well formed");
+    let run = k_best_boundary_models(&chain, &FIT_BUDGET_V1, CANVAS_PX, K_DISCRETE_PATHS)
+        .expect("well formed");
     assert!(
         !run.models.is_empty(),
         "no model survived at all: candidates {}, refused {:?}, not representable {}",

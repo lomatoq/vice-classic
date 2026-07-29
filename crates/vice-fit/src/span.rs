@@ -6,17 +6,17 @@
 //! §14.4 says the boundary integral is used "для candidate ordering" and is
 //! explicitly not added to the final pixel posterior. Nothing in this module
 //! decides geometry. The final parameters come from the joint constrained
-//! refit (§14.3, §28 M6 bullet 4, **NOT STARTED**), which is why the fits here
-//! are least squares in the family's own linear parameters rather than
-//! certified optimisations.
+//! refit (§14.3, §28 M6 bullet 4), which is why the fits here are least-squares
+//! proposals in the family's own linear parameters rather than final chain
+//! optimisations. `models` and `solve` perform the delivered joint refit.
 //!
 //! The one place that is not closed form is the Bezier PARAMETERISATION, and
 //! the honest account of it is in [`PARAMETER_REFINEMENT_PASSES`]: a fixed
 //! number of footpoint passes, keeping the best of them by geometric residual,
 //! leaving a floor of about 0.56 px on a chain drawn from an exact cubic.
 //! **That floor is measured and asserted rather than argued away**, it is a
-//! property of the candidate stage and not of the family, and its owner is
-//! bullet 4. This paragraph said "a fit that would need an iteration is
+//! property of the proposal stage and not of the family; the joint solve judges
+//! the assembled chain afterwards. This paragraph said "a fit that would need an iteration is
 //! REFUSED rather than approximated" until the iteration was added — a
 //! sentence in a doc comment does not survive the code changing under it
 //! (F-0015), so it is corrected here rather than left to read well.
@@ -77,9 +77,9 @@ pub const FAMILIES_DELIBERATELY_NOT_FITTED: [(&str, &str); 1] = [(
     "elliptic_arc",
     "spec 14.2: ellipse/clothoid only after TARGETED EVIDENCE. A five-parameter family fitted \
      speculatively on every support at every scale would win on residual against the four-\
-     parameter cubic wherever the boundary is not an ellipse, and the MDL code length that would \
-     charge it for those parameters is spec 28 M6 bullet 5 and is NOT STARTED. Owner: the \
-     milestone that delivers the code table",
+     parameter cubic wherever the boundary is not an ellipse. The M6 code table now charges \
+     parameters, but §14.2 still requires targeted evidence before admitting this fitter. Owner: \
+     the milestone that supplies and calibrates that evidence",
 )];
 
 impl SpanFamily {
@@ -102,11 +102,10 @@ impl SpanFamily {
     ///
     /// This is the quantity §14.5's parameter code is charged on
     /// (`log2(range / calibrated precision)` per parameter). It is published
-    /// here because the DP will need it and because a family's cost in bits is
+    /// here because the DP consumes it and because a family's cost in bits is
     /// a property of the family rather than of a table someone maintains
-    /// beside it. **No code length is computed anywhere in this crate**: §28
-    /// M6 bullet 5 is NOT STARTED and `[geometry_code_table]` is still a
-    /// placeholder that nothing may gate on.
+    /// beside it. [`crate::code`] computes the delivered code length and
+    /// `[geometry_code_table]` is frozen and mechanically cross-checked.
     pub fn free_parameters(self) -> usize {
         match self {
             SpanFamily::Line => 0,
@@ -274,8 +273,9 @@ fn chord_parameters(samples: &[BoundarySample], support: Support) -> Vec<f64> {
 /// to state — the claim is "the best of five fits I enumerated", not "it
 /// converged".
 ///
-/// The exact fit is the joint constrained refit of §14.3 over a whole chain
-/// with shared nodes and tangents, which is §28 M6 bullet 4 and is NOT STARTED.
+/// The exact chain fit is the joint constrained refit of §14.3 over a whole
+/// chain with shared nodes and tangents in [`crate::solve`]. These passes only
+/// improve the independent proposal that initializes that solve.
 pub const PARAMETER_REFINEMENT_PASSES: usize = 8;
 
 /// Fit one family to one support.

@@ -450,13 +450,6 @@ impl DcelReport {
         // for the previous instance.
         // M6 adds the COMPOUND conjuncts. §28 M5's bullet names "local COMPOUND
         // topology transactions", and until M6 this row was green while that
-        // subclass was empty — the harness excluded it and mislabelled what it
-        // excluded (F-0081). A clause naming a subclass must stand on a
-        // population of it, and the three floors are the CAUSE (shapes) and
-        // two EFFECTS (count, distinct deltas), because a floor on the count
-        // alone is met by one delta repeated.
-        // M6 adds the COMPOUND conjuncts. §28 M5's bullet names "local COMPOUND
-        // topology transactions", and until M6 this row was green while that
         // subclass was EMPTY: the harness excluded it and mislabelled what it
         // excluded (F-0081). A clause naming a subclass must stand on a
         // population of it. Three conjuncts, not one, because a floor on the

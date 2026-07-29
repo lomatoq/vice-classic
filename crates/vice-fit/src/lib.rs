@@ -1,25 +1,24 @@
-//! **vice-fit — spec v1.3 Stage G (§14), the candidate-generation half.**
+//! **vice-fit — spec v1.3 Stage G/H (§14–§15).**
 //!
-//! §28 M6 has six bullets. This crate delivers the first two:
+//! §28 M6 has six bullets. This crate implements the chain-local part of all
+//! six; scene-level whole-loop primitives and relations require the
+//! scene/partition binding named below:
 //!
 //! | §28 M6 bullet | here |
 //! |---|---|
 //! | hierarchical span candidates | [`schedule`] and [`span`] |
 //! | candidate-generation budgets | [`schedule::FitBudget`], [`FitRefusal::BudgetExceeded`] |
-//! | k-best jet-compatible grammar paths | **NOT STARTED** |
-//! | joint constrained chain refit | **NOT STARTED** |
-//! | explicit code lengths | **NOT STARTED** |
-//! | primitive/relation hypotheses | **NOT STARTED** |
+//! | k-best jet-compatible grammar paths | [`grammar`] and [`models`] |
+//! | joint constrained chain refit | [`refit`] and [`solve`] |
+//! | explicit code lengths | [`code`] |
+//! | primitive/relation hypotheses | chain-local relations in [`relation`]; whole-loop primitives require the scene binding named below |
 //!
-//! **Nothing here claims exact G1**, and nothing here computes a code length.
-//! §14.3 says a DP over families and breakpoints is not G1 and that the
-//! guarantee comes from the joint refit; that refit does not exist, so this
-//! crate produces INDEPENDENT primitives per interval and says so. A
-//! `CurveChain` is never assembled here — assembling one would imply joins,
-//! and a join implies a claim about tangents this milestone has not earned.
-//! `crates/vice-ir/tests/g1_shared_tangent.rs` measures what the join types
-//! currently hold: the tangent is shared as a DECLARATION and is bound to the
-//! segment geometry by nothing.
+//! Exact G1 is held by [`RefitChain`]'s representation: a smooth node stores one
+//! direction and both incident non-line segments derive their handles from it;
+//! unrepresentable line/arc cases are refused before solving. [`g1_readings`]
+//! then measures every accepted smooth node as an independent witness. The
+//! selector uses the physical-bit [`GeometryCodeTable`], and production entry
+//! points always use [`GEOMETRY_CODE_TABLE_V1`].
 //!
 //! ## What it consumes
 //!
@@ -70,7 +69,8 @@ pub use grammar::{
     JET_CLASSES, K_DISCRETE_PATHS,
 };
 pub use models::{
-    canonical_cuts, k_best_boundary_models, BoundaryModel, ModelRun, DUPLICATE_EPSILON_PX,
+    canonical_cuts, k_best_boundary_models, models_at_cut, path_families, BoundaryModel, ModelRun,
+    DUPLICATE_EPSILON_PX,
 };
 pub use refit::{
     canonical_angle, g1_readings, ArcAnchor, G1Reading, Handle, RefitChain, RefitNode,

@@ -195,12 +195,13 @@ fn the_arc_family_recovers_its_radius_and_its_arc_flags() {
 /// max dev  2.27  0.56  0.22  0.12  0.07  px
 /// ```
 ///
-/// **This is a limitation of the candidate stage, not of the family**, its
-/// owner is §28 M6 bullet 4 (the joint constrained refit, NOT STARTED), and
-/// its price is either that refit or a Newton footpoint solve in place of the
-/// projection. It is asserted here at its measured size rather than at zero,
-/// because a test asserting a property the code does not have is worth less
-/// than a test asserting the property it does.
+/// **This is a limitation of the candidate stage, not of the family.** The
+/// joint constrained refit now exists, but it starts from this candidate and
+/// does not replace the candidate fit's fixed-pass parameterisation. Removing
+/// this floor therefore still needs a Newton footpoint solve in the proposal
+/// fit. It is asserted here at its measured size rather than at zero, because
+/// a test asserting a property the code does not have is worth less than a
+/// test asserting the property it does.
 ///
 /// What the stage DOES have is the ordering, and that is the differential leg
 /// below (M-3): the cubic beats the quadratic and the line on this chain by a
@@ -270,8 +271,8 @@ fn the_cubic_family_fits_a_cubic_to_a_measured_floor_and_ranks_it_first() {
 /// nothing to do with the integral. The three densities are §14.5's
 /// `0.25 / 0.5 / 1.0 px`, which is the invariance row that list opens with.
 ///
-/// This is the candidate stage only. §14.5 asks the same of the FINAL
-/// selection, and the final selection does not exist.
+/// This is the candidate-stage leg. The final-selection leg is exercised by
+/// `grammar_and_g1::the_selection_is_invariant_to_the_sample_step`.
 #[test]
 fn the_proposal_cost_is_invariant_to_the_sample_step() {
     let mut measured = Vec::new();
@@ -522,13 +523,8 @@ fn a_non_positive_correlation_length_is_refused_where_it_is_malformed() {
     // refusal". The typed refusal must now be what the pipeline reports.
     let mut chain = chain_from(&arc_points(40.0, 2.0, 0.5));
     chain.samples[0].corr_length_px = 0.0;
-    let r = vice_fit::k_best_boundary_models(
-        &chain,
-        &FIT_BUDGET_V1,
-        &vice_fit::GEOMETRY_CODE_TABLE_V1,
-        256.0,
-        vice_fit::K_DISCRETE_PATHS,
-    );
+    let r =
+        vice_fit::k_best_boundary_models(&chain, &FIT_BUDGET_V1, 256.0, vice_fit::K_DISCRETE_PATHS);
     assert!(
         matches!(
             r,
@@ -570,7 +566,6 @@ fn an_empty_closed_chain_is_refused_not_a_panic() {
         match vice_fit::k_best_boundary_models(
             &chain,
             &FIT_BUDGET_V1,
-            &vice_fit::GEOMETRY_CODE_TABLE_V1,
             256.0,
             vice_fit::K_DISCRETE_PATHS,
         ) {

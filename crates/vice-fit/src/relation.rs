@@ -64,6 +64,16 @@ pub enum RelationKind {
 }
 
 impl RelationKind {
+    /// Every generator this type can name. The relation/universe judge consumes
+    /// this value instead of retyping the variants, so adding a variant cannot
+    /// silently evade the reverse direction of that judge (M6B-N6).
+    pub const ALL: [RelationKind; 4] = [
+        RelationKind::EqualRadius,
+        RelationKind::Concentric,
+        RelationKind::AxisAligned,
+        RelationKind::Collinear,
+    ];
+
     pub fn universe_name(self) -> &'static str {
         match self {
             RelationKind::EqualRadius => "equal_radius",

@@ -34,6 +34,8 @@
 //! `the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected`, and
 //! the spread it measures is published rather than asserted to be zero.
 
+use std::cmp::Ordering;
+
 use serde::Serialize;
 use vice_evidence::{BoundaryChain, BoundarySample};
 
@@ -116,6 +118,23 @@ fn refusal_name(r: &RefitRefusal) -> &'static str {
 pub fn k_best_boundary_models(
     chain: &BoundaryChain,
     budget: &FitBudget,
+    canvas_dim_px: f64,
+    k: usize,
+) -> Result<ModelRun, FitRefusal> {
+    k_best_boundary_models_with_table(
+        chain,
+        budget,
+        &crate::GEOMETRY_CODE_TABLE_V1,
+        canvas_dim_px,
+        k,
+    )
+}
+
+/// Internal injection point for the no-BIC knockout. Production callers cannot
+/// replace the frozen table with a feature-local one (M6B-N5).
+fn k_best_boundary_models_with_table(
+    chain: &BoundaryChain,
+    budget: &FitBudget,
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
@@ -171,12 +190,17 @@ pub fn models_at_cut(
     chain: &BoundaryChain,
     cut: usize,
     budget: &FitBudget,
-    table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
 ) -> Result<ModelRun, FitRefusal> {
     let rotated = rotate(&dedup_coincident(chain), cut);
-    models_for_open_chain(&rotated, budget, table, canvas_dim_px, k)
+    models_for_open_chain(
+        &rotated,
+        budget,
+        &crate::GEOMETRY_CODE_TABLE_V1,
+        canvas_dim_px,
+        k,
+    )
 }
 
 /// Collapse runs of coincident samples into one, summing the arclength each
@@ -344,12 +368,7 @@ fn models_for_open_chain(
     // because it is the physical-bit score §14.5 names as the selector, the
     // §14.4 integral as the tie-break, because §14.4 says it ORDERS candidates
     // and does not select among final models.
-    models.sort_by(|a, b| {
-        a.code
-            .total_bits()
-            .total_cmp(&b.code.total_bits())
-            .then(a.proposal_cost_px.total_cmp(&b.proposal_cost_px))
-    });
+    models.sort_by(compare_model_rank);
     refused.sort_unstable();
 
     let relations_considered = models.iter().map(|m| m.relations.len()).sum();
@@ -366,10 +385,53 @@ fn models_for_open_chain(
     })
 }
 
+/// §24's declared ordering, in one function the knockout test can exercise.
+///
+/// The physical-bit code is the final chain selector. The §14.4 proposal
+/// integral is the deterministic order within an exact code tie; it is not a
+/// second likelihood. Keeping both arguments here makes deleting the proposal
+/// leg mechanically red instead of leaving `rank_by_proposal_integral...`
+/// guarded only by prose (RT6-A4).
+fn compare_rank_values(a_code: f64, a_proposal: f64, b_code: f64, b_proposal: f64) -> Ordering {
+    a_code
+        .total_cmp(&b_code)
+        .then(a_proposal.total_cmp(&b_proposal))
+}
+
+fn compare_model_rank(a: &BoundaryModel, b: &BoundaryModel) -> Ordering {
+    compare_rank_values(
+        a.code.total_bits(),
+        a.proposal_cost_px,
+        b.code.total_bits(),
+        b.proposal_cost_px,
+    )
+}
+
 fn bump(acc: &mut Vec<(&'static str, usize)>, name: &'static str) {
     match acc.iter_mut().find(|e| e.0 == name) {
         Some(e) => e.1 += 1,
         None => acc.push((name, 1)),
+    }
+}
+
+#[cfg(test)]
+mod ranking_tests {
+    use std::cmp::Ordering;
+
+    use super::compare_rank_values;
+
+    #[test]
+    fn proposal_integral_is_load_bearing_on_an_exact_code_tie() {
+        assert_eq!(
+            compare_rank_values(100.0, 2.0, 100.0, 7.0),
+            Ordering::Less,
+            "removing the proposal leg must make this test red (RT6-A4)"
+        );
+        assert_eq!(
+            compare_rank_values(101.0, 0.0, 100.0, 1.0e9),
+            Ordering::Greater,
+            "proposal cost must never overrule the physical-bit selector"
+        );
     }
 }
 

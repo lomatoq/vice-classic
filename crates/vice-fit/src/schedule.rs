@@ -30,8 +30,8 @@
 //!
 //! ## What this module does NOT decide
 //!
-//! Which supports are *good*. That is the DP's question (§14.3, §28 M6 bullet
-//! 3, NOT STARTED). This module answers only "which intervals are offered",
+//! Which supports are *good*. That is the delivered DP's question
+//! ([`crate::grammar`], §14.3, §28 M6 bullet 3). This module answers only "which intervals are offered",
 //! and offering is cheap enough to be exhaustive over scales.
 
 use serde::Serialize;

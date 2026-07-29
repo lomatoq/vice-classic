@@ -38,8 +38,8 @@ use vice_evidence::analysis::{analyze_full, ANALYSIS_CONFIG_V1};
 use vice_evidence::boundary::{observe_boundaries, BOUNDARY_CONFIG_V1};
 use vice_evidence::corridor::CORRIDOR_CONFIG_V1;
 use vice_fit::{
-    g1_readings, k_best_boundary_models, span_candidates, FitRefusal, FIT_BUDGET_V1,
-    GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS,
+    g1_readings, k_best_boundary_models, span_candidates, FitRefusal, NoFit, FIT_BUDGET_V1,
+    K_DISCRETE_PATHS,
 };
 use vice_image::{CanonicalImage, IccAssumption};
 
@@ -79,6 +79,11 @@ pub struct FitRun {
     /// Family names that produced at least one candidate anywhere in the run,
     /// MEASURED. An absent family is an absent name rather than silence.
     pub families_present: Vec<String>,
+    /// Per-family fit refusals measured over every offered support. The M6B-N7
+    /// version kept this only inside each `ChainCandidates`, so a family could
+    /// disappear below the coarse `families_present` floor without the corpus
+    /// report saying why.
+    pub family_no_fits: Vec<(String, &'static str, u64)>,
     /// Largest `d_n / d_euclidean` over every candidate of the run, with the
     /// Euclidean deviation at which it occurred — `None` when no candidate
     /// anywhere had a material sample (RT6-A5: a run that measured nothing
@@ -165,6 +170,14 @@ fn cost_refusal_name(r: &vice_fit::CostRefusal) -> &'static str {
     }
 }
 
+fn no_fit_name(r: &NoFit) -> &'static str {
+    match r {
+        NoFit::ArcIsDegenerate => "arc_is_degenerate",
+        NoFit::CubicIsSingular => "cubic_is_singular",
+        NoFit::NonFiniteFit => "non_finite_fit",
+    }
+}
+
 fn refusal_name(r: &FitRefusal) -> &'static str {
     match r {
         FitRefusal::ChainTooShort { .. } => "chain_too_short",
@@ -232,7 +245,6 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                     match k_best_boundary_models(
                         chain,
                         &FIT_BUDGET_V1,
-                        &GEOMETRY_CODE_TABLE_V1,
                         f64::from(fixture.width_px.max(fixture.height_px)),
                         K_DISCRETE_PATHS,
                     ) {
@@ -325,6 +337,18 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                             for f in c.families_present {
                                 families.insert(f.to_string());
                             }
+                            for (family, why, count) in c.no_fits {
+                                let family = family.to_string();
+                                let why = no_fit_name(&why);
+                                match run
+                                    .family_no_fits
+                                    .iter_mut()
+                                    .find(|e| e.0 == family && e.1 == why)
+                                {
+                                    Some(e) => e.2 += count as u64,
+                                    None => run.family_no_fits.push((family, why, count as u64)),
+                                }
+                            }
                         }
                         Err(why) => {
                             let name = refusal_name(&why);
@@ -344,6 +368,7 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
     run.refusals.sort_unstable();
     run.cost_refusals.sort_unstable();
     run.path_refusals.sort_unstable();
+    run.family_no_fits.sort_unstable();
     if run.min_budget_headroom == usize::MAX {
         run.min_budget_headroom = 0;
     }
@@ -395,6 +420,7 @@ mod tests {
         );
         println!("candidates                  {}", run.candidates);
         println!("families present            {:?}", run.families_present);
+        println!("family no-fits              {:?}", run.family_no_fits);
         println!("refusals                    {:?}", run.refusals);
         println!(
             "candidates before cost      {} (cost refusals {:?})",

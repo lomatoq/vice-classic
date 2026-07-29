@@ -219,15 +219,10 @@ fn every_admissible_relation_family_has_a_hypothesis_generator() {
         !admissible.is_empty(),
         "the declared universe admits no relation family, so the loops below compare nothing"
     );
-    let generated: Vec<&str> = [
-        RelationKind::EqualRadius,
-        RelationKind::Concentric,
-        RelationKind::AxisAligned,
-        RelationKind::Collinear,
-    ]
-    .iter()
-    .map(|k| k.universe_name())
-    .collect();
+    let generated: Vec<&str> = RelationKind::ALL
+        .iter()
+        .map(|k| k.universe_name())
+        .collect();
 
     for name in &admissible {
         assert!(
