@@ -54,6 +54,18 @@ pub struct FitRun {
     pub chains: u64,
     pub chain_samples: u64,
     pub supports: u64,
+    /// The sum over chains of `vice_fit::anchored_schedule_bound`, which is the
+    /// STRUCTURAL bound the schedule's size is a theorem against. Compared with
+    /// `supports` rather than with a per-sample constant, because anchoring at
+    /// corner proposals makes the schedule O(n log n) and inheriting the plain
+    /// ladder's O(n) bound would be a bound that no longer bounds its subject.
+    pub supports_bound: u64,
+    /// Corner anchors the schedule hung its ladder on, over the run, and the
+    /// largest §14.1 saliency seen. Published because the schedule's size
+    /// depends on the first and the second says whether the corner instrument
+    /// found any structure at all on this corpus.
+    pub corner_anchors: u64,
+    pub max_corner_saliency: f64,
     pub candidates: u64,
     /// Chains the candidate stage refused, by refusal name.
     pub refusals: Vec<(&'static str, u64)>,
@@ -165,6 +177,15 @@ pub fn measure(cells_per_scene: usize) -> Result<FitRun, String> {
                         Ok(c) => {
                             run.chain_samples += c.chain_samples as u64;
                             run.supports += c.supports as u64;
+                            run.supports_bound +=
+                                vice_fit::anchored_schedule_bound(c.chain_samples, c.anchors.len())
+                                    as u64;
+                            run.corner_anchors += c.anchors.len() as u64;
+                            run.max_corner_saliency = c
+                                .corners
+                                .iter()
+                                .map(|k| k.saliency)
+                                .fold(run.max_corner_saliency, f64::max);
                             run.candidates += c.candidates.len() as u64;
                             if c.max_normal_to_euclidean_ratio > run.max_normal_to_euclidean_ratio {
                                 run.max_normal_to_euclidean_ratio = c.max_normal_to_euclidean_ratio;
@@ -241,9 +262,14 @@ mod tests {
         println!("chain samples               {}", run.chain_samples);
         println!("longest chain (samples)     {}", run.longest_chain_samples);
         println!(
-            "supports                    {} ({:.3} per sample)",
+            "supports                    {} ({:.3} per sample, structural bound {})",
             run.supports,
-            run.supports_per_sample()
+            run.supports_per_sample(),
+            run.supports_bound
+        );
+        println!(
+            "corner anchors              {} (max §14.1 saliency {:.4})",
+            run.corner_anchors, run.max_corner_saliency
         );
         println!("candidates                  {}", run.candidates);
         println!("families present            {:?}", run.families_present);
@@ -277,9 +303,14 @@ mod tests {
             run.families_present
         );
         assert!(
-            run.supports_per_sample() <= vice_fit::SUPPORTS_PER_SAMPLE_BOUND as f64,
-            "the corpus produced {:.3} supports per sample, over the declared bound",
-            run.supports_per_sample()
+            run.supports <= run.supports_bound,
+            "the corpus produced {} supports against a structural bound of {}",
+            run.supports,
+            run.supports_bound
+        );
+        assert!(
+            run.corner_anchors > 0,
+            "the §14.1 corner instrument found no anchor anywhere on the corpus; then the              anchored schedule is the plain one wearing a different name"
         );
         // The refusals that would mean the M4 evidence is malformed rather
         // than that a chain is short.

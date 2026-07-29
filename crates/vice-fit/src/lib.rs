@@ -43,18 +43,20 @@
 
 #![forbid(unsafe_code)]
 
+pub mod corner;
 pub mod cost;
 pub mod schedule;
 pub mod span;
 
 use serde::Serialize;
 
+pub use corner::{corner_anchors, corner_proposals, CornerProposal};
 pub use cost::{
     normal_deviation, proposal_cost, CostRefusal, ProposalCost, MATERIAL_DEVIATION_FRACTION,
 };
 pub use schedule::{
-    hierarchical_schedule, FitBudget, Support, FIT_BUDGET_V1, MIN_SUPPORT_SAMPLES,
-    SUPPORTS_PER_SAMPLE_BOUND,
+    anchored_schedule, anchored_schedule_bound, hierarchical_schedule, FitBudget, Support,
+    FIT_BUDGET_V1, MIN_SUPPORT_SAMPLES, SUPPORTS_PER_SAMPLE_BOUND,
 };
 pub use span::{
     fit, flattening_error_px, NoFit, SpanCandidate, SpanFamily, DEVIATION_CHORD_TOLERANCE_PX,
@@ -131,12 +133,29 @@ pub struct ChainCandidates {
     /// shape F-0085 records.
     pub max_normal_to_euclidean_ratio: f64,
     pub ratio_at_deviation_px: f64,
+    /// §14.1's corner proposals for this chain, one per sample with a `±1`
+    /// window. A PROPOSAL confidence, published and used to anchor the
+    /// schedule; nothing here or downstream compares it against a threshold.
+    pub corners: Vec<CornerProposal>,
+    /// The samples the schedule anchored its ladder on: the strict local
+    /// maxima of the saliency. Published because the schedule's size depends
+    /// on this count and a reader must be able to check the bound.
+    pub anchors: Vec<usize>,
 }
+
+/// How far apart two corner anchors must be, in samples.
+///
+/// `MIN_SUPPORT_SAMPLES - 1`, and it is DERIVED rather than picked: two anchors
+/// closer together than one minimum support cannot both terminate a support
+/// this crate is willing to judge, so a second anchor inside that window buys
+/// no candidate. Change `MIN_SUPPORT_SAMPLES` and this moves with it.
+pub const CORNER_ANCHOR_HALF_WINDOW: usize = MIN_SUPPORT_SAMPLES - 1;
 
 /// **§28 M6 bullets 1 and 2 for one chain.**
 ///
-/// Offers every family on every support of the hierarchical schedule, refusing
-/// rather than truncating when the budget would bind.
+/// Offers every family on every support of the schedule — the dyadic ladder of
+/// §14.2 anchored at the corner proposals of §14.1 — refusing rather than
+/// truncating when the budget would bind.
 pub fn span_candidates(
     chain: &BoundaryChain,
     budget: &FitBudget,
@@ -163,7 +182,9 @@ pub fn span_candidates(
         });
     }
 
-    let supports = hierarchical_schedule(n);
+    let corners = corner_proposals(samples);
+    let anchors = corner_anchors(&corners, CORNER_ANCHOR_HALF_WINDOW);
+    let supports = anchored_schedule(n, &anchors);
     let would_generate = supports.len() * FITTED_FAMILIES.len();
     if would_generate > budget.cap() {
         return Err(FitRefusal::BudgetExceeded {
@@ -227,6 +248,8 @@ pub fn span_candidates(
         no_costs,
         max_normal_to_euclidean_ratio: worst_ratio,
         ratio_at_deviation_px: worst_ratio_at,
+        corners,
+        anchors,
     })
 }
 

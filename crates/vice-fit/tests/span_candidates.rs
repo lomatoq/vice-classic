@@ -337,7 +337,14 @@ fn a_run_over_a_real_shape_publishes_its_own_population() {
     let chain = chain_from(&arc_points(40.0, 2.0, 0.5));
     let out = span_candidates(&chain, &FIT_BUDGET_V1).expect("a well-formed chain");
 
-    assert_eq!(out.supports, hierarchical_schedule(out.chain_samples).len());
+    assert_eq!(
+        out.supports,
+        vice_fit::anchored_schedule(out.chain_samples, &out.anchors).len()
+    );
+    assert!(
+        out.supports >= hierarchical_schedule(out.chain_samples).len(),
+        "the anchored schedule offered fewer supports than the plain one"
+    );
     assert!(
         out.candidates.len() >= out.supports,
         "{} candidates over {} supports: at least the line family fits every support",

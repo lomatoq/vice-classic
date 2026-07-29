@@ -146,6 +146,96 @@ pub fn hierarchical_schedule(n_samples: usize) -> Vec<Support> {
     out
 }
 
+/// Every dyadic span the plain schedule uses, longest first.
+fn dyadic_spans(last: usize) -> Vec<usize> {
+    let mut out = Vec::new();
+    let mut span = last;
+    loop {
+        out.push(span);
+        if span < MIN_SUPPORT_SAMPLES {
+            break;
+        }
+        span /= 2;
+    }
+    out
+}
+
+/// The schedule of [`hierarchical_schedule`], plus a dyadic ladder ANCHORED at
+/// each of `anchors`.
+///
+/// ## Why the plain ladder is not enough, measured rather than argued
+///
+/// [`hierarchical_schedule`] steps each level by half its own span, so a
+/// support of span 41 on an 84-sample chain starts at 0, 20, 42 … A corner at
+/// sample 37 is an endpoint of no long support at all, and a long line ENDING
+/// at that corner therefore has no candidate to be found in. The finest level
+/// steps by one, so a corner is always covered by SOME support — but only by a
+/// short one, and §14.2's second sentence is precisely about not losing long
+/// support.
+///
+/// So for every anchor `a` and every dyadic span `s`, `[a - s, a]` and
+/// `[a, a + s]` are offered when they fit. Both directions, because a corner
+/// terminates a span on each side.
+///
+/// ## The size, as a theorem
+///
+/// `plain(n) + 2 * |anchors| * levels(n) + |anchors|`, where `levels(n)` is the
+/// number of dyadic spans. It is `O(n log n)` and not `O(n)`: the plain
+/// schedule's per-sample constant does NOT survive anchoring, and saying it
+/// does would be the kind of inherited bound F-0070 records. What §14.2 forbids
+/// is `O(N^2)` all-pairs, and `the_anchored_schedule_stays_far_under_all_pairs`
+/// prints both counts at every length rather than asserting the gap in prose.
+pub fn anchored_schedule(n_samples: usize, anchors: &[usize]) -> Vec<Support> {
+    let mut out = hierarchical_schedule(n_samples);
+    if out.is_empty() {
+        return out;
+    }
+    let last = n_samples - 1;
+    let spans = dyadic_spans(last);
+    let mut sorted: Vec<usize> = anchors.iter().copied().filter(|a| *a <= last).collect();
+    sorted.sort_unstable();
+    sorted.dedup();
+
+    for a in &sorted {
+        for s in &spans {
+            if let Some(sup) = a.checked_sub(*s).and_then(|lo| Support::new(lo, *a)) {
+                out.push(sup);
+            }
+            if a + s <= last {
+                if let Some(sup) = Support::new(*a, a + s) {
+                    out.push(sup);
+                }
+            }
+        }
+    }
+    // The intervals BETWEEN consecutive anchors, including the two chain ends.
+    // A span from one corner to the next is the single most likely primitive on
+    // a polygonal boundary, and no dyadic span need land on it.
+    let mut fence = vec![0usize];
+    fence.extend(sorted.iter().copied());
+    fence.push(last);
+    fence.dedup();
+    for w in fence.windows(2) {
+        if let Some(sup) = Support::new(w[0], w[1]) {
+            out.push(sup);
+        }
+    }
+
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// The exact structural size bound of [`anchored_schedule`], for the assertion
+/// that keeps it a theorem rather than an observation.
+pub fn anchored_schedule_bound(n_samples: usize, anchors: usize) -> usize {
+    if n_samples < MIN_SUPPORT_SAMPLES {
+        return 0;
+    }
+    let levels = dyadic_spans(n_samples - 1).len();
+    SUPPORTS_PER_SAMPLE_BOUND * n_samples + 2 * anchors * levels + anchors + 1
+}
+
 /// The hard cap of §14.2, as an absolute backstop on one chain's candidates.
 ///
 /// Minted only by [`FitBudget::new`]. The cap is on the COUNT of candidates,
@@ -307,6 +397,94 @@ mod tests {
             assert!(hierarchical_schedule(n).is_empty(), "n = {n}");
         }
         assert_eq!(hierarchical_schedule(MIN_SUPPORT_SAMPLES).len(), 1);
+    }
+
+    /// **The §14.2 property the plain ladder does NOT have.** A span ending
+    /// exactly at an anchor exists at every dyadic scale that fits — and the
+    /// same instrument shows the plain schedule missing them, so the anchoring
+    /// is measured to do something rather than asserted to.
+    #[test]
+    fn a_span_ending_at_an_anchor_exists_at_every_scale_and_did_not_before() {
+        let n = 84usize;
+        let anchor = 37usize;
+        let plain = hierarchical_schedule(n);
+        let anchored = anchored_schedule(n, &[anchor]);
+        let mut gained = 0;
+        for s in dyadic_spans(n - 1) {
+            for (lo, hi) in [
+                (anchor.checked_sub(s), Some(anchor)),
+                (Some(anchor), Some(anchor + s)),
+            ] {
+                let (Some(lo), Some(hi)) = (lo, hi) else {
+                    continue;
+                };
+                if hi > n - 1 {
+                    continue;
+                }
+                let Some(sup) = Support::new(lo, hi) else {
+                    continue;
+                };
+                assert!(
+                    anchored.contains(&sup),
+                    "the anchored schedule does not offer [{lo}, {hi}]"
+                );
+                if !plain.contains(&sup) {
+                    gained += 1;
+                }
+            }
+        }
+        assert!(
+            gained >= 4,
+            "anchoring at {anchor} added only {gained} supports the plain ladder did not have; \
+             then it is not answering §14.2's long-support sentence"
+        );
+    }
+
+    /// The size is a theorem, and the quantity §14.2 forbids is printed beside
+    /// it at every length so the gap is read rather than trusted.
+    #[test]
+    fn the_anchored_schedule_stays_far_under_all_pairs() {
+        for n in [8usize, 16, 33, 64, 128, 257, 512, 1024] {
+            // The densest anchor set the local-maximum rule can return: one
+            // every four samples.
+            let anchors: Vec<usize> = (0..n).step_by(4).collect();
+            let s = anchored_schedule(n, &anchors);
+            let bound = anchored_schedule_bound(n, anchors.len());
+            let all_pairs = n * (n - 1) / 2;
+            println!(
+                "n {n:5}: anchors {:5} | supports {:6} ({:.3}/sample, bound {bound}) | all-pairs \
+                 {all_pairs:9}",
+                anchors.len(),
+                s.len(),
+                s.len() as f64 / n as f64
+            );
+            assert!(
+                s.len() <= bound,
+                "n {n}: {} supports over the structural bound of {bound}",
+                s.len()
+            );
+            if n >= 33 {
+                assert!(
+                    s.len() * 4 < all_pairs,
+                    "n {n}: {} supports against {all_pairs} all-pairs; the schedule is no longer \
+                     meaningfully sparser than what §14.2 forbids",
+                    s.len()
+                );
+            }
+        }
+    }
+
+    /// Anchoring never REMOVES a support: the plain schedule is a subset. A
+    /// refinement that quietly dropped the whole-run interval would satisfy
+    /// every count above.
+    #[test]
+    fn anchoring_only_adds() {
+        let plain = hierarchical_schedule(129);
+        let anchored = anchored_schedule(129, &[7, 40, 41, 99]);
+        for s in &plain {
+            assert!(anchored.contains(s), "anchoring dropped {s:?}");
+        }
+        assert!(anchored.len() > plain.len());
     }
 
     #[test]
