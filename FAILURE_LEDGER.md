@@ -4491,5 +4491,5 @@ not only the final tree.
 
 **Status.** The mixed commit was split into C331a code-only and C331b
 config-only with a content-identical replay of later commits. The project’s own
-checker passes all 41 commits from `origin/main` to the repaired candidate; the
+checker passes all 42 commits from `origin/main` to the repaired candidate; the
 pre-rewrite history remains recoverable on `codex/m6-pre-history-repair`.

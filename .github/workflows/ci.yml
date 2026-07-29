@@ -300,8 +300,8 @@ jobs:
       # §28 M6. The first step exercises candidate generation, k-best, the
       # joint solve and Stage H over every development chain in one cell per
       # scene. The second measures all five geometry interventions over the
-      # frozen 205-boundary population and exits non-zero if any gate row is
-      # not met.
+      # raster-derived common population (including the explicit family/joint
+      # witnesses) and exits non-zero if any gate row is not met.
       - name: M6 Stage G/H corpus population (release, --ignored)
         run: cargo test --locked --release -p vice-bench fit::tests::the_candidate_stage_over_the_corpus -- --ignored --nocapture
       - name: M6 five-arm geometry decomposition and gate table

@@ -1330,7 +1330,7 @@ The §28 M6 gate is **MET as a completion candidate**:
 
 The earlier mixed C331 was a real §27.7 defect. History now contains C331a
 code-only and C331b config-only; the project’s own per-commit `gates-check`
-passes every one of the 41 commits from `origin/main` through this candidate.
+passes every one of the 42 commits from `origin/main` through this candidate.
 
 `REQUIREMENTS_TRACEABILITY.md` now contains M6-1…M6-11. Defect classes
 F-0108…F-0116 record the final repair rather than letting Addendum 4’s invalid
