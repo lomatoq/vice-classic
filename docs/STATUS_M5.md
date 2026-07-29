@@ -914,3 +914,127 @@ four is a live defect in the shipped structure — the red team says so in its o
 words this pass.
 
 **STOPPED AFTER M5 DELTA-4 — M5.5 NOT STARTED.**
+
+
+---
+
+# Addendum 5 — delta-5 (C269–C272)
+
+`REDTEAM_M5` addendum 4 **FAIL** (2 MAJOR, **no live defect**),
+`REVIEW_M5_A` addendum 4 **ACCEPT WITH CONDITIONS / GATE MET**,
+`REVIEW_M5_B` addendum 4 **ACCEPT WITH CONDITIONS / GATE MET**.
+
+## A5.1 Erratum to A4.6 and A4.8 — the closure claim was false in half its domain
+
+**A4.6 said M5A-D3-N2 was "closed rather than carried". It was closed in one of
+two directions.** Non-maximality has two:
+
+| | violation | delta-4's check |
+|---|---|---|
+| **under-splitting** | a junction lies INSIDE a chain | caught |
+| **over-splitting** | a chain END is not a junction | **not caught** |
+
+Two contexts refuted it independently and **neither by reading**: reviewer A
+re-ran their delta-3 experiment verbatim against the delta-4 HEAD and got
+`audit → None`, `loops_agree → true` at a break point of lattice degree two;
+reviewer B rebuilt the split on 9×9 and repeated it at **512 px** with
+`face_map → true` as well.
+
+**The in-tree test did not perform the corruption it was recorded as closing.**
+It raised an interior point to a vertex, leaving the chain whole — a PROMOTION,
+not a split.
+
+**Cause, and it is the fourth repetition of one class.** The check read
+`d.vertices()` — the STORED set, an output of the same `assemble` — while the
+comment beside it said the vertex set comes from lattice degree and therefore
+shares no provenance. That sentence described how `assemble` BUILDS the set, not
+what the check READS. RT5-A9's form, inside the fix for a finding whose entire
+content was provenance. **Q4 must be read off the CODE, not off the intention.**
+
+**A4.8's F-0048 row for chain maximality — "Q4: no" — was wrong for the same
+reason and is corrected in A5.6.**
+
+Closed now as both reviewers prescribed, and as that comment already described:
+the legal vertex set is derived from the labelling and compared with the stored
+one, which fails in both directions at once. The knockout performs the
+reviewers' corruption — a real CUT with every index kept consistent — and the
+test asserts that `face_map_agrees` and `loops_agree` both reproduce it.
+
+**Method taken from reviewer A, who wrote it against themselves:** a finding
+shipped as PROSE loses whichever half the prose did not distinguish. Their
+delta-3 finding was prose; my reproduction lost the half it did not name. So the
+knockout runs the presented corruption rather than a simplified replica, and so
+must every future one.
+
+## A5.2 RT5-A18 — line numbers in a signed Tier A artifact
+
+`docs/gt/DCEL_M5.json` carried `arrangement@649` and `empty@400`. The bytes of a
+**byte-compared** artifact were a function of one source file's LAYOUT: a comment
+above line 400 breaks `dcel-check`, and rewriting a signed artifact is a §27.1
+reviewed change — in perpetuity, on every edit above either return site.
+
+The red team found it because its own bypass was caught by the wrong thing: the
+artifact diverged in exactly two leaves, both line numbers, shifted by exactly
+the nine lines it had inserted. **A catch that looked principled was an accident
+of numbering.**
+
+**Choice, with its price.** The two contexts weighed this differently and I did
+not need to pick a side, because uniqueness by construction does not require a
+source POSITION. The labels are stable literals and
+`every_judge_branch_has_a_distinct_label` requires them pairwise distinct — which
+is exactly what N17 asked for — while the artifact depends on the judge's
+behaviour rather than on where its returns sit.
+
+*Price of keeping `line!()`:* an artifact rewrite, i.e. a §27.1 reviewed change,
+on every edit above either return. *Price of this:* the distinctness check reads
+source text, so a label built at run time would escape it. Named in the test.
+
+## A5.3 RT5-A19 / M5A-D4-N2 — two legs, three claimed
+
+With a floor above zero, `count == 0` **analytically implies** `!row`, so red and
+empty are one demonstration under two names. That is the RT5-A2 shape — a
+conjunct that cannot be false — moved from a gate row onto its own control. Idle
+is independent and holds. **Recorded as two**, with what a real third would
+require: a run whose population is non-zero and still below the floor, reachable
+now that the floor is exact but only by changing the register rather than
+knocking it out.
+
+## A5.4 M5A-D4-N3 — the floor now encodes the standard it cites
+
+The register produces exactly **six** long-loop arms — one fixture, three sizes,
+two arms — and the floor was **four**, so a whole SIZE could drop out with the
+row MET, in a key whose comment justifies its placement by condition 51's "every
+size, both arms". At **six** it is exact. The cost is that the floor moves
+whenever the register's size list does, which is a §27.7 gate commit; that is the
+right price for a number meaning "every size".
+
+## A5.5 New limitations
+
+50. **The branch-label distinctness check is a source scan.** A label computed
+    at run time escapes it. Same class as the serde-attribute scan and the same
+    closure. **Owner M6.**
+
+## A5.6 F-0048 after delta-5, Q4 read off the CODE
+
+| mechanism | Q1 | Q2 | Q3 judge | **Q4 provenance — by code** | Q5 | verdict |
+|---|---|---|---|---|---|---|
+| chain maximality **(rewritten)** | no | criterion changes | the labelling's own vertex set | **no** — `vertices_of_the_labelling` reads the arrangement; delta-4's version read `d.vertices()` and A4.8 recorded "no" from the comment rather than the code | both directions, real cut | **PASSES** — the delta-4 row was wrong |
+| the ORIENTED population floor | no | criterion changes | a count from real loop lengths | no | **two legs, and it says two** | **PASSES** |
+| `loops_agree_with_the_labelling` | no | criterion changes | re-derivation from the input | no data; YES algorithm, stated | RT5-A13 red | **PASSES on data-provenance** |
+| `audit`'s labelling anchor | no | criterion changes | per-pixel comparison | no | guarded by knockouts | **PASSES** |
+| the branch probe | no — judge names its branches | a new branch gets a bucket | judge output + a distinctness scan | no | gated by clause 4 | **PASSES**, and no longer at the cost of artifact stability |
+| `crossing::face_map_agrees` | no | criterion changes | independent traversal | **YES, through `owners`** | 153 unique slots | **DOES NOT PASS Q4** |
+| `Parts::perturbations` | no | leaf count moves | compiler + derive + source scan | **YES — derive and field TYPE** | red, empty, idle | **DOES NOT PASS Q4**, type class open |
+| `audit()` | **YES** | "append a block" | habit, bounded over perturbations | — | domain named | **DOES NOT PASS** |
+| `RunKnockouts` | no | a clause without a knockout fails | the gate table | no | each reddens its own row | **PASSES** |
+| `transaction_for` | **YES** | "the fifth kind is dropped" | the outcome | yes | excluded count published | **DOES NOT PASS.** Limitation 37, owner M6 |
+| representation invariants (six) | no | criterion changes | compiler | no | yes | **PASSES** |
+| `Threshold::from_gates` | no | type error | compiler | no | yes | **PASSES** |
+| CI claim checker | no | a claim without a step fails | the workflow | no | both | **PASSES** |
+| `doc_claims` doc set | exceptions only | forgetting is red | the file system | no | stale exceptions fail | **PASSES as a default** |
+
+Four rows do not pass; each has a named residual and an owner. **One row moved
+because delta-4 read Q4 off a comment instead of off the code**, which is the
+finding of this delta and the reason the question is now asked of the call site.
+
+**STOPPED AFTER M5 DELTA-5 — M5.5 NOT STARTED.**

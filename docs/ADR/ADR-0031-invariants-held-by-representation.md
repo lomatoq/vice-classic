@@ -235,3 +235,18 @@ were quoted back at me from three independent cold contexts.
 3. **§12's MAXIMAL chains are bound.** Splitting a chain at an interior
    degree-two point passed every check; no interior point of a chain may be a
    vertex.
+
+
+## Erratum 5 — delta-5 (C272)
+
+1. **Erratum 4's item 3 claimed §12's MAXIMAL chains were bound. They were bound
+   in ONE of two directions.** Over-splitting — a chain end that is not a
+   junction — passed every check, refuted independently by two contexts and
+   neither by reading. The cause was that the check read the STORED vertex set
+   while its comment described how `assemble` builds one: Q4 answered from
+   intention rather than from code (F-0073). The legal vertex set is derived
+   from the labelling now and compared, which fails in both directions.
+2. **Delta-4's branch labels put `line!()` into the signed Tier A artifact**
+   (F-0074). Anything reaching an artifact must be a function of BEHAVIOUR, not
+   of source text; uniqueness by construction is achievable with a literal per
+   branch plus a distinctness check, at no cost to artifact stability.

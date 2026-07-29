@@ -29,7 +29,7 @@ cargo test --locked --workspace
 cargo test --locked --release --workspace
 ```
 
-Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-4: **544 passed,
+Author's counts on `windows-x86_64`, rustc 1.96.0, after delta-5: **547 passed,
 0 failed** in each profile.
 
 **The `--ignored` run, and its EXIT CODE** — which is the thing that matters,
