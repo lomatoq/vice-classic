@@ -412,6 +412,11 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         ),
         (
             "m6_geometry",
+            "max_canonical_cuts",
+            GateExpectation::num(vice_fit::MAX_CANONICAL_CUTS as f64),
+        ),
+        (
+            "m6_geometry",
             "gate_min_geometry_boundaries",
             GateExpectation::num(crate::geometry::GATE_MIN_GEOMETRY_BOUNDARIES as f64),
         ),
@@ -429,6 +434,66 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
             "m6_geometry",
             "gate_min_oracle_selector_changes",
             GateExpectation::num(crate::geometry::GATE_MIN_ORACLE_SELECTOR_CHANGES as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_injection_selector_changes",
+            GateExpectation::num(crate::geometry::GATE_MIN_INJECTION_SELECTOR_CHANGES as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_forced_selector_changes",
+            GateExpectation::num(crate::geometry::GATE_MIN_FORCED_SELECTOR_CHANGES as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_raster_derived_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_RASTER_DERIVED_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_multi_span_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_MULTI_SPAN_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_multi_family_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_MULTI_FAMILY_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_arc_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_ARC_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_quad_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_QUAD_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_cubic_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_CUBIC_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_forced_multi_candidate_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_FORCED_MULTI_CANDIDATE_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_forced_smooth_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_FORCED_SMOOTH_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_relation_selected_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_RELATION_SELECTED_ROWS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_primitive_selected_rows",
+            GateExpectation::num(crate::geometry::GATE_MIN_PRIMITIVE_SELECTED_ROWS as f64),
         ),
         // --- likelihood --------------------------------------------
         (
