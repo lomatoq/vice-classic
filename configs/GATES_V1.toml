@@ -322,6 +322,23 @@ gate_min_unrelated_chain_population = 40
 # which the audit is red; a walk that visited nothing would make clause 4 a
 # report of silence. Measured 28.
 gate_min_resolving_power_probes = 10
+# Arms of the STRUCTURAL REGISTER carrying a face loop of three or more
+# half-edges: the population §12's ORIENTED clause stands on, because a loop of
+# one or two has no reordering that changes it.
+#
+# REDTEAM_M5 RT5-A17 and REVIEW_M5_A D3-N1, found independently. Delta-3 gave
+# that clause a FIXTURE and no floor, and it was the fourth population of this
+# gate to need one — clause 1's convention-dependent groups, clause 3's
+# unrelated chains and clause 4's slots and probes all got floors, and this did
+# not. A fixture makes a check exercised TODAY; a floor makes it exercised
+# TOMORROW, when somebody edits the register.
+#
+# On the REGISTER rather than on the total, because that is where the guarantee
+# is BY CONSTRUCTION (condition 51's standard: every size, both arms). The
+# corpus carries 14 such arms and they are published beside this, but they are
+# incidental and a corpus change could remove them. Measured: 6 register arms,
+# 20 in total, longest loop 8 half-edges.
+gate_min_register_arms_with_a_long_loop = 4
 # Slots the mutation walk must perturb. `slots_perturbed > 0` stood as a
 # conjunct in the clause-4 row and was not a gate: a walk that visited ONE slot
 # satisfied it. REDTEAM_M5 RT5-A2 is why this key exists - two of the three
