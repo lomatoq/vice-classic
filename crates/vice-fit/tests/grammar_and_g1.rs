@@ -832,7 +832,8 @@ fn the_lower_residual_model_does_not_win_when_its_code_is_longer() {
         &chain.samples,
         &GEOMETRY_CODE_TABLE_V1,
         CANVAS_PX,
-    );
+    )
+    .expect("validated candidates");
     let paths = k_best_proposal_control_paths(&edges, &chain.samples, K_DISCRETE_PATHS);
     let cheapest = paths.first().expect("a discrete path");
     let cheap_families: Vec<SpanFamily> = cheapest

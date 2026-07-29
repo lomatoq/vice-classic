@@ -177,8 +177,13 @@ mod tests {
             &crate::GEOMETRY_CODE_TABLE_V1,
             256.0,
             8,
-            PathObjective::PhysicalCode,
-            ClosureMode::Smooth,
+            (PathObjective::PhysicalCode, ClosureMode::Smooth),
+            crate::code::first_sample_residual_bits(
+                &samples(),
+                &crate::GEOMETRY_CODE_TABLE_V1,
+                256.0,
+            )
+            .expect("valid samples"),
         );
         assert_eq!(paths.len(), 8);
         assert!(
@@ -195,6 +200,7 @@ mod tests {
         ];
         let table = &crate::GEOMETRY_CODE_TABLE_V1;
         let open = k_best_paths(&edges, &samples(), table, 256.0, 1)
+            .expect("valid samples")
             .pop()
             .expect("open path");
         let closed = k_best_paths_for_objective(
@@ -203,8 +209,9 @@ mod tests {
             table,
             256.0,
             1,
-            PathObjective::PhysicalCode,
-            ClosureMode::Smooth,
+            (PathObjective::PhysicalCode, ClosureMode::Smooth),
+            crate::code::first_sample_residual_bits(&samples(), table, 256.0)
+                .expect("valid samples"),
         )
         .pop()
         .expect("closed path");
@@ -234,8 +241,13 @@ mod tests {
             &crate::GEOMETRY_CODE_TABLE_V1,
             256.0,
             1,
-            PathObjective::PhysicalCode,
-            ClosureMode::Corner,
+            (PathObjective::PhysicalCode, ClosureMode::Corner),
+            crate::code::first_sample_residual_bits(
+                &samples(),
+                &crate::GEOMETRY_CODE_TABLE_V1,
+                256.0,
+            )
+            .expect("valid samples"),
         )
         .pop()
         .expect("the valid two-span loop survives K=1");

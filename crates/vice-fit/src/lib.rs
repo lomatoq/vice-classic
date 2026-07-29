@@ -185,6 +185,14 @@ pub enum FitRefusal {
         weight_ds_px: f64,
         corr_length_px: f64,
     },
+    /// A finite observation count whose weighted residual contribution, or
+    /// whose running sum, overflows the code length.
+    NonFiniteResidualCode {
+        sample: usize,
+        independent_weight: f64,
+        residual_bits_per_observation: f64,
+        accumulated_bits: f64,
+    },
     /// A public single-cut request named a sample that does not exist.
     CutOutOfRange { cut: usize, samples: usize },
     /// The physical coordinate range used by the code is not finite and

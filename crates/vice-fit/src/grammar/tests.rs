@@ -85,7 +85,8 @@ fn every_k_truncation_uses_the_declared_proposal_tie_break() {
         ranking_edge(2, 1, 2, 0.0),
     ];
     let samples = ranking_samples();
-    let open = k_best_paths(&edges, &samples, &crate::GEOMETRY_CODE_TABLE_V1, 256.0, 1);
+    let open = k_best_paths(&edges, &samples, &crate::GEOMETRY_CODE_TABLE_V1, 256.0, 1)
+        .expect("valid samples");
     assert_eq!(open[0].candidates, vec![1, 2]);
 
     let closed = k_best_paths_for_objective(
@@ -94,8 +95,9 @@ fn every_k_truncation_uses_the_declared_proposal_tie_break() {
         &crate::GEOMETRY_CODE_TABLE_V1,
         256.0,
         1,
-        PathObjective::PhysicalCode,
-        ClosureMode::Smooth,
+        (PathObjective::PhysicalCode, ClosureMode::Smooth),
+        crate::code::first_sample_residual_bits(&samples, &crate::GEOMETRY_CODE_TABLE_V1, 256.0)
+            .expect("valid samples"),
     );
     assert_eq!(closed[0].candidates, vec![1, 2]);
 }

@@ -11,11 +11,12 @@
 
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
-    fit, fit_forced_boundary_models, flattening_error_px, hierarchical_schedule,
-    joint_constrained_refit, k_best_boundary_models, models_at_cut, proposal_cost, span_candidates,
-    CostRefusal, FitRefusal, ForcedFitRefusal, RefitChain, RefitNode, RefitRefusal, RefitSegment,
-    SpanFamily, Support, DEVIATION_CHORD_TOLERANCE_PX, FITTED_FAMILIES, FIT_BUDGET_V1,
-    K_DISCRETE_PATHS, MIN_SUPPORT_SAMPLES, PARAMETER_REFINEMENT_PASSES,
+    build_edges, fit, fit_forced_boundary_models, flattening_error_px, hierarchical_schedule,
+    joint_constrained_refit, k_best_boundary_models, k_best_paths, models_at_cut, proposal_cost,
+    span_candidates, CostRefusal, FitRefusal, ForcedFitRefusal, RefitChain, RefitNode,
+    RefitRefusal, RefitSegment, SpanFamily, Support, DEVIATION_CHORD_TOLERANCE_PX, FITTED_FAMILIES,
+    FIT_BUDGET_V1, GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS, MIN_SUPPORT_SAMPLES,
+    PARAMETER_REFINEMENT_PASSES,
 };
 use vice_geom::Pt;
 
@@ -463,12 +464,39 @@ fn a_non_finite_sample_is_refused_before_anything_is_fitted() {
 #[test]
 fn a_negative_arclength_weight_is_refused_by_every_public_entry() {
     let mut chain = chain_from(&arc_points(40.0, 2.0, 0.5));
+    let candidates = span_candidates(&chain, &FIT_BUDGET_V1).expect("valid candidates");
+    let edges = build_edges(
+        &candidates.candidates,
+        &chain.samples,
+        &GEOMETRY_CODE_TABLE_V1,
+        256.0,
+    )
+    .expect("valid edges");
     chain.samples[3].weight_ds = -1.0;
     let expected = FitRefusal::NegativeWeight {
         sample: 3,
         weight_ds_px: -1.0,
     };
     assert_eq!(span_candidates(&chain, &FIT_BUDGET_V1), Err(expected));
+    assert_eq!(
+        build_edges(
+            &candidates.candidates,
+            &chain.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            256.0,
+        ),
+        Err(expected)
+    );
+    assert_eq!(
+        k_best_paths(
+            &edges,
+            &chain.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            256.0,
+            K_DISCRETE_PATHS,
+        ),
+        Err(expected)
+    );
     assert_eq!(
         k_best_boundary_models(&chain, &FIT_BUDGET_V1, 256.0, K_DISCRETE_PATHS),
         Err(expected)
@@ -521,6 +549,14 @@ fn a_negative_arclength_weight_is_refused_by_every_public_entry() {
 #[test]
 fn an_overflowing_independent_observation_count_is_refused_at_the_input() {
     let mut chain = chain_from(&line_points(Pt::new(0.0, 0.0), Pt::new(3.0, 0.0), 3));
+    let candidates = span_candidates(&chain, &FIT_BUDGET_V1).expect("valid candidates");
+    let edges = build_edges(
+        &candidates.candidates,
+        &chain.samples,
+        &GEOMETRY_CODE_TABLE_V1,
+        256.0,
+    )
+    .expect("valid edges");
     for sample in &mut chain.samples {
         sample.weight_ds = f64::MAX;
         sample.corr_length_px = f64::MIN_POSITIVE;
@@ -535,9 +571,68 @@ fn an_overflowing_independent_observation_count_is_refused_at_the_input() {
         Err(expected)
     );
     assert_eq!(
+        build_edges(
+            &candidates.candidates,
+            &chain.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            256.0,
+        ),
+        Err(expected)
+    );
+    assert_eq!(
+        k_best_paths(
+            &edges,
+            &chain.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            256.0,
+            K_DISCRETE_PATHS,
+        ),
+        Err(expected)
+    );
+    assert_eq!(
         vice_fit::code::independent_observations(f64::MAX, f64::MIN_POSITIVE),
         None
     );
+}
+
+#[test]
+fn a_finite_observation_count_that_overflows_the_residual_code_is_refused() {
+    let mut chain = chain_from(&line_points(Pt::new(0.0, 0.0), Pt::new(3.0, 0.0), 3));
+    let candidates = span_candidates(&chain, &FIT_BUDGET_V1).expect("valid candidates");
+    let edges = build_edges(
+        &candidates.candidates,
+        &chain.samples,
+        &GEOMETRY_CODE_TABLE_V1,
+        256.0,
+    )
+    .expect("valid edges");
+    for sample in &mut chain.samples {
+        sample.weight_ds = f64::MAX;
+        sample.corr_length_px = 1.0;
+    }
+    assert!(matches!(
+        build_edges(
+            &candidates.candidates,
+            &chain.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            256.0,
+        ),
+        Err(FitRefusal::NonFiniteResidualCode { .. })
+    ));
+    assert!(matches!(
+        k_best_paths(
+            &edges,
+            &chain.samples,
+            &GEOMETRY_CODE_TABLE_V1,
+            256.0,
+            K_DISCRETE_PATHS,
+        ),
+        Err(FitRefusal::NonFiniteResidualCode { sample: 0, .. })
+    ));
+    assert!(matches!(
+        k_best_boundary_models(&chain, &FIT_BUDGET_V1, 256.0, K_DISCRETE_PATHS),
+        Err(FitRefusal::NonFiniteResidualCode { .. })
+    ));
 }
 
 /// A straight chain makes the arc family degenerate, and the refusal is

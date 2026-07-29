@@ -28,8 +28,8 @@ pub fn k_best_proposal_control_paths(
         &crate::GEOMETRY_CODE_TABLE_V1,
         crate::REFERENCE_CANVAS_DIM_PX,
         k,
-        PathObjective::ProposalResidual,
-        super::ClosureMode::Open,
+        (PathObjective::ProposalResidual, super::ClosureMode::Open),
+        0.0,
     )
     .into_iter()
     .map(|path| ProposalControlPath {

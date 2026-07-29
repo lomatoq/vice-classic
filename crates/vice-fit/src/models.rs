@@ -374,7 +374,8 @@ pub fn fit_forced_boundary_models(
     }
 
     let table = &crate::GEOMETRY_CODE_TABLE_V1;
-    let edges = build_edges(&candidates, samples, table, canvas_dim_px);
+    let edges = build_edges(&candidates, samples, table, canvas_dim_px)
+        .map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
     if edges.len() != candidates.len() {
         let missing = candidates
             .iter()
@@ -386,7 +387,8 @@ pub fn fit_forced_boundary_models(
             family: missing.1.family,
         });
     }
-    let paths = k_best_paths_with_closure(&edges, samples, table, canvas_dim_px, k, closed);
+    let paths = k_best_paths_with_closure(&edges, samples, table, canvas_dim_px, k, closed)
+        .map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
     if paths.is_empty() {
         return Err(ForcedFitRefusal::NoPath);
     }
@@ -602,8 +604,8 @@ fn models_for_open_chain(
 ) -> Result<ModelRun, FitRefusal> {
     let cands = span_candidates(chain, budget)?;
     let samples = &chain.samples;
-    let edges = build_edges(&cands.candidates, samples, table, canvas_dim_px);
-    let paths = k_best_paths_with_closure(&edges, samples, table, canvas_dim_px, k, chain.closed);
+    let edges = build_edges(&cands.candidates, samples, table, canvas_dim_px)?;
+    let paths = k_best_paths_with_closure(&edges, samples, table, canvas_dim_px, k, chain.closed)?;
 
     let mut models = Vec::new();
     let mut refused: Vec<(&'static str, usize)> = Vec::new();

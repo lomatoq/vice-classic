@@ -207,7 +207,9 @@ pub fn build_edges(
     samples: &[BoundarySample],
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
-) -> Vec<GrammarEdge> {
+) -> Result<Vec<GrammarEdge>, crate::FitRefusal> {
+    crate::validate_samples(samples)?;
+    crate::validate_canvas_dimension(canvas_dim_px)?;
     let precision = table.coordinate_precision_px();
     let mut out = Vec::with_capacity(candidates.len());
     for (i, c) in candidates.iter().enumerate() {
@@ -225,7 +227,10 @@ pub fn build_edges(
         // charged once, by the source transition in `k_best_paths`.
         let mut residual = 0.0f64;
         let mut ok = true;
-        for s in &samples[c.support.lo() + 1..=c.support.hi()] {
+        for (offset, s) in samples[c.support.lo() + 1..=c.support.hi()]
+            .iter()
+            .enumerate()
+        {
             if s.weight_ds == 0.0 {
                 continue;
             }
@@ -233,14 +238,15 @@ pub fn build_edges(
                 ok = false;
                 break;
             };
-            let Some(w) = crate::code::independent_observations(s.weight_ds, s.corr_length_px)
-            else {
-                ok = false;
-                break;
-            };
-            residual += w * crate::code::residual_bits(dn, s.halfwidth, precision);
+            residual = crate::code::accumulate_residual_bits(
+                residual,
+                s,
+                c.support.lo() + 1 + offset,
+                dn,
+                precision,
+            )?;
         }
-        if !ok || !residual.is_finite() {
+        if !ok {
             continue;
         }
         let _ = canvas_dim_px;
@@ -257,7 +263,7 @@ pub fn build_edges(
             proposal_cost_px: c.proposal_cost_px(),
         });
     }
-    out
+    Ok(out)
 }
 
 /// A partial path in the k-best DP.
@@ -324,16 +330,17 @@ pub fn k_best_paths(
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
-) -> Vec<GrammarPath> {
-    k_best_paths_for_objective(
+) -> Result<Vec<GrammarPath>, crate::FitRefusal> {
+    let first_sample_bits = crate::code::first_sample_residual_bits(samples, table, canvas_dim_px)?;
+    Ok(k_best_paths_for_objective(
         edges,
         samples,
         table,
         canvas_dim_px,
         k,
-        PathObjective::PhysicalCode,
-        ClosureMode::Open,
-    )
+        (PathObjective::PhysicalCode, ClosureMode::Open),
+        first_sample_bits,
+    ))
 }
 
 pub(crate) fn k_best_paths_with_closure(
@@ -343,17 +350,18 @@ pub(crate) fn k_best_paths_with_closure(
     canvas_dim_px: f64,
     k: usize,
     closed: bool,
-) -> Vec<GrammarPath> {
+) -> Result<Vec<GrammarPath>, crate::FitRefusal> {
+    let first_sample_bits = crate::code::first_sample_residual_bits(samples, table, canvas_dim_px)?;
     if !closed {
-        return k_best_paths_for_objective(
+        return Ok(k_best_paths_for_objective(
             edges,
             samples,
             table,
             canvas_dim_px,
             k,
-            PathObjective::PhysicalCode,
-            ClosureMode::Open,
-        );
+            (PathObjective::PhysicalCode, ClosureMode::Open),
+            first_sample_bits,
+        ));
     }
     let mut paths = k_best_paths_for_objective(
         edges,
@@ -361,8 +369,8 @@ pub(crate) fn k_best_paths_with_closure(
         table,
         canvas_dim_px,
         k,
-        PathObjective::PhysicalCode,
-        ClosureMode::Corner,
+        (PathObjective::PhysicalCode, ClosureMode::Corner),
+        first_sample_bits,
     );
     paths.extend(k_best_paths_for_objective(
         edges,
@@ -370,12 +378,12 @@ pub(crate) fn k_best_paths_with_closure(
         table,
         canvas_dim_px,
         k,
-        PathObjective::PhysicalCode,
-        ClosureMode::Smooth,
+        (PathObjective::PhysicalCode, ClosureMode::Smooth),
+        first_sample_bits,
     ));
     paths.sort_by(compare_path_rank);
     paths.truncate(k);
-    paths
+    Ok(paths)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -390,8 +398,8 @@ fn k_best_paths_for_objective(
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
-    objective: PathObjective,
-    closure_mode: ClosureMode,
+    (objective, closure_mode): (PathObjective, ClosureMode),
+    first_sample_bits: f64,
 ) -> Vec<GrammarPath> {
     let n = samples.len();
     if n < 2 || edges.is_empty() || k == 0 {
@@ -418,19 +426,10 @@ fn k_best_paths_for_objective(
     } else {
         0.0
     };
-    let precision = table.coordinate_precision_px();
     // The chain's first sample, charged once so it is not free and not double
     // counted (§17.2). Its deviation is zero for every candidate — both
     // endpoints are held at sample positions — so this is the code's
     // normalising constant, identical for every path.
-    let first_sample_bits = if physical {
-        crate::code::independent_observations(samples[0].weight_ds, samples[0].corr_length_px)
-            .unwrap_or(0.0)
-            * crate::code::residual_bits(0.0, samples[0].halfwidth, precision)
-    } else {
-        0.0
-    };
-
     let mut by_from: Vec<Vec<usize>> = vec![Vec::new(); n];
     for (i, e) in edges.iter().enumerate() {
         by_from[e.from].push(i);

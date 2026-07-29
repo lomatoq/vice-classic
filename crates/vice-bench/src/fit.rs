@@ -198,6 +198,7 @@ fn refusal_name(r: &FitRefusal) -> &'static str {
         FitRefusal::NonUnitNormal { .. } => "non_unit_normal",
         FitRefusal::NonPositiveCorrLength { .. } => "non_positive_corr_length",
         FitRefusal::NonFiniteIndependentWeight { .. } => "non_finite_independent_weight",
+        FitRefusal::NonFiniteResidualCode { .. } => "non_finite_residual_code",
         FitRefusal::CutOutOfRange { .. } => "cut_out_of_range",
         FitRefusal::InvalidCanvasDimension { .. } => "invalid_canvas_dimension",
     }

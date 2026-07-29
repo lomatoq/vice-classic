@@ -454,6 +454,45 @@ pub fn residual_bits(d_n_px: f64, halfwidth_px: f64, precision_px: f64) -> f64 {
     .max(0.0)
 }
 
+pub(crate) fn accumulate_residual_bits(
+    accumulated_bits: f64,
+    sample: &vice_evidence::BoundarySample,
+    sample_index: usize,
+    deviation_px: f64,
+    precision_px: f64,
+) -> Result<f64, crate::FitRefusal> {
+    let independent_weight = independent_observations(sample.weight_ds, sample.corr_length_px)
+        .ok_or(crate::FitRefusal::NonFiniteIndependentWeight {
+            sample: sample_index,
+            weight_ds_px: sample.weight_ds,
+            corr_length_px: sample.corr_length_px,
+        })?;
+    let residual_bits_per_observation = residual_bits(deviation_px, sample.halfwidth, precision_px);
+    let next = accumulated_bits + independent_weight * residual_bits_per_observation;
+    if next.is_finite() {
+        Ok(next)
+    } else {
+        Err(crate::FitRefusal::NonFiniteResidualCode {
+            sample: sample_index,
+            independent_weight,
+            residual_bits_per_observation,
+            accumulated_bits,
+        })
+    }
+}
+
+pub(crate) fn first_sample_residual_bits(
+    samples: &[vice_evidence::BoundarySample],
+    table: &GeometryCodeTable,
+    canvas_dim_px: f64,
+) -> Result<f64, crate::FitRefusal> {
+    crate::validate_samples(samples)?;
+    crate::validate_canvas_dimension(canvas_dim_px)?;
+    samples.first().map_or(Ok(0.0), |sample| {
+        accumulate_residual_bits(0.0, sample, 0, 0.0, table.coordinate_precision_px())
+    })
+}
+
 /// Recompute the physical residual code on the geometry that will actually be
 /// ranked and delivered.
 ///
