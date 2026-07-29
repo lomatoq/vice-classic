@@ -794,6 +794,11 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         // only through `render_cell`, i.e. the same rendering path the M4
         // corridor harness uses, and it adds no new route to one.
         "vice-bench/src/fit.rs",
+        // M6 geometry-oracle decomposition. It consumes the same
+        // development-only accessor, binds a chain to `(scene, BoundaryId)`,
+        // and reads certified GT geometry without rendering. The sealed audit
+        // remains unreachable.
+        "vice-bench/src/geometry/mod.rs",
         // The ONE mint site of the frozen-measurement handle. It names the
         // split-filtered accessor and nothing wider, which
         // `the_only_mint_site_for_the_legal_handle_cannot_widen_it` checks.

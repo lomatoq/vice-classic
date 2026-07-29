@@ -45,6 +45,7 @@
 pub mod code;
 pub mod corner;
 pub mod cost;
+pub mod gate;
 pub mod grammar;
 pub mod models;
 pub mod refit;
@@ -63,6 +64,11 @@ pub use corner::{corner_anchors, corner_proposals, CornerProposal};
 pub use cost::{
     normal_deviation, proposal_cost, CostRefusal, ProposalCost, RatioReading,
     MATERIAL_DEVIATION_FRACTION,
+};
+pub use gate::{
+    GATE_MAX_BREAKPOINT_FRACTION_DELTA, GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD,
+    GATE_MAX_TRANSLATION_DELTA_BITS, GATE_MIN_CUT_NONTRIVIAL_SPREAD_BITS, GATE_MIN_G1_NODES,
+    GATE_MIN_G1_POSITIVE_CONTROL_RAD, GATE_MIN_INVARIANCE_LEGS, GATE_MIN_NO_BIC_EXTRA_SEGMENTS,
 };
 pub use grammar::{
     build_edges, jet_class, jet_compatible, k_best_paths, materialize, GrammarEdge, GrammarPath,

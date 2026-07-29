@@ -35,6 +35,7 @@ pub mod exec;
 pub mod fit;
 pub mod fsutil;
 pub mod gates;
+pub mod geometry;
 pub mod gt;
 pub mod hashing;
 pub mod limits;

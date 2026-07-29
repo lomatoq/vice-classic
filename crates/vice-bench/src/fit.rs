@@ -516,7 +516,7 @@ mod tests {
             run.chains_refused_at_entry
         );
         assert!(
-            run.worst_g1_spread_rad < 1e-9,
+            run.worst_g1_spread_rad < vice_fit::GATE_MAX_G1_SPREAD_RAD,
             "a model selected on the corpus has a G1 spread of {} rad",
             run.worst_g1_spread_rad
         );

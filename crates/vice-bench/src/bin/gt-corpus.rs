@@ -31,6 +31,9 @@ mod topology_cmd;
 #[path = "gt-corpus/dcel_cmd.rs"]
 mod dcel_cmd;
 
+#[path = "gt-corpus/geometry_cmd.rs"]
+mod geometry_cmd;
+
 #[derive(Parser)]
 #[command(
     name = "gt-corpus",
@@ -212,6 +215,20 @@ enum Cmd {
         report: PathBuf,
         #[arg(long)]
         structural: bool,
+    },
+    /// Run the M6 G00/G10/G01/G11/G20 geometry decomposition and gate it.
+    GeometryM6 {
+        #[arg(long)]
+        gates: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Re-run the M6 geometry decomposition and compare the Tier-A artifact.
+    GeometryM6Check {
+        #[arg(long)]
+        gates: PathBuf,
+        #[arg(long)]
+        report: PathBuf,
     },
     /// Enforce §27.7: an EXISTING gate file and production code may not
     /// change together. Pass `git diff --name-status` lines (status letter
@@ -682,6 +699,8 @@ fn real_main() -> i32 {
         Cmd::TopologyCheck { report, structural } => topology_cmd::check(&report, structural),
         Cmd::Dcel { out, scope } => dcel_cmd::run(&out, scope.into()),
         Cmd::DcelCheck { report, structural } => dcel_cmd::check(&report, structural),
+        Cmd::GeometryM6 { gates, out } => geometry_cmd::run(&gates, &out),
+        Cmd::GeometryM6Check { gates, report } => geometry_cmd::check(&gates, &report),
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {
                 Ok(v) => v,

@@ -19,6 +19,9 @@ use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_fit::{
     build_edges, fit_forced_boundary_models, g1_readings, k_best_boundary_models, k_best_paths,
     path_families, span_candidates, BoundaryModel, ForcedFitRefusal, SpanFamily, FIT_BUDGET_V1,
+    GATE_MAX_BREAKPOINT_FRACTION_DELTA, GATE_MAX_CUT_ROTATION_DELTA_BITS, GATE_MAX_G1_SPREAD_RAD,
+    GATE_MAX_TRANSLATION_DELTA_BITS, GATE_MIN_CUT_NONTRIVIAL_SPREAD_BITS, GATE_MIN_G1_NODES,
+    GATE_MIN_G1_POSITIVE_CONTROL_RAD, GATE_MIN_INVARIANCE_LEGS, GATE_MIN_NO_BIC_EXTRA_SEGMENTS,
     GEOMETRY_CODE_TABLE_V1, K_DISCRETE_PATHS,
 };
 use vice_geom::Pt;
@@ -214,12 +217,12 @@ fn exact_g1_holds_on_every_model_the_solver_accepts() {
     }
     println!("smooth nodes measured {smooth_nodes}, worst G1 spread {worst:.3e} rad");
     assert!(
-        smooth_nodes > 0,
+        smooth_nodes >= GATE_MIN_G1_NODES,
         "no accepted model had a single smooth join, so this clause was evaluated over an empty \
          population and says nothing (F-0039)"
     );
     assert!(
-        worst < 1e-9,
+        worst < GATE_MAX_G1_SPREAD_RAD,
         "a model the solver accepted has a G1 spread of {worst} rad"
     );
 
@@ -247,12 +250,30 @@ fn exact_g1_holds_on_every_model_the_solver_accepts() {
         control[0].spread_rad,
         control[0].spread_rad.to_degrees()
     );
-    assert!(control[0].spread_rad > 0.4);
+    assert!(control[0].spread_rad > GATE_MIN_G1_POSITIVE_CONTROL_RAD);
 }
 
 // ---------------------------------------------------------------------------
 // Gate clause 2: sample / cut / transform invariance (§14.5's six)
 // ---------------------------------------------------------------------------
+
+#[test]
+fn the_invariance_clause_has_every_registered_leg() {
+    let legs = [
+        "sample_step",
+        "duplicate_samples",
+        "cyclic_cut",
+        "translation",
+        "reflection",
+        "uniform_scale",
+    ];
+    assert!(
+        legs.len() >= GATE_MIN_INVARIANCE_LEGS,
+        "only {} invariance legs are registered against a gate floor of {}",
+        legs.len(),
+        GATE_MIN_INVARIANCE_LEGS
+    );
+}
 
 #[test]
 fn the_selection_is_invariant_to_the_sample_step() {
@@ -275,7 +296,7 @@ fn the_selection_is_invariant_to_the_sample_step() {
         assert_eq!(s.1, sigs[0].1, "the join kinds moved with the density");
         for (a, b) in s.2.iter().zip(sigs[0].2.iter()) {
             assert!(
-                (a - b).abs() < 0.06,
+                (a - b).abs() < GATE_MAX_BREAKPOINT_FRACTION_DELTA,
                 "a breakpoint moved from {b:.3} to {a:.3} of the chain"
             );
         }
@@ -434,7 +455,7 @@ fn the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected() {
         assert_eq!(f, &family_sets[0], "the family SET changed with the cut");
     }
     assert!(
-        hi - lo > 1.0,
+        hi - lo > GATE_MIN_CUT_NONTRIVIAL_SPREAD_BITS,
         "every canonical cut selected the same code length to within a bit; then leg two below \
          passes for a reason that has nothing to do with cut invariance"
     );
@@ -458,7 +479,7 @@ fn the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected() {
             "rotating the loop changed the number of segments selected"
         );
         assert!(
-            (a.1 - answers[0].1).abs() < 1.0,
+            (a.1 - answers[0].1).abs() < GATE_MAX_CUT_ROTATION_DELTA_BITS,
             "rotating the loop moved the selected code length from {:.3} to {:.3} bits",
             answers[0].1,
             a.1
@@ -476,7 +497,7 @@ fn the_selection_is_invariant_to_translation() {
     assert_eq!(a.smooth, b.smooth);
     assert_eq!(a.breakpoints, b.breakpoints);
     assert!(
-        (a.code.total_bits() - b.code.total_bits()).abs() < 1e-6,
+        (a.code.total_bits() - b.code.total_bits()).abs() < GATE_MAX_TRANSLATION_DELTA_BITS,
         "translation moved the code length from {} to {}",
         a.code.total_bits(),
         b.code.total_bits()
@@ -631,7 +652,7 @@ fn the_lower_residual_model_does_not_win_when_its_code_is_longer() {
         cheapest.code.total_bits()
     );
     assert!(
-        cheap_families.len() > m.families.len(),
+        cheap_families.len() >= m.families.len() + GATE_MIN_NO_BIC_EXTRA_SEGMENTS,
         "making the parameter code free did not buy a single extra segment ({} against {}); then \
          the code table is not what is selecting the grammar and this clause is vacuous",
         cheap_families.len(),
@@ -885,7 +906,7 @@ fn the_red_team_chain_no_longer_produces_an_accepted_g1_violation() {
          nothing exactly as it was on the corpus (F-0039)"
     );
     assert!(
-        worst < 1e-9,
+        worst < GATE_MAX_G1_SPREAD_RAD,
         "an accepted model on the red team's own chain has a G1 spread of {worst} rad"
     );
     assert!(

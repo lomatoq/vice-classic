@@ -359,6 +359,72 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
                 vice_fit::pricing_surface_v1().as_bytes(),
             )),
         ),
+        // --- M6 geometry gate and oracle decomposition -------------
+        (
+            "m6_geometry",
+            "gate_max_g1_spread_rad",
+            GateExpectation::num(vice_fit::GATE_MAX_G1_SPREAD_RAD),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_g1_nodes",
+            GateExpectation::num(vice_fit::GATE_MIN_G1_NODES as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_g1_positive_control_rad",
+            GateExpectation::num(vice_fit::GATE_MIN_G1_POSITIVE_CONTROL_RAD),
+        ),
+        (
+            "m6_geometry",
+            "gate_max_breakpoint_fraction_delta",
+            GateExpectation::num(vice_fit::GATE_MAX_BREAKPOINT_FRACTION_DELTA),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_cut_nontrivial_spread_bits",
+            GateExpectation::num(vice_fit::GATE_MIN_CUT_NONTRIVIAL_SPREAD_BITS),
+        ),
+        (
+            "m6_geometry",
+            "gate_max_cut_rotation_delta_bits",
+            GateExpectation::num(vice_fit::GATE_MAX_CUT_ROTATION_DELTA_BITS),
+        ),
+        (
+            "m6_geometry",
+            "gate_max_translation_delta_bits",
+            GateExpectation::num(vice_fit::GATE_MAX_TRANSLATION_DELTA_BITS),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_invariance_legs",
+            GateExpectation::num(vice_fit::GATE_MIN_INVARIANCE_LEGS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_no_bic_extra_segments",
+            GateExpectation::num(vice_fit::GATE_MIN_NO_BIC_EXTRA_SEGMENTS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_geometry_boundaries",
+            GateExpectation::num(crate::geometry::GATE_MIN_GEOMETRY_BOUNDARIES as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_geometry_arms_per_boundary",
+            GateExpectation::num(crate::geometry::GATE_MIN_GEOMETRY_ARMS_PER_BOUNDARY as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_oracle_candidate_injections",
+            GateExpectation::num(crate::geometry::GATE_MIN_ORACLE_CANDIDATE_INJECTIONS as f64),
+        ),
+        (
+            "m6_geometry",
+            "gate_min_oracle_selector_changes",
+            GateExpectation::num(crate::geometry::GATE_MIN_ORACLE_SELECTOR_CHANGES as f64),
+        ),
         // --- likelihood --------------------------------------------
         (
             "likelihood",
