@@ -82,6 +82,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -150,6 +151,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -218,6 +220,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -286,6 +289,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -354,6 +358,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -422,6 +427,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -490,6 +496,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -558,6 +565,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -626,6 +634,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -694,6 +703,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -762,6 +772,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -830,6 +841,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -898,6 +910,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -966,6 +979,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1034,6 +1048,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1102,6 +1117,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1170,6 +1186,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1238,6 +1255,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1306,6 +1324,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1374,6 +1393,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1442,6 +1462,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1510,6 +1531,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1578,6 +1600,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1646,6 +1669,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1714,6 +1738,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1782,6 +1807,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1850,6 +1876,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1918,6 +1945,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -1986,6 +2014,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2054,6 +2083,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2122,6 +2152,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2190,6 +2221,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2258,6 +2290,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2326,6 +2359,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2394,6 +2428,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2462,6 +2497,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2530,6 +2566,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2598,6 +2635,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2666,6 +2704,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2734,6 +2773,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2802,6 +2842,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2870,6 +2911,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -2938,6 +2980,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3006,6 +3049,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3074,6 +3118,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3142,6 +3187,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3210,6 +3256,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3278,6 +3325,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3346,6 +3394,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3414,6 +3463,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3482,6 +3532,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3550,6 +3601,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3618,6 +3670,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3686,6 +3739,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3754,6 +3808,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3822,6 +3877,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3890,6 +3946,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -3958,6 +4015,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4026,6 +4084,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4094,6 +4153,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4162,6 +4222,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4230,6 +4291,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4298,6 +4360,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4366,6 +4429,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4434,6 +4498,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4502,6 +4567,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4570,6 +4636,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4638,6 +4705,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4706,6 +4774,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4774,6 +4843,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4842,6 +4912,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4910,6 +4981,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -4978,6 +5050,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5046,6 +5119,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5114,6 +5188,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5182,6 +5257,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5250,6 +5326,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5318,6 +5395,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5386,6 +5464,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5454,6 +5533,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5522,6 +5602,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5590,6 +5671,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5658,6 +5740,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5726,6 +5809,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5794,6 +5878,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5862,6 +5947,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5930,6 +6016,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -5998,6 +6085,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6066,6 +6154,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6134,6 +6223,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6202,6 +6292,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6270,6 +6361,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6338,6 +6430,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6406,6 +6499,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6474,6 +6568,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6542,6 +6637,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -6610,6 +6706,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 60,
+        "pixels_changed": 58,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -6677,6 +6788,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 60,
+        "pixels_changed": 58,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -6746,6 +6872,21 @@
         "holes_before": 1,
         "holes_after": 3
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 240,
+        "pixels_changed": 209,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -6813,6 +6954,21 @@
         "components_after": 1,
         "holes_before": 1,
         "holes_after": 3
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 240,
+        "pixels_changed": 209,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -6882,6 +7038,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 920,
+        "pixels_changed": 833,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -6950,6 +7121,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 920,
+        "pixels_changed": 833,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -7017,6 +7203,21 @@
         "components_after": 1,
         "holes_before": 1,
         "holes_after": 3
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 240,
+        "pixels_changed": 209,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -7086,6 +7287,21 @@
         "holes_before": 1,
         "holes_after": 3
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 240,
+        "pixels_changed": 209,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -7154,6 +7370,21 @@
         "holes_before": 1,
         "holes_after": 3
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 240,
+        "pixels_changed": 209,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -7221,6 +7452,21 @@
         "components_after": 1,
         "holes_before": 1,
         "holes_after": 3
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 240,
+        "pixels_changed": 209,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -7290,6 +7536,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 60,
+        "pixels_changed": 58,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -7358,6 +7619,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 60,
+        "pixels_changed": 58,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -7426,6 +7702,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -7494,6 +7771,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -7562,6 +7840,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -7630,6 +7909,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -7698,6 +7978,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -7766,6 +8047,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -7834,6 +8116,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -7902,6 +8185,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -7970,6 +8254,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8038,6 +8323,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8106,6 +8392,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8174,6 +8461,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8242,6 +8530,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8310,6 +8599,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8378,6 +8668,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8446,6 +8737,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8514,6 +8806,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8582,6 +8875,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8650,6 +8944,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8718,6 +9013,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -8786,6 +9082,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 20,
+        "pixels_changed": 20,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -8853,6 +9164,21 @@
         "components_after": 1,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 20,
+        "pixels_changed": 20,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -8922,6 +9248,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 99,
+        "pixels_changed": 85,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -8989,6 +9330,21 @@
         "components_after": 1,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 99,
+        "pixels_changed": 85,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -9058,6 +9414,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 399,
+        "pixels_changed": 337,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9126,6 +9497,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 399,
+        "pixels_changed": 337,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9193,6 +9579,21 @@
         "components_after": 1,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 99,
+        "pixels_changed": 85,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -9262,6 +9663,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 99,
+        "pixels_changed": 85,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9330,6 +9746,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 99,
+        "pixels_changed": 85,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9397,6 +9828,21 @@
         "components_after": 1,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 99,
+        "pixels_changed": 85,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -9466,6 +9912,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 20,
+        "pixels_changed": 20,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9534,6 +9995,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 20,
+        "pixels_changed": 20,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9601,6 +10077,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 144,
+        "pixels_changed": 84,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -9670,6 +10161,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 144,
+        "pixels_changed": 84,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9738,6 +10244,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 576,
+        "pixels_changed": 312,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9805,6 +10326,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 576,
+        "pixels_changed": 312,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -9874,6 +10410,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 2500,
+        "pixels_changed": 1300,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -9942,6 +10493,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 2500,
+        "pixels_changed": 1300,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10010,6 +10576,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 576,
+        "pixels_changed": 312,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10077,6 +10658,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 576,
+        "pixels_changed": 312,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -10146,6 +10742,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 576,
+        "pixels_changed": 312,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10214,6 +10825,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 576,
+        "pixels_changed": 312,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10282,6 +10908,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 144,
+        "pixels_changed": 84,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10349,6 +10990,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 144,
+        "pixels_changed": 84,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -10418,6 +11074,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 100,
+        "pixels_changed": 80,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10485,6 +11156,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 100,
+        "pixels_changed": 80,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -10554,6 +11240,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 440,
+        "pixels_changed": 314,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10621,6 +11322,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 440,
+        "pixels_changed": 314,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -10690,6 +11406,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 1848,
+        "pixels_changed": 1292,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10758,6 +11489,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 1848,
+        "pixels_changed": 1292,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10825,6 +11571,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 440,
+        "pixels_changed": 314,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -10894,6 +11655,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 440,
+        "pixels_changed": 314,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -10962,6 +11738,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 440,
+        "pixels_changed": 314,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -11029,6 +11820,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 440,
+        "pixels_changed": 314,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -11098,6 +11904,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 100,
+        "pixels_changed": 80,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -11166,6 +11987,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 100,
+        "pixels_changed": 80,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -11234,6 +12070,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11302,6 +12139,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11370,6 +12208,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11438,6 +12277,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11506,6 +12346,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11574,6 +12415,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11642,6 +12484,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11710,6 +12553,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11778,6 +12622,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11846,6 +12691,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11914,6 +12760,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -11982,6 +12829,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -12050,6 +12898,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 90,
+        "pixels_changed": 64,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -12117,6 +12980,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 90,
+        "pixels_changed": 64,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -12186,6 +13064,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 342,
+        "pixels_changed": 268,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -12253,6 +13146,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 342,
+        "pixels_changed": 268,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -12322,6 +13230,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 1444,
+        "pixels_changed": 1076,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -12390,6 +13313,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 1444,
+        "pixels_changed": 1076,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -12457,6 +13395,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 342,
+        "pixels_changed": 268,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -12526,6 +13479,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 342,
+        "pixels_changed": 268,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -12594,6 +13562,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 342,
+        "pixels_changed": 268,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -12661,6 +13644,21 @@
         "components_after": 2,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 342,
+        "pixels_changed": 268,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -12730,6 +13728,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 90,
+        "pixels_changed": 64,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -12798,6 +13811,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 90,
+        "pixels_changed": 64,
+        "unrelated_chains": 0,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 1,
+        "components_after": 1,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -12866,6 +13894,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -12934,6 +13963,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13002,6 +14032,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13070,6 +14101,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13138,6 +14170,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13206,6 +14239,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13274,6 +14308,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13342,6 +14377,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13410,6 +14446,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13478,6 +14515,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13546,6 +14584,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13614,6 +14653,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13682,6 +14722,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13750,6 +14791,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13818,6 +14860,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13886,6 +14929,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -13954,6 +14998,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14022,6 +15067,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14090,6 +15136,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14158,6 +15205,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14226,6 +15274,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14294,6 +15343,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14362,6 +15412,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14430,6 +15481,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14498,6 +15550,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14566,6 +15619,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14634,6 +15688,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14702,6 +15757,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14770,6 +15826,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14838,6 +15895,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14906,6 +15964,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -14974,6 +16033,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15042,6 +16102,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15110,6 +16171,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15178,6 +16240,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15246,6 +16309,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15314,6 +16378,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15382,6 +16447,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15450,6 +16516,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15518,6 +16585,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15586,6 +16654,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15654,6 +16723,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15722,6 +16792,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15790,6 +16861,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15858,6 +16930,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15926,6 +16999,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -15994,6 +17068,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16062,6 +17137,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16130,6 +17206,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16198,6 +17275,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16266,6 +17344,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16334,6 +17413,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16402,6 +17482,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16470,6 +17551,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16538,6 +17620,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16606,6 +17689,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16674,6 +17758,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16742,6 +17827,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16810,6 +17896,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16878,6 +17965,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -16946,6 +18034,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17014,6 +18103,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17082,6 +18172,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17150,6 +18241,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17218,6 +18310,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17286,6 +18379,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17354,6 +18448,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17422,6 +18517,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17490,6 +18586,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17558,6 +18655,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17626,6 +18724,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17694,6 +18793,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17762,6 +18862,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17830,6 +18931,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17898,6 +19000,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -17966,6 +19069,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18034,6 +19138,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18102,6 +19207,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18170,6 +19276,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18238,6 +19345,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18306,6 +19414,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18374,6 +19483,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18442,6 +19552,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18510,6 +19621,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18578,6 +19690,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18646,6 +19759,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18714,6 +19828,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18782,6 +19897,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18850,6 +19966,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18918,6 +20035,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -18986,6 +20104,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19054,6 +20173,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19122,6 +20242,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19190,6 +20311,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19258,6 +20380,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19326,6 +20449,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19394,6 +20518,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19462,6 +20587,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19530,6 +20656,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19598,6 +20725,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19666,6 +20794,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19734,6 +20863,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19802,6 +20932,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19870,6 +21001,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -19938,6 +21070,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20006,6 +21139,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20074,6 +21208,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20142,6 +21277,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20210,6 +21346,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20278,6 +21415,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20346,6 +21484,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20414,6 +21553,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20482,6 +21622,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20550,6 +21691,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20618,6 +21760,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20686,6 +21829,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20754,6 +21898,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20822,6 +21967,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20890,6 +22036,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -20958,6 +22105,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21026,6 +22174,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21094,6 +22243,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21162,6 +22312,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21230,6 +22381,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21298,6 +22450,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21366,6 +22519,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21434,6 +22588,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21502,6 +22657,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21570,6 +22726,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21638,6 +22795,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21706,6 +22864,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21774,6 +22933,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21842,6 +23002,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21910,6 +23071,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -21978,6 +23140,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22046,6 +23209,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22114,6 +23278,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22182,6 +23347,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22250,6 +23416,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22318,6 +23485,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22386,6 +23554,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22454,6 +23623,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22522,6 +23692,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22590,6 +23761,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22658,6 +23830,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22726,6 +23899,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22794,6 +23968,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22862,6 +24037,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22930,6 +24106,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -22998,6 +24175,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23066,6 +24244,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23134,6 +24313,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23202,6 +24382,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23270,6 +24451,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23338,6 +24520,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23406,6 +24589,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23474,6 +24658,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23542,6 +24727,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23610,6 +24796,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23678,6 +24865,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23746,6 +24934,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23814,6 +25003,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23882,6 +25072,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -23950,6 +25141,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24018,6 +25210,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24086,6 +25279,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24154,6 +25348,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24222,6 +25417,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24290,6 +25486,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24358,6 +25555,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24426,6 +25624,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24494,6 +25693,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24562,6 +25762,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24630,6 +25831,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24698,6 +25900,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24766,6 +25969,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24834,6 +26038,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24902,6 +26107,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -24970,6 +26176,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25038,6 +26245,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25106,6 +26314,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25174,6 +26383,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25242,6 +26452,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25310,6 +26521,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25378,6 +26590,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25446,6 +26659,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25514,6 +26728,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25582,6 +26797,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25650,6 +26866,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25718,6 +26935,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25786,6 +27004,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25854,6 +27073,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25922,6 +27142,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -25990,6 +27211,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26058,6 +27280,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26126,6 +27349,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26194,6 +27418,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26262,6 +27487,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26330,6 +27556,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26398,6 +27625,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26466,6 +27694,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26534,6 +27763,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26602,6 +27832,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26670,6 +27901,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26738,6 +27970,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26806,6 +28039,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26874,6 +28108,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -26942,6 +28177,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27010,6 +28246,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27078,6 +28315,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27146,6 +28384,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27214,6 +28453,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27282,6 +28522,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27350,6 +28591,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27418,6 +28660,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27486,6 +28729,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27554,6 +28798,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27622,6 +28867,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27690,6 +28936,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27758,6 +29005,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27826,6 +29074,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27894,6 +29143,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -27962,6 +29212,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28030,6 +29281,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28098,6 +29350,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28166,6 +29419,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28234,6 +29488,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28302,6 +29557,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28370,6 +29626,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28438,6 +29695,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28506,6 +29764,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28574,6 +29833,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28642,6 +29902,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28710,6 +29971,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28778,6 +30040,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28846,6 +30109,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28914,6 +30178,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -28982,6 +30247,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29050,6 +30316,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29118,6 +30385,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29186,6 +30454,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29254,6 +30523,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29322,6 +30592,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29390,6 +30661,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29458,6 +30730,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29526,6 +30799,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29594,6 +30868,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29662,6 +30937,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29730,6 +31006,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29798,6 +31075,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29866,6 +31144,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -29934,6 +31213,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30002,6 +31282,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30070,6 +31351,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30138,6 +31420,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30206,6 +31489,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30274,6 +31558,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 64,
+        "pixels_changed": 52,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -30341,6 +31640,21 @@
         "components_after": 3,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 64,
+        "pixels_changed": 52,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -30410,6 +31724,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "compound(c-1,h-1)",
+        "declared_steps": 2,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 256,
+        "pixels_changed": 176,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 3,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -30478,6 +31807,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "compound(c-1,h-1)",
+        "declared_steps": 2,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 256,
+        "pixels_changed": 176,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 3,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -30546,6 +31890,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30614,6 +31959,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30682,6 +32028,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30750,6 +32097,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30818,6 +32166,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30886,6 +32235,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -30954,6 +32304,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31022,6 +32373,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31090,6 +32442,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 256,
+        "pixels_changed": 208,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -31157,6 +32524,21 @@
         "components_after": 3,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 256,
+        "pixels_changed": 208,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -31226,6 +32608,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "compound(c-1,h-1)",
+        "declared_steps": 2,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 1024,
+        "pixels_changed": 700,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 3,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -31294,6 +32691,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "compound(c-1,h-1)",
+        "declared_steps": 2,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 1024,
+        "pixels_changed": 700,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 3,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -31362,6 +32774,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31430,6 +32843,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31498,6 +32912,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31566,6 +32981,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31634,6 +33050,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31702,6 +33119,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31770,6 +33188,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31838,6 +33257,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -31906,6 +33326,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 1024,
+        "pixels_changed": 812,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -31973,6 +33408,21 @@
         "components_after": 3,
         "holes_before": 1,
         "holes_after": 2
+      },
+      "transaction_hole_fill": {
+        "declared": "hole_fill",
+        "declared_steps": 1,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 1024,
+        "pixels_changed": 812,
+        "unrelated_chains": 2,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 2,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
       },
       "excluded_from_transactions": false
     },
@@ -32042,6 +33492,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "compound(c-1,h-1)",
+        "declared_steps": 2,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 4096,
+        "pixels_changed": 2780,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 3,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -32110,6 +33575,21 @@
         "holes_before": 1,
         "holes_after": 2
       },
+      "transaction_hole_fill": {
+        "declared": "compound(c-1,h-1)",
+        "declared_steps": 2,
+        "committed": true,
+        "refusal": null,
+        "refusal_kind": null,
+        "roi_area_px": 4096,
+        "pixels_changed": 2780,
+        "unrelated_chains": 1,
+        "unrelated_chains_that_moved": 0,
+        "components_before": 3,
+        "components_after": 2,
+        "holes_before": 1,
+        "holes_after": 0
+      },
       "excluded_from_transactions": false
     },
     {
@@ -32178,6 +33658,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -32246,6 +33727,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -32314,6 +33796,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -32382,6 +33865,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -32450,6 +33934,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -32518,6 +34003,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -32586,6 +34072,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     },
     {
@@ -32654,6 +34141,7 @@
         "holes_before": 0,
         "holes_after": 1
       },
+      "transaction_hole_fill": null,
       "excluded_from_transactions": false
     }
   ],
@@ -32723,18 +34211,18 @@
       0
     ]
   ],
-  "transactions_attempted": 960,
-  "transaction_shapes": 2,
-  "transactions_committed": 678,
-  "transactions_committed_on_non_empty_arms": 662,
+  "transactions_attempted": 1032,
+  "transaction_shapes": 3,
+  "transactions_committed": 750,
+  "transactions_committed_on_non_empty_arms": 734,
   "transactions_rolled_back": 282,
-  "unrelated_chains_total": 556,
+  "unrelated_chains_total": 610,
   "unrelated_chains_that_moved": 0,
-  "transactions_with_no_unrelated_population": 200,
+  "transactions_with_no_unrelated_population": 232,
   "transaction_arms_excluded": 0,
-  "transactions_compound": 172,
-  "transactions_compound_committed": 172,
-  "transactions_unit_step": 478,
+  "transactions_compound": 178,
+  "transactions_compound_committed": 178,
+  "transactions_unit_step": 544,
   "transactions_identity": 310,
   "max_declared_steps": 4,
   "declared_kinds_exercised": {
@@ -32742,8 +34230,10 @@
     "compound(c+0,h+2)": 6,
     "compound(c+1,h+1)": 118,
     "compound(c-1,h+1)": 46,
+    "compound(c-1,h-1)": 6,
     "compound(c-3,h+1)": 2,
     "gap_open": 128,
+    "hole_fill": 66,
     "hole_open": 308,
     "identity": 310
   },
