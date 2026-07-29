@@ -440,13 +440,30 @@ impl DcelReport {
         // population of it, and the three floors are the CAUSE (shapes) and
         // two EFFECTS (count, distinct deltas), because a floor on the count
         // alone is met by one delta repeated.
+        // M6 adds the COMPOUND conjuncts. §28 M5's bullet names "local COMPOUND
+        // topology transactions", and until M6 this row was green while that
+        // subclass was EMPTY: the harness excluded it and mislabelled what it
+        // excluded (F-0081). A clause naming a subclass must stand on a
+        // population of it. Three conjuncts, not one, because a floor on the
+        // count alone is met by one delta repeated and because the count is a
+        // consequence of the SHAPE set, which is the cheaper thing to lose.
+        let distinct_compound = self
+            .declared_kinds_exercised
+            .keys()
+            .filter(|k| k.starts_with("compound("))
+            .count() as u64;
         let mutation_row = cfg
             .min_transactions
             .met_by(self.transactions_committed_on_non_empty_arms)
             && cfg
                 .min_unrelated_chain_population
                 .met_by(self.unrelated_chains_total)
-            && self.unrelated_chains_that_moved == 0;
+            && self.unrelated_chains_that_moved == 0
+            && cfg
+                .min_compound_transactions
+                .met_by(self.transactions_compound_committed)
+            && cfg.min_distinct_compound_deltas.met_by(distinct_compound)
+            && cfg.min_transaction_shapes.met_by(self.transaction_shapes);
 
         // Clause 4: NO DANGLING/INVALID FACES.
         //

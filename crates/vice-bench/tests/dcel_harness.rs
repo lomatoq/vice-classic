@@ -372,3 +372,72 @@ fn the_oriented_floor_equals_what_the_register_produces() {
          MET, in a key whose comment justifies itself by condition 51's `every size, both arms`"
     );
 }
+
+/// **The three COMPOUND conjuncts each have a world in which they are false.**
+///
+/// §32's rule: before adding a conjunct, exhibit a world where it is false. The
+/// compound floors were added because the subclass §28 M5 names was empty while
+/// the row was green (F-0081), so a floor that cannot go red would repeat the
+/// defect one level up — the row would then claim a population it does not
+/// check.
+///
+/// Both directions, and separately per conjunct, because three conjuncts that
+/// only ever fail together are one conjunct wearing three names. The positive
+/// control is the real run: if the clean row were not MET, every "NOT MET"
+/// below would be free.
+#[test]
+#[ignore = "walks the corpus; wired into CI in release"]
+fn each_compound_floor_has_a_world_in_which_it_is_false() {
+    let cfg =
+        dcel::report::DcelGateConfig::for_tests_from_the_committed_file().expect("gate config");
+    let real = run_at(TopologyScope::Full, PRODUCTION);
+    let row = |r: &dcel::report::DcelReport| {
+        r.gate_table(&cfg)
+            .into_iter()
+            .find(|(n, _, _)| *n == "no unrelated graph mutation")
+            .expect("clause 3 row")
+            .1
+    };
+
+    // POSITIVE CONTROL.
+    assert!(
+        row(&real),
+        "clause 3 must be MET on the clean run, or the negatives below prove nothing"
+    );
+    assert!(real.transactions_compound_committed > 0);
+    assert!(real.transaction_shapes >= 3);
+
+    // (1) the COUNT collapses - a harness that attempts compound edits and
+    //     commits none.
+    let mut a = real.clone();
+    a.transactions_compound_committed = 0;
+    assert!(!row(&a), "a zero compound population must redden clause 3");
+
+    // (2) the DELTAS collapse to one, with the count untouched. This is the
+    //     bypass the second floor exists for: 118 copies of one delta clear a
+    //     floor of 100 while exercising one shape's one behaviour.
+    let mut b = real.clone();
+    let n = b.transactions_compound_committed;
+    b.declared_kinds_exercised
+        .retain(|k, _| !k.starts_with("compound("));
+    b.declared_kinds_exercised
+        .insert("compound(c+1,h+1)".to_string(), n);
+    assert_eq!(
+        b.transactions_compound_committed, n,
+        "the count must be UNCHANGED, or this is testing conjunct (1) again"
+    );
+    assert!(
+        !row(&b),
+        "one compound delta repeated must redden clause 3 even at full count"
+    );
+
+    // (3) a SHAPE is lost - the cheapest regression, and the cause the other
+    //     two are effects of.
+    let mut c = real.clone();
+    c.transaction_shapes = 2;
+    assert!(!row(&c), "losing an edit shape must redden clause 3");
+
+    // And the clean row is still MET after all that, so the mutations above
+    // were the reason and not some state they left behind.
+    assert!(row(&real), "the unmutated report must still be MET");
+}

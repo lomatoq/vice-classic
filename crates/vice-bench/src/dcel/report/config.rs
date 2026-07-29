@@ -57,6 +57,17 @@ pub struct DcelGateConfig {
     /// Register arms carrying a face loop of three or more half-edges: the
     /// population §12's ORIENTED clause stands on (RT5-A17, M5A-D3-N1).
     pub min_register_arms_with_a_long_loop: Threshold,
+    /// Transactions worth two or more unit steps: §28 M5's COMPOUND subclass,
+    /// delivered in M6. Without this floor a commit that lost an edit shape
+    /// empties the population with every §28 M5 row still MET (M5A-D3-N1).
+    pub min_compound_transactions: Threshold,
+    /// Distinct compound DELTAS. A floor on the count alone is met by ONE
+    /// delta repeated: 118 copies of (+1,+1) would clear a floor of 100 while
+    /// exercising one shape's one behaviour.
+    pub min_distinct_compound_deltas: Threshold,
+    /// Edit shapes applied per arm: the CAUSE the two counts above are effects
+    /// of, floored separately so the cheapest regression is caught at source.
+    pub min_transaction_shapes: Threshold,
 }
 
 impl DcelGateConfig {
@@ -78,6 +89,7 @@ impl DcelGateConfig {
 
     pub fn from_gates(g: &GatesFile) -> Result<DcelGateConfig, String> {
         let t = |key: &str| Threshold::from_gates(g, "dcel", key);
+        let c = |key: &str| Threshold::from_gates(g, "dcel_compound", key);
         Ok(DcelGateConfig {
             min_arms: t("gate_min_arms")?,
             min_structural_arms: t("gate_min_structural_arms")?,
@@ -87,6 +99,9 @@ impl DcelGateConfig {
             min_resolving_power_probes: t("gate_min_resolving_power_probes")?,
             min_slots_perturbed: t("gate_min_slots_perturbed")?,
             min_register_arms_with_a_long_loop: t("gate_min_register_arms_with_a_long_loop")?,
+            min_compound_transactions: c("gate_min_compound_transactions")?,
+            min_distinct_compound_deltas: c("gate_min_distinct_compound_deltas")?,
+            min_transaction_shapes: c("gate_min_transaction_shapes")?,
         })
     }
 }
