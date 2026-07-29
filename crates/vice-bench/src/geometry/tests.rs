@@ -17,6 +17,50 @@ fn the_geometry_intervention_config_binds_the_model_and_pricing_versions() {
     assert_eq!(config.max_canonical_cuts, vice_fit::MAX_CANONICAL_CUTS);
 }
 
+#[test]
+fn the_backend_digest_covers_every_fitting_and_intervention_rust_source() {
+    fn collect_rs(root: &std::path::Path, workspace: &std::path::Path, out: &mut Vec<String>) {
+        for entry in std::fs::read_dir(root).expect("source directory") {
+            let path = entry.expect("source entry").path();
+            if path.is_dir() {
+                collect_rs(&path, workspace, out);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                out.push(
+                    path.strip_prefix(workspace)
+                        .expect("source lies in workspace")
+                        .to_string_lossy()
+                        .replace('\\', "/"),
+                );
+            }
+        }
+    }
+
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workspace = manifest
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("workspace");
+    let mut actual = Vec::new();
+    collect_rs(
+        &workspace.join("crates/vice-fit/src"),
+        workspace,
+        &mut actual,
+    );
+    collect_rs(&manifest.join("src/geometry"), workspace, &mut actual);
+    actual.sort();
+
+    let mut registered: Vec<String> = BACKEND_SOURCE_PATHS
+        .iter()
+        .map(|(path, _)| (*path).to_string())
+        .filter(|path| path.ends_with(".rs"))
+        .collect();
+    registered.sort();
+    assert_eq!(
+        registered, actual,
+        "a fitting/intervention source can change behaviour without moving the compatibility key"
+    );
+}
+
 fn one_boundary_measurement() -> GeometryMeasurements {
     let config = GeometryOracleConfig::default();
     let key = compatibility_key(&config, "cfg", "fixture");

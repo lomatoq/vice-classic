@@ -116,24 +116,104 @@ impl Default for GeometryOracleConfig {
     }
 }
 
-fn backend_source_hash() -> String {
-    let sources = [
-        include_str!("../../../vice-fit/src/lib.rs"),
-        include_str!("../../../vice-fit/src/models.rs"),
-        include_str!("../../../vice-fit/src/models/closed.rs"),
-        include_str!("../../../vice-fit/src/grammar.rs"),
-        include_str!("../../../vice-fit/src/refit.rs"),
-        include_str!("../../../vice-fit/src/refit/g1.rs"),
-        include_str!("../../../vice-fit/src/solve.rs"),
-        include_str!("../../../vice-fit/src/relation.rs"),
-        include_str!("../../../vice-fit/src/primitive.rs"),
+const BACKEND_SOURCE_PATHS: [(&str, &str); 22] = [
+    (
+        "crates/vice-fit/src/code.rs",
         include_str!("../../../vice-fit/src/code.rs"),
-        include_str!("../../../vice-fit/src/cost.rs"),
+    ),
+    (
+        "crates/vice-fit/src/corner.rs",
         include_str!("../../../vice-fit/src/corner.rs"),
+    ),
+    (
+        "crates/vice-fit/src/cost.rs",
+        include_str!("../../../vice-fit/src/cost.rs"),
+    ),
+    (
+        "crates/vice-fit/src/gate.rs",
+        include_str!("../../../vice-fit/src/gate.rs"),
+    ),
+    (
+        "crates/vice-fit/src/grammar.rs",
+        include_str!("../../../vice-fit/src/grammar.rs"),
+    ),
+    (
+        "crates/vice-fit/src/lib.rs",
+        include_str!("../../../vice-fit/src/lib.rs"),
+    ),
+    (
+        "crates/vice-fit/src/models.rs",
+        include_str!("../../../vice-fit/src/models.rs"),
+    ),
+    (
+        "crates/vice-fit/src/models/closed.rs",
+        include_str!("../../../vice-fit/src/models/closed.rs"),
+    ),
+    (
+        "crates/vice-fit/src/models/ranking_tests.rs",
+        include_str!("../../../vice-fit/src/models/ranking_tests.rs"),
+    ),
+    (
+        "crates/vice-fit/src/primitive.rs",
+        include_str!("../../../vice-fit/src/primitive.rs"),
+    ),
+    (
+        "crates/vice-fit/src/refit.rs",
+        include_str!("../../../vice-fit/src/refit.rs"),
+    ),
+    (
+        "crates/vice-fit/src/refit/g1.rs",
+        include_str!("../../../vice-fit/src/refit/g1.rs"),
+    ),
+    (
+        "crates/vice-fit/src/relation.rs",
+        include_str!("../../../vice-fit/src/relation.rs"),
+    ),
+    (
+        "crates/vice-fit/src/schedule.rs",
         include_str!("../../../vice-fit/src/schedule.rs"),
+    ),
+    (
+        "crates/vice-fit/src/solve.rs",
+        include_str!("../../../vice-fit/src/solve.rs"),
+    ),
+    (
+        "crates/vice-fit/src/solve/corridor.rs",
+        include_str!("../../../vice-fit/src/solve/corridor.rs"),
+    ),
+    (
+        "crates/vice-fit/src/span.rs",
         include_str!("../../../vice-fit/src/span.rs"),
-    ];
-    sha256_hex(sources.join("\u{1e}").as_bytes())
+    ),
+    (
+        "crates/vice-bench/src/geometry/gate.rs",
+        include_str!("gate.rs"),
+    ),
+    (
+        "crates/vice-bench/src/geometry/mod.rs",
+        include_str!("mod.rs"),
+    ),
+    (
+        "crates/vice-bench/src/geometry/observations.rs",
+        include_str!("observations.rs"),
+    ),
+    (
+        "crates/vice-bench/src/geometry/tests.rs",
+        include_str!("tests.rs"),
+    ),
+    (
+        "crates/vice-bench/src/geometry/source_manifest_v1",
+        "all Rust sources under vice-fit/src and vice-bench/src/geometry",
+    ),
+];
+
+fn backend_source_hash() -> String {
+    let framed = BACKEND_SOURCE_PATHS
+        .iter()
+        .map(|(path, source)| format!("{path}\u{1f}{source}"))
+        .collect::<Vec<_>>()
+        .join("\u{1e}");
+    sha256_hex(framed.as_bytes())
 }
 
 fn compatibility_key(
