@@ -49,6 +49,7 @@ pub mod cost;
 pub mod grammar;
 pub mod models;
 pub mod refit;
+pub mod relation;
 pub mod schedule;
 pub mod solve;
 pub mod span;
@@ -72,6 +73,7 @@ pub use refit::{
     canonical_angle, g1_readings, ArcAnchor, G1Reading, Handle, RefitChain, RefitNode,
     RefitRefusal, RefitSegment, FEASIBLE_HALFWIDTHS,
 };
+pub use relation::{apply_accepted, relation_hypotheses, RelationHypothesis, RelationKind};
 pub use schedule::{
     anchored_schedule, anchored_schedule_bound, hierarchical_schedule, FitBudget, Support,
     FIT_BUDGET_V1, MIN_SUPPORT_SAMPLES, SUPPORTS_PER_SAMPLE_BOUND,

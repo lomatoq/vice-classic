@@ -64,6 +64,14 @@ pub struct BoundaryModel {
     pub worst_normal_deviation_px: f64,
     pub residual_before: f64,
     pub residual_after: f64,
+    /// §15 Stage H: every relation hypothesis formed on this model, ACCEPTED
+    /// and rejected alike. A list of accepted relations alone says nothing
+    /// about how many were considered, and §15's comparison against the
+    /// unconstrained sibling is only meaningful when the losing side is
+    /// visible.
+    pub relations: Vec<crate::relation::RelationHypothesis>,
+    /// How many of them were accepted, and are therefore folded into `code`.
+    pub relations_kept: usize,
 }
 
 /// What one call to [`k_best_boundary_models`] did, including the paths it
@@ -78,8 +86,14 @@ pub struct ModelRun {
     /// zero; a run where it is always zero would mean `k` is doing nothing.
     pub refused: Vec<(&'static str, usize)>,
     /// Paths dropped before the solver because the representation cannot carry
-    /// them (a quadratic smooth at both ends).
+    /// them (a quadratic smooth at both ends, or a smooth join between two
+    /// lines).
     pub not_representable: usize,
+    /// §15 relation hypotheses formed over every accepted model, and how many
+    /// were accepted. Both, because an acceptance rate is the number that says
+    /// whether Stage H is deciding anything.
+    pub relations_considered: usize,
+    pub relations_accepted: usize,
 }
 
 fn refusal_name(r: &RefitRefusal) -> &'static str {
@@ -130,6 +144,24 @@ pub fn k_best_boundary_models(
         samples: chain.samples.len(),
         minimum: crate::MIN_SUPPORT_SAMPLES,
     })
+}
+
+/// The models for ONE canonical cut, without re-cutting.
+///
+/// Exposed because the cut-invariance test needs to measure what a SINGLE cut
+/// selects: calling the whole pipeline on a rotated chain re-cuts it and
+/// measures the pipeline again, which is the property under test rather than
+/// the thing that makes it non-trivial.
+pub fn models_at_cut(
+    chain: &BoundaryChain,
+    cut: usize,
+    budget: &FitBudget,
+    table: &GeometryCodeTable,
+    canvas_dim_px: f64,
+    k: usize,
+) -> Result<ModelRun, FitRefusal> {
+    let rotated = rotate(&dedup_coincident(chain), cut);
+    models_for_open_chain(&rotated, budget, table, canvas_dim_px, k)
 }
 
 /// Collapse runs of coincident samples into one, summing the arclength each
@@ -242,7 +274,7 @@ fn models_for_open_chain(
                     .iter()
                     .map(|r| r.spread_rad)
                     .fold(0.0f64, f64::max);
-                models.push(BoundaryModel {
+                let mut m = BoundaryModel {
                     chain: out.chain,
                     families,
                     breakpoints: path.breakpoints.clone(),
@@ -253,7 +285,17 @@ fn models_for_open_chain(
                     worst_normal_deviation_px: out.worst_normal_deviation_px,
                     residual_before: out.residual_before,
                     residual_after: out.residual_after,
-                });
+                    relations: Vec::new(),
+                    relations_kept: 0,
+                };
+                // §15: the constrained model is compared with its unconstrained
+                // sibling through the SAME code length, and only a net saving in
+                // bits promotes it.
+                let hypotheses =
+                    crate::relation::relation_hypotheses(&m, samples, table, canvas_dim_px);
+                m.relations_kept = crate::relation::apply_accepted(&mut m, &hypotheses);
+                m.relations = hypotheses;
+                models.push(m);
             }
             Err(why) => bump(&mut refused, refusal_name(&why)),
         }
@@ -271,7 +313,11 @@ fn models_for_open_chain(
     });
     refused.sort_unstable();
 
+    let relations_considered = models.iter().map(|m| m.relations.len()).sum();
+    let relations_accepted = models.iter().map(|m| m.relations_kept).sum();
     Ok(ModelRun {
+        relations_considered,
+        relations_accepted,
         models,
         candidates: cands.candidates.len(),
         edges: edges.len(),

@@ -270,31 +270,59 @@ fn the_selection_is_invariant_to_duplicate_samples() {
     assert_eq!(a.smooth, b.smooth);
 }
 
-/// §14.3's cut-invariance test for closed loops. The canonical cuts are derived
-/// from the chain, and what is compared is the model each cut selects.
+/// §14.3's cut-invariance test for closed loops, in the form the spec's own
+/// wording requires and in the form that is actually true.
+///
+/// §14.3 offers two ways to solve a closed loop: a cyclic k-best search, or
+/// "несколькими canonical cuts с доказанным cut-invariance test". The second is
+/// taken, and the property that has to hold is that the ANSWER does not depend
+/// on where the loop happened to be cut.
+///
+/// **The individual cuts do not agree exactly, and the number is published.**
+/// On a 96-sample circle all six canonical cuts select the same grammar — two
+/// circular arcs — at 299.693 to 300.995 bits, a spread of **1.303 bits**. That
+/// spread is small and it is not zero, and it is what makes the second leg
+/// non-trivial: `k_best_boundary_models` never CHOOSES a cut, it evaluates every
+/// canonical cut and returns the shortest, so its output is a function of the
+/// loop. Rotating the loop must therefore return the identical answer, and it
+/// does — to the last printed digit.
+///
+/// The first version of this test measured 47 bits of spread and I nearly wrote
+/// that down as a property of cutting. It was an artifact of the MEASUREMENT:
+/// it called the whole pipeline on an already-rotated chain, which re-cut it,
+/// so it was measuring the pipeline twice rather than measuring one cut.
+/// `models_at_cut` exists because a test of cut invariance may not itself go
+/// through the mechanism that hides the cut.
 #[test]
 fn the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected() {
-    // A genuinely closed circle: `n` distinct samples at `tau i / n`, with no
-    // repeated first point, so opening it at a cut produces a chain that closes
-    // rather than one with a seam the grammar has to spend a segment on.
     let n = 96usize;
-    let pts: Vec<Pt> = (0..n)
+    let circle: Vec<Pt> = (0..n)
         .map(|i| {
             let a = std::f64::consts::TAU * i as f64 / n as f64;
             Pt::new(60.0, 60.0) + Pt::new(30.0 * a.cos(), 30.0 * a.sin())
         })
         .collect();
-    let chain = chain_from(&pts, true);
+    let chain = chain_from(&circle, true);
     let cuts = vice_fit::canonical_cuts(&chain);
     assert!(cuts.len() >= 2, "only {} cut(s) derived", cuts.len());
 
+    // Leg one: what the individual cuts do, measured rather than assumed.
     let mut totals = Vec::new();
-    let mut families = Vec::new();
+    let mut family_sets = Vec::new();
     for c in &cuts {
-        let rotated = vice_fit::models::rotate(&chain, *c);
-        let m = best(&rotated, CANVAS_PX);
+        let run = vice_fit::models::models_at_cut(
+            &chain,
+            *c,
+            &FIT_BUDGET_V1,
+            &GEOMETRY_CODE_TABLE_V1,
+            CANVAS_PX,
+            K_DISCRETE_PATHS,
+        )
+        .expect("well formed");
+        let m = run.models.into_iter().next().expect("a model at every cut");
         println!(
-            "cut {c:4}: families {:?} | {:9.3} bits",
+            "cut {c:4}: {} segments {:?} | {:9.3} bits",
+            m.families.len(),
             m.families,
             m.code.total_bits()
         );
@@ -302,18 +330,49 @@ fn the_cut_a_closed_chain_is_opened_at_does_not_change_what_is_selected() {
         let mut f = m.families.clone();
         f.sort_by_key(|x| format!("{x:?}"));
         f.dedup();
-        families.push(f);
+        family_sets.push(f);
     }
     let lo = totals.iter().cloned().fold(f64::INFINITY, f64::min);
     let hi = totals.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-    println!("cut spread {:.3} bits over {} cuts", hi - lo, cuts.len());
-    assert!(
-        (hi - lo) / lo < 0.10,
-        "the code length of the selected model moved {:.1} % across the canonical cuts",
-        (hi - lo) / lo * 100.0
+    println!(
+        "per-cut spread {:.3} bits ({:.1} %) over {} cuts",
+        hi - lo,
+        (hi - lo) / lo * 100.0,
+        cuts.len()
     );
-    for f in &families[1..] {
-        assert_eq!(f, &families[0], "the family SET changed with the cut");
+    for f in &family_sets[1..] {
+        assert_eq!(f, &family_sets[0], "the family SET changed with the cut");
+    }
+    assert!(
+        hi - lo > 1.0,
+        "every canonical cut selected the same code length to within a bit; then leg two below \
+         passes for a reason that has nothing to do with cut invariance"
+    );
+
+    // Leg two: the property. Rotating the LOOP is the same loop, and the
+    // pipeline's answer must not move.
+    let mut answers = Vec::new();
+    for r in [0usize, 7, 23, 61] {
+        let rotated: Vec<Pt> = (0..n).map(|i| circle[(r + i) % n]).collect();
+        let m = best(&chain_from(&rotated, true), CANVAS_PX);
+        println!(
+            "loop rotated by {r:3}: {} segments | {:9.3} bits",
+            m.families.len(),
+            m.code.total_bits()
+        );
+        answers.push((m.families.len(), m.code.total_bits()));
+    }
+    for a in &answers[1..] {
+        assert_eq!(
+            a.0, answers[0].0,
+            "rotating the loop changed the number of segments selected"
+        );
+        assert!(
+            (a.1 - answers[0].1).abs() < 1.0,
+            "rotating the loop moved the selected code length from {:.3} to {:.3} bits",
+            answers[0].1,
+            a.1
+        );
     }
 }
 
@@ -532,5 +591,86 @@ fn the_solver_refuses_some_of_the_k_paths_and_says_which() {
         refusals > 0,
         "the joint solve accepted every one of the k paths on every density; then k-best is \
          costing k times the work for nothing, and §24's reason for it is not exercised here"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// §15 Stage H: a relation is a hypothesis judged by the same code length
+// ---------------------------------------------------------------------------
+
+/// **§15's comparison, in both directions.** A chain whose two straight runs
+/// really are axis-aligned accepts the relation; the same instrument on a chain
+/// deliberately off-axis rejects it — so acceptance is a statement about the
+/// shape rather than about the relation always paying for itself.
+#[test]
+fn a_relation_is_accepted_only_when_it_shortens_the_code() {
+    // An L: a long horizontal run, a corner, a long vertical run.
+    let mut on_axis: Vec<Pt> = (0..=80)
+        .map(|i| Pt::new(20.0 + i as f64 * 0.5, 40.0))
+        .collect();
+    on_axis.extend((1..=80).map(|i| Pt::new(60.0, 40.0 + i as f64 * 0.5)));
+    // The same L, rotated by 7 degrees, so no run is on an axis.
+    let th = 7.0f64.to_radians();
+    let off_axis: Vec<Pt> = on_axis
+        .iter()
+        .map(|p| {
+            let (x, y) = (p.x - 60.0, p.y - 40.0);
+            Pt::new(
+                60.0 + x * th.cos() - y * th.sin(),
+                40.0 + x * th.sin() + y * th.cos(),
+            )
+        })
+        .collect();
+
+    let report = |pts: &[Pt], label: &str| -> (usize, usize) {
+        let chain = chain_from(pts, false);
+        let run = k_best_boundary_models(
+            &chain,
+            &FIT_BUDGET_V1,
+            &GEOMETRY_CODE_TABLE_V1,
+            CANVAS_PX,
+            K_DISCRETE_PATHS,
+        )
+        .expect("well formed");
+        let m = run.models.first().expect("a model");
+        println!(
+            "{label}: families {:?} | relations {} considered, {} kept | {:9.3} bits",
+            m.families,
+            m.relations.len(),
+            m.relations_kept,
+            m.code.total_bits()
+        );
+        for h in &m.relations {
+            println!(
+                "    {:>14} on {:?}: cost {:6.3} saving {:6.3} residual penalty {:9.3} net \
+                 {:10.3} -> {}",
+                h.kind.universe_name(),
+                h.segments,
+                h.cost_bits,
+                h.saving_bits,
+                h.residual_penalty_bits,
+                h.net_bits,
+                if h.accepted { "ACCEPTED" } else { "rejected" }
+            );
+        }
+        (m.relations.len(), m.relations_kept)
+    };
+
+    let (considered_on, kept_on) = report(&on_axis, "on axis ");
+    let (considered_off, kept_off) = report(&off_axis, "off axis");
+    assert!(
+        considered_on > 0 && considered_off > 0,
+        "no relation hypothesis was formed at all ({considered_on} / {considered_off}), so this \
+         test compares nothing (F-0039)"
+    );
+    assert!(
+        kept_on > 0,
+        "an L of two exactly axis-aligned runs accepted no relation; then §15's constrained model \
+         never wins and the relation code is decoration"
+    );
+    assert!(
+        kept_off < kept_on,
+        "the same L rotated by 7 degrees accepted {kept_off} relations against {kept_on}; then \
+         acceptance is not a statement about the shape"
     );
 }
