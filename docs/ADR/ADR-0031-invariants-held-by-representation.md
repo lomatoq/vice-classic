@@ -250,3 +250,20 @@ were quoted back at me from three independent cold contexts.
    (F-0074). Anything reaching an artifact must be a function of BEHAVIOUR, not
    of source text; uniqueness by construction is achievable with a literal per
    branch plus a distinctness check, at no cost to artifact stability.
+
+
+## Erratum 6 — delta-6 (C276)
+
+1. **§3's leaf-count judge certifies the fields that exist TODAY**, not a
+   property of the structure. A field added later whose type serialises to
+   nothing is invisible to the walk, to the leaf count and to the artifact, at a
+   cost of nine lines (RT5-A16). The clause-4 row states this; the class closure
+   is a proc-macro deriving sites and count from one definition, owner M6.
+2. **The proof domain's two populations cover DIFFERENT predicates by
+   construction, and in opposite directions** (F-0077). The register carries the
+   long loops the ORIENTED clause needs; the corpus, incidentally, carries the
+   only arms that catch a `degree` defect — the register is blind to that one by
+   construction. Which population covers a predicate is a question each
+   predicate has to be asked separately.
+3. **Determinism: vertex ORDER is checked since delta-6; face numbering and loop
+   order within a face are promised and not checked** (M5A-D5-N1).

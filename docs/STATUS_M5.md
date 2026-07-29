@@ -1038,3 +1038,141 @@ because delta-4 read Q4 off a comment instead of off the code**, which is the
 finding of this delta and the reason the question is now asked of the call site.
 
 **STOPPED AFTER M5 DELTA-5 — M5.5 NOT STARTED.**
+
+
+---
+
+# Addendum 6 — delta-6 (C274–C276)
+
+`REDTEAM_M5` addendum 5 **FAIL** (1 MAJOR + 1 MINOR, **no live defect**),
+`REVIEW_M5_A` addendum 5 **ACCEPT WITH CONDITIONS / GATE MET** (no major),
+`REVIEW_M5_B` addendum 5 **ACCEPT WITH CONDITIONS / GATE MET**.
+
+## A6.1 RT5-A16 — the choice, and the price of the one not taken
+
+The FAIL rests on one carried item: a field added by a later commit, whose type
+serialises to nothing, is invisible to the perturbation walk, to the leaf count
+that guards the walk's completeness and to the artifact — and can carry a
+systematically wrong value behind a public accessor with four `[MET]`. **Nine
+lines**, and closing RT5-A18 removed an accidental protection that was never one.
+
+The red team named two sufficient remedies. **I took the second and state the
+first's price.**
+
+*Taken:* clause 4's row now says what it does **not** certify, in the same tone
+as the anchor sentence already there — it certifies **the fields the structure
+has today**, not a property of the structure. Cost: one paragraph.
+
+*Not taken:* a proc-macro deriving the perturbation sites and the leaf count
+from ONE definition. That is the class closure and I have called it the real
+price since delta-4. Cost: a new crate under §4.1, a derive that must be kept in
+step with `Parts`, and a second place for the walk's contract to live. **Owner
+M6.**
+
+Stating a boundary is cheaper than implying it is not there, and the row is
+where a reviewer meets the claim.
+
+## A6.2 RT5-A21 — a failure written as an absence
+
+`Err(_) => (0, 0, 0, 0, 0, 0)` wrote zero into `directed_steps`, which is also
+how an empty labelling is recognised. **F-0058 and meta-rule M-4 shared one
+counter.** Measured under a corruption: 8 empty arms became 22, the extra 14
+being audit failures — described by the evidence row as slivers thinner than a
+pixel, false of all fourteen, and absent from the denominator the floors are
+measured against.
+
+Fixed by SHAPE: the six counts move into `ArmAudit` and the field is `Option`,
+so "the instrument did not report" is a state no count can imitate.
+`arms_where_the_audit_refused` is published beside the empty count — 0 and 8 on
+the clean run.
+
+**Rule:** an error path may not write a value that elsewhere means the subject
+was absent.
+
+## A6.3 The name judge — two holes, found separately
+
+| | key | cost | closed |
+|---|---|---|---|
+| **RT5-A22** | one hardcoded path, so a branch in another file was invisible | **0 lines** | walks the module tree |
+| **M5B-E18b** | matched literals, so `const R: &str = "empty";` hid a duplicate | **2 lines** | a non-literal is REFUSED, not skipped |
+
+Limitation 50 carried the class without a price; it has the cheapest remaining
+one now — **one line**, a `branch:` written through a macro.
+
+## A6.4 The floor now tracks the register by equality
+
+It encoded "every size, both arms" only while the size list had three entries.
+The expected count is derived from the register and compared by **equality**, in
+the shape that already binds the gate file to the code. Add a size or a
+long-loop fixture and the test fails until the gate file is updated — a §27.7
+commit, by design. Q2's answer is no longer "someone will remember", a form this
+project has rejected eight times.
+
+## A6.5 M5A-D5-N1 — index and order
+
+The class generalises five deltas in one sentence: **everything bound to the
+input is bound as a SET or as a CYCLIC SEQUENCE, and every freedom left over —
+the choice of INDEX and of ORDER — is bound only to itself.** Two instances were
+executed against the tree and both left `audit` silent: permuting `vertices`
+with a consistent remap of `start`/`end`, and permuting the ids of two faces
+carrying the SAME label — which the anchor cannot see because it compares
+labels, not ids. That is the un-hit half of delta-2's finding, where the two
+faces had *different* labels.
+
+Vertex ORDER is checked now. **Face numbering and loop order within a face are
+not**, and the determinism paragraph says so with an owner instead of leaving an
+unexamined promise. It costs the topology nothing today; it becomes real at
+M6/§14.2, where an index is something a later stage quotes.
+
+## A6.6 The register's blind spot — taken from a FAILED attack
+
+The red team corrupted `Arrangement::degree` and the gate reddened on 14 arms —
+**all fourteen from the corpus**. `diagonal_pinch` and `diagonal_staircase`, the
+two fixtures built around a critical 2×2, pass the corruption **entirely**.
+
+So the structural register is **blind by construction to a `degree` defect**, and
+only incidental corpus arms catch it. That is the exact mirror of the loop
+situation, where the register covered by construction and the corpus was
+incidental — and neither asymmetry was written down anywhere.
+
+**Limitation 51.** The register guarantees coverage for what it was built to
+carry and for nothing else, and which of the two populations covers a given
+predicate is a question each predicate has to be asked separately. **Owner M6**,
+price: a fixture whose class depends on `degree` in a way the pinch's does not —
+or the honest alternative, a statement per predicate of which population carries
+it, which is cheaper and is what this limitation is.
+
+## A6.7 New limitations
+
+50. *(re-priced)* the branch-label scan: cheapest bypass is **one line**, a
+    `branch:` through a macro. **Owner M6.**
+51. **The structural register is blind by construction to a `degree` defect.**
+    A6.6. **Owner M6.**
+52. **Face numbering and loop order are promised and not checked.** A6.5.
+    **Owner M6.**
+
+## A6.8 F-0048 after delta-6, Q4 by code
+
+| mechanism | Q1 | Q2 | Q3 judge | Q4 provenance (by code) | Q5 | verdict |
+|---|---|---|---|---|---|---|
+| `ArmAudit` as `Option` **(new)** | no | criterion changes | the type | no | refused vs empty are distinct states | **PASSES** |
+| the floor–register equality **(new)** | no | the test fails until the gate file moves | derivation from the register | no | non-zero expectation asserted | **PASSES** |
+| chain maximality + vertex order | no | criterion changes | the labelling's vertex set, ordered | no | both directions, real cut, real permutation | **PASSES** |
+| the ORIENTED floor | no | criterion changes | a count from real loop lengths | no | two legs, says two | **PASSES** |
+| the branch-label judge | no | a duplicate or a non-literal fails | the module tree | no | both, price named | **PASSES**, one-line bypass named |
+| `loops_agree_with_the_labelling` | no | criterion changes | re-derivation from input | no data; YES algorithm, stated | RT5-A13 red | **PASSES on data-provenance** |
+| `audit`'s labelling anchor | no | criterion changes | per-pixel comparison | no | guarded by knockouts | **PASSES** |
+| `crossing::face_map_agrees` | no | criterion changes | independent traversal | **YES, through `owners`** | 153 unique slots | **DOES NOT PASS Q4** |
+| `Parts::perturbations` | no | leaf count moves | compiler + derive + scan | **YES — derive and field TYPE** | red, empty, idle | **DOES NOT PASS Q4.** Clause 4 now states the consequence |
+| `audit()` | **YES** | "append a block" | habit, bounded over perturbations | — | domain named | **DOES NOT PASS** |
+| `RunKnockouts` | no | a clause without a knockout fails | the gate table | no | each reddens its own row | **PASSES** |
+| `transaction_for` | **YES** | "the fifth kind is dropped" | the outcome | yes | excluded count published | **DOES NOT PASS.** Limitation 37, owner M6 |
+| representation invariants (six) | no | criterion changes | compiler | no | yes | **PASSES** |
+| `Threshold::from_gates` | no | type error | compiler | no | yes | **PASSES** |
+| CI claim checker | no | a claim without a step fails | the workflow | no | both | **PASSES** |
+| `doc_claims` doc set | exceptions only | forgetting is red | the file system | no | stale exceptions fail | **PASSES as a default** |
+
+Four rows do not pass. Each has a residual, an owner and — since delta-6 — a
+consequence stated in the gate row a reviewer actually reads.
+
+**STOPPED AFTER M5 DELTA-6 — M5.5 NOT STARTED.**
