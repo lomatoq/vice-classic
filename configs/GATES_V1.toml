@@ -338,7 +338,19 @@ gate_min_resolving_power_probes = 10
 # corpus carries 14 such arms and they are published beside this, but they are
 # incidental and a corpus change could remove them. Measured: 6 register arms,
 # 20 in total, longest loop 8 half-edges.
-gate_min_register_arms_with_a_long_loop = 4
+#
+# SIX, not four (REVIEW_M5_A D4-N3). The register produces exactly six —
+# `diagonal_staircase` at three sizes under two convention arms — and a floor of
+# four left room for a WHOLE SIZE to drop out while the row stayed MET, in a key
+# whose own comment justifies its placement by condition 51's standard of "every
+# size, both arms". A floor that permits the standard it cites to be broken is
+# not encoding that standard. At six it is exact: lose any size, or any arm, and
+# the row goes NOT MET.
+#
+# The cost of exactness is named rather than hidden: this floor now moves
+# whenever the register's size list does, which is a gate-file commit under
+# §27.7. That is the correct price for a number that means "every size".
+gate_min_register_arms_with_a_long_loop = 6
 # Slots the mutation walk must perturb. `slots_perturbed > 0` stood as a
 # conjunct in the clause-4 row and was not a gate: a walk that visited ONE slot
 # satisfied it. REDTEAM_M5 RT5-A2 is why this key exists - two of the three
