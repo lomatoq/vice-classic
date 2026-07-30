@@ -375,7 +375,9 @@ impl CoreConfig {
                 budget: SearchBudget {
                     max_candidates_considered: 256,
                     max_memory_bytes: 1 << 30,
-                    max_elapsed_ms: 10_000,
+                    // Leave serialization/reporting headroom under the
+                    // end-to-end 10 s Quality SLO.
+                    max_elapsed_ms: 8_500,
                 },
             },
             trust_region: TrustRegionConfig {
@@ -385,8 +387,8 @@ impl CoreConfig {
                 contraction: 0.5,
                 finite_difference_step: 1.0 / 65_535.0,
                 min_bits_improvement: 1e-9,
-                max_rounds: 8,
-                max_backtracks: 8,
+                max_rounds: 2,
+                max_backtracks: 4,
                 full_check_every_accepted_blocks: 1,
             },
             k_discrete_paths: vice_fit::K_DISCRETE_PATHS,
@@ -444,7 +446,7 @@ impl CoreConfig {
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            implementation: "vice-core/m7/v1",
+            implementation: "vice-core/m7/v2",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),

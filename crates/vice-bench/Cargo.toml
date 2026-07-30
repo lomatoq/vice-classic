@@ -35,6 +35,7 @@ vice-opt = { path = "../vice-opt" }
 vice-render = { path = "../vice-render" }
 # M4.5: the topology envelope whose candidate recall this crate measures.
 vice-topology = { path = "../vice-topology" }
+vice-core = { path = "../vice-core" }
 
 [dev-dependencies]
 tempfile = "3"

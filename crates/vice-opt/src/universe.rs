@@ -418,7 +418,7 @@ impl SupportedModelUniverseV1 {
     /// content hash and full recalibration for those changes.
     pub fn m7() -> SupportedModelUniverseV1 {
         let mut universe = Self::v1();
-        universe.version = "m7-v1";
+        universe.version = "m7-v2";
         universe.topology.operators = vec![
             Family::admissible(
                 "topology_merge",
@@ -459,10 +459,15 @@ impl SupportedModelUniverseV1 {
         ];
         universe.search = SearchUniverse {
             truncation_rules: vec![
-                "typed geometry retains at most k=8 deterministic complete discrete paths per observed chain (Fast: k=1)",
+                "dense chains propose k=8 paths at deterministic 32/64/96/128-sample levels (Fast: k=1), stop after the first level with a certified model, attempt at most 3 paths per level, and retain at most 2 certified models per physical chain; every skipped level/path is reported as unexplored mass",
+                "proposal-path Jacobians use at most 64 mandatory-breakpoint-preserving samples and final continuous refits use at most 128; every retained model is physically recoded, Stage-H compared, binding-isotopy checked, and certified in both corridor directions on all observations",
+                "Stage-H relation Jacobians use at most 16 mandatory-breakpoint-preserving samples while relation residual code and both corridor checks use all observations",
+                "observed binding tubes include the maximum evidence halfwidth, half a physical sample interval, and the frozen 1/64 px verifier tessellation certificate; Stage-H rescue is opened only within one 0.05 px fitter chord bound",
+                "event-level M4.5 contours own topology while the canonical coverage-0.5 contour owns fit geometry whenever it binds bijectively to that topology",
                 "elliptic-arc fitting is omitted and charged to empirical unexplored search mass",
                 "M4.5 supplies a finite critical-connectivity envelope; arms pruned by the prefit budget are reported as unexplored",
-                "the deterministic diverse beam is capped by candidate, memory, and elapsed-time budgets with topology and formation seed quotas",
+                "the deterministic diverse beam is capped by candidate, memory, and elapsed-time budgets (Quality 8500 ms, Fast 1000 ms) with topology and formation seed quotas",
+                "continuous scene optimization uses one deterministic evidence-solved paint start and at most 2 trust-region rounds with 4 backtracks per block; unreached materializations and optimizer alternatives remain explicit unexplored mass",
                 "only hypotheses with equal canonical delivery bytes collapse into one posterior delivery-equivalence class",
                 "topology and geometry complexity caps bound every materialized scene",
                 "geometry outside the numeric domain is refused before scoring",

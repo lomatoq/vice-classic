@@ -23,7 +23,7 @@ fn m7_is_a_distinct_finite_r1_model_version() {
     let m7 = SupportedModelUniverseV1::m7();
     m7.check_finite().expect("M7 must be a finite universe");
     assert_eq!(m7.schema, MODEL_UNIVERSE_SCHEMA);
-    assert_eq!(m7.version, "m7-v1");
+    assert_eq!(m7.version, "m7-v2");
     assert_ne!(model_universe_hash(&m7), model_universe_hash(&m6));
     assert_eq!(
         m7.search.unexplored_mass_bound,
@@ -241,7 +241,7 @@ const FROZEN_V1_HASH: &str = "47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d78
 
 /// M7 is a separate model version. This hash may change only with a new
 /// calibration artifact and a new version string.
-const FROZEN_M7_HASH: &str = "2a21573508444557715cb14448f8590d4a06472843e737521f9e07a39b69eb71";
+const FROZEN_M7_HASH: &str = "9e96e66281b082b8c9626dc88de140e825eeca087cd3cef4618c85d0bd6c1091";
 
 #[test]
 fn m7_model_universe_hash_is_frozen() {
@@ -251,6 +251,52 @@ fn m7_model_universe_hash_is_frozen() {
         h, FROZEN_M7_HASH,
         "the M7 universe changed; mint a new model version and recalibrate"
     );
+}
+
+#[test]
+fn m7_resource_envelope_declaration_matches_executable_constants() {
+    let universe = SupportedModelUniverseV1::m7();
+    let rules = universe.search.truncation_rules.join("\n");
+    assert!(rules.contains("32/64/96/128-sample"));
+    assert!(rules.contains(&format!(
+        "at most {} paths per level",
+        vice_fit::MAX_CERTIFICATION_ATTEMPTS_PER_LEVEL_V1
+    )));
+    assert!(rules.contains(&format!(
+        "at most {} certified models",
+        vice_fit::MAX_CERTIFIED_MODELS_PER_CHAIN_V1
+    )));
+    assert!(rules.contains(&format!(
+        "Jacobians use at most {} mandatory",
+        vice_fit::PROPOSAL_CONTINUOUS_REFIT_SAMPLE_CAP_V1
+    )));
+    assert!(rules.contains(&format!(
+        "refits use at most {}",
+        vice_fit::CONTINUOUS_REFIT_SAMPLE_CAP_V1
+    )));
+    assert!(rules.contains(&format!(
+        "Jacobians use at most {} mandatory",
+        vice_fit::RELATION_REFIT_SAMPLE_CAP_V1
+    )));
+    let quality = vice_core::CoreConfig::development_for(vice_core::Preset::Quality);
+    let fast = vice_core::CoreConfig::development_for(vice_core::Preset::Fast);
+    assert!(rules.contains(&quality.beam.budget.max_elapsed_ms.to_string()));
+    assert!(rules.contains(&fast.beam.budget.max_elapsed_ms.to_string()));
+    assert!(rules.contains(&format!(
+        "at most {} trust-region rounds with {} backtracks",
+        quality.trust_region.max_rounds, quality.trust_region.max_backtracks
+    )));
+    assert_eq!(
+        quality
+            .verification
+            .render_options
+            .budget
+            .chord_tolerance
+            .px(),
+        vice_fit::BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1
+    );
+    assert!(rules.contains("1/64"));
+    assert!(rules.contains(&vice_fit::BINDING_RELATION_RESCUE_MARGIN_PX_V1.to_string()));
 }
 
 #[test]
