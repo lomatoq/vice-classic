@@ -316,6 +316,16 @@ mod tests {
         }
     }
 
+    #[test]
+    fn structured_gate_provenance_is_protected_like_the_threshold_file() {
+        let changed = vec![
+            ChangedPath::modified("configs/M7_GATE_PROVENANCE_V1.toml"),
+            ChangedPath::modified("crates/vice-bench/src/m7.rs"),
+        ];
+        let violation = same_commit_violation(&changed).expect("must reject mixed gate/code edit");
+        assert_eq!(violation.0, "configs/M7_GATE_PROVENANCE_V1.toml");
+    }
+
     /// EVERY output form of `git diff --name-status`, and what the predicate
     /// makes of it.
     ///

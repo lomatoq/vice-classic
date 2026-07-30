@@ -117,6 +117,7 @@ pub struct OptimizationTraceRow {
     pub comparison_id: u64,
     pub parent_bits: f64,
     pub child_bits: f64,
+    pub scope: ScoreScope,
     pub radius: f64,
     pub accepted: bool,
     pub full_check: bool,
@@ -124,10 +125,18 @@ pub struct OptimizationTraceRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct OptimizationBlockPlan {
+    pub name: String,
+    pub scope: ScoreScope,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct OptimizationResult {
     pub parameters: Vec<f64>,
     pub full_bits: f64,
     pub accepted_blocks: usize,
+    pub block_plan: Vec<OptimizationBlockPlan>,
+    pub full_check_every_accepted_blocks: usize,
     pub trace: Vec<OptimizationTraceRow>,
 }
 
@@ -326,6 +335,7 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
                     comparison_id: token.comparison_id,
                     parent_bits,
                     child_bits,
+                    scope: block.scope,
                     radius: step_radius,
                     accepted: improved,
                     full_check: false,
@@ -364,6 +374,7 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
                     comparison_id: token.comparison_id,
                     parent_bits: verified_bits,
                     child_bits: full_bits,
+                    scope: ScoreScope::FULL,
                     radius,
                     accepted: full_improved,
                     full_check: true,
@@ -400,6 +411,7 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
             comparison_id: final_token.comparison_id,
             parent_bits: verified_bits,
             child_bits: full_bits,
+            scope: ScoreScope::FULL,
             radius,
             accepted: full_improved,
             full_check: true,
@@ -417,6 +429,14 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
         parameters,
         full_bits: verified_bits,
         accepted_blocks,
+        block_plan: blocks
+            .iter()
+            .map(|block| OptimizationBlockPlan {
+                name: block.name.clone(),
+                scope: block.scope,
+            })
+            .collect(),
+        full_check_every_accepted_blocks: cfg.full_check_every_accepted_blocks,
         trace,
     })
 }
@@ -601,5 +621,15 @@ mod tests {
             .trace
             .iter()
             .any(|row| row.full_check && row.rolled_back_to_verified));
+        assert!(got
+            .trace
+            .iter()
+            .filter(|row| !row.full_check)
+            .all(|row| !row.scope.global && row.scope.halo_px == 2));
+        assert!(got
+            .trace
+            .iter()
+            .filter(|row| row.full_check)
+            .all(|row| row.scope == ScoreScope::FULL));
     }
 }

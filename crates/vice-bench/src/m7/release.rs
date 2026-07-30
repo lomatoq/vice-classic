@@ -11,6 +11,7 @@ use crate::correlation::ResidualModel;
 use crate::gates::GatesFile;
 use crate::gt::raster::RasterProfile;
 use crate::gt::split::{AuditSeal, SealStatus};
+use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
@@ -154,6 +155,9 @@ pub struct ReleaseVerdict {
     pub corpus_sha256: String,
     pub preregistration_sha256: String,
     pub gates_sha256: String,
+    pub release_commit_sha: String,
+    pub runner_attestation_sha256: String,
+    pub gate_provenance_sha256: String,
     pub quality: PresetReleaseVerdict,
     pub fast: PresetReleaseVerdict,
     pub same_population: bool,
@@ -165,8 +169,9 @@ pub fn analyze_release(
     quality: &MeasurementReport,
     fast: &MeasurementReport,
     audit: &AuditSeal,
-    gates_file: &GatesFile,
+    threshold_source: &M7ThresholdSource,
 ) -> Result<ReleaseVerdict, String> {
+    let gates_file = &threshold_source.gates;
     validate_report(quality, vice_core::Preset::Quality)?;
     validate_report(fast, vice_core::Preset::Fast)?;
     if audit.status != SealStatus::Opened {
@@ -203,6 +208,9 @@ pub fn analyze_release(
         corpus_sha256: audit.corpus_hash.clone(),
         preregistration_sha256: audit.prereg_hash.clone(),
         gates_sha256: audit.gates_hash.clone(),
+        release_commit_sha: threshold_source.event_commit_sha.clone(),
+        runner_attestation_sha256: threshold_source.attestation_sha256.clone(),
+        gate_provenance_sha256: threshold_source.provenance_sha256.clone(),
         quality: quality_verdict,
         fast: fast_verdict,
         same_population,

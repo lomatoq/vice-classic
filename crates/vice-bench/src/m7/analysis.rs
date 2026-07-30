@@ -462,6 +462,7 @@ mod tests {
             selected_artifact_bundle_sha256: Some("6".repeat(64)),
             selected_complexity: None,
             internal_baseline: None,
+            pf_oracle: None,
             search_truncated: Some(true),
             explored_mass: Some(1.0),
             topology_classes_upper_bound: Some(1),

@@ -14,7 +14,7 @@
 
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use vice_bench::artifact;
 use vice_bench::corridor::{self, CorridorScope};
 use vice_bench::gates::{same_commit_violation_with_base, ChangedPath, GatesFile};
@@ -142,6 +142,16 @@ impl From<M7ScopeArg> for MeasurementScope {
             M7ScopeArg::Calibration => MeasurementScope::Calibration,
         }
     }
+}
+
+#[derive(Args)]
+struct M7GovernanceArgs {
+    /// Canonical runner attestation produced for the exact release commit.
+    #[arg(long)]
+    runner_attestation: PathBuf,
+    /// Structured, commit-bound provenance for every frozen M7 gate.
+    #[arg(long)]
+    gate_provenance: PathBuf,
 }
 
 #[derive(Subcommand)]
@@ -313,9 +323,31 @@ enum Cmd {
         #[arg(long)]
         production_config_out: Option<PathBuf>,
     },
+    /// Bind the exact clean release commit, Git, gt-corpus, vicec, gates,
+    /// and structured gate provenance to an external event/reviewer anchor.
+    M7RunnerAttest {
+        #[arg(long)]
+        anchor_source: String,
+        #[arg(long)]
+        event_commit: String,
+        #[arg(long)]
+        repository_root: PathBuf,
+        #[arg(long)]
+        git_executable: PathBuf,
+        #[arg(long)]
+        vicec_executable: PathBuf,
+        #[arg(long)]
+        gates: PathBuf,
+        #[arg(long)]
+        gate_provenance: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Deliberately open the untouched sealed-audit generation and bind the
     /// act to the current corpus, preregistration, and frozen gates.
     M7AuditOpen {
+        #[command(flatten)]
+        governance: M7GovernanceArgs,
         #[arg(long)]
         audit_seal: PathBuf,
         #[arg(long)]
@@ -329,6 +361,8 @@ enum Cmd {
     /// Measure the already-opened M7 sealed audit with the digest-pinned
     /// Quality production configuration.
     M7AuditMeasure {
+        #[command(flatten)]
+        governance: M7GovernanceArgs,
         #[arg(long)]
         audit_seal: PathBuf,
         #[arg(long)]
@@ -353,6 +387,8 @@ enum Cmd {
     /// Apply the frozen M7 release gates to complete Fast and Quality
     /// sealed-audit reports and write the canonical verdict.
     M7AuditAnalyze {
+        #[command(flatten)]
+        governance: M7GovernanceArgs,
         #[arg(long)]
         audit_seal: PathBuf,
         #[arg(long)]
@@ -377,6 +413,8 @@ enum Cmd {
     /// Compare production selections to the paired frozen free-chain
     /// baseline and run the randomized identity-blind source-level court.
     M7BaselineCourt {
+        #[command(flatten)]
+        governance: M7GovernanceArgs,
         #[arg(long)]
         audit_seal: PathBuf,
         #[arg(long)]
@@ -387,6 +425,30 @@ enum Cmd {
         quality_report: PathBuf,
         #[arg(long)]
         fast_report: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Rerun the complete PF00/PF10/PF01/PF11 and
+    /// G00/G10/G01/G11/G20/G30 courts plus controlled G20/G30 recovery.
+    M7Oracle {
+        #[command(flatten)]
+        governance: M7GovernanceArgs,
+        #[arg(long)]
+        audit_seal: PathBuf,
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long)]
+        gates: PathBuf,
+        #[arg(long)]
+        quality_report: PathBuf,
+        #[arg(long)]
+        fast_report: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Measure the development-only G00..G30 and recovery populations from
+    /// which the final M7 gate-only freeze is read.
+    M7OracleGeometryCalibrate {
         #[arg(long)]
         out: PathBuf,
     },
@@ -1020,12 +1082,53 @@ fn real_main() -> i32 {
                 1
             }
         }
+        Cmd::M7RunnerAttest {
+            anchor_source,
+            event_commit,
+            repository_root,
+            git_executable,
+            vicec_executable,
+            gates,
+            gate_provenance,
+            out,
+        } => match m7_cmd::runner_attest(
+            &anchor_source,
+            &event_commit,
+            &repository_root,
+            &git_executable,
+            &vicec_executable,
+            &gates,
+            &gate_provenance,
+            &out,
+        ) {
+            Ok(attestation) => {
+                println!(
+                    "M7 runner attestation: commit={}, sha256={}, out={}",
+                    attestation.event_commit_sha,
+                    attestation.sha256().expect("attestation serializes"),
+                    out.display()
+                );
+                0
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
         Cmd::M7AuditOpen {
+            governance,
             audit_seal,
             manifest,
             gates,
             note,
-        } => match m7_cmd::open(&audit_seal, &manifest, &gates, &note) {
+        } => match m7_cmd::open(
+            &audit_seal,
+            &manifest,
+            &gates,
+            &governance.runner_attestation,
+            &governance.gate_provenance,
+            &note,
+        ) {
             Ok(seal) => {
                 println!(
                     "M7 sealed audit generation {} opened and hash-bound: {}",
@@ -1040,6 +1143,7 @@ fn real_main() -> i32 {
             }
         },
         Cmd::M7AuditMeasure {
+            governance,
             audit_seal,
             manifest,
             gates,
@@ -1054,6 +1158,8 @@ fn real_main() -> i32 {
             &audit_seal,
             &manifest,
             &gates,
+            &governance.runner_attestation,
+            &governance.gate_provenance,
             &production_config,
             preset.into(),
             &out,
@@ -1084,6 +1190,7 @@ fn real_main() -> i32 {
             }
         },
         Cmd::M7AuditAnalyze {
+            governance,
             audit_seal,
             manifest,
             gates,
@@ -1094,6 +1201,8 @@ fn real_main() -> i32 {
             &audit_seal,
             &manifest,
             &gates,
+            &governance.runner_attestation,
+            &governance.gate_provenance,
             &quality_report,
             &fast_report,
             &out,
@@ -1144,6 +1253,7 @@ fn real_main() -> i32 {
             }
         },
         Cmd::M7BaselineCourt {
+            governance,
             audit_seal,
             manifest,
             gates,
@@ -1154,6 +1264,8 @@ fn real_main() -> i32 {
             &audit_seal,
             &manifest,
             &gates,
+            &governance.runner_attestation,
+            &governance.gate_provenance,
             &quality_report,
             &fast_report,
             &out,
@@ -1173,6 +1285,71 @@ fn real_main() -> i32 {
                 } else {
                     1
                 }
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
+        Cmd::M7Oracle {
+            governance,
+            audit_seal,
+            manifest,
+            gates,
+            quality_report,
+            fast_report,
+            out,
+        } => match m7_cmd::oracle(
+            &audit_seal,
+            &manifest,
+            &gates,
+            &governance.runner_attestation,
+            &governance.gate_provenance,
+            &quality_report,
+            &fast_report,
+            &out,
+        ) {
+            Ok(verdict) => {
+                println!(
+                    "M7 oracle: gate_met={}, PF(Q/F)={}/{}, geometry={}, G20 recovery={:.3}, \
+                     G30 recovery={:.3}",
+                    verdict.gate_met,
+                    verdict.quality_pf.complete_rows,
+                    verdict.fast_pf.complete_rows,
+                    verdict.geometry.complete_six_arm_rows,
+                    verdict.geometry.g20_recovery.recovery_rate,
+                    verdict.geometry.g30_recovery.recovery_rate,
+                );
+                println!("M7 complete oracle artifact: {}", out.display());
+                if verdict.gate_met {
+                    0
+                } else {
+                    1
+                }
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
+        Cmd::M7OracleGeometryCalibrate { out } => match m7_cmd::geometry_calibrate(&out) {
+            Ok(measurements) => {
+                let g20 = measurements
+                    .recovery
+                    .iter()
+                    .filter(|row| row.mode == "G20" && row.normal_objective_recovered)
+                    .count();
+                let g30 = measurements
+                    .recovery
+                    .iter()
+                    .filter(|row| row.mode == "G30" && row.normal_objective_recovered)
+                    .count();
+                println!(
+                    "M7 geometry calibration: six-arm rows={}, G20 recovered={}, G30 recovered={}",
+                    measurements.complete_six_arm_rows, g20, g30
+                );
+                println!("M7 geometry calibration artifact: {}", out.display());
+                0
             }
             Err(error) => {
                 eprintln!("error: {error}");

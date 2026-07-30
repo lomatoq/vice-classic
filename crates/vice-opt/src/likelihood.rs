@@ -6,6 +6,8 @@ use vice_image::ObservationTensor;
 use vice_ir::{BlendSpace, Paint, QuantizationModel, VectorScene};
 use vice_render::PartitionRender;
 
+use crate::trust_region::ScoreScope;
+
 /// The audited production residual model implemented by this milestone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -160,6 +162,8 @@ pub enum LikelihoodError {
     UnsupportedQuantization,
     #[error("likelihood produced a non-finite score")]
     NonFiniteScore,
+    #[error("ROI likelihood scope is malformed or outside the canvas")]
+    InvalidScoreScope,
 }
 
 fn predicted_observation(scene: &VectorScene, render: &PartitionRender) -> Vec<[f64; 4]> {
@@ -254,6 +258,20 @@ pub fn score_full_resolution(
     cfg: BlockLikelihoodConfig,
     priors: PriorCodeLengths,
 ) -> Result<ScoreBreakdown, LikelihoodError> {
+    score_full_resolution_scope(scene, observed, render, cfg, priors, ScoreScope::FULL)
+}
+
+/// Score the globally aligned correlation blocks intersecting an ROI plus its
+/// declared dependency halo. The block grid is never recut at the ROI edge, so
+/// parent and child remain comparable to each other and to a later full check.
+pub fn score_full_resolution_scope(
+    scene: &VectorScene,
+    observed: &vice_image::CanonicalImage,
+    render: &PartitionRender,
+    cfg: BlockLikelihoodConfig,
+    priors: PriorCodeLengths,
+    scope: ScoreScope,
+) -> Result<ScoreBreakdown, LikelihoodError> {
     cfg.validate()?;
     priors.validate()?;
     if !matches!(scene.formation.quantization, QuantizationModel::Uint8) {
@@ -283,6 +301,7 @@ pub fn score_full_resolution(
         cfg,
         priors,
         PredictionSource::CertifiedInternalPartition,
+        scope,
     )
 }
 
@@ -298,6 +317,30 @@ pub fn score_serialized_full_resolution(
     height_px: u32,
     cfg: BlockLikelihoodConfig,
     priors: PriorCodeLengths,
+) -> Result<ScoreBreakdown, LikelihoodError> {
+    score_serialized_full_resolution_scope(
+        scene,
+        observed,
+        premultiplied_srgb8,
+        width_px,
+        height_px,
+        cfg,
+        priors,
+        ScoreScope::FULL,
+    )
+}
+
+/// Serialized-delivery counterpart of [`score_full_resolution_scope`].
+#[allow(clippy::too_many_arguments)]
+pub fn score_serialized_full_resolution_scope(
+    scene: &VectorScene,
+    observed: &vice_image::CanonicalImage,
+    premultiplied_srgb8: &[u8],
+    width_px: u32,
+    height_px: u32,
+    cfg: BlockLikelihoodConfig,
+    priors: PriorCodeLengths,
+    scope: ScoreScope,
 ) -> Result<ScoreBreakdown, LikelihoodError> {
     cfg.validate()?;
     priors.validate()?;
@@ -319,7 +362,50 @@ pub fn score_serialized_full_resolution(
         cfg,
         priors,
         PredictionSource::SerializedSvgRender,
+        scope,
     )
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ScoreWindow {
+    x0: usize,
+    y0: usize,
+    x1: usize,
+    y1: usize,
+}
+
+fn score_window(
+    scope: ScoreScope,
+    width: usize,
+    height: usize,
+) -> Result<ScoreWindow, LikelihoodError> {
+    if scope == ScoreScope::FULL {
+        return Ok(ScoreWindow {
+            x0: 0,
+            y0: 0,
+            x1: width,
+            y1: height,
+        });
+    }
+    let Some(roi) = scope.roi else {
+        return Err(LikelihoodError::InvalidScoreScope);
+    };
+    if scope.global
+        || scope.halo_px == 0
+        || roi.x0 >= roi.x1
+        || roi.y0 >= roi.y1
+        || roi.x1 as usize > width
+        || roi.y1 as usize > height
+    {
+        return Err(LikelihoodError::InvalidScoreScope);
+    }
+    let halo = scope.halo_px as usize;
+    Ok(ScoreWindow {
+        x0: (roi.x0 as usize).saturating_sub(halo),
+        y0: (roi.y0 as usize).saturating_sub(halo),
+        x1: (roi.x1 as usize).saturating_add(halo).min(width),
+        y1: (roi.y1 as usize).saturating_add(halo).min(height),
+    })
 }
 
 fn score_prediction(
@@ -329,6 +415,7 @@ fn score_prediction(
     cfg: BlockLikelihoodConfig,
     priors: PriorCodeLengths,
     prediction_source: PredictionSource,
+    scope: ScoreScope,
 ) -> Result<ScoreBreakdown, LikelihoodError> {
     let tensor = ObservationTensor::of(observed, scene.formation.blend_space);
     if predicted.len() != tensor.len() {
@@ -350,6 +437,7 @@ fn score_prediction(
     }
 
     let (w, h) = (observed.width_px() as usize, observed.height_px() as usize);
+    let window = score_window(scope, w, h)?;
     let block = cfg.block_size_px as usize;
     let mut pixel_bits = 0.0;
     let mut blocks = 0u64;
@@ -357,6 +445,9 @@ fn score_prediction(
         for x0 in (0..w).step_by(block) {
             let y1 = (y0 + block).min(h);
             let x1 = (x0 + block).min(w);
+            if x0 >= window.x1 || x1 <= window.x0 || y0 >= window.y1 || y1 <= window.y0 {
+                continue;
+            }
             let count = ((y1 - y0) * (x1 - x0)) as f64;
             for (ch, sigma) in cfg.sigma_by_channel.iter().enumerate() {
                 let mut energy = 0.0;
@@ -541,5 +632,69 @@ mod tests {
             BlockLikelihoodConfig::new(2, 2.1, [0.01; 4], 4.0),
             Err(LikelihoodError::CorrelationSupport { .. })
         ));
+    }
+
+    #[test]
+    fn roi_halo_selects_globally_aligned_correlation_blocks() {
+        let image = vice_image::CanonicalImage::from_straight_srgb8(
+            8,
+            2,
+            vec![0; 64],
+            true,
+            IccAssumption::SrgbChunkDeclared,
+        )
+        .unwrap();
+        let render = PartitionRender {
+            width_px: 8,
+            height_px: 2,
+            face_coverage: vec![vec![1.0; 16]],
+            composite: vec![
+                PremulRgba {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.0,
+                };
+                16
+            ],
+        };
+        let local = score_full_resolution_scope(
+            &scene(8, 2),
+            &image,
+            &render,
+            cfg(),
+            priors(),
+            ScoreScope {
+                roi: Some(crate::Rect {
+                    x0: 0,
+                    y0: 0,
+                    x1: 1,
+                    y1: 1,
+                }),
+                halo_px: 1,
+                global: false,
+            },
+        )
+        .unwrap();
+        let crossing = score_full_resolution_scope(
+            &scene(8, 2),
+            &image,
+            &render,
+            cfg(),
+            priors(),
+            ScoreScope {
+                roi: Some(crate::Rect {
+                    x0: 0,
+                    y0: 0,
+                    x1: 2,
+                    y1: 1,
+                }),
+                halo_px: 1,
+                global: false,
+            },
+        )
+        .unwrap();
+        assert_eq!(local.diagnostics.blocks, 1);
+        assert_eq!(crossing.diagnostics.blocks, 2);
     }
 }

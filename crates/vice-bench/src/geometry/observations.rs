@@ -33,6 +33,7 @@ struct TruthLoop {
     polyline: Vec<Pt>,
     breakpoint_points: Vec<Pt>,
     families: Vec<vice_fit::SpanFamily>,
+    gt_chain: Option<vice_fit::RefitChain>,
 }
 
 pub(super) struct ObservationPopulation {
@@ -353,6 +354,7 @@ fn truth_loops(
         for (loop_index, &start_half_edge) in face.loops.iter().enumerate() {
             let mut current = start_half_edge;
             let mut visited = BTreeSet::new();
+            let mut loop_half_edges = Vec::new();
             let mut polyline = Vec::new();
             let mut breakpoint_points = Vec::new();
             let mut families = Vec::new();
@@ -367,6 +369,7 @@ fn truth_loops(
                     }
                     break;
                 }
+                loop_half_edges.push(current);
                 append_half_edge(
                     graph,
                     current,
@@ -386,16 +389,95 @@ fn truth_loops(
             for point in &mut breakpoint_points {
                 *point = transform(*point);
             }
+            let gt_chain = lift_truth_loop(graph, &loop_half_edges, scale);
             loops.push(TruthLoop {
                 face: face_index,
                 loop_index,
                 polyline,
                 breakpoint_points,
                 families,
+                gt_chain,
             });
         }
     }
     Ok(loops)
+}
+
+fn lift_truth_loop(
+    graph: &vice_ir::PlanarGraph,
+    half_edges: &[HalfEdgeId],
+    scale: f64,
+) -> Option<vice_fit::RefitChain> {
+    let mut combined: Option<vice_fit::RefitChain> = None;
+    for &half_edge_id in half_edges {
+        let half_edge = graph.half_edges[half_edge_id.index()];
+        let boundary = &graph.boundaries[half_edge.boundary.index()];
+        let start = graph.vertices[boundary.start_vertex.index()].pos;
+        let end = graph.vertices[boundary.end_vertex.index()].pos;
+        let closure_join = (boundary.start_vertex == boundary.end_vertex)
+            .then_some(boundary.closure_join)
+            .flatten();
+        let mut piece = vice_fit::refit_chain_from_ir(
+            start,
+            end,
+            &boundary.curve,
+            closure_join,
+            half_edge.forward,
+        )
+        .ok()?;
+        if let Some(chain) = &mut combined {
+            let shared = chain.nodes.last_mut()?;
+            let piece_start = piece.nodes.first_mut()?;
+            if shared.pos != piece_start.pos {
+                return None;
+            }
+            // A join between graph boundaries is a graph vertex. In the
+            // canonical GT corpus it is a corner unless an explicit relation
+            // says otherwise; never invent a smooth parameter while lifting.
+            shared.tangent_rad = None;
+            piece_start.tangent_rad = None;
+            chain.nodes.extend(piece.nodes.into_iter().skip(1));
+            chain.segments.extend(piece.segments);
+        } else {
+            combined = Some(piece);
+        }
+    }
+    let mut chain = combined?;
+    if chain.nodes.first()?.pos != chain.nodes.last()?.pos {
+        return None;
+    }
+    scale_refit_chain(&mut chain, scale);
+    chain.lower_boundary_geometry().ok()?;
+    Some(chain)
+}
+
+fn scale_refit_chain(chain: &mut vice_fit::RefitChain, scale: f64) {
+    for node in &mut chain.nodes {
+        node.pos = node.pos * scale;
+    }
+    for segment in &mut chain.segments {
+        match segment {
+            vice_fit::RefitSegment::Line
+            | vice_fit::RefitSegment::Arc(
+                vice_fit::ArcAnchor::FromHeadTangent | vice_fit::ArcAnchor::FromTailTangent,
+            ) => {}
+            vice_fit::RefitSegment::Arc(vice_fit::ArcAnchor::Radius { radius_px, .. }) => {
+                *radius_px *= scale;
+            }
+            vice_fit::RefitSegment::Quad { ctrl } => scale_handle(ctrl, scale),
+            vice_fit::RefitSegment::Cubic { head, tail } => {
+                scale_handle(head, scale);
+                scale_handle(tail, scale);
+            }
+        }
+    }
+}
+
+fn scale_handle(handle: &mut vice_fit::Handle, scale: f64) {
+    match handle {
+        vice_fit::Handle::Free(point) => *point = *point * scale,
+        vice_fit::Handle::Shared { length_px } => *length_px *= scale,
+    }
 }
 
 fn append_half_edge(
@@ -497,6 +579,7 @@ fn bind_chain(
         chain,
         forced_chain,
         truth: truth.polyline.clone(),
+        gt_chain: truth.gt_chain.clone(),
         gt_families: truth.families.clone(),
         gt_breakpoints: breakpoint_indices,
         stage_f_truth_match_px: match_px,
@@ -588,6 +671,48 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_multi_boundary_gt_loop_lifts_as_the_whole_loop() {
+        let mut builder = SceneBuilder::new(16, 16, flat2_formation(ExteriorModel::Transparent));
+        let face = builder.add_face(Paint::OpaqueSolid(LinearRgb {
+            r: 0.2,
+            g: 0.4,
+            b: 0.6,
+        }));
+        builder
+            .add_polygon_ring(
+                &[
+                    Pt::new(2.0, 2.0),
+                    Pt::new(14.0, 2.0),
+                    Pt::new(14.0, 14.0),
+                    Pt::new(2.0, 14.0),
+                ],
+                face,
+                SceneBuilder::EXTERIOR,
+            )
+            .unwrap();
+        let scene = builder.build().unwrap();
+        let graph = scene.graph();
+        let start = graph.faces[face].loops[0];
+        let mut half_edges = Vec::new();
+        let mut current = start;
+        loop {
+            half_edges.push(current);
+            current = graph.half_edges[current.index()].next;
+            if current == start {
+                break;
+            }
+        }
+        let lifted = lift_truth_loop(graph, &half_edges, 1.0).expect("whole loop lifts");
+        assert_eq!(lifted.segments.len(), 4);
+        assert_eq!(lifted.nodes.len(), 5);
+        assert_eq!(
+            lifted.nodes.first().unwrap().pos,
+            lifted.nodes.last().unwrap().pos
+        );
+        assert_eq!(vice_fit::solve::flatten_chain(&lifted).unwrap().len(), 5);
+    }
+
+    #[test]
     fn gt_label_alignment_does_not_recut_the_automatic_stage_f_chain() {
         let points = [
             Pt::new(10.0, 10.0),
@@ -624,6 +749,7 @@ mod tests {
             ],
             breakpoint_points: Vec::new(),
             families: vec![vice_fit::SpanFamily::Line],
+            gt_chain: None,
         };
 
         let bound = bind_chain(raw.clone(), &truth, "scene", 0, 0.0, "cell").expect("binds labels");

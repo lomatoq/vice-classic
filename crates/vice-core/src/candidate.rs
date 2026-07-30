@@ -16,7 +16,9 @@ use vice_verify::{quantize_and_verify, seal_delivery};
 
 use crate::config::CoreConfig;
 use crate::scene::{build_scene_candidate, optimize_paint, SceneCandidate, TopologyArm};
-use crate::types::{CandidateFailureStage, CandidateRefusal, CandidateSummary};
+use crate::types::{
+    CandidateFailureStage, CandidateRefusal, CandidateRelationSolveTrace, CandidateSummary,
+};
 use crate::Intent;
 
 #[derive(Debug)]
@@ -83,6 +85,29 @@ pub(crate) struct CandidateRequest<'a> {
 
 fn digest(bytes: impl AsRef<[u8]>) -> String {
     hex::encode(Sha256::digest(bytes.as_ref()))
+}
+
+fn selected_relation_solve_trace(models: &[BoundaryModel]) -> Vec<CandidateRelationSolveTrace> {
+    let mut trace = Vec::new();
+    for (boundary_index, model) in models.iter().enumerate() {
+        for &relation_index in &model.relation_kept_indices {
+            let Some(hypothesis) = model.relations.get(relation_index) else {
+                continue;
+            };
+            trace.push(CandidateRelationSolveTrace {
+                boundary_index,
+                relation_index,
+                kind: hypothesis.kind,
+                segments: hypothesis.segments.clone(),
+                continuous_solve_samples: hypothesis.continuous_solve_samples,
+                residual_contract:
+                    "signed_normal_deviation/halfwidth*sqrt(independent_observations)",
+                projected_finite_difference: true,
+                rows: hypothesis.solve_trace.clone(),
+            });
+        }
+    }
+    trace
 }
 
 fn priors(
@@ -554,6 +579,7 @@ pub(crate) fn materialize_candidate(
         post_quantization: verified.post_quantization_certificate().clone(),
         delivery_seal: seal.clone(),
         optimizer,
+        intra_boundary_relation_solve_trace: selected_relation_solve_trace(request.models),
         transactions,
     };
     let seal_json = serde_json::to_vec(&seal).map_err(|error| {

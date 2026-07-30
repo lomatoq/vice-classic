@@ -2,9 +2,12 @@
 
 use std::path::Path;
 
-use vice_bench::gates::GatesFile;
 use vice_bench::gt::split::{AuditSeal, SealStatus};
-use vice_bench::m7::{self, MeasurementRequest, MeasurementScope};
+use vice_bench::m7::{
+    self,
+    governance::{GateDigestInput, M7ThresholdSource},
+    MeasurementRequest, MeasurementScope,
+};
 use vice_bench::prereg::Preregistration;
 use vice_core::{CoreConfig, Preset};
 
@@ -20,21 +23,57 @@ fn write_seal(path: &Path, seal: &AuditSeal) -> Result<(), String> {
         .map_err(|error| format!("write {}: {error}", path.display()))
 }
 
-fn release_hashes(manifest: &Path, gates: &Path) -> Result<(String, String, String), String> {
+fn threshold_source(
+    runner_attestation: &Path,
+    gates: &Path,
+    gate_provenance: &Path,
+) -> Result<M7ThresholdSource, String> {
+    m7::governance::load_threshold_source(runner_attestation, gates, gate_provenance)
+}
+
+fn release_hashes(
+    manifest: &Path,
+    gate_digest: &GateDigestInput,
+) -> Result<(String, String, String), String> {
     let recorded = super::read_manifest(&manifest.to_path_buf())?;
     let corpus_hash = super::rebuild_matching(&recorded)?.hash();
-    let gates_hash = GatesFile::load_for_a_gate_decision(gates)
-        .map_err(|error| error.to_string())?
-        .sha256;
+    let gates_hash = gate_digest.sha256.clone();
     Ok((corpus_hash, Preregistration::v1().hash(), gates_hash))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn runner_attest(
+    anchor_source: &str,
+    event_commit: &str,
+    repository_root: &Path,
+    git_executable: &Path,
+    vicec_executable: &Path,
+    gates: &Path,
+    gate_provenance: &Path,
+    out: &Path,
+) -> Result<m7::governance::RunnerAttestation, String> {
+    let attestation = m7::governance::create_attestation(
+        anchor_source,
+        event_commit,
+        repository_root,
+        git_executable,
+        vicec_executable,
+        gates,
+        gate_provenance,
+    )?;
+    m7::governance::write_attestation(out, &attestation)?;
+    Ok(attestation)
 }
 
 pub fn open(
     seal_path: &Path,
     manifest: &Path,
     gates: &Path,
+    runner_attestation: &Path,
+    gate_provenance: &Path,
     note: &str,
 ) -> Result<AuditSeal, String> {
+    let threshold_source = threshold_source(runner_attestation, gates, gate_provenance)?;
     let seal = read_seal(seal_path)?;
     if seal.status != SealStatus::Sealed {
         return Err(format!(
@@ -42,10 +81,11 @@ pub fn open(
             seal.generation, seal.status
         ));
     }
-    if note.trim().is_empty() {
-        return Err("opening note must identify the release candidate".into());
+    if note.trim() != threshold_source.event_commit_sha {
+        return Err("opening note must be exactly the externally anchored release commit".into());
     }
-    let (corpus_hash, prereg_hash, gates_hash) = release_hashes(manifest, gates)?;
+    let (corpus_hash, prereg_hash, gates_hash) =
+        release_hashes(manifest, &threshold_source.digest_input)?;
     let opened = seal.open(&corpus_hash, &prereg_hash, &gates_hash, note);
     write_seal(seal_path, &opened)?;
     Ok(opened)
@@ -56,6 +96,8 @@ pub fn measure(
     seal_path: &Path,
     manifest: &Path,
     gates: &Path,
+    runner_attestation: &Path,
+    gate_provenance: &Path,
     production_config: &Path,
     preset: Preset,
     out: &Path,
@@ -64,8 +106,10 @@ pub fn measure(
     shard_count: u32,
     resume: bool,
 ) -> Result<m7::MeasurementReport, String> {
+    let threshold_source = threshold_source(runner_attestation, gates, gate_provenance)?;
     let seal = read_seal(seal_path)?;
-    let (corpus_hash, prereg_hash, gates_hash) = release_hashes(manifest, gates)?;
+    let (corpus_hash, prereg_hash, gates_hash) =
+        release_hashes(manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
     let config = CoreConfig::load_production_for(preset, production_config)
@@ -82,19 +126,21 @@ pub fn analyze(
     seal_path: &Path,
     manifest: &Path,
     gates_path: &Path,
+    runner_attestation: &Path,
+    gate_provenance: &Path,
     quality_report: &Path,
     fast_report: &Path,
     out: &Path,
 ) -> Result<m7::release::ReleaseVerdict, String> {
+    let threshold_source = threshold_source(runner_attestation, gates_path, gate_provenance)?;
     let seal = read_seal(seal_path)?;
-    let (corpus_hash, prereg_hash, gates_hash) = release_hashes(manifest, gates_path)?;
+    let (corpus_hash, prereg_hash, gates_hash) =
+        release_hashes(manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
-    let gates =
-        GatesFile::load_for_a_gate_decision(gates_path).map_err(|error| error.to_string())?;
     let quality = m7::read_report(quality_report)?;
     let fast = m7::read_report(fast_report)?;
-    let verdict = m7::release::analyze_release(&quality, &fast, &seal, &gates)?;
+    let verdict = m7::release::analyze_release(&quality, &fast, &seal, &threshold_source)?;
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("create {}: {error}", parent.display()))?;
@@ -135,19 +181,21 @@ pub fn baseline_court(
     seal_path: &Path,
     manifest: &Path,
     gates_path: &Path,
+    runner_attestation: &Path,
+    gate_provenance: &Path,
     quality_report: &Path,
     fast_report: &Path,
     out: &Path,
 ) -> Result<m7::baseline::BaselineCourtVerdict, String> {
+    let threshold_source = threshold_source(runner_attestation, gates_path, gate_provenance)?;
     let seal = read_seal(seal_path)?;
-    let (corpus_hash, prereg_hash, gates_hash) = release_hashes(manifest, gates_path)?;
+    let (corpus_hash, prereg_hash, gates_hash) =
+        release_hashes(manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
-    let gates =
-        GatesFile::load_for_a_gate_decision(gates_path).map_err(|error| error.to_string())?;
     let quality = m7::read_report(quality_report)?;
     let fast = m7::read_report(fast_report)?;
-    let verdict = m7::baseline::analyze(&quality, &fast, &seal, &gates)?;
+    let verdict = m7::baseline::analyze(&quality, &fast, &seal, &threshold_source)?;
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("create {}: {error}", parent.display()))?;
@@ -156,6 +204,47 @@ pub fn baseline_court(
     std::fs::write(out, format!("{text}\n"))
         .map_err(|error| format!("write {}: {error}", out.display()))?;
     Ok(verdict)
+}
+
+pub fn oracle(
+    seal_path: &Path,
+    manifest: &Path,
+    gates_path: &Path,
+    runner_attestation: &Path,
+    gate_provenance: &Path,
+    quality_report: &Path,
+    fast_report: &Path,
+    out: &Path,
+) -> Result<m7::oracle::M7OracleVerdict, String> {
+    let threshold_source = threshold_source(runner_attestation, gates_path, gate_provenance)?;
+    let seal = read_seal(seal_path)?;
+    let (corpus_hash, prereg_hash, gates_hash) =
+        release_hashes(manifest, &threshold_source.digest_input)?;
+    seal.check(&corpus_hash, &prereg_hash, &gates_hash)
+        .map_err(|error| error.to_string())?;
+    let quality = m7::read_report(quality_report)?;
+    let fast = m7::read_report(fast_report)?;
+    let verdict = m7::oracle::run_release(&quality, &fast, &seal, &threshold_source)?;
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    }
+    let text = serde_json::to_string_pretty(&verdict).map_err(|error| error.to_string())?;
+    std::fs::write(out, format!("{text}\n"))
+        .map_err(|error| format!("write {}: {error}", out.display()))?;
+    Ok(verdict)
+}
+
+pub fn geometry_calibrate(out: &Path) -> Result<vice_bench::geometry::M7GeometryExtension, String> {
+    let measurements = vice_bench::geometry::measure_m7_raw()?;
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    }
+    let text = serde_json::to_string_pretty(&measurements).map_err(|error| error.to_string())?;
+    std::fs::write(out, format!("{text}\n"))
+        .map_err(|error| format!("write {}: {error}", out.display()))?;
+    Ok(measurements)
 }
 
 #[cfg(test)]

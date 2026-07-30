@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v6";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v7";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -46,7 +46,20 @@ pub struct CandidateSummary {
     pub post_quantization: vice_verify::PostQuantizationCertificate,
     pub delivery_seal: vice_verify::DeliverySeal,
     pub optimizer: vice_opt::OptimizationResult,
+    pub intra_boundary_relation_solve_trace: Vec<CandidateRelationSolveTrace>,
     pub transactions: Vec<vice_opt::TransactionApplication>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CandidateRelationSolveTrace {
+    pub boundary_index: usize,
+    pub relation_index: usize,
+    pub kind: vice_fit::RelationKind,
+    pub segments: Vec<usize>,
+    pub continuous_solve_samples: usize,
+    pub residual_contract: &'static str,
+    pub projected_finite_difference: bool,
+    pub rows: Vec<vice_fit::RelationSolveTraceRow>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

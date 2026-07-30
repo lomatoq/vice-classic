@@ -34,6 +34,7 @@ vice-image = { path = "../vice-image" }
 vice-ir = { path = "../vice-ir" }
 vice-opt = { path = "../vice-opt" }
 vice-render = { path = "../vice-render" }
+vice-svg = { path = "../vice-svg" }
 # M4.5: the topology envelope whose candidate recall this crate measures.
 vice-topology = { path = "../vice-topology" }
 vice-core = { path = "../vice-core" }

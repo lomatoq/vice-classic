@@ -17,9 +17,10 @@ pub mod trust_region;
 pub mod universe;
 
 pub use likelihood::{
-    score_full_resolution, score_serialized_full_resolution, BlockLikelihoodConfig,
-    LikelihoodDiagnostics, LikelihoodError, PredictionSource, PriorCodeLengths, ResidualModelId,
-    ScoreBreakdown, ScoreOwnership,
+    score_full_resolution, score_full_resolution_scope, score_serialized_full_resolution,
+    score_serialized_full_resolution_scope, BlockLikelihoodConfig, LikelihoodDiagnostics,
+    LikelihoodError, PredictionSource, PriorCodeLengths, ResidualModelId, ScoreBreakdown,
+    ScoreOwnership,
 };
 pub use posterior::{
     finite_class_entropy_upper_bound, posterior_with_search_mass, BoundValue, ClassPosterior,
@@ -36,8 +37,8 @@ pub use transaction::{
 };
 pub use trust_region::{
     optimize_best_deterministic, optimize_trust_region, BlockSpec, EvaluationToken,
-    OptimizationResult, OptimizationTraceRow, Rect, ScoreScope, TrustRegionConfig,
-    TrustRegionError, TrustRegionProblem,
+    OptimizationBlockPlan, OptimizationResult, OptimizationTraceRow, Rect, ScoreScope,
+    TrustRegionConfig, TrustRegionError, TrustRegionProblem,
 };
 pub use universe::{
     model_universe_hash, Admissibility, BoundStatus, SupportedModelUniverseV1,

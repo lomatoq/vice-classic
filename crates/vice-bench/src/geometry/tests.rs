@@ -1,6 +1,13 @@
 use super::*;
 
 #[test]
+fn optimizer_recovery_is_not_relabelled_by_an_independent_gt_diagnostic() {
+    let (recovered, truth_improved) = classify_recovery(10.0, 4.0, Some(0.08), Some(0.14));
+    assert!(recovered);
+    assert_eq!(truth_improved, Some(false));
+}
+
+#[test]
 fn the_geometry_intervention_config_binds_the_model_and_pricing_versions() {
     let config = GeometryOracleConfig::default();
     assert_eq!(

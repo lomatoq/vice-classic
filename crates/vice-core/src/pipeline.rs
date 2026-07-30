@@ -1590,7 +1590,20 @@ fn vectorize_impl(
         .iter()
         .filter(|row| row.full_check)
         .count();
-    let solver_certificate_stable = full_checks >= accepted_local
+    let local_scopes_closed = !selected.summary.optimizer.block_plan.is_empty()
+        && selected.summary.optimizer.full_check_every_accepted_blocks == 1
+        && selected.summary.optimizer.block_plan.iter().all(|block| {
+            !block.scope.global && block.scope.roi.is_some() && block.scope.halo_px > 0
+        })
+        && selected
+            .summary
+            .optimizer
+            .trace
+            .iter()
+            .filter(|row| row.accepted && !row.full_check)
+            .all(|row| !row.scope.global && row.scope.roi.is_some() && row.scope.halo_px > 0);
+    let solver_certificate_stable = local_scopes_closed
+        && full_checks >= accepted_local
         && selected.summary.optimizer.trace.iter().all(|row| {
             row.child_bits.is_finite()
                 && row.parent_bits.is_finite()

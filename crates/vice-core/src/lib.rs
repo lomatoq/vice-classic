@@ -365,6 +365,13 @@ mod tests {
             .iter()
             .flat_map(|candidate| &candidate.transactions)
             .all(|transaction| transaction.atomic));
+        assert!(outcome.report().candidates.iter().all(|candidate| {
+            candidate.optimizer.full_check_every_accepted_blocks == 1
+                && !candidate.optimizer.block_plan.is_empty()
+                && candidate.optimizer.block_plan.iter().all(|block| {
+                    !block.scope.global && block.scope.roi.is_some() && block.scope.halo_px > 0
+                })
+        }));
     }
 
     #[test]

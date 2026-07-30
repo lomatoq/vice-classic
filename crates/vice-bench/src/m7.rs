@@ -9,6 +9,8 @@
 pub mod analysis;
 pub mod baseline;
 pub mod determinism;
+pub mod governance;
+pub mod oracle;
 pub mod release;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -37,7 +39,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v11";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v12";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
@@ -155,6 +157,28 @@ pub struct InternalBaselineMeasurement {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PfArmMeasurement {
+    pub arm: String,
+    pub partition_source: String,
+    pub formation_source: String,
+    pub scene_digest_sha256: String,
+    pub serialized_svg_sha256: String,
+    pub max_premultiplied_code_delta: f64,
+    pub mean_premultiplied_code_delta: f64,
+    pub identical_pixels_fraction: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PfOracleMeasurement {
+    pub intervention_schema: String,
+    pub common_backend: String,
+    pub common_config_sha256: String,
+    pub arms: Vec<PfArmMeasurement>,
+    pub refusals: Vec<String>,
+    pub complete: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeasurementRow {
     pub group_id: String,
     pub scene_id: String,
@@ -176,6 +200,7 @@ pub struct MeasurementRow {
     pub selected_artifact_bundle_sha256: Option<String>,
     pub selected_complexity: Option<SceneComplexity>,
     pub internal_baseline: Option<InternalBaselineMeasurement>,
+    pub pf_oracle: Option<PfOracleMeasurement>,
     pub search_truncated: Option<bool>,
     pub explored_mass: Option<f64>,
     pub topology_classes_upper_bound: Option<u64>,
@@ -992,6 +1017,7 @@ fn measure_one(
         selected_artifact_bundle_sha256: None,
         selected_complexity: None,
         internal_baseline: None,
+        pf_oracle: None,
         search_truncated: report.search_mass.as_ref().map(|search| search.truncated),
         explored_mass: report
             .search_mass
@@ -1152,6 +1178,13 @@ fn measure_one(
         row.internal_baseline =
             measure_internal_baseline(truth_scene, cell, &baseline, config).ok();
     }
+    row.pf_oracle = Some(measure_pf_oracle(
+        truth_scene,
+        cell,
+        &fixture.rgba8,
+        &witness,
+        config,
+    ));
     row.court_runtime_ms = court_started
         .elapsed()
         .as_millis()
@@ -1256,6 +1289,195 @@ fn measure_internal_baseline(
     })
 }
 
+fn measure_pf_oracle(
+    truth_scene: &GtScene,
+    cell: &DegradationCell,
+    observed_rgba8: &[u8],
+    selected: &vice_core::CalibrationWitness,
+    config: &CoreConfig,
+) -> PfOracleMeasurement {
+    const SCHEMA: &str = "vice-classic/m7-pf-interventions/v1";
+    const BACKEND: &str = "vice-svg/independent-parser-renderer/v1";
+    let common_config_sha256 = hex::encode(Sha256::digest(
+        format!(
+            "{SCHEMA}|{BACKEND}|{}|{}|{}",
+            config.export_decimal_places,
+            config.apron_width_px,
+            cell.id()
+        )
+        .as_bytes(),
+    ));
+    let mut arms = Vec::new();
+    let mut refusals = Vec::new();
+    let selected_scene = match vice_ir::parse_scene(&selected.scene_json) {
+        Ok(scene) => scene,
+        Err(error) => {
+            refusals.push(format!("parse selected scene: {error}"));
+            return PfOracleMeasurement {
+                intervention_schema: SCHEMA.into(),
+                common_backend: BACKEND.into(),
+                common_config_sha256,
+                arms,
+                refusals,
+                complete: false,
+            };
+        }
+    };
+    let gt_formation = vice_ir::GlobalFormationHypothesis {
+        blend_space: cell.blend,
+        pixel_filter: match cell.psf {
+            crate::gt::raster::Psf::Box => vice_ir::PixelFilter::Box,
+            crate::gt::raster::Psf::Triangle => vice_ir::PixelFilter::Triangle,
+            crate::gt::raster::Psf::Gaussian { sigma_px } => {
+                vice_ir::PixelFilter::Gaussian { sigma_px }
+            }
+        },
+        quantization: vice_ir::QuantizationModel::Uint8,
+        exterior: truth_scene.scene().scene().formation.exterior,
+    };
+    let mut variants = vec![("PF00", "automatic", "estimated", selected_scene.clone())];
+    let mut pf01 = selected_scene.clone();
+    pf01.formation = gt_formation;
+    variants.push(("PF01", "automatic", "ground_truth", pf01));
+    match scaled_truth_scene(truth_scene, cell) {
+        Ok(mut ground_truth) => {
+            ground_truth.formation = selected_scene.formation;
+            variants.push(("PF10", "ground_truth", "estimated", ground_truth.clone()));
+            ground_truth.formation = gt_formation;
+            variants.push(("PF11", "ground_truth", "ground_truth", ground_truth));
+        }
+        Err(error) => refusals.push(format!("construct ground-truth partition: {error}")),
+    }
+    for (arm, partition_source, formation_source, scene) in variants {
+        match measure_pf_arm(
+            arm,
+            partition_source,
+            formation_source,
+            &scene,
+            observed_rgba8,
+            config,
+        ) {
+            Ok(measurement) => arms.push(measurement),
+            Err(error) => refusals.push(format!("{arm}: {error}")),
+        }
+    }
+    arms.sort_by(|left, right| left.arm.cmp(&right.arm));
+    let complete = refusals.is_empty()
+        && arms.len() == 4
+        && ["PF00", "PF01", "PF10", "PF11"]
+            .iter()
+            .all(|want| arms.iter().any(|arm| arm.arm == *want));
+    PfOracleMeasurement {
+        intervention_schema: SCHEMA.into(),
+        common_backend: BACKEND.into(),
+        common_config_sha256,
+        arms,
+        refusals,
+        complete,
+    }
+}
+
+fn scaled_truth_scene(
+    truth_scene: &GtScene,
+    cell: &DegradationCell,
+) -> Result<vice_ir::VectorScene, String> {
+    if cell.resize != crate::gt::degradation::ResizeChain::None {
+        return Err("PF scene transform requires a no-resize cell".into());
+    }
+    let mut scene = truth_scene.scene().scene().clone();
+    let scale = f64::from(cell.size_px) / f64::from(AUTHORING_CANVAS_PX);
+    let transform = |point: Pt| {
+        Pt::new(
+            point.x * scale + cell.subpixel_dx,
+            point.y * scale + cell.subpixel_dy,
+        )
+    };
+    for vertex in &mut scene.graph.vertices {
+        vertex.pos = transform(vertex.pos);
+    }
+    for boundary in &mut scene.graph.boundaries {
+        for node in &mut boundary.curve.interior_nodes {
+            node.pos = transform(node.pos);
+        }
+        for segment in &mut boundary.curve.segments {
+            match segment {
+                vice_ir::Segment::Line => {}
+                vice_ir::Segment::CircularArc { radius_px, .. } => *radius_px *= scale,
+                vice_ir::Segment::EllipticArc { rx_px, ry_px, .. } => {
+                    *rx_px *= scale;
+                    *ry_px *= scale;
+                }
+                vice_ir::Segment::Quad { ctrl } => *ctrl = transform(*ctrl),
+                vice_ir::Segment::Cubic { ctrl1, ctrl2 } => {
+                    *ctrl1 = transform(*ctrl1);
+                    *ctrl2 = transform(*ctrl2);
+                }
+            }
+        }
+    }
+    scene.canvas = vice_ir::Canvas {
+        width_px: cell.size_px,
+        height_px: cell.size_px,
+    };
+    vice_ir::validate_scene(&scene).map_err(|error| error.to_string())?;
+    Ok(scene)
+}
+
+fn measure_pf_arm(
+    arm: &str,
+    partition_source: &str,
+    formation_source: &str,
+    scene: &vice_ir::VectorScene,
+    observed_rgba8: &[u8],
+    config: &CoreConfig,
+) -> Result<PfArmMeasurement, String> {
+    let plan =
+        vice_svg::build_export_plan(scene, config.export_decimal_places, config.apron_width_px)
+            .map_err(|error| error.to_string())?;
+    let svg = vice_svg::materialize_svg(&plan, vice_svg::SvgProfile::PurePartition)
+        .map_err(|error| error.to_string())?;
+    let rendered =
+        vice_svg::parse_and_render_independently(&svg).map_err(|error| error.to_string())?;
+    let actual = rendered.premultiplied_rgba8();
+    if actual.len() != observed_rgba8.len() {
+        return Err(format!(
+            "render length {} does not match observation {}",
+            actual.len(),
+            observed_rgba8.len()
+        ));
+    }
+    let mut max_delta = 0.0f64;
+    let mut sum = 0.0f64;
+    let mut identical = 0u64;
+    for (expected, actual) in observed_rgba8.chunks_exact(4).zip(actual.chunks_exact(4)) {
+        let deltas = crate::gt::colour::premultiplied_deltas(expected, actual);
+        let pixel_max = deltas.iter().copied().fold(0.0, f64::max);
+        max_delta = max_delta.max(pixel_max);
+        sum += deltas.iter().sum::<f64>();
+        identical += u64::from(pixel_max == 0.0);
+    }
+    let pixels = u64::try_from(observed_rgba8.len() / 4).unwrap_or(u64::MAX);
+    Ok(PfArmMeasurement {
+        arm: arm.into(),
+        partition_source: partition_source.into(),
+        formation_source: formation_source.into(),
+        scene_digest_sha256: vice_ir::scene_digest_sha256(scene)
+            .map_err(|error| error.to_string())?,
+        serialized_svg_sha256: hex::encode(Sha256::digest(&svg)),
+        max_premultiplied_code_delta: max_delta,
+        mean_premultiplied_code_delta: if pixels == 0 {
+            0.0
+        } else {
+            sum / (pixels * 4) as f64
+        },
+        identical_pixels_fraction: if pixels == 0 {
+            1.0
+        } else {
+            identical as f64 / pixels as f64
+        },
+    })
+}
+
 fn measured_bound(bound: &BoundValue<f64>) -> (Option<f64>, String) {
     match bound {
         BoundValue::Certified(value) => (Some(*value), "certified".into()),
@@ -1321,6 +1543,7 @@ fn refusal_row(
         selected_artifact_bundle_sha256: None,
         selected_complexity: None,
         internal_baseline: None,
+        pf_oracle: None,
         search_truncated: None,
         explored_mass: None,
         topology_classes_upper_bound: None,
@@ -1683,6 +1906,7 @@ mod tests {
             selected_artifact_bundle_sha256: None,
             selected_complexity: None,
             internal_baseline: None,
+            pf_oracle: None,
             search_truncated: None,
             explored_mass: None,
             topology_classes_upper_bound: None,

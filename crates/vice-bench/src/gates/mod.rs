@@ -40,7 +40,10 @@ use crate::hashing::sha256_file;
 pub const GATES_SCHEMA: &str = "vice-classic/gates/v1";
 
 /// Paths whose modification is a GATE change.
-pub const GATE_PATHS: &[&str] = &["configs/GATES_V1.toml"];
+pub const GATE_PATHS: &[&str] = &[
+    "configs/GATES_V1.toml",
+    "configs/M7_GATE_PROVENANCE_V1.toml",
+];
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct GateSection {

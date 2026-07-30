@@ -116,7 +116,7 @@ impl Default for GeometryOracleConfig {
     }
 }
 
-const BACKEND_SOURCE_PATHS: [(&str, &str); 28] = [
+const BACKEND_SOURCE_PATHS: [(&str, &str); 29] = [
     (
         "crates/vice-fit/src/code.rs",
         include_str!("../../../vice-fit/src/code.rs"),
@@ -152,6 +152,10 @@ const BACKEND_SOURCE_PATHS: [(&str, &str); 28] = [
     (
         "crates/vice-fit/src/grammar.rs",
         include_str!("../../../vice-fit/src/grammar.rs"),
+    ),
+    (
+        "crates/vice-fit/src/ir_lift.rs",
+        include_str!("../../../vice-fit/src/ir_lift.rs"),
     ),
     (
         "crates/vice-fit/src/lib.rs",
@@ -353,6 +357,45 @@ pub struct GeometryMeasurements {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct M7G30Arm {
+    pub arm: &'static str,
+    pub fixture_id: String,
+    pub compatibility_key: CompatibilityKey,
+    pub selected_source: &'static str,
+    pub geometry_sha256: String,
+    pub canonical_roundtrip_identical: bool,
+    pub error: GeometryError,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct M7RecoveryRow {
+    pub fixture_id: String,
+    pub mode: &'static str,
+    pub status: &'static str,
+    pub perturbation_px: f64,
+    pub residual_before: Option<f64>,
+    pub residual_after: Option<f64>,
+    pub symmetric_max_before_px: Option<f64>,
+    pub symmetric_max_after_px: Option<f64>,
+    pub pass_kept: Option<usize>,
+    /// The optimizer's declared normal-direction objective strictly fell.
+    pub normal_objective_recovered: bool,
+    /// Independent authored-truth diagnostic. It is not the optimizer's
+    /// objective and therefore does not relabel an objective recovery.
+    pub truth_distance_improved: Option<bool>,
+    pub refusal: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct M7GeometryExtension {
+    pub schema: &'static str,
+    pub base: GeometryMeasurements,
+    pub g30: Vec<M7G30Arm>,
+    pub recovery: Vec<M7RecoveryRow>,
+    pub complete_six_arm_rows: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct GeometryGateRow {
     pub clause: &'static str,
     pub met: bool,
@@ -384,6 +427,7 @@ pub(super) struct RasterBoundObservation {
     /// It contains the same physical samples; no authored point enters it.
     forced_chain: BoundaryChain,
     truth: Vec<Pt>,
+    gt_chain: Option<vice_fit::RefitChain>,
     gt_families: Vec<SpanFamily>,
     gt_breakpoints: Vec<usize>,
     stage_f_truth_match_px: f64,
@@ -401,16 +445,18 @@ pub fn measure(gates: &GatesFile) -> Result<GeometryOracleReport, String> {
 /// gate-file-only freeze is read.
 pub fn measure_raw() -> Result<GeometryMeasurements, String> {
     let config = GeometryOracleConfig::default();
+    let population = observations::collect(&config)?;
+    measure_population(&config, &population).map(|(measurements, _)| measurements)
+}
+
+fn measure_population(
+    config: &GeometryOracleConfig,
+    population: &observations::ObservationPopulation,
+) -> Result<(GeometryMeasurements, BTreeMap<String, vice_fit::RefitChain>), String> {
     let config_json = serde_json::to_vec(&config).map_err(|e| e.to_string())?;
     let config_hash = sha256_hex(&config_json);
-    let observations::ObservationPopulation {
-        source_groups,
-        scenes,
-        attempted,
-        observations,
-        mut exclusions,
-    } = observations::collect(&config)?;
-    let fixture_contents: Vec<String> = observations
+    let fixture_contents: Vec<String> = population
+        .observations
         .iter()
         .map(|observation| {
             serde_json::to_vec(observation)
@@ -421,11 +467,18 @@ pub fn measure_raw() -> Result<GeometryMeasurements, String> {
     let fixture_set_hash = sha256_hex(fixture_contents.join("\u{1f}").as_bytes());
     let key = compatibility_key(&config, &config_hash, &fixture_set_hash);
     let mut rows = Vec::new();
-    for observation in observations {
+    let mut g20_chains = BTreeMap::new();
+    let mut exclusions = population.exclusions.clone();
+    for observation in &population.observations {
         match measure_boundary(&observation, &config, &config_hash, &fixture_set_hash) {
-            Ok(row) => rows.push(row),
+            Ok((row, g20_chain)) => {
+                if let Some(chain) = g20_chain {
+                    g20_chains.insert(row.fixture_id.clone(), chain);
+                }
+                rows.push(row);
+            }
             Err(reason) => exclusions.push(GeometryExclusion {
-                fixture_id: observation.fixture_id,
+                fixture_id: observation.fixture_id.clone(),
                 stage: "five_arm_common_population",
                 reason,
             }),
@@ -436,17 +489,17 @@ pub fn measure_raw() -> Result<GeometryMeasurements, String> {
     let aggregates = aggregate(&rows);
     let derived = derive_coverage(&rows, &config);
 
-    Ok(GeometryMeasurements {
+    let measurements = GeometryMeasurements {
         schema: GEOMETRY_M6_SCHEMA,
         milestone: "M6",
         platform: Platform::current(),
-        config,
+        config: config.clone(),
         config_hash,
         fixture_set_hash,
         compatibility_key: key,
-        source_groups,
-        scenes,
-        boundaries_attempted: attempted,
+        source_groups: population.source_groups,
+        scenes: population.scenes,
+        boundaries_attempted: population.attempted,
         boundaries_measured: rows.len(),
         exact_gt_reference_max_px: 0.0,
         oracle_candidate_injections: derived.candidate_injections,
@@ -466,7 +519,256 @@ pub fn measure_raw() -> Result<GeometryMeasurements, String> {
         exclusions,
         aggregates,
         rows,
+    };
+    Ok((measurements, g20_chains))
+}
+
+/// Complete M7 geometry extension: the five production-fitting interventions,
+/// an actual GT-parameter G30 lift/roundtrip, and controlled recovery from
+/// perturbed G20/G30 starts.
+pub fn measure_m7_raw() -> Result<M7GeometryExtension, String> {
+    const SCHEMA: &str = "vice-classic/m7-geometry-oracle-recovery/v2";
+    const PERTURBATION_PX: f64 = 0.08;
+    let config = GeometryOracleConfig::default();
+    let population = observations::collect(&config)?;
+    let (base, g20_chains) = measure_population(&config, &population)?;
+    let base_by_fixture = base
+        .rows
+        .iter()
+        .map(|row| (row.fixture_id.as_str(), row))
+        .collect::<BTreeMap<_, _>>();
+    let mut g30 = Vec::new();
+    let mut recovery = Vec::new();
+    for observation in population.observations {
+        let Some(base_row) = base_by_fixture.get(observation.fixture_id.as_str()) else {
+            continue;
+        };
+        let key = base_row
+            .arms
+            .first()
+            .map(|arm| arm.compatibility_key.clone())
+            .ok_or_else(|| format!("{} has no geometry arms", observation.fixture_id))?;
+        if let Some(gt_chain) = &observation.gt_chain {
+            let lowered = gt_chain
+                .lower_boundary_geometry()
+                .map_err(|error| format!("G30 lowering: {error:?}"))?;
+            let geometry_sha256 = sha256_hex(
+                &serde_json::to_vec(&lowered).map_err(|error| format!("G30 serialize: {error}"))?,
+            );
+            let poly = vice_fit::solve::flatten_chain(gt_chain)
+                .map_err(|error| format!("G30 flatten: {error:?}"))?;
+            let error = geometry_error_polylines(&poly, &observation.truth)?;
+            let roundtrip_identical = lowered
+                == gt_chain
+                    .lower_boundary_geometry()
+                    .map_err(|error| format!("G30 second lowering: {error:?}"))?;
+            g30.push(M7G30Arm {
+                arm: "G30",
+                fixture_id: observation.fixture_id.clone(),
+                compatibility_key: key,
+                selected_source: "ground_truth_parameters",
+                geometry_sha256,
+                canonical_roundtrip_identical: roundtrip_identical,
+                error,
+            });
+            recovery.push(run_recovery(
+                &observation.fixture_id,
+                "G30",
+                gt_chain,
+                &observation.forced_chain.samples,
+                &observation.truth,
+                PERTURBATION_PX,
+            ));
+        } else {
+            recovery.push(M7RecoveryRow {
+                fixture_id: observation.fixture_id.clone(),
+                mode: "G30",
+                status: "refused",
+                perturbation_px: PERTURBATION_PX,
+                residual_before: None,
+                residual_after: None,
+                symmetric_max_before_px: None,
+                symmetric_max_after_px: None,
+                pass_kept: None,
+                normal_objective_recovered: false,
+                truth_distance_improved: None,
+                refusal: Some(
+                    "GT loop cannot be lifted into the supported shared-parameter IR".into(),
+                ),
+            });
+        }
+        if let Some(chain) = g20_chains.get(&observation.fixture_id) {
+            recovery.push(run_recovery(
+                &observation.fixture_id,
+                "G20",
+                chain,
+                &observation.forced_chain.samples,
+                &observation.truth,
+                PERTURBATION_PX,
+            ));
+        } else {
+            recovery.push(recovery_refusal(
+                &observation.fixture_id,
+                "G20",
+                PERTURBATION_PX,
+                "forced GT-family fit selected no typed chain",
+            ));
+        }
+    }
+    g30.sort_by(|left, right| left.fixture_id.cmp(&right.fixture_id));
+    recovery.sort_by(|left, right| {
+        left.fixture_id
+            .cmp(&right.fixture_id)
+            .then(left.mode.cmp(right.mode))
+    });
+    let complete_six_arm_rows = base
+        .rows
+        .iter()
+        .filter(|row| row.arms.len() == 5 && g30.iter().any(|arm| arm.fixture_id == row.fixture_id))
+        .count();
+    drop(base_by_fixture);
+    Ok(M7GeometryExtension {
+        schema: SCHEMA,
+        base,
+        g30,
+        recovery,
+        complete_six_arm_rows,
     })
+}
+
+fn run_recovery(
+    fixture_id: &str,
+    mode: &'static str,
+    initial: &vice_fit::RefitChain,
+    samples: &[vice_evidence::BoundarySample],
+    truth: &[Pt],
+    perturbation_px: f64,
+) -> M7RecoveryRow {
+    let perturbed = perturb_chain(initial, perturbation_px);
+    let before_error = vice_fit::solve::flatten_chain(&perturbed)
+        .ok()
+        .and_then(|poly| geometry_error_polylines(&poly, truth).ok())
+        .map(|error| error.symmetric_max_px);
+    match vice_fit::joint_constrained_refit(&perturbed, samples) {
+        Ok(result) => {
+            let after_error = vice_fit::solve::flatten_chain(&result.chain)
+                .ok()
+                .and_then(|poly| geometry_error_polylines(&poly, truth).ok())
+                .map(|error| error.symmetric_max_px);
+            let (normal_objective_recovered, truth_distance_improved) = classify_recovery(
+                result.residual_before,
+                result.residual_after,
+                before_error,
+                after_error,
+            );
+            M7RecoveryRow {
+                fixture_id: fixture_id.into(),
+                mode,
+                status: "measured",
+                perturbation_px,
+                residual_before: Some(result.residual_before),
+                residual_after: Some(result.residual_after),
+                symmetric_max_before_px: before_error,
+                symmetric_max_after_px: after_error,
+                pass_kept: Some(result.pass_kept),
+                normal_objective_recovered,
+                truth_distance_improved,
+                refusal: None,
+            }
+        }
+        Err(error) => recovery_refusal(
+            fixture_id,
+            mode,
+            perturbation_px,
+            &format!("joint recovery solve refused: {error:?}"),
+        ),
+    }
+}
+
+fn classify_recovery(
+    residual_before: f64,
+    residual_after: f64,
+    truth_before: Option<f64>,
+    truth_after: Option<f64>,
+) -> (bool, Option<bool>) {
+    (
+        residual_after + f64::EPSILON < residual_before,
+        truth_before
+            .zip(truth_after)
+            .map(|(before, after)| after < before),
+    )
+}
+
+fn recovery_refusal(
+    fixture_id: &str,
+    mode: &'static str,
+    perturbation_px: f64,
+    reason: &str,
+) -> M7RecoveryRow {
+    M7RecoveryRow {
+        fixture_id: fixture_id.into(),
+        mode,
+        status: "refused",
+        perturbation_px,
+        residual_before: None,
+        residual_after: None,
+        symmetric_max_before_px: None,
+        symmetric_max_after_px: None,
+        pass_kept: None,
+        normal_objective_recovered: false,
+        truth_distance_improved: None,
+        refusal: Some(reason.into()),
+    }
+}
+
+fn perturb_chain(chain: &vice_fit::RefitChain, delta: f64) -> vice_fit::RefitChain {
+    let mut out = chain.clone();
+    let closed =
+        out.nodes.len() >= 2 && out.nodes.first().unwrap().pos == out.nodes.last().unwrap().pos;
+    let unique_nodes = out.nodes.len().saturating_sub(usize::from(closed));
+    for (index, node) in out.nodes.iter_mut().take(unique_nodes).enumerate() {
+        let sign = if index.is_multiple_of(2) { 1.0 } else { -1.0 };
+        node.pos.x += sign * delta;
+        node.pos.y -= sign * delta * 0.5;
+        if let Some(tangent) = &mut node.tangent_rad {
+            *tangent = vice_fit::canonical_angle(*tangent + sign * 0.01);
+        }
+    }
+    if closed {
+        let first = out.nodes[0];
+        let last = out.nodes.len() - 1;
+        out.nodes[last] = first;
+    }
+    for (index, segment) in out.segments.iter_mut().enumerate() {
+        let sign = if index.is_multiple_of(2) { 1.0 } else { -1.0 };
+        match segment {
+            vice_fit::RefitSegment::Line
+            | vice_fit::RefitSegment::Arc(
+                vice_fit::ArcAnchor::FromHeadTangent | vice_fit::ArcAnchor::FromTailTangent,
+            ) => {}
+            vice_fit::RefitSegment::Arc(vice_fit::ArcAnchor::Radius { radius_px, .. }) => {
+                *radius_px = (*radius_px + sign * delta).max(delta);
+            }
+            vice_fit::RefitSegment::Quad { ctrl } => perturb_handle(ctrl, sign, delta),
+            vice_fit::RefitSegment::Cubic { head, tail } => {
+                perturb_handle(head, sign, delta);
+                perturb_handle(tail, -sign, delta);
+            }
+        }
+    }
+    out
+}
+
+fn perturb_handle(handle: &mut vice_fit::Handle, sign: f64, delta: f64) {
+    match handle {
+        vice_fit::Handle::Free(point) => {
+            point.x += sign * delta;
+            point.y -= sign * delta * 0.5;
+        }
+        vice_fit::Handle::Shared { length_px } => {
+            *length_px = (*length_px + sign * delta).max(delta);
+        }
+    }
 }
 
 pub(super) fn flatten_truth_segment(
@@ -502,7 +804,7 @@ fn measure_boundary(
     config: &GeometryOracleConfig,
     config_hash: &str,
     fixture_set_hash: &str,
-) -> Result<GeometryBoundaryRow, String> {
+) -> Result<(GeometryBoundaryRow, Option<vice_fit::RefitChain>), String> {
     let auto = k_best_boundary_models(
         &observation.chain,
         &FIT_BUDGET_V1,
@@ -590,25 +892,29 @@ fn measure_boundary(
     let oracle_selector_changed = arms[2].geometry_sha256 != arms[0].geometry_sha256;
     let injection_selector_changed = arms[1].geometry_sha256 != arms[0].geometry_sha256;
     let forced_selector_changed = arms[3].geometry_sha256 != arms[4].geometry_sha256;
-    Ok(GeometryBoundaryRow {
-        fixture_id: observation.fixture_id.clone(),
-        scene_id: observation.scene_id.clone(),
-        boundary_id: observation.boundary_id,
-        samples: observation.chain.samples.len(),
-        gt_families: observation
-            .gt_families
-            .iter()
-            .map(|family| family.universe_name())
-            .collect(),
-        gt_breakpoints: observation.gt_breakpoints.clone(),
-        stage_f_truth_match_px: observation.stage_f_truth_match_px,
-        render_cell: observation.render_cell.clone(),
-        injected_models: forced.models.len(),
-        oracle_selector_changed,
-        injection_selector_changed,
-        forced_selector_changed,
-        arms,
-    })
+    let g20_chain = forced_first.geometry.typed_chain().cloned();
+    Ok((
+        GeometryBoundaryRow {
+            fixture_id: observation.fixture_id.clone(),
+            scene_id: observation.scene_id.clone(),
+            boundary_id: observation.boundary_id,
+            samples: observation.chain.samples.len(),
+            gt_families: observation
+                .gt_families
+                .iter()
+                .map(|family| family.universe_name())
+                .collect(),
+            gt_breakpoints: observation.gt_breakpoints.clone(),
+            stage_f_truth_match_px: observation.stage_f_truth_match_px,
+            render_cell: observation.render_cell.clone(),
+            injected_models: forced.models.len(),
+            oracle_selector_changed,
+            injection_selector_changed,
+            forced_selector_changed,
+            arms,
+        },
+        g20_chain,
+    ))
 }
 
 fn oracle_select<'a>(
@@ -678,6 +984,10 @@ fn geometry_error(model: &BoundaryModel, truth: &[Pt]) -> Result<GeometryError, 
         .geometry
         .flatten()
         .map_err(|e| format!("selected model does not flatten: {e:?}"))?;
+    geometry_error_polylines(&poly, truth)
+}
+
+fn geometry_error_polylines(poly: &[Pt], truth: &[Pt]) -> Result<GeometryError, String> {
     if poly.len() < 2 || truth.len() < 2 {
         return Err("geometry metric received a degenerate polyline".to_string());
     }

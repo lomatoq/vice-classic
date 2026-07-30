@@ -710,22 +710,43 @@ impl PaintProblem<'_> {
         }
         Ok(scene)
     }
+
+    fn cache_key(parameters: &[f64], scope: ScoreScope) -> Vec<u64> {
+        let mut key = parameters
+            .iter()
+            .map(|value| value.to_bits())
+            .collect::<Vec<_>>();
+        key.push(u64::from(scope.global));
+        key.push(u64::from(scope.halo_px));
+        if let Some(roi) = scope.roi {
+            key.extend([
+                u64::from(roi.x0),
+                u64::from(roi.y0),
+                u64::from(roi.x1),
+                u64::from(roi.y1),
+            ]);
+        } else {
+            key.extend([u64::MAX; 4]);
+        }
+        key
+    }
 }
 
 impl TrustRegionProblem for PaintProblem<'_> {
     fn surrogate_bits(
         &self,
         parameters: &[f64],
-        _scope: ScoreScope,
+        scope: ScoreScope,
         _token: vice_opt::EvaluationToken,
     ) -> Result<f64, String> {
         let scene = self.materialize(parameters)?;
-        vice_opt::score_full_resolution(
+        vice_opt::score_full_resolution_scope(
             &scene,
             self.observed,
             self.render,
             self.likelihood,
             self.priors,
+            scope,
         )
         .map(|score| score.total_bits)
         .map_err(|error| error.to_string())
@@ -734,10 +755,10 @@ impl TrustRegionProblem for PaintProblem<'_> {
     fn exact_bits(
         &self,
         parameters: &[f64],
-        _scope: ScoreScope,
+        scope: ScoreScope,
         _token: vice_opt::EvaluationToken,
     ) -> Result<f64, String> {
-        let key: Vec<u64> = parameters.iter().map(|value| value.to_bits()).collect();
+        let key = Self::cache_key(parameters, scope);
         if let Some(bits) = self.exact_cache.borrow().get(&key) {
             return Ok(*bits);
         }
@@ -749,7 +770,7 @@ impl TrustRegionProblem for PaintProblem<'_> {
             .map_err(|error| error.to_string())?;
         let witness =
             vice_svg::parse_and_render_independently(&svg).map_err(|error| error.to_string())?;
-        let bits = vice_opt::score_serialized_full_resolution(
+        let bits = vice_opt::score_serialized_full_resolution_scope(
             &scene,
             self.observed,
             witness.premultiplied_rgba8(),
@@ -757,6 +778,7 @@ impl TrustRegionProblem for PaintProblem<'_> {
             witness.height_px(),
             self.likelihood,
             self.priors,
+            scope,
         )
         .map(|score| score.total_bits)
         .map_err(|error| error.to_string())?;
@@ -770,6 +792,51 @@ impl TrustRegionProblem for PaintProblem<'_> {
         }
         Ok(())
     }
+}
+
+fn paint_score_scope(
+    render: &PartitionRender,
+    faces: &[FaceId],
+    halo_px: u32,
+) -> Result<ScoreScope, String> {
+    if halo_px == 0 || faces.is_empty() {
+        return Err("paint ROI requires affected faces and a nonzero dependency halo".into());
+    }
+    let width = render.width_px as usize;
+    let mut x0 = render.width_px;
+    let mut y0 = render.height_px;
+    let mut x1 = 0u32;
+    let mut y1 = 0u32;
+    let mut found = false;
+    for face in faces {
+        let coverage = render
+            .face_coverage
+            .get(face.index())
+            .ok_or_else(|| "paint ROI face is absent from the fixed render".to_string())?;
+        if coverage.len() != width * render.height_px as usize {
+            return Err("paint ROI coverage dimensions disagree with the render".into());
+        }
+        for (index, value) in coverage.iter().enumerate() {
+            if *value == 0.0 {
+                continue;
+            }
+            found = true;
+            let x = (index % width) as u32;
+            let y = (index / width) as u32;
+            x0 = x0.min(x);
+            y0 = y0.min(y);
+            x1 = x1.max(x + 1);
+            y1 = y1.max(y + 1);
+        }
+    }
+    if !found {
+        return Err("paint ROI has no affected certified pixels".into());
+    }
+    Ok(ScoreScope {
+        roi: Some(vice_opt::Rect { x0, y0, x1, y1 }),
+        halo_px,
+        global: false,
+    })
 }
 
 pub(crate) fn optimize_paint(
@@ -800,12 +867,22 @@ pub(crate) fn optimize_paint(
         apron_width_px: config.apron_width_px,
         exact_cache: RefCell::new(BTreeMap::new()),
     };
+    // Box filtering reaches at most one pixel beyond an affected face. Two
+    // pixels conservatively close filter, tessellation, and compositing
+    // dependencies; the likelihood then keeps its global correlation-block
+    // alignment. Every accepted local step is still serialized and checked
+    // against the exact full scene by the trust-region schedule.
+    const PAINT_DEPENDENCY_HALO_PX: u32 = 2;
     let mut blocks = vec![BlockSpec {
         name: "foreground_paint".into(),
         parameter_indices: vec![0, 1, 2],
         scales: vec![1.0; 3],
         max_radius: 4.0 / 255.0,
-        scope: ScoreScope::FULL,
+        scope: paint_score_scope(
+            fixed_render,
+            &candidate.paint_layout.foreground,
+            PAINT_DEPENDENCY_HALO_PX,
+        )?,
     }];
     if !candidate.paint_layout.background.is_empty() {
         blocks.push(BlockSpec {
@@ -813,7 +890,11 @@ pub(crate) fn optimize_paint(
             parameter_indices: vec![3, 4, 5],
             scales: vec![1.0; 3],
             max_radius: 4.0 / 255.0,
-            scope: ScoreScope::FULL,
+            scope: paint_score_scope(
+                fixed_render,
+                &candidate.paint_layout.background,
+                PAINT_DEPENDENCY_HALO_PX,
+            )?,
         });
     }
     // The evidence solve is already the deterministic least-squares paint

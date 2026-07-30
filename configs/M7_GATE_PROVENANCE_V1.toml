@@ -1,0 +1,9 @@
+schema = "vice-classic/m7-gate-provenance/v1"
+status = "placeholder"
+milestone = "M7"
+source_commit_sha = "0000000000000000000000000000000000000000"
+calibration_measurement_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+geometry_measurement_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+calibration_command = "placeholder"
+geometry_command = "placeholder"
+asserted_gate_keys = []

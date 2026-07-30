@@ -47,6 +47,7 @@ pub mod corner;
 pub mod cost;
 pub mod gate;
 pub mod grammar;
+mod ir_lift;
 pub mod models;
 pub mod primitive;
 pub mod refit;
@@ -76,6 +77,7 @@ pub use grammar::{
     materialize, GrammarEdge, GrammarPath, ProposalControlPath, JET_CLASSES, K_DISCRETE_PATHS,
     PATH_ORDER_POLICY,
 };
+pub use ir_lift::refit_chain_from_ir;
 pub use models::{
     canonical_cuts, fit_forced_boundary_models, k_best_boundary_models,
     k_best_boundary_models_bounded, models_at_cut, path_families, BoundaryModel, BoundedFitRefusal,

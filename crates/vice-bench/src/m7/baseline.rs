@@ -12,6 +12,7 @@ use super::{
 };
 use crate::gates::GatesFile;
 use crate::gt::split::{AuditSeal, SealStatus};
+use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 
 pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v1";
@@ -154,6 +155,9 @@ pub struct BaselineCourtVerdict {
     pub corpus_sha256: String,
     pub preregistration_sha256: String,
     pub gates_sha256: String,
+    pub release_commit_sha: String,
+    pub runner_attestation_sha256: String,
+    pub gate_provenance_sha256: String,
     pub quality: PresetBaselineVerdict,
     pub fast: PresetBaselineVerdict,
     pub gate_met: bool,
@@ -164,8 +168,9 @@ pub fn analyze(
     quality: &MeasurementReport,
     fast: &MeasurementReport,
     audit: &AuditSeal,
-    gates_file: &GatesFile,
+    threshold_source: &M7ThresholdSource,
 ) -> Result<BaselineCourtVerdict, String> {
+    let gates_file = &threshold_source.gates;
     validate(quality, vice_core::Preset::Quality)?;
     validate(fast, vice_core::Preset::Fast)?;
     if audit.status != SealStatus::Opened
@@ -192,6 +197,9 @@ pub fn analyze(
         corpus_sha256: audit.corpus_hash.clone(),
         preregistration_sha256: audit.prereg_hash.clone(),
         gates_sha256: audit.gates_hash.clone(),
+        release_commit_sha: threshold_source.event_commit_sha.clone(),
+        runner_attestation_sha256: threshold_source.attestation_sha256.clone(),
+        gate_provenance_sha256: threshold_source.provenance_sha256.clone(),
         gate_met: refusals.is_empty(),
         quality,
         fast,
