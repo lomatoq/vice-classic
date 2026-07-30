@@ -118,7 +118,8 @@ pub use loops::{
 };
 pub use sweep::{audit_every_labelling, ExhaustiveReport};
 pub use transaction::{
-    apply, Edit, Outcome, Roi, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
+    apply, rebuild_incremental, Edit, IncrementalRebuildError, IncrementalRebuildReport, Outcome,
+    Roi, TransactionRefusal, TransactionReport, TxConfig, TX_CONFIG_V1,
 };
 pub use walk::{
     measure_audit_resolving_power, rotate_face_map_above, swap_two_face_labels_above,
@@ -287,12 +288,31 @@ impl Dcel {
     pub fn assemble(labelling: Labelling, conn: ComplementaryConnectivity) -> Dcel {
         let (w, h) = (labelling.width_px() as u32, labelling.height_px() as u32);
         let arr = Arrangement::new(labelling.inside(), w, h, conn);
+        let steps = arr.steps();
+        Self::assemble_from_steps(labelling, conn, &steps)
+    }
+
+    /// Assemble the canonical DCEL from a complete, canonically ordered set of
+    /// directed boundary steps.
+    ///
+    /// The ordinary constructor discovers that set by scanning the complete
+    /// lattice. A topology transaction updates the old set only along the
+    /// changed pixels and enters here, so the arrangement delta is local while
+    /// canonical face ids, loops, vertices, and half-edge sites are still
+    /// reconstructed from the complete resulting set.
+    pub(super) fn assemble_from_steps(
+        labelling: Labelling,
+        conn: ComplementaryConnectivity,
+        steps: &[Step],
+    ) -> Dcel {
+        let (w, h) = (labelling.width_px() as u32, labelling.height_px() as u32);
+        let arr = Arrangement::new(labelling.inside(), w, h, conn);
 
         // ---- faces -------------------------------------------------------
         let (face_of_padded_px, face_labels) = flood_faces(&arr);
 
         // ---- loops -------------------------------------------------------
-        let loops = orbits(&arr);
+        let loops = orbits_from_steps(&arr, steps);
 
         // ---- vertices ----------------------------------------------------
         let mut vertex_set: std::collections::BTreeSet<Lat> = std::collections::BTreeSet::new();
@@ -614,6 +634,10 @@ fn flood_faces(arr: &Arrangement<'_>) -> (Vec<u32>, Vec<bool>) {
 /// The orbits of the successor permutation: one per boundary loop.
 pub(crate) fn orbits(arr: &Arrangement<'_>) -> Vec<Vec<Step>> {
     let steps = arr.steps();
+    orbits_from_steps(arr, &steps)
+}
+
+fn orbits_from_steps(arr: &Arrangement<'_>, steps: &[Step]) -> Vec<Vec<Step>> {
     let index: BTreeMap<Step, usize> = steps.iter().enumerate().map(|(i, s)| (*s, i)).collect();
     let mut seen = vec![false; steps.len()];
     let mut out = Vec::new();

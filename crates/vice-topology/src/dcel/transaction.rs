@@ -46,6 +46,7 @@ use serde::Serialize;
 
 use super::audit::{audit, AuditReport, InvariantViolation};
 use super::certificate::{topology_certificate, TopologyCertificate};
+use super::lattice::{Arrangement, Dir, Lat, Step};
 use super::Dcel;
 use crate::continuation::EditKind;
 use crate::cubical::Labelling;
@@ -105,6 +106,41 @@ pub struct TxConfig {
 
 pub const TX_CONFIG_V1: TxConfig = TxConfig { halo_px: 3 };
 
+/// Measured work performed by the local boundary-arrangement rebuild.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct IncrementalRebuildReport {
+    pub algorithm: &'static str,
+    pub changed_pixels: usize,
+    /// Undirected unit-segment sites whose existence was recomputed.
+    pub affected_segment_sites: usize,
+    /// All possible undirected segment sites on this canvas. This denominator
+    /// makes "incremental" an observable claim.
+    pub complete_lattice_segment_sites: usize,
+    pub base_boundary_segments: usize,
+    pub candidate_boundary_segments: usize,
+    /// Candidate segments copied from the base step set without re-reading
+    /// their adjacent pixel labels.
+    pub reused_boundary_segments: usize,
+    /// Candidate segments reconstructed at affected sites.
+    pub rebuilt_boundary_segments: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum IncrementalRebuildError {
+    #[error(
+        "incremental rebuild shape mismatch: base is {base_w}x{base_h}, candidate is \
+         {candidate_w}x{candidate_h}"
+    )]
+    ShapeMismatch {
+        base_w: u32,
+        base_h: u32,
+        candidate_w: u32,
+        candidate_h: u32,
+    },
+    #[error("incremental rebuild requires at least one changed pixel")]
+    NoChangedPixels,
+}
+
 /// Why a transaction did not commit.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum TransactionRefusal {
@@ -134,6 +170,8 @@ pub enum TransactionRefusal {
          the base and the candidate; first is {first}"
     )]
     UnrelatedGraphMutation { count: usize, first: String },
+    #[error("incremental DCEL rebuild failed: {0}")]
+    IncrementalRebuildFailed(#[from] IncrementalRebuildError),
     #[error("the candidate failed its own audit: {0}")]
     CandidateFailedAudit(#[from] InvariantViolation),
 }
@@ -153,6 +191,7 @@ impl TransactionRefusal {
             TransactionRefusal::EditIsANoOp => "EditIsANoOp",
             TransactionRefusal::NotTheDeclaredEdit { .. } => "NotTheDeclaredEdit",
             TransactionRefusal::UnrelatedGraphMutation { .. } => "UnrelatedGraphMutation",
+            TransactionRefusal::IncrementalRebuildFailed(_) => "IncrementalRebuildFailed",
             TransactionRefusal::CandidateFailedAudit(_) => "CandidateFailedAudit",
         }
     }
@@ -164,12 +203,13 @@ impl TransactionRefusal {
     /// constructed and its `name()` required to be present, and the length is
     /// required to match, so a variant added without a line here fails a test
     /// rather than silently shrinking a report's denominator.
-    pub const ALL_NAMES: [&'static str; 6] = [
+    pub const ALL_NAMES: [&'static str; 7] = [
         "EditLeftTheRoi",
         "EditLeftTheCanvas",
         "EditIsANoOp",
         "NotTheDeclaredEdit",
         "UnrelatedGraphMutation",
+        "IncrementalRebuildFailed",
         "CandidateFailedAudit",
     ];
 }
@@ -199,6 +239,7 @@ pub struct TransactionReport {
     /// clause "no unrelated graph mutation" is this number being zero, and the
     /// number beside it is what makes zero mean something.
     pub unrelated_chains_that_moved: usize,
+    pub incremental_rebuild: Option<IncrementalRebuildReport>,
     pub base: Option<AuditReport>,
     pub candidate: Option<AuditReport>,
     pub certificate: Option<TopologyCertificate>,
@@ -232,6 +273,140 @@ impl Outcome {
     }
 }
 
+fn path_step(from: (u32, u32), to: (u32, u32)) -> Step {
+    let dir = match (
+        i64::from(to.0) - i64::from(from.0),
+        i64::from(to.1) - i64::from(from.1),
+    ) {
+        (1, 0) => Dir::E,
+        (-1, 0) => Dir::W,
+        (0, 1) => Dir::S,
+        (0, -1) => Dir::N,
+        delta => panic!("stored DCEL path contains a non-unit step: {delta:?}"),
+    };
+    Step {
+        from: Lat {
+            x: from.0,
+            y: from.1,
+        },
+        dir,
+    }
+}
+
+fn boundary_steps(dcel: &Dcel) -> std::collections::BTreeSet<Step> {
+    let mut steps = std::collections::BTreeSet::new();
+    for boundary in dcel.boundaries() {
+        for pair in boundary.path.windows(2) {
+            let step = path_step(pair[0], pair[1]);
+            steps.insert(step);
+            steps.insert(step.twin());
+        }
+    }
+    steps
+}
+
+fn pixel_perimeter_steps(x: u32, y: u32) -> [Step; 4] {
+    [
+        Step {
+            from: Lat { x, y },
+            dir: Dir::E,
+        },
+        Step {
+            from: Lat { x, y },
+            dir: Dir::S,
+        },
+        Step {
+            from: Lat { x: x + 1, y },
+            dir: Dir::S,
+        },
+        Step {
+            from: Lat { x, y: y + 1 },
+            dir: Dir::E,
+        },
+    ]
+}
+
+/// Rebuild a changed binary arrangement by updating only boundary-step sites
+/// adjacent to changed pixels, then canonicalizing the resulting complete
+/// step set into a DCEL.
+///
+/// This function deliberately does not call [`Dcel::assemble`]. The full
+/// constructor is retained as an independent oracle for the differential
+/// harness.
+pub fn rebuild_incremental(
+    base: &Dcel,
+    labelling: Labelling,
+) -> Result<(Dcel, IncrementalRebuildReport), IncrementalRebuildError> {
+    let (base_w, base_h) = (base.width_px(), base.height_px());
+    let (candidate_w, candidate_h) = (labelling.width_px() as u32, labelling.height_px() as u32);
+    if (base_w, base_h) != (candidate_w, candidate_h) {
+        return Err(IncrementalRebuildError::ShapeMismatch {
+            base_w,
+            base_h,
+            candidate_w,
+            candidate_h,
+        });
+    }
+    let changed_pixels: Vec<(u32, u32)> = base
+        .labelling()
+        .inside()
+        .iter()
+        .zip(labelling.inside())
+        .enumerate()
+        .filter_map(|(index, (before, after))| {
+            (before != after).then_some((index as u32 % candidate_w, index as u32 / candidate_w))
+        })
+        .collect();
+    if changed_pixels.is_empty() {
+        return Err(IncrementalRebuildError::NoChangedPixels);
+    }
+
+    let base_steps = boundary_steps(base);
+    let mut affected_steps = std::collections::BTreeSet::new();
+    for &(x, y) in &changed_pixels {
+        for step in pixel_perimeter_steps(x, y) {
+            affected_steps.insert(step);
+            affected_steps.insert(step.twin());
+        }
+    }
+    let retained_steps: std::collections::BTreeSet<Step> =
+        base_steps.difference(&affected_steps).copied().collect();
+    let reused_boundary_segments = retained_steps.len() / 2;
+    let (candidate_steps, rebuilt_boundary_segments) = {
+        let arrangement = Arrangement::new(
+            labelling.inside(),
+            candidate_w,
+            candidate_h,
+            base.connectivity(),
+        );
+        let mut steps = retained_steps;
+        for &step in &affected_steps {
+            if arrangement.exists(step) {
+                steps.insert(step);
+            }
+        }
+        let rebuilt = steps.intersection(&affected_steps).count() / 2;
+        (steps, rebuilt)
+    };
+    let candidate_boundary_segments = candidate_steps.len() / 2;
+    let mut ordered_steps: Vec<Step> = candidate_steps.into_iter().collect();
+    ordered_steps.sort_by_key(|step| (step.from.y, step.from.x, step.dir.index()));
+    let candidate = Dcel::assemble_from_steps(labelling, base.connectivity(), &ordered_steps);
+    let complete_lattice_segment_sites =
+        base_w as usize * (base_h as usize + 1) + (base_w as usize + 1) * base_h as usize;
+    let report = IncrementalRebuildReport {
+        algorithm: "local_boundary_step_delta_v1",
+        changed_pixels: changed_pixels.len(),
+        affected_segment_sites: affected_steps.len() / 2,
+        complete_lattice_segment_sites,
+        base_boundary_segments: base_steps.len() / 2,
+        candidate_boundary_segments,
+        reused_boundary_segments,
+        rebuilt_boundary_segments,
+    };
+    Ok((candidate, report))
+}
+
 /// Apply one topological transaction.
 ///
 /// Note what is NOT a parameter: no cost, no bound, no score, no budget. §32
@@ -252,6 +427,7 @@ pub fn apply(base: &Dcel, edit: &Edit, cfg: &TxConfig) -> Outcome {
         committed: false,
         unrelated_chains: 0,
         unrelated_chains_that_moved: 0,
+        incremental_rebuild: None,
         base: None,
         candidate: None,
         certificate: None,
@@ -297,10 +473,12 @@ pub fn apply(base: &Dcel, edit: &Edit, cfg: &TxConfig) -> Outcome {
     // audit below is not a conjunct that cannot be false — the mutation walk
     // in `audit.rs` exhibits the world where it fails, which is what §32's
     // "before adding a conjunct, exhibit a world where it is false" asks for.
-    let candidate = Dcel::assemble(
-        Labelling::new(w as usize, h as usize, inside),
-        base.connectivity(),
-    );
+    let (candidate, rebuild) =
+        match rebuild_incremental(base, Labelling::new(w as usize, h as usize, inside)) {
+            Ok(result) => result,
+            Err(error) => return rolled(TransactionRefusal::from(error), report),
+        };
+    report.incremental_rebuild = Some(rebuild);
 
     let base_audit = match audit(base) {
         Ok(a) => a,
@@ -469,6 +647,13 @@ mod tests {
         );
         assert!(r.committed);
         assert!(r.certificate.is_some());
+        let rebuild = r
+            .incremental_rebuild
+            .as_ref()
+            .expect("a committed topology edit publishes rebuild work");
+        assert_eq!(rebuild.algorithm, "local_boundary_step_delta_v1");
+        assert!(rebuild.affected_segment_sites < rebuild.complete_lattice_segment_sites);
+        assert!(rebuild.reused_boundary_segments > 0);
         // The base is untouched: rollback needs no undo because nothing was
         // ever mutated.
         assert_eq!(base.foreground_faces(), 3);
@@ -676,5 +861,59 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    /// M7's incremental constructor and the independent full constructor must
+    /// produce byte-for-byte equal canonical DCELs. The structural register
+    /// supplies components, holes, bridges, nested loops, and critical 2x2
+    /// junctions at every mandatory fast size under both connectivity arms.
+    #[test]
+    fn incremental_matches_full_rebuild_on_the_structural_register() {
+        let mut comparisons = 0usize;
+        for size in super::super::fixtures::STRUCTURAL_SIZES_PX {
+            for fixture in super::super::fixtures::structural_fixtures(size) {
+                for connectivity in ComplementaryConnectivity::arms() {
+                    let base = Dcel::assemble(fixture.labelling.clone(), connectivity);
+                    let mut state = (size as u64)
+                        .wrapping_mul(0x9e37_79b9)
+                        .wrapping_add(fixture.name.bytes().map(u64::from).sum::<u64>());
+                    for batch_size in [1usize, 2, 4, 8] {
+                        let mut inside = fixture.labelling.inside().to_vec();
+                        let mut touched = std::collections::BTreeSet::new();
+                        while touched.len() < batch_size {
+                            state = state
+                                .wrapping_mul(6_364_136_223_846_793_005)
+                                .wrapping_add(1_442_695_040_888_963_407);
+                            touched.insert((state as usize) % inside.len());
+                        }
+                        for index in touched {
+                            inside[index] = !inside[index];
+                        }
+                        let changed = Labelling::new(size, size, inside);
+                        let (incremental, report) =
+                            rebuild_incremental(&base, changed.clone()).unwrap();
+                        let full = Dcel::assemble(changed, connectivity);
+                        assert_eq!(
+                            incremental, full,
+                            "{} {size}px {connectivity:?} batch {batch_size}",
+                            fixture.name
+                        );
+                        assert!(report.affected_segment_sites <= batch_size * 4);
+                        assert!(
+                            report.affected_segment_sites < report.complete_lattice_segment_sites,
+                            "the differential must exercise a genuinely local rebuild"
+                        );
+                        comparisons += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(
+            comparisons,
+            super::super::fixtures::STRUCTURAL_SIZES_PX.len()
+                * super::super::fixtures::structural_fixtures(32).len()
+                * ComplementaryConnectivity::arms().len()
+                * 4
+        );
     }
 }
