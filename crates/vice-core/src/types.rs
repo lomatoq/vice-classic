@@ -83,7 +83,7 @@ pub struct VectorizeReport {
     pub identity: vice_opt::ModelIdentity,
     pub calibration: Option<crate::ConfidenceCalibration>,
     pub evidence: Option<vice_evidence::Flat2Analysis>,
-    pub fit: Option<vice_fit::ModelRun>,
+    pub fits: Vec<vice_fit::ModelRun>,
     pub beam: Option<vice_opt::BudgetLedger>,
     pub search_mass: Option<vice_opt::SearchMassCertificate>,
     pub candidates: Vec<CandidateSummary>,

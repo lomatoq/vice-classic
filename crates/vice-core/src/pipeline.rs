@@ -19,7 +19,7 @@ use crate::VectorizeRequest;
 #[derive(Debug, Default)]
 struct ReportParts {
     evidence: Option<vice_evidence::Flat2Analysis>,
-    fit: Option<vice_fit::ModelRun>,
+    fits: Vec<vice_fit::ModelRun>,
     beam: Option<vice_opt::BudgetLedger>,
     search_mass: Option<vice_opt::SearchMassCertificate>,
     candidates: Vec<CandidateSummary>,
@@ -56,7 +56,7 @@ fn make_report(
         identity: config.identity(),
         calibration: config.confidence.clone(),
         evidence: parts.evidence,
-        fit: parts.fit,
+        fits: parts.fits,
         beam: parts.beam,
         search_mass: parts.search_mass,
         runtime: RuntimeSummary {
@@ -143,56 +143,212 @@ fn supported_formations(
 }
 
 #[derive(Debug, Clone)]
-struct FinalModelVariant {
-    path_index: usize,
+struct FinalSceneVariant {
     class: String,
-    model: vice_fit::BoundaryModel,
+    models: Vec<vice_fit::BoundaryModel>,
 }
 
-fn final_model_variants(fit: &vice_fit::ModelRun) -> Vec<FinalModelVariant> {
-    let mut variants = Vec::new();
-    for (path_index, selected) in fit.models.iter().enumerate() {
-        let mut free = selected.clone();
-        free.geometry = selected.stage_h_free_geometry.clone();
-        free.code = selected.stage_h_free_code;
-        free.primitive_kept = None;
-        free.relations_kept = 0;
-        free.relation_kept_indices.clear();
-        variants.push(FinalModelVariant {
-            path_index,
-            class: "free".into(),
-            model: free.clone(),
-        });
-        for (index, hypothesis) in selected.relations.iter().enumerate() {
-            let mut sibling = free.clone();
-            if vice_fit::apply_relation_sibling(&mut sibling, hypothesis, index, true) {
-                variants.push(FinalModelVariant {
-                    path_index,
-                    class: format!("relation-{index}-{:?}", hypothesis.kind).to_lowercase(),
-                    model: sibling,
+fn free_model(selected: &vice_fit::BoundaryModel) -> vice_fit::BoundaryModel {
+    let mut free = selected.clone();
+    free.geometry = selected.stage_h_free_geometry.clone();
+    free.code = selected.stage_h_free_code;
+    free.primitive_kept = None;
+    free.relations_kept = 0;
+    free.relation_kept_indices.clear();
+    free
+}
+
+fn repeated_scene_sibling(
+    left: &vice_fit::BoundaryModel,
+    right: &vice_fit::BoundaryModel,
+    right_chain: &vice_evidence::BoundaryChain,
+    canvas_dim_px: f64,
+    scene_boundaries: usize,
+) -> Option<vice_fit::BoundaryModel> {
+    let left_chain = left.stage_h_free_geometry.typed_chain()?;
+    let right_free = right.stage_h_free_geometry.typed_chain()?;
+    if left_chain.nodes.len() != right_free.nodes.len()
+        || left_chain.segments.len() != right_free.segments.len()
+        || left_chain
+            .segments
+            .iter()
+            .zip(&right_free.segments)
+            .any(|(left, right)| std::mem::discriminant(left) != std::mem::discriminant(right))
+    {
+        return None;
+    }
+    let closed = left_chain.start() == left_chain.end() && right_free.start() == right_free.end();
+    let unique_nodes = left_chain.nodes.len().saturating_sub(usize::from(closed));
+    if unique_nodes < 2 {
+        return None;
+    }
+    let delta = left_chain
+        .nodes
+        .iter()
+        .zip(&right_free.nodes)
+        .take(unique_nodes)
+        .fold(vice_geom::Pt::ZERO, |sum, (left, right)| {
+            sum + (right.pos - left.pos)
+        })
+        * (1.0 / unique_nodes as f64);
+    let mut constrained = left_chain.clone();
+    for node in &mut constrained.nodes {
+        node.pos += delta;
+    }
+    if closed {
+        let first = constrained.nodes[0].pos;
+        let last = constrained.nodes.len() - 1;
+        constrained.nodes[last].pos = first;
+    }
+    let polyline = vice_fit::solve::flatten_chain(&constrained).ok()?;
+    let forward = vice_fit::solve::evidence_to_model_corridor(&polyline, &right_chain.samples);
+    let reverse = vice_fit::solve::model_to_evidence_corridor(&polyline, &right_chain.samples);
+    if !forward.feasible() || !reverse.feasible() {
+        return None;
+    }
+    let table = vice_fit::GEOMETRY_CODE_TABLE_V1;
+    let pair_bits = vice_fit::log2_binomial(scene_boundaries, 2);
+    let relation_cost = table.bits_per_relation() + pair_bits;
+    let saving = (2.0 * table.coordinate_bits(canvas_dim_px)).min(right.code.topology_bits);
+    let mut sibling = right.clone();
+    sibling.geometry = vice_fit::SelectedBoundaryGeometry::TypedChain { chain: constrained };
+    sibling.code.topology_bits -= saving;
+    sibling.code.relation_bits += relation_cost;
+    sibling.relations_kept += 1;
+    sibling.primitive_kept = None;
+    sibling.worst_normal_deviation_px = forward.deviation_px;
+    sibling.worst_model_to_evidence_px = reverse.deviation_px;
+    Some(sibling)
+}
+
+fn final_scene_variants(
+    fits: &[vice_fit::ModelRun],
+    chains: &[vice_evidence::BoundaryChain],
+    canvas_dim_px: f64,
+) -> Vec<FinalSceneVariant> {
+    let baseline: Vec<_> = fits.iter().map(|fit| free_model(&fit.models[0])).collect();
+    let mut variants = vec![FinalSceneVariant {
+        class: "baseline-free".into(),
+        models: baseline.clone(),
+    }];
+    for (chain_index, fit) in fits.iter().enumerate() {
+        for (path_index, selected) in fit.models.iter().enumerate() {
+            let free = free_model(selected);
+            if path_index != 0 {
+                let mut models = baseline.clone();
+                models[chain_index] = free.clone();
+                variants.push(FinalSceneVariant {
+                    class: format!("c{chain_index}-path{path_index}-free"),
+                    models,
                 });
             }
+            for (index, hypothesis) in selected.relations.iter().enumerate() {
+                let mut sibling = free.clone();
+                if vice_fit::apply_relation_sibling(&mut sibling, hypothesis, index, true) {
+                    let mut models = baseline.clone();
+                    models[chain_index] = sibling;
+                    variants.push(FinalSceneVariant {
+                        class: format!(
+                            "c{chain_index}-path{path_index}-relation-{index}-{:?}",
+                            hypothesis.kind
+                        )
+                        .to_lowercase(),
+                        models,
+                    });
+                }
+            }
+            for (index, hypothesis) in selected.primitives.iter().enumerate() {
+                let mut sibling = free.clone();
+                if vice_fit::apply_primitive_sibling(&mut sibling, hypothesis, index) {
+                    let mut models = baseline.clone();
+                    models[chain_index] = sibling;
+                    variants.push(FinalSceneVariant {
+                        class: format!(
+                            "c{chain_index}-path{path_index}-primitive-{index}-{:?}",
+                            hypothesis.kind
+                        )
+                        .to_lowercase(),
+                        models,
+                    });
+                }
+            }
         }
-        for (index, hypothesis) in selected.primitives.iter().enumerate() {
-            let mut sibling = free.clone();
-            if vice_fit::apply_primitive_sibling(&mut sibling, hypothesis, index) {
-                variants.push(FinalModelVariant {
-                    path_index,
-                    class: format!("primitive-{index}-{:?}", hypothesis.kind).to_lowercase(),
-                    model: sibling,
+    }
+    for left in 0..baseline.len() {
+        for right in left + 1..baseline.len() {
+            if let Some(sibling) = repeated_scene_sibling(
+                &baseline[left],
+                &baseline[right],
+                &chains[right],
+                canvas_dim_px,
+                baseline.len(),
+            ) {
+                let mut models = baseline.clone();
+                models[right] = sibling;
+                variants.push(FinalSceneVariant {
+                    class: format!("scene-repetition-c{left}-c{right}"),
+                    models,
                 });
             }
         }
     }
     variants.sort_by(|left, right| {
-        left.model
-            .code
-            .total_bits()
-            .total_cmp(&right.model.code.total_bits())
-            .then_with(|| left.path_index.cmp(&right.path_index))
+        let left_bits: f64 = left
+            .models
+            .iter()
+            .map(|model| model.code.total_bits())
+            .sum();
+        let right_bits: f64 = right
+            .models
+            .iter()
+            .map(|model| model.code.total_bits())
+            .sum();
+        left_bits
+            .total_cmp(&right_bits)
             .then_with(|| left.class.cmp(&right.class))
     });
+    variants.dedup_by(|left, right| left.class == right.class && left.models == right.models);
     variants
+}
+
+fn retain_variant_diversity(
+    variants: Vec<FinalSceneVariant>,
+    limit: usize,
+) -> Vec<FinalSceneVariant> {
+    if variants.len() <= limit {
+        return variants;
+    }
+    let mut selected = Vec::with_capacity(limit);
+    let mut used = vec![false; variants.len()];
+    let predicates: [fn(&str) -> bool; 5] = [
+        |class: &str| class == "baseline-free",
+        |class: &str| class.starts_with("scene-repetition-"),
+        |class: &str| class.contains("-primitive-"),
+        |class: &str| class.contains("-relation-"),
+        |class: &str| class.ends_with("-free") && class != "baseline-free",
+    ];
+    for predicate in predicates {
+        if selected.len() == limit {
+            break;
+        }
+        if let Some((index, _)) = variants
+            .iter()
+            .enumerate()
+            .find(|(index, variant)| !used[*index] && predicate(&variant.class))
+        {
+            used[index] = true;
+            selected.push(variants[index].clone());
+        }
+    }
+    for (index, variant) in variants.into_iter().enumerate() {
+        if selected.len() == limit {
+            break;
+        }
+        if !used[index] {
+            selected.push(variant);
+        }
+    }
+    selected
 }
 
 /// Standard M7 entry point using the repository's installed configuration.
@@ -338,13 +494,17 @@ pub fn vectorize_with_config(
         );
     };
     if !matches!(boundary_observation.status, ChainStatus::WellFormed)
-        || boundary_observation.chains.len() != 1
-        || !boundary_observation.chains[0].closed
+        || boundary_observation.chains.is_empty()
+        || boundary_observation
+            .chains
+            .iter()
+            .any(|chain| !chain.closed)
     {
         return refuse(
             DecisionStatus::Ambiguous,
             FailureReason::BoundaryOutsideSelectiveCore {
-                detail: "M7 selective core requires one unambiguous closed boundary".into(),
+                detail: "M7 selective core requires one or more unambiguous closed boundaries"
+                    .into(),
             },
             request,
             config,
@@ -354,8 +514,8 @@ pub fn vectorize_with_config(
             started,
         );
     }
-    let chain = boundary_observation.chains[0].clone();
-    let arms = match topology_arms(&evidence) {
+    let chains = boundary_observation.chains.clone();
+    let arms = match topology_arms(&evidence, &chains) {
         Ok(arms) => arms,
         Err(detail) => {
             return refuse(
@@ -370,18 +530,37 @@ pub fn vectorize_with_config(
             )
         }
     };
-    let fit = match vice_fit::k_best_boundary_models(
-        &chain,
-        &vice_fit::FIT_BUDGET_V1,
-        f64::from(image.width_px().max(image.height_px())),
-        config.k_discrete_paths,
-    ) {
-        Ok(fit) => fit,
-        Err(error) => {
+    let mut fits = Vec::with_capacity(chains.len());
+    for (chain_index, chain) in chains.iter().enumerate() {
+        let fit = match vice_fit::k_best_boundary_models(
+            chain,
+            &vice_fit::FIT_BUDGET_V1,
+            f64::from(image.width_px().max(image.height_px())),
+            config.k_discrete_paths,
+        ) {
+            Ok(fit) => fit,
+            Err(error) => {
+                return refuse(
+                    DecisionStatus::Unsupported,
+                    FailureReason::Fitting {
+                        detail: format!("chain {chain_index}: {error:?}"),
+                    },
+                    request,
+                    config,
+                    source_sha256,
+                    production,
+                    parts,
+                    started,
+                )
+            }
+        };
+        if fit.models.is_empty() {
             return refuse(
                 DecisionStatus::Unsupported,
                 FailureReason::Fitting {
-                    detail: format!("{error:?}"),
+                    detail: format!(
+                        "typed fitter produced no admissible model for chain {chain_index}"
+                    ),
                 },
                 request,
                 config,
@@ -389,26 +568,19 @@ pub fn vectorize_with_config(
                 production,
                 parts,
                 started,
-            )
+            );
         }
-    };
-    parts.fit = Some(fit.clone());
-    if fit.models.is_empty() {
-        return refuse(
-            DecisionStatus::Unsupported,
-            FailureReason::Fitting {
-                detail: "typed fitter produced no admissible model".into(),
-            },
-            request,
-            config,
-            source_sha256,
-            production,
-            parts,
-            started,
-        );
+        fits.push(fit);
     }
-    let fit_truncated = fit.models.len() >= config.k_discrete_paths;
-    let mut model_variants = final_model_variants(&fit);
+    parts.fits = fits.clone();
+    let fit_truncated = fits
+        .iter()
+        .any(|fit| fit.models.len() >= config.k_discrete_paths);
+    let mut model_variants = final_scene_variants(
+        &fits,
+        &chains,
+        f64::from(image.width_px().max(image.height_px())),
+    );
     let combinations_per_variant = arms.len().saturating_mul(formations.len());
     let max_variants = config
         .beam
@@ -432,7 +604,7 @@ pub fn vectorize_with_config(
         );
     }
     let variants_before_budget = model_variants.len();
-    model_variants.truncate(max_variants);
+    model_variants = retain_variant_diversity(model_variants, max_variants);
     let variant_truncated = model_variants.len() < variants_before_budget;
     let canvas = Canvas {
         width_px: image.width_px(),
@@ -442,20 +614,17 @@ pub fn vectorize_with_config(
     let mut candidate_refusals = Vec::new();
     let mut candidate_cache = CandidateCache::default();
     for variant in &model_variants {
-        let model = &variant.model;
         for (topology_index, arm) in arms.iter().enumerate() {
             for formation in &formations {
                 let formation_class = vice_evidence::formation_id(formation);
-                let hypothesis_id = format!(
-                    "m{}-{}/t{topology_index}/{formation_class}",
-                    variant.path_index, variant.class
-                );
+                let hypothesis_id =
+                    format!("{}/t{topology_index}/{formation_class}", variant.class);
                 let built = materialize_candidate(
                     CandidateRequest {
                         canvas,
                         evidence: &evidence,
-                        chain: &chain,
-                        model,
+                        chains: &chains,
+                        models: &variant.models,
                         arm,
                         formation: *formation,
                         hypothesis_id: hypothesis_id.clone(),

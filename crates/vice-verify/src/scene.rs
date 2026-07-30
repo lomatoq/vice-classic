@@ -253,6 +253,14 @@ pub enum VerificationError {
     Render(#[from] vice_render::RenderError),
     #[error("boundary bindings are missing, duplicated, stale, or malformed")]
     BoundaryBinding,
+    #[error(
+        "boundary {boundary} left its observed-chain isotopy tube: displacement {displacement_px}px > allowance {allowance_px}px"
+    )]
+    BoundaryBindingIsotopy {
+        boundary: usize,
+        displacement_px: f64,
+        allowance_px: f64,
+    },
     #[error("segment tangent is degenerate at boundary {boundary:?}, segment {segment}")]
     DegenerateTangent {
         boundary: BoundaryId,
@@ -648,7 +656,11 @@ pub fn preseal_scene(
             ) + fitted.max_deviation_px;
         max_support_isotopy_displacement_px = max_support_isotopy_displacement_px.max(displacement);
         if displacement > binding.isotopy_tube_px {
-            return Err(VerificationError::BoundaryBinding);
+            return Err(VerificationError::BoundaryBindingIsotopy {
+                boundary: binding.boundary.index(),
+                displacement_px: displacement,
+                allowance_px: binding.isotopy_tube_px,
+            });
         }
     }
     let render = render_mesh_partition(&mesh)?;

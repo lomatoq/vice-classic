@@ -34,7 +34,8 @@ use crate::refit::{ArcAnchor, Handle, RefitChain, RefitRefusal, RefitSegment};
 
 mod corridor;
 
-pub(crate) use corridor::{evidence_to_model_corridor, model_to_evidence_corridor, worse};
+pub(crate) use corridor::worse;
+pub use corridor::{evidence_to_model_corridor, model_to_evidence_corridor, CorridorReading};
 
 /// Passes of the damped Gauss–Newton, fixed.
 ///

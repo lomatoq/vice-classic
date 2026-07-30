@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use sha2::{Digest, Sha256};
 use vice_evidence::{BoundaryChain, Flat2Evidence};
 use vice_fit::BoundaryModel;
-use vice_ir::{Canvas, GlobalFormationHypothesis, Paint};
+use vice_ir::{Canvas, GlobalFormationHypothesis};
 use vice_opt::{OptimizationResult, PriorCodeLengths, ScoredHypothesis};
 use vice_svg::{
     build_export_plan, canonical_export_plan_bytes, materialize_svg,
@@ -53,8 +53,8 @@ pub(crate) struct CandidateCache {
 pub(crate) struct CandidateRequest<'a> {
     pub canvas: Canvas,
     pub evidence: &'a Flat2Evidence,
-    pub chain: &'a BoundaryChain,
-    pub model: &'a BoundaryModel,
+    pub chains: &'a [BoundaryChain],
+    pub models: &'a [BoundaryModel],
     pub arm: &'a TopologyArm,
     pub formation: GlobalFormationHypothesis,
     pub hypothesis_id: String,
@@ -69,23 +69,35 @@ fn digest(bytes: impl AsRef<[u8]>) -> String {
 }
 
 fn priors(
-    model: &BoundaryModel,
-    opaque_faces: usize,
+    models: &[BoundaryModel],
+    opaque_paints: usize,
     intent: Intent,
     config: &CoreConfig,
 ) -> PriorCodeLengths {
     let policy = config.intent_prior(intent);
-    let promoted = model.primitive_kept.is_some() || model.relations_kept > 0;
     PriorCodeLengths {
-        topology_bits: (model.code.topology_bits + 1.0) * policy.structural_code_scale
-            + if promoted {
-                policy.constrained_promotion_extra_bits
-            } else {
-                0.0
-            },
-        geometry_bits: model.code.geometry_bits * policy.structural_code_scale,
-        paint_bits: 24.0 * opaque_faces as f64,
-        relation_bits: model.code.relation_bits * policy.structural_code_scale,
+        topology_bits: models
+            .iter()
+            .map(|model| {
+                (model.code.topology_bits + 1.0) * policy.structural_code_scale
+                    + if model.primitive_kept.is_some() || model.relations_kept > 0 {
+                        policy.constrained_promotion_extra_bits
+                    } else {
+                        0.0
+                    }
+            })
+            .sum(),
+        geometry_bits: models
+            .iter()
+            .map(|model| model.code.geometry_bits * policy.structural_code_scale)
+            .sum(),
+        // Flat2 shares one palette parameter across every same-material face;
+        // disconnected components do not pay for duplicate copies.
+        paint_bits: 24.0 * opaque_paints as f64,
+        relation_bits: models
+            .iter()
+            .map(|model| model.code.relation_bits * policy.structural_code_scale)
+            .sum(),
         formation_bits: 2.0,
     }
 }
@@ -153,8 +165,8 @@ pub(crate) fn materialize_candidate(
     let mut candidate = build_scene_candidate(
         request.canvas,
         request.evidence,
-        request.chain,
-        request.model,
+        request.chains,
+        request.models,
         request.arm,
         request.formation,
     )
@@ -165,14 +177,13 @@ pub(crate) fn materialize_candidate(
             error,
         )
     })?;
-    let opaque_faces = candidate
-        .scene
-        .graph
-        .faces
-        .iter()
-        .filter(|face| matches!(face.paint, Paint::OpaqueSolid(_)))
-        .count();
-    let prior = priors(request.model, opaque_faces, request.intent, request.config);
+    let opaque_paints = 1 + usize::from(!candidate.paint_layout.background.is_empty());
+    let prior = priors(
+        request.models,
+        opaque_paints,
+        request.intent,
+        request.config,
+    );
     let optimization_key = format!(
         "{}|{}",
         vice_ir::scene_digest_sha256(&candidate.scene).map_err(|error| {

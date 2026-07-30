@@ -24,13 +24,16 @@ use crate::config::CoreConfig;
 #[derive(Debug, Clone)]
 pub(crate) struct TopologyArm {
     pub class: String,
-    pub dcel_boundary_sha256: String,
+    pub dcel: Dcel,
+    /// Evidence-chain index -> canonical DCEL boundary index.
+    pub chain_to_boundary: Vec<usize>,
+    pub dcel_boundary_sha256: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct PaintLayout {
-    pub foreground: FaceId,
-    pub background: Option<FaceId>,
+    pub foreground: Vec<FaceId>,
+    pub background: Vec<FaceId>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,7 +48,97 @@ fn digest<T: Serialize>(value: &T) -> Result<String, String> {
     Ok(hex::encode(Sha256::digest(bytes)))
 }
 
-pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> Result<Vec<TopologyArm>, String> {
+fn point_segment_distance(point: Pt, a: Pt, b: Pt) -> f64 {
+    let segment = b - a;
+    let length_sq = segment.length_sq();
+    if length_sq == 0.0 {
+        point.dist(a)
+    } else {
+        let t = ((point - a).dot(segment) / length_sq).clamp(0.0, 1.0);
+        point.dist(a + segment * t)
+    }
+}
+
+fn point_polyline_distance(point: Pt, polyline: &[Pt]) -> f64 {
+    polyline
+        .windows(2)
+        .map(|segment| point_segment_distance(point, segment[0], segment[1]))
+        .fold(f64::INFINITY, f64::min)
+}
+
+fn chain_boundary_distance(chain: &BoundaryChain, boundary: &vice_topology::Boundary) -> f64 {
+    let path: Vec<Pt> = boundary
+        .path
+        .iter()
+        .map(|&(x, y)| Pt::new(f64::from(x), f64::from(y)))
+        .collect();
+    let forward = chain
+        .samples
+        .iter()
+        .map(|sample| point_polyline_distance(sample.p, &path))
+        .fold(0.0f64, f64::max);
+    let evidence = closed_support(chain);
+    let reverse = path
+        .iter()
+        .map(|point| point_polyline_distance(*point, &evidence))
+        .fold(0.0f64, f64::max);
+    forward.max(reverse)
+}
+
+fn bind_chains_to_dcel(chains: &[BoundaryChain], dcel: &Dcel) -> Result<Vec<usize>, String> {
+    if chains.len() != dcel.boundaries().len() {
+        return Err(format!(
+            "{} observed chains cannot bind bijectively to {} DCEL boundaries",
+            chains.len(),
+            dcel.boundaries().len()
+        ));
+    }
+    let mut pairs = Vec::new();
+    for (chain_index, chain) in chains.iter().enumerate() {
+        for (boundary_index, boundary) in dcel.boundaries().iter().enumerate() {
+            pairs.push((
+                chain_boundary_distance(chain, boundary),
+                chain_index,
+                boundary_index,
+            ));
+        }
+    }
+    pairs.sort_by(|left, right| {
+        left.0
+            .total_cmp(&right.0)
+            .then_with(|| left.1.cmp(&right.1))
+            .then_with(|| left.2.cmp(&right.2))
+    });
+    let mut mapping = vec![usize::MAX; chains.len()];
+    let mut boundary_used = vec![false; dcel.boundaries().len()];
+    for (distance, chain, boundary) in pairs {
+        if mapping[chain] == usize::MAX && !boundary_used[boundary] {
+            let allowance = chains[chain]
+                .samples
+                .iter()
+                .map(|sample| sample.halfwidth)
+                .fold(0.0f64, f64::max)
+                + 2.0;
+            if !distance.is_finite() || distance > allowance {
+                return Err(format!(
+                    "chain {chain} is {distance:.6}px from DCEL boundary {boundary}, above {allowance:.6}px"
+                ));
+            }
+            mapping[chain] = boundary;
+            boundary_used[boundary] = true;
+        }
+    }
+    if mapping.contains(&usize::MAX) || boundary_used.contains(&false) {
+        Err("observed-chain/DCEL matching was not bijective".into())
+    } else {
+        Ok(mapping)
+    }
+}
+
+pub(crate) fn topology_arms(
+    evidence: &Flat2Evidence,
+    chains: &[BoundaryChain],
+) -> Result<Vec<TopologyArm>, String> {
     let labelling = Labelling::new(
         evidence.width_px() as usize,
         evidence.height_px() as usize,
@@ -58,26 +151,36 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> Result<Vec<TopologyArm>
     let mut arms = Vec::new();
     for connectivity in vice_ir::ComplementaryConnectivity::arms() {
         let sig = signature(&labelling, connectivity);
-        if sig.components != 1 || sig.holes != 0 {
-            continue;
-        }
         let dcel = Dcel::assemble(labelling.clone(), connectivity);
         audit(&dcel).map_err(|error| error.to_string())?;
-        if dcel.boundaries().len() != 1 || dcel.boundaries()[0].start != dcel.boundaries()[0].end {
+        if dcel
+            .boundaries()
+            .iter()
+            .any(|boundary| boundary.start != boundary.end)
+            || dcel.vertices().len() != dcel.boundaries().len()
+        {
             continue;
         }
+        let chain_to_boundary = bind_chains_to_dcel(chains, &dcel)?;
+        let dcel_boundary_sha256 = dcel
+            .boundaries()
+            .iter()
+            .map(digest)
+            .collect::<Result<Vec<_>, _>>()?;
         arms.push(TopologyArm {
             class: format!(
                 "fg{}-bg{}:{}",
                 sig.foreground_connectivity, sig.background_connectivity, sig.digest
             ),
-            dcel_boundary_sha256: digest(&dcel.boundaries()[0])?,
+            dcel,
+            chain_to_boundary,
+            dcel_boundary_sha256,
         });
     }
     arms.sort_by(|left, right| left.class.cmp(&right.class));
     arms.dedup_by(|left, right| left.class == right.class);
     if arms.is_empty() {
-        Err("no audited one-component/no-hole DCEL arm".into())
+        Err("no audited closed-boundary DCEL arm matched every observed chain".into())
     } else {
         Ok(arms)
     }
@@ -153,7 +256,10 @@ fn signed_area(polyline: &[Pt]) -> f64 {
     area * 0.5
 }
 
-fn lower_model(model: &BoundaryModel) -> Result<(Pt, LoweredBoundaryGeometry), String> {
+fn lower_model(
+    model: &BoundaryModel,
+    desired_signed_area: f64,
+) -> Result<(Pt, LoweredBoundaryGeometry), String> {
     let (start, lowered) = match &model.geometry {
         SelectedBoundaryGeometry::TypedChain { chain } => (
             chain.start(),
@@ -167,11 +273,20 @@ fn lower_model(model: &BoundaryModel) -> Result<(Pt, LoweredBoundaryGeometry), S
             (lowered.start, lowered.boundary)
         }
     };
-    let polyline = model
-        .geometry
-        .flatten()
-        .map_err(|error| format!("{error:?}"))?;
-    Ok(if signed_area(&polyline) < 0.0 {
+    let node_polygon = lowered.curve.node_positions(start, start);
+    let mut orientation_area = signed_area(&node_polygon);
+    if orientation_area == 0.0 {
+        orientation_area = signed_area(
+            &model
+                .geometry
+                .flatten()
+                .map_err(|error| format!("{error:?}"))?,
+        );
+    }
+    if desired_signed_area == 0.0 || orientation_area == 0.0 {
+        return Err("DCEL boundary has zero signed area".into());
+    }
+    Ok(if orientation_area * desired_signed_area < 0.0 {
         (start, reverse_boundary(lowered))
     } else {
         (start, lowered)
@@ -210,7 +325,7 @@ fn observed_binding(
     scene: &VectorScene,
     boundary: BoundaryId,
     chain: &BoundaryChain,
-    arm: &TopologyArm,
+    dcel_boundary_sha256: String,
 ) -> Result<BoundaryBinding, String> {
     let topology = topology_signature_sha256(scene).map_err(|error| error.to_string())?;
     let tube = chain
@@ -220,7 +335,7 @@ fn observed_binding(
         .fold(0.0f64, f64::max);
     BoundaryBinding::new_observed(
         digest(chain)?,
-        arm.dcel_boundary_sha256.clone(),
+        dcel_boundary_sha256,
         boundary,
         topology,
         tube,
@@ -232,173 +347,184 @@ fn observed_binding(
 pub(crate) fn build_scene_candidate(
     canvas: Canvas,
     evidence: &Flat2Evidence,
-    chain: &BoundaryChain,
-    model: &BoundaryModel,
+    chains: &[BoundaryChain],
+    models: &[BoundaryModel],
     arm: &TopologyArm,
     formation: vice_ir::GlobalFormationHypothesis,
 ) -> Result<SceneCandidate, String> {
-    let (start, geometry) = lower_model(model)?;
-    let foreground = Paint::OpaqueSolid(evidence.hypothesis.foreground.center());
-    match evidence.hypothesis.background {
-        BackgroundHypothesis::TransparentExterior => {
-            let scene = VectorScene {
-                canvas,
-                graph: PlanarGraph {
-                    exterior: FaceId(0),
-                    vertices: vec![GraphVertex { pos: start }],
-                    boundaries: vec![Boundary {
-                        left_face: FaceId(1),
-                        right_face: FaceId(0),
-                        start_vertex: VertexId(0),
-                        end_vertex: VertexId(0),
-                        closure_join: geometry.closure_join,
-                        curve: geometry.curve,
-                    }],
-                    half_edges: vec![
-                        HalfEdge {
-                            boundary: BoundaryId(0),
-                            forward: true,
-                            twin: HalfEdgeId(1),
-                            next: HalfEdgeId(0),
-                            face: FaceId(1),
-                        },
-                        HalfEdge {
-                            boundary: BoundaryId(0),
-                            forward: false,
-                            twin: HalfEdgeId(0),
-                            next: HalfEdgeId(1),
-                            face: FaceId(0),
-                        },
-                    ],
-                    faces: vec![
-                        Face {
-                            loops: vec![HalfEdgeId(1)],
-                            paint: Paint::TransparentExterior,
-                        },
-                        Face {
-                            loops: vec![HalfEdgeId(0)],
-                            paint: foreground,
-                        },
-                    ],
-                },
-                formation,
-            };
-            let bindings = vec![observed_binding(&scene, BoundaryId(0), chain, arm)?];
-            vice_ir::validate_scene(&scene).map_err(|error| error.to_string())?;
-            Ok(SceneCandidate {
-                scene,
-                bindings,
-                paint_layout: PaintLayout {
-                    foreground: FaceId(1),
-                    background: None,
-                },
-            })
-        }
-        BackgroundHypothesis::OpaqueFace(background) => {
-            let scene = VectorScene {
-                canvas,
-                graph: PlanarGraph {
-                    exterior: FaceId(0),
-                    vertices: vec![
-                        GraphVertex {
-                            pos: Pt::new(0.0, 0.0),
-                        },
-                        GraphVertex { pos: start },
-                    ],
-                    boundaries: vec![
-                        Boundary {
-                            left_face: FaceId(1),
-                            right_face: FaceId(0),
-                            start_vertex: VertexId(0),
-                            end_vertex: VertexId(0),
-                            closure_join: Some(JoinKind::Corner),
-                            curve: canvas_curve(canvas),
-                        },
-                        Boundary {
-                            left_face: FaceId(2),
-                            right_face: FaceId(1),
-                            start_vertex: VertexId(1),
-                            end_vertex: VertexId(1),
-                            closure_join: geometry.closure_join,
-                            curve: geometry.curve,
-                        },
-                    ],
-                    half_edges: vec![
-                        HalfEdge {
-                            boundary: BoundaryId(0),
-                            forward: true,
-                            twin: HalfEdgeId(1),
-                            next: HalfEdgeId(0),
-                            face: FaceId(1),
-                        },
-                        HalfEdge {
-                            boundary: BoundaryId(0),
-                            forward: false,
-                            twin: HalfEdgeId(0),
-                            next: HalfEdgeId(1),
-                            face: FaceId(0),
-                        },
-                        HalfEdge {
-                            boundary: BoundaryId(1),
-                            forward: true,
-                            twin: HalfEdgeId(3),
-                            next: HalfEdgeId(2),
-                            face: FaceId(2),
-                        },
-                        HalfEdge {
-                            boundary: BoundaryId(1),
-                            forward: false,
-                            twin: HalfEdgeId(2),
-                            next: HalfEdgeId(3),
-                            face: FaceId(1),
-                        },
-                    ],
-                    faces: vec![
-                        Face {
-                            loops: vec![HalfEdgeId(1)],
-                            paint: Paint::TransparentExterior,
-                        },
-                        Face {
-                            loops: vec![HalfEdgeId(0), HalfEdgeId(3)],
-                            paint: Paint::OpaqueSolid(background.center()),
-                        },
-                        Face {
-                            loops: vec![HalfEdgeId(2)],
-                            paint: foreground,
-                        },
-                    ],
-                },
-                formation,
-            };
-            vice_ir::validate_scene(&scene).map_err(|error| error.to_string())?;
-            let topology = topology_signature_sha256(&scene).map_err(|error| error.to_string())?;
-            let canvas_support = vec![
-                Pt::new(0.0, 0.0),
-                Pt::new(f64::from(canvas.width_px), 0.0),
-                Pt::new(f64::from(canvas.width_px), f64::from(canvas.height_px)),
-                Pt::new(0.0, f64::from(canvas.height_px)),
-                Pt::new(0.0, 0.0),
-            ];
-            let bindings = vec![
-                BoundaryBinding::new_canvas_closure(
-                    canvas,
-                    BoundaryId(0),
-                    topology,
-                    canvas_support,
-                )
-                .map_err(|error| error.to_string())?,
-                observed_binding(&scene, BoundaryId(1), chain, arm)?,
-            ];
-            Ok(SceneCandidate {
-                scene,
-                bindings,
-                paint_layout: PaintLayout {
-                    foreground: FaceId(2),
-                    background: Some(FaceId(1)),
-                },
-            })
-        }
+    if chains.len() != models.len()
+        || chains.len() != arm.chain_to_boundary.len()
+        || arm.dcel.boundaries().len() != models.len()
+    {
+        return Err("scene candidate model/chain/DCEL arity mismatch".into());
     }
+    let mut model_by_boundary = vec![usize::MAX; models.len()];
+    for (chain_index, &boundary_index) in arm.chain_to_boundary.iter().enumerate() {
+        if boundary_index >= model_by_boundary.len()
+            || model_by_boundary[boundary_index] != usize::MAX
+        {
+            return Err("scene candidate chain/DCEL mapping is not bijective".into());
+        }
+        model_by_boundary[boundary_index] = chain_index;
+    }
+    if model_by_boundary.contains(&usize::MAX) {
+        return Err("scene candidate has an unbound DCEL boundary".into());
+    }
+    let mut lowered = Vec::with_capacity(models.len());
+    for (boundary_index, boundary) in arm.dcel.boundaries().iter().enumerate() {
+        let chain_index = model_by_boundary[boundary_index];
+        let dcel_path: Vec<Pt> = boundary
+            .path
+            .iter()
+            .map(|&(x, y)| Pt::new(f64::from(x), f64::from(y)))
+            .collect();
+        lowered.push(lower_model(&models[chain_index], -signed_area(&dcel_path))?);
+    }
+    let foreground = Paint::OpaqueSolid(evidence.hypothesis.foreground.center());
+    let opaque_background = match evidence.hypothesis.background {
+        BackgroundHypothesis::TransparentExterior => None,
+        BackgroundHypothesis::OpaqueFace(background) => {
+            Some(Paint::OpaqueSolid(background.center()))
+        }
+    };
+    let boundary_offset = u32::from(opaque_background.is_some());
+    let half_edge_offset = boundary_offset * 2;
+    let face_offset = boundary_offset;
+    let vertex_offset = boundary_offset;
+
+    let mut vertices = Vec::new();
+    let mut boundaries = Vec::new();
+    let mut half_edges = Vec::new();
+    let mut faces = Vec::new();
+    if opaque_background.is_some() {
+        vertices.push(GraphVertex {
+            pos: Pt::new(0.0, 0.0),
+        });
+        boundaries.push(Boundary {
+            left_face: FaceId(1),
+            right_face: FaceId(0),
+            start_vertex: VertexId(0),
+            end_vertex: VertexId(0),
+            closure_join: Some(JoinKind::Corner),
+            curve: canvas_curve(canvas),
+        });
+        half_edges.extend([
+            HalfEdge {
+                boundary: BoundaryId(0),
+                forward: true,
+                twin: HalfEdgeId(1),
+                next: HalfEdgeId(0),
+                face: FaceId(1),
+            },
+            HalfEdge {
+                boundary: BoundaryId(0),
+                forward: false,
+                twin: HalfEdgeId(0),
+                next: HalfEdgeId(1),
+                face: FaceId(0),
+            },
+        ]);
+        faces.push(Face {
+            loops: vec![HalfEdgeId(1)],
+            paint: Paint::TransparentExterior,
+        });
+    }
+
+    for (boundary_index, boundary) in arm.dcel.boundaries().iter().enumerate() {
+        let (start, geometry) = &lowered[boundary_index];
+        let vertex = VertexId(boundary_index as u32 + vertex_offset);
+        vertices.push(GraphVertex { pos: *start });
+        boundaries.push(Boundary {
+            left_face: FaceId(boundary.owners.left().0 + face_offset),
+            right_face: FaceId(boundary.owners.right().0 + face_offset),
+            start_vertex: vertex,
+            end_vertex: vertex,
+            closure_join: geometry.closure_join,
+            curve: geometry.curve.clone(),
+        });
+    }
+    for half_edge in arm.dcel.half_edges() {
+        half_edges.push(HalfEdge {
+            boundary: BoundaryId(half_edge.boundary().0 + boundary_offset),
+            forward: half_edge.is_forward(),
+            twin: HalfEdgeId(half_edge.twin().0 + half_edge_offset),
+            next: HalfEdgeId(arm.dcel.next(half_edge).0 + half_edge_offset),
+            face: FaceId(arm.dcel.face_of(half_edge).0 + face_offset),
+        });
+    }
+
+    let mut foreground_faces = Vec::new();
+    let mut background_faces = Vec::new();
+    for (face_index, face) in arm.dcel.faces().iter().enumerate() {
+        let mapped = FaceId(face_index as u32 + face_offset);
+        let mut loops: Vec<HalfEdgeId> = face
+            .loops
+            .iter()
+            .map(|cycle| HalfEdgeId(cycle[0].0 + half_edge_offset))
+            .collect();
+        let paint = if face.label {
+            foreground_faces.push(mapped);
+            foreground
+        } else if let Some(background) = opaque_background {
+            background_faces.push(mapped);
+            background
+        } else {
+            Paint::TransparentExterior
+        };
+        if opaque_background.is_some() && face_index == 0 {
+            loops.insert(0, HalfEdgeId(0));
+        }
+        faces.push(Face { loops, paint });
+    }
+
+    let scene = VectorScene {
+        canvas,
+        graph: PlanarGraph {
+            exterior: FaceId(0),
+            vertices,
+            boundaries,
+            half_edges,
+            faces,
+        },
+        formation,
+    };
+    vice_ir::validate_scene(&scene).map_err(|error| error.to_string())?;
+    let mut bindings = Vec::with_capacity(scene.graph.boundaries.len());
+    if opaque_background.is_some() {
+        let topology = topology_signature_sha256(&scene).map_err(|error| error.to_string())?;
+        bindings.push(
+            BoundaryBinding::new_canvas_closure(
+                canvas,
+                BoundaryId(0),
+                topology,
+                vec![
+                    Pt::new(0.0, 0.0),
+                    Pt::new(f64::from(canvas.width_px), 0.0),
+                    Pt::new(f64::from(canvas.width_px), f64::from(canvas.height_px)),
+                    Pt::new(0.0, f64::from(canvas.height_px)),
+                    Pt::new(0.0, 0.0),
+                ],
+            )
+            .map_err(|error| error.to_string())?,
+        );
+    }
+    for (chain_index, chain) in chains.iter().enumerate() {
+        let dcel_boundary = arm.chain_to_boundary[chain_index];
+        bindings.push(observed_binding(
+            &scene,
+            BoundaryId(dcel_boundary as u32 + boundary_offset),
+            chain,
+            arm.dcel_boundary_sha256[dcel_boundary].clone(),
+        )?);
+    }
+    Ok(SceneCandidate {
+        scene,
+        bindings,
+        paint_layout: PaintLayout {
+            foreground: foreground_faces,
+            background: background_faces,
+        },
+    })
 }
 
 fn paint(scene: &VectorScene, face: FaceId) -> Result<LinearRgb, String> {
@@ -422,20 +548,26 @@ struct PaintProblem<'a> {
 
 impl PaintProblem<'_> {
     fn materialize(&self, parameters: &[f64]) -> Result<VectorScene, String> {
-        let want = if self.layout.background.is_some() {
-            6
-        } else {
+        let want = if self.layout.background.is_empty() {
             3
+        } else {
+            6
         };
         if parameters.len() != want {
             return Err("paint parameter arity".into());
         }
         let mut scene = self.scene.clone();
-        scene.graph.faces[self.layout.foreground.index()].paint =
+        let foreground =
             Paint::OpaqueSolid(LinearRgb::new(parameters[0], parameters[1], parameters[2]));
-        if let Some(background) = self.layout.background {
-            scene.graph.faces[background.index()].paint =
+        for face in &self.layout.foreground {
+            scene.graph.faces[face.index()].paint = foreground;
+        }
+        if !self.layout.background.is_empty() {
+            let background =
                 Paint::OpaqueSolid(LinearRgb::new(parameters[3], parameters[4], parameters[5]));
+            for face in &self.layout.background {
+                scene.graph.faces[face.index()].paint = background;
+            }
         }
         Ok(scene)
     }
@@ -508,9 +640,14 @@ pub(crate) fn optimize_paint(
     priors: PriorCodeLengths,
     config: &CoreConfig,
 ) -> Result<(SceneCandidate, OptimizationResult), String> {
-    let foreground = paint(&candidate.scene, candidate.paint_layout.foreground)?;
+    let foreground_face = *candidate
+        .paint_layout
+        .foreground
+        .first()
+        .ok_or_else(|| "paint optimizer has no foreground face".to_string())?;
+    let foreground = paint(&candidate.scene, foreground_face)?;
     let mut initial = foreground.components().to_vec();
-    if let Some(background) = candidate.paint_layout.background {
+    if let Some(&background) = candidate.paint_layout.background.first() {
         initial.extend_from_slice(&paint(&candidate.scene, background)?.components());
     }
     let problem = PaintProblem {
@@ -519,7 +656,7 @@ pub(crate) fn optimize_paint(
         observed,
         likelihood: config.likelihood,
         priors,
-        layout: candidate.paint_layout,
+        layout: candidate.paint_layout.clone(),
         export_decimal_places: config.export_decimal_places,
         apron_width_px: config.apron_width_px,
         exact_cache: RefCell::new(BTreeMap::new()),
@@ -531,7 +668,7 @@ pub(crate) fn optimize_paint(
         max_radius: 4.0 / 255.0,
         scope: ScoreScope::FULL,
     }];
-    if candidate.paint_layout.background.is_some() {
+    if !candidate.paint_layout.background.is_empty() {
         blocks.push(BlockSpec {
             name: "background_paint".into(),
             parameter_indices: vec![3, 4, 5],
@@ -552,11 +689,16 @@ pub(crate) fn optimize_paint(
     let result = optimize_best_deterministic(&problem, starts, &blocks, config.trust_region)
         .map_err(|error| error.to_string())?;
     let optimized = problem.materialize(&result.parameters)?;
-    let mut mutations = vec![SceneMutation::ReplaceFacePaint {
-        face: candidate.paint_layout.foreground,
-        paint: optimized.graph.faces[candidate.paint_layout.foreground.index()].paint,
-    }];
-    if let Some(background) = candidate.paint_layout.background {
+    let mut mutations = candidate
+        .paint_layout
+        .foreground
+        .iter()
+        .map(|&face| SceneMutation::ReplaceFacePaint {
+            face,
+            paint: optimized.graph.faces[face.index()].paint,
+        })
+        .collect::<Vec<_>>();
+    for &background in &candidate.paint_layout.background {
         mutations.push(SceneMutation::ReplaceFacePaint {
             face: background,
             paint: optimized.graph.faces[background.index()].paint,

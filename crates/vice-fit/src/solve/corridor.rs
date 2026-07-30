@@ -12,7 +12,7 @@ use crate::refit::FEASIBLE_HALFWIDTHS;
 
 /// The location and its OWN allowance that maximize corridor violation.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct CorridorReading {
+pub struct CorridorReading {
     pub deviation_px: f64,
     pub allowed_px: f64,
     pub ratio: f64,
@@ -51,10 +51,7 @@ pub(crate) fn worse(a: CorridorReading, b: CorridorReading) -> CorridorReading {
 
 /// Every Stage-F sample is compared with the allowance calibrated for that
 /// same sample.
-pub(crate) fn evidence_to_model_corridor(
-    poly: &[Pt],
-    samples: &[BoundarySample],
-) -> CorridorReading {
+pub fn evidence_to_model_corridor(poly: &[Pt], samples: &[BoundarySample]) -> CorridorReading {
     if poly.len() < 2 || samples.is_empty() {
         return CorridorReading::invalid();
     }
@@ -119,10 +116,7 @@ fn local_reverse_reading(point: Pt, samples: &[BoundarySample], closed: bool) ->
 /// Every delivered polyline point is compared with the halfwidth interpolated
 /// at its closest projection on the ordered Stage-F evidence. A closed model
 /// also checks the evidence seam.
-pub(crate) fn model_to_evidence_corridor(
-    poly: &[Pt],
-    samples: &[BoundarySample],
-) -> CorridorReading {
+pub fn model_to_evidence_corridor(poly: &[Pt], samples: &[BoundarySample]) -> CorridorReading {
     if poly.len() < 2 || samples.len() < 2 {
         return CorridorReading::invalid();
     }
