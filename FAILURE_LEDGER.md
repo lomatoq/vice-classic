@@ -4876,3 +4876,45 @@ published-code identities and the complete post-application `ChainCode`
 before mutating the model. Negative, infinite, underflowing and overflowing
 direct witnesses are inert. C406 and the post-layout C409 artifact preserve
 the prior 4 relation-selected rows and all prior geometry aggregates.
+
+## F-0137 — A wider Quality search expanded delivery beyond its calibrated selective core (M7 calibration, 2026-07-31)
+
+**Found by.** Complete eight-shard Fast/Quality calibration on source commit
+`fa4494c4a726b06f19c8462bf6d9e1a0ea9d8304`.
+
+**What happened.** Quality's eager k=16 lane displaced the certified k=4
+primary geometry and selected eleven held-out annulus rows whose boundary
+maximum exceeded 1.5 px even though the paired Fast lane stayed below the
+limit. Protecting the k=4 primary lane and rejecting later candidates that
+worsened observed-support displacement by more than one fitter chord fixed
+all eleven targeted regressions (worst maximum 0.567 px), but the complete
+post-fix calibration exposed the remaining class rather than closing it:
+Quality still produced 46 accepted-candidate rows above the 1.5 px boundary
+maximum. Fast abstained on every one of those 46 rows, and 44 of the Quality
+rows already came from topology arm `t0`. Thus a topology-order guard alone
+cannot solve the class; Quality is expanding delivery into cases for which the
+narrow lane supplies no independently verified witness.
+
+The complete post-fix report covers 1815/1815 renders. No posterior threshold
+simultaneously meets the 80% render-coverage requirement and the pooled
+p95/p99/maximum boundary contract: the best boundary-clean evaluation reaches
+45.274% render coverage, while the highest-coverage evaluations (87.452%)
+fail p99 and maximum. Fast calibration is green on the same model identity.
+The contended calibration runtimes (Quality p95 45.855 s, Fast p95 41.574 s)
+are not an isolated performance claim, so the provisional 10 s/1 s targets
+also remain unproven rather than being silently declared met.
+
+**Class rule.** A larger search budget may refine a delivery inside a supported
+selective core, but it cannot mint confidence merely by finding a candidate
+where the protected lane has no corroborating witness. The corroboration must
+be a production-observable certificate with honest posterior/search-mass
+accounting; ground-truth boundary error and corpus identity may not become a
+runtime rule.
+
+**Status.** Open M7 blocker. Raw evidence is
+`runs/m7/v13-fa4494c-shards/{quality,fast}.json` with analyses beside it; the
+directory is intentionally ignored and must be reproduced from the named
+commit before a release claim. The untouched sealed audit has not been opened,
+no M7 review SHA exists, and no further full calibration should run until one
+general corroboration/abstention mechanism closes the 46-row class and an
+isolated runtime court is ready.
