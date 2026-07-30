@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use sha2::{Digest, Sha256};
 use vice_evidence::{BoundaryChain, Flat2Evidence};
 use vice_fit::BoundaryModel;
-use vice_ir::{scene_digest_sha256, Canvas, GlobalFormationHypothesis};
+use vice_ir::{scene_digest_sha256, BlendSpace, Canvas, GlobalFormationHypothesis};
 use vice_opt::{
     apply_compound_transaction_traced, CompoundTransaction, OptimizationResult, PriorCodeLengths,
     SceneMutation, ScoredHypothesis, TransactionApplication, TransactionKind,
@@ -55,7 +55,12 @@ struct OptimizedScene {
 #[derive(Debug, Default)]
 pub(crate) struct CandidateCache {
     optimized_by_scene_and_prior: BTreeMap<String, OptimizedScene>,
-    serialized_by_scene: BTreeMap<String, SerializedDelivery>,
+    // Independent witnesses carry two full-resolution RGBA buffers plus
+    // their PNGs. Retaining one for every attempted scene would make memory
+    // grow with the search population even though completed candidates keep
+    // only compact artifacts. Consecutive duplicate scenes still get the
+    // useful fast path, while the resident witness set is strictly bounded.
+    last_serialized_scene: Option<(String, SerializedDelivery)>,
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +92,14 @@ pub(crate) struct CandidateRequest<'a> {
 pub(crate) struct ProposalScore {
     pub total_bits: f64,
     pub scene_digest_sha256: String,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct ProposalWorkspace {
+    verification: vice_verify::QuantizedVerificationWorkspace,
+    likelihood: vice_opt::LikelihoodWorkspace,
+    linear_observation: Option<vice_image::ObservationTensor>,
+    encoded_observation: Option<vice_image::ObservationTensor>,
 }
 
 fn digest(bytes: impl AsRef<[u8]>) -> String {
@@ -432,6 +445,7 @@ fn build_transactional_candidate(
 /// subprocess. It may only reorder scheduled hypotheses.
 pub(crate) fn score_candidate_proposal(
     request: &CandidateRequest<'_>,
+    workspace: &mut ProposalWorkspace,
 ) -> Result<ProposalScore, CandidateRefusal> {
     let hypothesis_id = request.hypothesis_id.clone();
     let (candidate, _) = build_transactional_candidate(request).map_err(|error| {
@@ -448,36 +462,53 @@ pub(crate) fn score_candidate_proposal(
         request.intent,
         request.config,
     );
-    let verified = vice_verify::quantize_and_verify(
+    let verified = vice_verify::quantize_and_verify_with_workspace(
         &candidate.scene,
         &candidate.bindings,
         request.config.verification,
         request.config.quantization,
+        &mut workspace.verification,
     )
     .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::Quantization, error))?;
-    let score = vice_opt::score_full_resolution(
+    let observation_slot = match verified.scene().formation.blend_space {
+        BlendSpace::LinearLight => &mut workspace.linear_observation,
+        BlendSpace::EncodedSrgb => &mut workspace.encoded_observation,
+    };
+    let observation = observation_slot.get_or_insert_with(|| {
+        vice_image::ObservationTensor::of(request.image, verified.scene().formation.blend_space)
+    });
+    let evaluated = vice_opt::score_full_resolution_scope_with_workspace(
         verified.scene(),
-        request.image,
+        observation,
         verified.render(),
         request.config.likelihood,
         prior,
+        vice_opt::ScoreScope::FULL,
+        &mut workspace.likelihood,
     )
-    .map_err(|error| {
-        refusal(
-            &hypothesis_id,
-            CandidateFailureStage::ProposalLikelihood,
-            error,
-        )
-    })?;
-    Ok(ProposalScore {
-        total_bits: score.total_bits,
-        scene_digest_sha256: vice_ir::scene_digest_sha256(verified.scene()).map_err(|error| {
+    .map(|score| {
+        vice_ir::scene_digest_sha256(verified.scene())
+            .map(|scene_digest_sha256| (score, scene_digest_sha256))
+    });
+    workspace.verification.recycle(verified);
+    let (score, scene_digest_sha256) = evaluated
+        .map_err(|error| {
+            refusal(
+                &hypothesis_id,
+                CandidateFailureStage::ProposalLikelihood,
+                error,
+            )
+        })?
+        .map_err(|error| {
             refusal(
                 &hypothesis_id,
                 CandidateFailureStage::CanonicalArtifact,
                 error,
             )
-        })?,
+        })?;
+    Ok(ProposalScore {
+        total_bits: score.total_bits,
+        scene_digest_sha256,
     })
 }
 
@@ -574,15 +605,14 @@ pub(crate) fn materialize_candidate(
         .post_quantization_certificate()
         .post_scene_digest_sha256
         .clone();
-    let delivery = if let Some(delivery) = cache.serialized_by_scene.get(&scene_digest_sha256) {
-        delivery.clone()
-    } else {
-        let delivery = serialized_delivery(&verified, request.config)
-            .map_err(|(stage, error)| refusal(&hypothesis_id, stage, error))?;
-        cache
-            .serialized_by_scene
-            .insert(scene_digest_sha256.clone(), delivery.clone());
-        delivery
+    let delivery = match cache.last_serialized_scene.as_ref() {
+        Some((digest, delivery)) if digest == &scene_digest_sha256 => delivery.clone(),
+        _ => {
+            let delivery = serialized_delivery(&verified, request.config)
+                .map_err(|(stage, error)| refusal(&hypothesis_id, stage, error))?;
+            cache.last_serialized_scene = Some((scene_digest_sha256.clone(), delivery.clone()));
+            delivery
+        }
     };
     let score = vice_opt::score_serialized_full_resolution(
         verified.scene(),

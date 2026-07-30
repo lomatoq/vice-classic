@@ -33,14 +33,14 @@ use vice_ir::ValidatedScene;
 use vice_opt::BoundValue;
 use vice_render::{CertifiedMesh, RenderOptions};
 
-use crate::gt::corpus::all_groups_with_variants;
+use crate::gt::corpus::groups_with_variants_filtered;
 use crate::gt::degradation::{matrix_v1, render_cell, DegradationCell};
 use crate::gt::grammar::AUTHORING_CANVAS_PX;
 use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v14";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v15";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
@@ -243,6 +243,7 @@ pub struct MeasurementRow {
     pub candidate_bytes: u64,
     pub serialized_pixel_bits: Option<f64>,
     pub serialized_pixel_bits_per_block: Option<f64>,
+    pub support_isotopy_displacement_px: Option<f64>,
     pub empirical_correlation_length_px: Option<f64>,
     pub max_abs_lag1: Option<f64>,
     pub topology_entropy_upper_bound: Option<f64>,
@@ -457,6 +458,7 @@ fn measure_one(
         candidate_bytes: report.runtime.candidate_bytes,
         serialized_pixel_bits: None,
         serialized_pixel_bits_per_block: None,
+        support_isotopy_displacement_px: None,
         empirical_correlation_length_px: None,
         max_abs_lag1: None,
         topology_entropy_upper_bound: None,
@@ -491,6 +493,7 @@ fn measure_one(
             row.formation_entropy_bound_status,
         ) = measured_bound(&metrics.formation_entropy_upper_bound);
         row.perturbation_stability = Some(metrics.perturbation_stability.score);
+        row.support_isotopy_displacement_px = Some(metrics.support_isotopy_displacement_px);
         row.phase_envelope_stable = Some(metrics.perturbation_stability.phase_envelope_stable);
         row.sample_step_certificate_stable = Some(
             metrics

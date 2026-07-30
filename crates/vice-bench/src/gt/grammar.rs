@@ -134,10 +134,26 @@ pub const SHAPE_FAMILIES: &[&str] = &[
 /// `variants_per_family` structural variants of each family; each variant
 /// is a separate independent group.
 pub(crate) fn procedural_groups(variants_per_family: usize) -> Vec<GtSourceGroup> {
+    procedural_groups_filtered(variants_per_family, |_| true)
+}
+
+/// Build only the procedural groups whose stable IDs pass `keep`.
+///
+/// The predicate runs before a recipe is instantiated. This matters for
+/// sharded release measurements: every shard represents the same ID
+/// population, but must not allocate and certify thousands of groups that
+/// belong to other shards.
+pub(crate) fn procedural_groups_filtered(
+    variants_per_family: usize,
+    keep: impl Fn(&str) -> bool,
+) -> Vec<GtSourceGroup> {
     let mut out = Vec::new();
     for family in SHAPE_FAMILIES {
         for v in 0..variants_per_family {
             let id = format!("proc/{family}/{v:03}");
+            if !keep(&id) {
+                continue;
+            }
             match crate::gt::recipes::build_variant(family, v, &id) {
                 Ok(group) => out.push(group),
                 Err(why) => panic!("procedural recipe {id} does not certify: {why}"),
@@ -183,6 +199,36 @@ mod tests {
                 x.scenes[0].partition_truth(),
                 y.scenes[0].partition_truth(),
                 "the grammar must be deterministic across processes and runs"
+            );
+        }
+    }
+
+    #[test]
+    fn filtered_construction_preserves_selected_groups() {
+        let eager = procedural_groups(3);
+        let filtered =
+            procedural_groups_filtered(3, |id| id == "proc/annulus/001" || id == "proc/star/002");
+        assert_eq!(
+            filtered
+                .iter()
+                .map(|group| group.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["proc/annulus/001", "proc/star/002"]
+        );
+        for selected in &filtered {
+            let reference = eager
+                .iter()
+                .find(|group| group.id == selected.id)
+                .expect("selected group exists in eager corpus");
+            assert_eq!(
+                selected.scenes[0].partition_truth(),
+                reference.scenes[0].partition_truth()
+            );
+            assert_eq!(
+                vice_ir::scene_digest_sha256(selected.scenes[0].scene().scene())
+                    .expect("selected scene digests"),
+                vice_ir::scene_digest_sha256(reference.scenes[0].scene().scene())
+                    .expect("reference scene digests")
             );
         }
     }

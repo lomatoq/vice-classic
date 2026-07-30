@@ -1189,7 +1189,7 @@ fn a_relation_is_accepted_only_when_it_shortens_the_code() {
             m.relations_kept,
             m.code.total_bits()
         );
-        for h in &m.relations {
+        for h in m.relations.iter() {
             println!(
                 "    {:>14} on {:?}: cost {:6.3} saving {:6.3} residual penalty {:9.3} net \
                  {:10.3} -> {}",

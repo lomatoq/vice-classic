@@ -17,8 +17,8 @@ pub use delivery::{
     seal_delivery, DeliveryComparison, DeliverySeal, DeliverySealConfig, DeliverySealError,
 };
 pub use quantize::{
-    quantize_and_verify, PostQuantizationCertificate, QuantizationError, QuantizationPolicy,
-    QuantizedVerifiedScene,
+    quantize_and_verify, quantize_and_verify_with_workspace, PostQuantizationCertificate,
+    QuantizationError, QuantizationPolicy, QuantizedVerificationWorkspace, QuantizedVerifiedScene,
 };
 pub use scene::{
     canvas_closure_sha256, preseal_scene, rebind_scene_bindings, topology_signature_sha256,

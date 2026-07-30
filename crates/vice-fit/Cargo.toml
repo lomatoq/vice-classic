@@ -9,7 +9,7 @@ description = "vice-classic M6 Stage G: hierarchical span candidates and candida
 workspace = true
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 vice-evidence = { path = "../vice-evidence" }
 vice-geom = { path = "../vice-geom" }
 vice-ir = { path = "../vice-ir" }

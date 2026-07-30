@@ -38,6 +38,7 @@ pub struct M7ReleaseGates {
     pub empirical_unexplored_relative_mass_upper_bound: f64,
     pub min_top2_class_margin_bits: f64,
     pub max_posterior_predictive_bits_per_block: f64,
+    pub max_support_isotopy_displacement_px: f64,
     pub max_abs_residual_lag1: f64,
     pub max_topology_entropy_bits: f64,
     pub max_formation_entropy_bits: f64,
@@ -109,6 +110,11 @@ impl M7ReleaseGates {
                 gates,
                 "m7_selective",
                 "gate_max_posterior_predictive_bits_per_block",
+            )?,
+            max_support_isotopy_displacement_px: f64_gate(
+                gates,
+                "m7_selective",
+                "gate_max_support_isotopy_displacement_px",
             )?,
             max_abs_residual_lag1: f64_gate(gates, "m7_selective", "gate_max_abs_residual_lag1")?,
             max_topology_entropy_bits: f64_gate(
@@ -485,6 +491,8 @@ fn calibration_matches_gates(report: &MeasurementReport, gates: M7ReleaseGates) 
                 && calibration.minimum_top2_class_margin_bits == gates.min_top2_class_margin_bits
                 && calibration.maximum_posterior_predictive_bits_per_block
                     == gates.max_posterior_predictive_bits_per_block
+                && calibration.maximum_support_isotopy_displacement_px
+                    == gates.max_support_isotopy_displacement_px
                 && calibration.maximum_abs_residual_lag1 == gates.max_abs_residual_lag1
                 && calibration.maximum_topology_entropy_bits == gates.max_topology_entropy_bits
                 && calibration.maximum_formation_entropy_bits == gates.max_formation_entropy_bits
@@ -705,6 +713,10 @@ mod tests {
                 (
                     "gate_max_posterior_predictive_bits_per_block",
                     toml::Value::Float(0.10),
+                ),
+                (
+                    "gate_max_support_isotopy_displacement_px",
+                    toml::Value::Float(0.5),
                 ),
                 ("gate_max_abs_residual_lag1", toml::Value::Float(0.90)),
                 ("gate_max_topology_entropy_bits", toml::Value::Float(1.0)),

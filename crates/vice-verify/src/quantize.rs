@@ -3,7 +3,22 @@ use thiserror::Error;
 use vice_geom::Pt;
 use vice_ir::{JoinKind, Paint, PixelFilter, Segment, VectorScene};
 
-use crate::scene::{preseal_scene, PresealedScene, VerificationConfig, VerificationError};
+use crate::scene::{preseal_scene_reusing, PresealedScene, VerificationConfig, VerificationError};
+
+#[derive(Debug, Default)]
+pub struct QuantizedVerificationWorkspace {
+    render_workspace: vice_render::PartitionRenderWorkspace,
+    pre_render: Option<vice_render::PartitionRender>,
+    post_render: Option<vice_render::PartitionRender>,
+}
+
+impl QuantizedVerificationWorkspace {
+    pub fn recycle(&mut self, verified: QuantizedVerifiedScene) {
+        let QuantizedVerifiedScene { pre, post, .. } = verified;
+        self.pre_render = Some(pre.render);
+        self.post_render = Some(post.render);
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct QuantizationPolicy {
@@ -280,9 +295,37 @@ pub fn quantize_and_verify(
     verification: VerificationConfig,
     policy: QuantizationPolicy,
 ) -> Result<QuantizedVerifiedScene, QuantizationError> {
-    let pre = preseal_scene(scene, bindings, verification)?;
+    quantize_and_verify_with_workspace(
+        scene,
+        bindings,
+        verification,
+        policy,
+        &mut QuantizedVerificationWorkspace::default(),
+    )
+}
+
+pub fn quantize_and_verify_with_workspace(
+    scene: &VectorScene,
+    bindings: &[crate::BoundaryBinding],
+    verification: VerificationConfig,
+    policy: QuantizationPolicy,
+    workspace: &mut QuantizedVerificationWorkspace,
+) -> Result<QuantizedVerifiedScene, QuantizationError> {
+    let pre = preseal_scene_reusing(
+        scene,
+        bindings,
+        verification,
+        workspace.pre_render.take(),
+        &mut workspace.render_workspace,
+    )?;
     let (quantized, sites, changed, max_delta) = quantize_scene(scene, policy)?;
-    let post = preseal_scene(&quantized, bindings, verification)?;
+    let post = preseal_scene_reusing(
+        &quantized,
+        bindings,
+        verification,
+        workspace.post_render.take(),
+        &mut workspace.render_workspace,
+    )?;
     if pre.certificate().topology_signature_sha256 != post.certificate().topology_signature_sha256 {
         return Err(QuantizationError::TopologyChanged);
     }

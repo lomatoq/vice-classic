@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 use vice_geom::Pt;
+use vice_image::ObservationTensor;
 use vice_ir::{BoundaryId, FaceId, JoinKind, LinearRgb, Paint, Segment, VectorScene, VertexId};
 use vice_opt::{
     apply_compound_transaction_traced, optimize_best_deterministic, BlockSpec, CompoundTransaction,
@@ -43,7 +44,7 @@ enum ParameterKind {
 struct ContinuousProblem<'a> {
     scene: &'a VectorScene,
     bindings: &'a [vice_verify::BoundaryBinding],
-    observed: &'a vice_image::CanonicalImage,
+    observation: ObservationTensor,
     likelihood: vice_opt::BlockLikelihoodConfig,
     priors: PriorCodeLengths,
     verification: vice_verify::VerificationConfig,
@@ -56,6 +57,8 @@ struct ContinuousProblem<'a> {
     export_decimal_places: u32,
     apron_width_px: f64,
     baseline_support_isotopy_displacement_px: f64,
+    likelihood_workspace: RefCell<vice_opt::LikelihoodWorkspace>,
+    verification_workspace: RefCell<vice_verify::QuantizedVerificationWorkspace>,
     surrogate_cache: RefCell<BTreeMap<Vec<u64>, f64>>,
     exact_cache: RefCell<BTreeMap<Vec<u64>, f64>>,
     fixed_mesh_signatures: RefCell<BTreeMap<u64, Vec<usize>>>,
@@ -237,42 +240,53 @@ impl ContinuousProblem<'_> {
         scope: ScoreScope,
     ) -> Result<vice_opt::ScoreBreakdown, String> {
         let scene = self.materialize(parameters, true)?;
-        let verified = vice_verify::quantize_and_verify(
-            &scene,
-            self.bindings,
-            self.verification,
-            self.quantization,
-        )
-        .map_err(|error| error.to_string())?;
-        if verified
-            .pre_quantization_certificate()
-            .max_support_isotopy_displacement_px
-            > self.baseline_support_isotopy_displacement_px + SUPPORT_MONOTONICITY_TOLERANCE_PX
-        {
-            return Err(
-                "serialized continuous geometry increased observed-support isotopy displacement"
-                    .into(),
-            );
-        }
-        let scene = verified.scene();
-        let plan =
-            vice_svg::build_export_plan(scene, self.export_decimal_places, self.apron_width_px)
+        let verified = {
+            let mut workspace = self.verification_workspace.borrow_mut();
+            vice_verify::quantize_and_verify_with_workspace(
+                &scene,
+                self.bindings,
+                self.verification,
+                self.quantization,
+                &mut workspace,
+            )
+            .map_err(|error| error.to_string())?
+        };
+        let result = (|| {
+            if verified
+                .pre_quantization_certificate()
+                .max_support_isotopy_displacement_px
+                > self.baseline_support_isotopy_displacement_px + SUPPORT_MONOTONICITY_TOLERANCE_PX
+            {
+                return Err(
+                    "serialized continuous geometry increased observed-support isotopy \
+                     displacement"
+                        .into(),
+                );
+            }
+            let scene = verified.scene();
+            let plan =
+                vice_svg::build_export_plan(scene, self.export_decimal_places, self.apron_width_px)
+                    .map_err(|error| error.to_string())?;
+            let svg = vice_svg::materialize_svg(&plan, vice_svg::SvgProfile::SeamSafe)
                 .map_err(|error| error.to_string())?;
-        let svg = vice_svg::materialize_svg(&plan, vice_svg::SvgProfile::SeamSafe)
-            .map_err(|error| error.to_string())?;
-        let witness =
-            vice_svg::parse_and_render_independently(&svg).map_err(|error| error.to_string())?;
-        vice_opt::score_serialized_full_resolution_scope(
-            scene,
-            self.observed,
-            witness.premultiplied_rgba8(),
-            witness.width_px(),
-            witness.height_px(),
-            self.likelihood,
-            self.priors,
-            scope,
-        )
-        .map_err(|error| error.to_string())
+            let witness = vice_svg::parse_and_render_independently(&svg)
+                .map_err(|error| error.to_string())?;
+            let mut workspace = self.likelihood_workspace.borrow_mut();
+            vice_opt::score_serialized_full_resolution_scope_with_workspace(
+                scene,
+                &self.observation,
+                witness.premultiplied_rgba8(),
+                witness.width_px(),
+                witness.height_px(),
+                self.likelihood,
+                self.priors,
+                scope,
+                &mut workspace,
+            )
+            .map_err(|error| error.to_string())
+        })();
+        self.verification_workspace.borrow_mut().recycle(verified);
+        result
     }
 }
 
@@ -290,13 +304,15 @@ impl TrustRegionProblem for ContinuousProblem<'_> {
         let bits =
             self.presealed_on_fixed_mesh(parameters, token)
                 .map_or(INFEASIBLE_BITS, |presealed| {
-                    vice_opt::score_full_resolution_scope(
+                    let mut workspace = self.likelihood_workspace.borrow_mut();
+                    vice_opt::score_full_resolution_scope_with_workspace(
                         presealed.scene(),
-                        self.observed,
+                        &self.observation,
                         presealed.render(),
                         self.likelihood,
                         self.priors,
                         scope,
+                        &mut workspace,
                     )
                     .map_or(INFEASIBLE_BITS, |score| score.total_bits)
                 });
@@ -642,7 +658,7 @@ pub(crate) fn optimize_continuous(
     let problem = ContinuousProblem {
         scene: &candidate.scene,
         bindings: &candidate.bindings,
-        observed,
+        observation: ObservationTensor::of(observed, candidate.scene.formation.blend_space),
         likelihood: config.likelihood,
         priors,
         verification: config.verification,
@@ -655,6 +671,8 @@ pub(crate) fn optimize_continuous(
         export_decimal_places: config.export_decimal_places,
         apron_width_px: config.apron_width_px,
         baseline_support_isotopy_displacement_px,
+        likelihood_workspace: RefCell::new(vice_opt::LikelihoodWorkspace::default()),
+        verification_workspace: RefCell::new(vice_verify::QuantizedVerificationWorkspace::default()),
         surrogate_cache: RefCell::new(BTreeMap::new()),
         exact_cache: RefCell::new(BTreeMap::new()),
         fixed_mesh_signatures: RefCell::new(BTreeMap::new()),

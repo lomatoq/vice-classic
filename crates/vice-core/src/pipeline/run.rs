@@ -692,6 +692,10 @@ pub(super) fn vectorize_impl(
         } else {
             f64::MAX
         },
+        support_isotopy_displacement_px: selected
+            .summary
+            .pre_quantization
+            .max_support_isotopy_displacement_px,
         max_abs_residual_lag1: if max_abs_residual_lag1.is_finite() {
             max_abs_residual_lag1
         } else {

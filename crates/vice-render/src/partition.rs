@@ -27,7 +27,7 @@ use vice_ir::color::PremulRgba;
 use vice_ir::{FaceId, Paint, ValidatedScene};
 
 use crate::certified::CertifiedMesh;
-use crate::coverage::polygon_coverage;
+use crate::coverage::{polygon_coverage, polygon_coverage_into, CoverageWorkspace};
 use crate::domain::NumericDomain;
 use crate::mesh::{RenderMesh, TessellationBudget};
 use crate::render_error::RenderError;
@@ -144,6 +144,11 @@ pub struct PartitionRender {
     pub composite: Vec<PremulRgba>,
 }
 
+#[derive(Debug, Default)]
+pub struct PartitionRenderWorkspace {
+    coverage: CoverageWorkspace,
+}
+
 /// Coverage of one face over a row band (exterior gets its `+1` window
 /// term). Shared with the ROI path so both compute IDENTICAL values.
 pub(crate) fn face_coverage_band(
@@ -166,6 +171,34 @@ pub(crate) fn face_coverage_band(
         }
     }
     Ok(cov)
+}
+
+fn face_coverage_band_into(
+    mesh: &RenderMesh,
+    face: usize,
+    row_start: u32,
+    row_end: u32,
+    coverage: &mut Vec<f64>,
+    workspace: &mut CoverageWorkspace,
+) -> Result<(), RenderError> {
+    let refs: Vec<&[vice_geom::Pt]> = mesh.face_loops[face]
+        .iter()
+        .map(|lp| lp.points.as_slice())
+        .collect();
+    polygon_coverage_into(
+        &refs,
+        mesh.width_px,
+        row_start,
+        row_end,
+        coverage,
+        workspace,
+    )?;
+    if FaceId(face as u32) == mesh.exterior {
+        for value in coverage {
+            *value += 1.0;
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn premul_of_paint(paint: Paint) -> PremulRgba {
@@ -252,14 +285,27 @@ pub(crate) fn check_numeric_domain(
 /// cannot be set apart) and C049 (the mesh entry points take the whole
 /// `RenderOptions`); D-4 is the same argument applied to the embedding.
 pub fn render_mesh_partition(certified: &CertifiedMesh) -> Result<PartitionRender, RenderError> {
+    render_mesh_partition_reusing(certified, None, &mut PartitionRenderWorkspace::default())
+}
+
+pub fn render_mesh_partition_reusing(
+    certified: &CertifiedMesh,
+    recycled: Option<PartitionRender>,
+    workspace: &mut PartitionRenderWorkspace,
+) -> Result<PartitionRender, RenderError> {
     let mesh = certified.mesh();
     let tolerances = certified.options().tolerances();
     let (w, h) = (mesh.width_px, mesh.height_px);
     let faces = mesh.face_loops.len();
     let n_px = (w as usize) * (h as usize);
-    let mut face_coverage = Vec::with_capacity(faces);
-    for f in 0..faces {
-        let cov = face_coverage_band(mesh, f, 0, h)?;
+    let (mut face_coverage, mut composite) = recycled.map_or_else(
+        || (Vec::with_capacity(faces), Vec::with_capacity(n_px)),
+        |render| (render.face_coverage, render.composite),
+    );
+    face_coverage.resize_with(faces, Vec::new);
+    face_coverage.truncate(faces);
+    for (f, cov) in face_coverage.iter_mut().enumerate() {
+        face_coverage_band_into(mesh, f, 0, h, cov, &mut workspace.coverage)?;
         // Range check: an independently-computed face coverage outside
         // [0,1] means the faces do NOT tile the window (overlap / wrong
         // nesting / self-winding). First offending pixel, deterministic.
@@ -274,7 +320,6 @@ pub fn render_mesh_partition(certified: &CertifiedMesh) -> Result<PartitionRende
                 });
             }
         }
-        face_coverage.push(cov);
     }
 
     // Sum check: per pixel, Σ_f coverage = 1 within the typed bound.
@@ -296,15 +341,16 @@ pub fn render_mesh_partition(certified: &CertifiedMesh) -> Result<PartitionRende
     // Premultiplied DIRECT compositing: Σ_f coverage_f · premul(paint_f);
     // face-major fixed order (deterministic reduction, §5.5).
     let paints: Vec<PremulRgba> = mesh.paints.iter().map(|p| premul_of_paint(*p)).collect();
-    let mut composite = vec![
+    composite.clear();
+    composite.resize(
+        n_px,
         PremulRgba {
             r: 0.0,
             g: 0.0,
             b: 0.0,
-            a: 0.0
-        };
-        n_px
-    ];
+            a: 0.0,
+        },
+    );
     for (cov, paint) in face_coverage.iter().zip(&paints) {
         if paint.a == 0.0 && paint.r == 0.0 && paint.g == 0.0 && paint.b == 0.0 {
             continue; // transparent faces contribute nothing

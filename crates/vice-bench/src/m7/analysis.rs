@@ -19,7 +19,7 @@ pub use delivery::DeliveryCalibration;
 use delivery::{calibrate_delivery_seal, delivery_diagnostics_permit};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v9";
+    "vice-classic/m7-confidence-calibration-analysis/v10";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
@@ -27,7 +27,6 @@ pub const PROPOSED_MAX_PALETTE_CODE_DELTA: u8 = 4;
 pub const PROPOSED_MAX_QUALITY_P95_MS: u64 = 10_000;
 pub const PROPOSED_MAX_FAST_P95_MS: u64 = 1_000;
 pub const PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS: f64 = 0.0;
-pub const PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK: f64 = 0.10;
 pub const PROPOSED_MAX_ABS_RESIDUAL_LAG1: f64 = 0.90;
 pub const PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS: f64 = 1.0;
 pub const PROPOSED_MAX_FORMATION_ENTROPY_BITS: f64 = 1.0;
@@ -37,6 +36,8 @@ pub const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ThresholdEvaluation {
     pub posterior_lower_bound_threshold: f64,
+    pub maximum_posterior_predictive_bits_per_block: f64,
+    pub maximum_support_isotopy_displacement_px: f64,
     pub reliability: RiskCoverage,
     pub minimum_source_coverage: f64,
     pub minimum_render_coverage: f64,
@@ -74,6 +75,8 @@ pub struct CalibrationAnalysis {
     pub runtime_policy: &'static str,
     pub threshold_evaluations: Vec<ThresholdEvaluation>,
     pub selected_threshold: Option<f64>,
+    pub selected_maximum_posterior_predictive_bits_per_block: Option<f64>,
+    pub selected_maximum_support_isotopy_displacement_px: Option<f64>,
     pub delivery_calibration: DeliveryCalibration,
     pub delivery_seal: vice_verify::DeliverySealConfig,
     pub calibration: Option<vice_core::ConfidenceCalibration>,
@@ -141,6 +144,15 @@ pub fn analyze_calibration(
     })? as f64;
     let delivery_calibration = calibrate_delivery_seal(&target_rows)?;
     let delivery_seal = delivery_calibration.proposal;
+    let observable_policy = select_observable_policy(
+        &target_rows,
+        empirical_upper,
+        delivery_seal,
+        bucket.min_coverage_per_source,
+        bucket.min_coverage_per_render,
+        prereg.confidence,
+        prereg.risk_target,
+    )?;
 
     let mut scores = target_rows
         .iter()
@@ -152,11 +164,22 @@ pub fn analyze_calibration(
 
     let mut threshold_evaluations = Vec::with_capacity(scores.len());
     for threshold in scores {
+        let Some((maximum_predictive_bits_per_block, maximum_support_displacement_px)) =
+            observable_policy
+        else {
+            break;
+        };
         let outcomes = target_rows
             .iter()
             .map(|row| {
                 let accepted = row.candidate_available
-                    && diagnostics_permit(row, empirical_upper, delivery_seal)
+                    && diagnostics_permit(
+                        row,
+                        empirical_upper,
+                        delivery_seal,
+                        maximum_predictive_bits_per_block,
+                        maximum_support_displacement_px,
+                    )
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold);
                 Ok(RenderOutcome {
@@ -190,7 +213,13 @@ pub fn analyze_calibration(
             .iter()
             .filter(|row| {
                 row.candidate_available
-                    && diagnostics_permit(row, empirical_upper, delivery_seal)
+                    && diagnostics_permit(
+                        row,
+                        empirical_upper,
+                        delivery_seal,
+                        maximum_predictive_bits_per_block,
+                        maximum_support_displacement_px,
+                    )
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
@@ -200,7 +229,13 @@ pub fn analyze_calibration(
             .iter()
             .filter(|row| {
                 row.candidate_available
-                    && diagnostics_permit(row, empirical_upper, delivery_seal)
+                    && diagnostics_permit(
+                        row,
+                        empirical_upper,
+                        delivery_seal,
+                        maximum_predictive_bits_per_block,
+                        maximum_support_displacement_px,
+                    )
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
@@ -210,7 +245,13 @@ pub fn analyze_calibration(
             .iter()
             .filter(|row| {
                 row.candidate_available
-                    && diagnostics_permit(row, empirical_upper, delivery_seal)
+                    && diagnostics_permit(
+                        row,
+                        empirical_upper,
+                        delivery_seal,
+                        maximum_predictive_bits_per_block,
+                        maximum_support_displacement_px,
+                    )
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
@@ -234,6 +275,8 @@ pub fn analyze_calibration(
             && zero_catastrophic_required_by_core;
         threshold_evaluations.push(ThresholdEvaluation {
             posterior_lower_bound_threshold: threshold,
+            maximum_posterior_predictive_bits_per_block: maximum_predictive_bits_per_block,
+            maximum_support_isotopy_displacement_px: maximum_support_displacement_px,
             reliability,
             minimum_source_coverage: bucket.min_coverage_per_source,
             minimum_render_coverage: bucket.min_coverage_per_render,
@@ -253,6 +296,10 @@ pub fn analyze_calibration(
         .iter()
         .find(|evaluation| evaluation.eligible);
     let selected_threshold = selected.map(|evaluation| evaluation.posterior_lower_bound_threshold);
+    let selected_maximum_posterior_predictive_bits_per_block =
+        selected.map(|evaluation| evaluation.maximum_posterior_predictive_bits_per_block);
+    let selected_maximum_support_isotopy_displacement_px =
+        selected.map(|evaluation| evaluation.maximum_support_isotopy_displacement_px);
     const RUNTIME_SCOPE_SIZE_PX: u32 = 512;
     let runtime_p95_ms = runtime_quantile(
         &target_rows
@@ -271,7 +318,7 @@ pub fn analyze_calibration(
     let audit_untouched = audit.status == SealStatus::Sealed;
     let measurement_sha256 = calibration_measurement_digest(report);
     let calibration = selected.map(|evaluation| vice_core::ConfidenceCalibration {
-        schema: "vice-classic/confidence-calibration/v1".into(),
+        schema: "vice-classic/confidence-calibration/v2".into(),
         model_universe_sha256: report.identity.universe_sha256.clone(),
         pricing_sha256: report.identity.pricing_sha256.clone(),
         backend_sha256: report.identity.backend_sha256.clone(),
@@ -285,8 +332,9 @@ pub fn analyze_calibration(
         catastrophic_source_groups: evaluation.reliability.groups_catastrophic,
         posterior_lower_bound_threshold: evaluation.posterior_lower_bound_threshold,
         minimum_top2_class_margin_bits: PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS,
-        maximum_posterior_predictive_bits_per_block:
-            PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK,
+        maximum_posterior_predictive_bits_per_block: evaluation
+            .maximum_posterior_predictive_bits_per_block,
+        maximum_support_isotopy_displacement_px: evaluation.maximum_support_isotopy_displacement_px,
         maximum_abs_residual_lag1: PROPOSED_MAX_ABS_RESIDUAL_LAG1,
         maximum_topology_entropy_bits: PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS,
         maximum_formation_entropy_bits: PROPOSED_MAX_FORMATION_ENTROPY_BITS,
@@ -300,7 +348,13 @@ pub fn analyze_calibration(
         }],
     });
     let mut refusals = Vec::new();
-    if selected.is_none() {
+    if observable_policy.is_none() {
+        refusals.push(
+            "no observable predictive/support policy meets source/render coverage and \
+             p95/p99/max zero-catastrophic gates before posterior thresholding"
+                .into(),
+        );
+    } else if selected.is_none() {
         refusals.push(
             "no posterior threshold simultaneously meets clustered risk, source coverage, \
              boundary p95/p99/max tails, and the core zero-catastrophic contract"
@@ -353,6 +407,8 @@ pub fn analyze_calibration(
         runtime_policy: RUNTIME_POLICY,
         threshold_evaluations,
         selected_threshold,
+        selected_maximum_posterior_predictive_bits_per_block,
+        selected_maximum_support_isotopy_displacement_px,
         delivery_calibration,
         delivery_seal,
         calibration,
@@ -442,7 +498,7 @@ fn calibrated_entropy_upper_bound(
         })
 }
 
-fn diagnostics_permit(
+fn fixed_diagnostics_permit(
     row: &MeasurementRow,
     empirical_upper: f64,
     delivery_seal: vice_verify::DeliverySealConfig,
@@ -454,9 +510,6 @@ fn diagnostics_permit(
     };
     margin >= PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS
         && row
-            .serialized_pixel_bits_per_block
-            .is_some_and(|bits| bits <= PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK)
-        && row
             .max_abs_lag1
             .is_some_and(|lag| lag <= PROPOSED_MAX_ABS_RESIDUAL_LAG1)
         && calibrated_entropy_upper_bound(row, empirical_upper, true)
@@ -467,6 +520,147 @@ fn diagnostics_permit(
             .perturbation_stability
             .is_some_and(|stability| stability >= PROPOSED_MIN_PERTURBATION_STABILITY)
         && delivery_diagnostics_permit(row, delivery_seal)
+}
+
+fn diagnostics_permit(
+    row: &MeasurementRow,
+    empirical_upper: f64,
+    delivery_seal: vice_verify::DeliverySealConfig,
+    maximum_predictive_bits_per_block: f64,
+    maximum_support_displacement_px: f64,
+) -> bool {
+    fixed_diagnostics_permit(row, empirical_upper, delivery_seal)
+        && row
+            .serialized_pixel_bits_per_block
+            .is_some_and(|bits| bits.is_finite() && bits <= maximum_predictive_bits_per_block)
+        && row
+            .support_isotopy_displacement_px
+            .is_some_and(|displacement| {
+                displacement.is_finite() && displacement <= maximum_support_displacement_px
+            })
+}
+
+fn policy_gate_bad(row: &MeasurementRow, delivery_seal: vice_verify::DeliverySealConfig) -> bool {
+    !catastrophic_kinds(
+        row,
+        delivery_seal,
+        PROPOSED_BOUNDARY_P99_PX,
+        PROPOSED_BOUNDARY_MAX_PX,
+        PROPOSED_MAX_PALETTE_CODE_DELTA,
+    )
+    .is_empty()
+        || row
+            .boundary
+            .as_ref()
+            .is_none_or(|tail| tail.p95_px > PROPOSED_BOUNDARY_P95_PX)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn select_observable_policy(
+    rows: &[&MeasurementRow],
+    empirical_upper: f64,
+    delivery_seal: vice_verify::DeliverySealConfig,
+    minimum_source_coverage: f64,
+    minimum_render_coverage: f64,
+    confidence: f64,
+    risk_target: f64,
+) -> Result<Option<(f64, f64)>, String> {
+    let mut predictive_thresholds = rows
+        .iter()
+        .filter(|row| {
+            row.candidate_available
+                && fixed_diagnostics_permit(row, empirical_upper, delivery_seal)
+                && row
+                    .support_isotopy_displacement_px
+                    .is_some_and(|value| value.is_finite() && value >= 0.0)
+        })
+        .filter_map(|row| row.serialized_pixel_bits_per_block)
+        .filter(|value| value.is_finite() && *value >= 0.0)
+        .collect::<Vec<_>>();
+    predictive_thresholds.sort_by(f64::total_cmp);
+    predictive_thresholds.dedup_by(|left, right| left.total_cmp(right).is_eq());
+
+    let mut best: Option<(f64, f64, f64, f64)> = None;
+    for maximum_predictive in predictive_thresholds {
+        let eligible = rows.iter().copied().filter(|row| {
+            row.candidate_available
+                && fixed_diagnostics_permit(row, empirical_upper, delivery_seal)
+                && row
+                    .serialized_pixel_bits_per_block
+                    .is_some_and(|value| value.is_finite() && value <= maximum_predictive)
+                && row
+                    .support_isotopy_displacement_px
+                    .is_some_and(|value| value.is_finite() && value >= 0.0)
+        });
+        let first_bad_support = eligible
+            .clone()
+            .filter(|row| policy_gate_bad(row, delivery_seal))
+            .filter_map(|row| row.support_isotopy_displacement_px)
+            .min_by(f64::total_cmp);
+        let maximum_support = eligible
+            .filter(|row| !policy_gate_bad(row, delivery_seal))
+            .filter_map(|row| row.support_isotopy_displacement_px)
+            .filter(|support| first_bad_support.is_none_or(|bad| *support < bad))
+            .max_by(f64::total_cmp);
+        let Some(maximum_support) = maximum_support else {
+            continue;
+        };
+        let outcomes = rows
+            .iter()
+            .map(|row| {
+                let accepted = row.candidate_available
+                    && diagnostics_permit(
+                        row,
+                        empirical_upper,
+                        delivery_seal,
+                        maximum_predictive,
+                        maximum_support,
+                    );
+                Ok(RenderOutcome {
+                    group_id: row.group_id.clone(),
+                    cell_id: row.cell_id.clone(),
+                    profile: RasterProfile::from_id(&row.rasterizer).ok_or_else(|| {
+                        format!("unknown rasterizer profile {:?}", row.rasterizer)
+                    })?,
+                    accepted,
+                    catastrophic: accepted && policy_gate_bad(row, delivery_seal),
+                    mandatory: true,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let reliability = risk_coverage(
+            TARGET_BUCKET,
+            &outcomes,
+            confidence,
+            risk_target,
+            Some((ResidualModel::Block, true)),
+        );
+        if !reliability.contract_met
+            || reliability.groups_catastrophic != 0
+            || reliability.coverage_per_source < minimum_source_coverage
+            || reliability.coverage_per_render < minimum_render_coverage
+        {
+            continue;
+        }
+        let candidate = (
+            reliability.coverage_per_render,
+            reliability.coverage_per_source,
+            maximum_predictive,
+            maximum_support,
+        );
+        let replace = best.is_none_or(|current| {
+            candidate.0 > current.0
+                || (candidate.0 == current.0 && candidate.1 > current.1)
+                || (candidate.0 == current.0
+                    && candidate.1 == current.1
+                    && (candidate.2 < current.2
+                        || (candidate.2 == current.2 && candidate.3 < current.3)))
+        });
+        if replace {
+            best = Some(candidate);
+        }
+    }
+    Ok(best.map(|(_, _, predictive, support)| (predictive, support)))
 }
 
 fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
@@ -531,6 +725,7 @@ mod tests {
             candidate_bytes: 100,
             serialized_pixel_bits: Some(1.0),
             serialized_pixel_bits_per_block: Some(0.01),
+            support_isotopy_displacement_px: Some(0.1),
             empirical_correlation_length_px: Some(1.0),
             max_abs_lag1: Some(0.0),
             topology_entropy_upper_bound: Some(0.0),
@@ -682,6 +877,37 @@ mod tests {
     }
 
     #[test]
+    fn observed_support_separates_a_tail_failure_without_reading_ground_truth_in_production() {
+        let mut report = report_with_groups(460, true);
+        report.rows[0].support_isotopy_displacement_px = Some(0.2);
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(analysis.gate_met);
+        let calibration = analysis.calibration.expect("calibration");
+        assert_eq!(calibration.accepted_source_groups, 459);
+        assert_eq!(calibration.catastrophic_source_groups, 0);
+        assert_eq!(calibration.maximum_support_isotopy_displacement_px, 0.1);
+    }
+
+    #[test]
+    fn predictive_ceiling_is_measured_instead_of_hard_coded_to_point_one() {
+        let mut report = report(false);
+        for row in &mut report.rows {
+            row.serialized_pixel_bits_per_block = Some(0.2);
+        }
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(analysis.gate_met);
+        assert_eq!(
+            analysis
+                .calibration
+                .expect("calibration")
+                .maximum_posterior_predictive_bits_per_block,
+            0.2
+        );
+    }
+
+    #[test]
     fn empirical_omitted_mass_cannot_hide_multi_class_entropy() {
         let mut row = row(0, false);
         row.topology_classes_upper_bound = Some(4);
@@ -689,7 +915,7 @@ mod tests {
         let entropy =
             calibrated_entropy_upper_bound(&row, 10.0, true).expect("finite entropy bound");
         assert!(entropy > PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS);
-        assert!(!diagnostics_permit(
+        assert!(!fixed_diagnostics_permit(
             &row,
             10.0,
             vice_verify::DeliverySealConfig {

@@ -102,3 +102,53 @@ fn every_k_truncation_uses_the_declared_proposal_tie_break() {
     .expect("valid path costs");
     assert_eq!(closed[0].candidates, vec![1, 2]);
 }
+
+#[test]
+fn dominated_relaxations_do_not_enter_the_backpointer_arena() {
+    let internal = ranking_edge(0, 0, 1, 0.0);
+    let finished_edge = ranking_edge(1, 1, 2, 0.0);
+    let partial = |bits: f64, edge: usize| Partial {
+        bits,
+        geometry: bits,
+        topology: 0.0,
+        residual: 0.0,
+        proposal: 0.0,
+        edge,
+        smooth_here: false,
+        closure: None,
+        prev: None,
+    };
+
+    let mut arena = Vec::new();
+    let mut slot = std::collections::BTreeMap::new();
+    let mut finished = Vec::new();
+    for bits in 0..1_000 {
+        push_state(
+            &mut arena,
+            &mut slot,
+            &internal,
+            false,
+            partial(bits as f64, 0),
+            8,
+            &mut finished,
+            3,
+        );
+    }
+    assert_eq!(arena.len(), 8);
+
+    let mut finished_slot = std::collections::BTreeMap::new();
+    for bits in 0..1_000 {
+        push_state(
+            &mut arena,
+            &mut finished_slot,
+            &finished_edge,
+            false,
+            partial(bits as f64, 1),
+            8,
+            &mut finished,
+            3,
+        );
+    }
+    assert_eq!(finished.len(), 8);
+    assert_eq!(arena.len(), 16);
+}

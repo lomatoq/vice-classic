@@ -81,6 +81,7 @@ fn synthetic_row(group: &str) -> MeasurementRow {
         candidate_bytes: 0,
         serialized_pixel_bits: None,
         serialized_pixel_bits_per_block: None,
+        support_isotopy_displacement_px: None,
         empirical_correlation_length_px: None,
         max_abs_lag1: None,
         topology_entropy_upper_bound: None,

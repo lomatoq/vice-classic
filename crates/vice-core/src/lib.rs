@@ -209,7 +209,7 @@ mod tests {
     fn exact_zero_failure_bound_needs_at_least_459_independent_groups() {
         let identity = CoreConfig::development().identity();
         let calibration = |accepted_source_groups| ConfidenceCalibration {
-            schema: "vice-classic/confidence-calibration/v1".into(),
+            schema: "vice-classic/confidence-calibration/v2".into(),
             model_universe_sha256: identity.universe_sha256.clone(),
             pricing_sha256: identity.pricing_sha256.clone(),
             backend_sha256: identity.backend_sha256.clone(),
@@ -224,6 +224,7 @@ mod tests {
             posterior_lower_bound_threshold: 0.95,
             minimum_top2_class_margin_bits: 0.0,
             maximum_posterior_predictive_bits_per_block: 0.1,
+            maximum_support_isotopy_displacement_px: 0.5,
             maximum_abs_residual_lag1: 0.9,
             maximum_topology_entropy_bits: 1.0,
             maximum_formation_entropy_bits: 1.0,
@@ -245,6 +246,7 @@ mod tests {
         let metrics = ConfidenceMetrics {
             top2_class_margin_bits: 10.0,
             posterior_predictive_bits_per_block: 0.01,
+            support_isotopy_displacement_px: 0.1,
             max_abs_residual_lag1: 0.1,
             topology_entropy_upper_bound: vice_opt::BoundValue::Certified(0.0),
             formation_entropy_upper_bound: vice_opt::BoundValue::Certified(0.0),
@@ -261,6 +263,12 @@ mod tests {
         assert_eq!(
             calibration(459).permits(&identity, &delivery, &predictive_mismatch),
             Err("posterior_predictive_mismatch")
+        );
+        let mut support_mismatch = metrics.clone();
+        support_mismatch.support_isotopy_displacement_px = 0.51;
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &support_mismatch),
+            Err("support_isotopy_displacement_above_calibrated_threshold")
         );
         let mut spatial_mismatch = metrics.clone();
         spatial_mismatch.max_abs_residual_lag1 = 0.91;

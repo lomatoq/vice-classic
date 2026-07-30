@@ -436,6 +436,10 @@ fn k_best_paths_for_objective(
             prev: None,
         };
         let p = validate_partial_cost(p)?;
+        let Some(p) = validate_complete_partial(p, e.to, n, closure_mode, edges, cb, join_bits)?
+        else {
+            continue;
+        };
         push_state(
             &mut arena,
             &mut states[e.to],
@@ -498,6 +502,18 @@ fn k_best_paths_for_objective(
                             prev: Some(pi),
                         };
                         let q = validate_partial_cost(q)?;
+                        let Some(q) = validate_complete_partial(
+                            q,
+                            e.to,
+                            n,
+                            closure_mode,
+                            edges,
+                            cb,
+                            join_bits,
+                        )?
+                        else {
+                            continue;
+                        };
                         push_state(
                             &mut arena,
                             &mut states[e.to],
@@ -514,28 +530,6 @@ fn k_best_paths_for_objective(
         }
     }
 
-    if closure_mode.is_closed() {
-        let mut invalid = None;
-        finished.retain(|end| {
-            let closed = close_finished_path(
-                &mut arena[*end],
-                edges,
-                cb,
-                join_bits,
-                closure_mode.is_smooth(),
-            );
-            if closed {
-                if let Err(refusal) = validate_partial_cost(arena[*end]) {
-                    invalid = Some(refusal);
-                    return false;
-                }
-            }
-            closed
-        });
-        if let Some(refusal) = invalid {
-            return Err(refusal);
-        }
-    }
     finished.sort_by(|a, b| compare_partial(&arena[*a], &arena[*b]));
     finished.truncate(k);
     finished
@@ -579,6 +573,30 @@ fn k_best_paths_for_objective(
         .collect()
 }
 
+fn validate_complete_partial(
+    mut partial: Partial,
+    to: usize,
+    sample_count: usize,
+    closure_mode: ClosureMode,
+    edges: &[GrammarEdge],
+    coordinate_bits: f64,
+    join_bits: f64,
+) -> Result<Option<Partial>, crate::FitRefusal> {
+    if to != sample_count - 1 || !closure_mode.is_closed() {
+        return Ok(Some(partial));
+    }
+    if !close_finished_path(
+        &mut partial,
+        edges,
+        coordinate_bits,
+        join_bits,
+        closure_mode.is_smooth(),
+    ) {
+        return Ok(None);
+    }
+    validate_partial_cost(partial).map(Some)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn push_state(
     arena: &mut Vec<Partial>,
@@ -590,10 +608,19 @@ fn push_state(
     finished: &mut Vec<usize>,
     n: usize,
 ) {
-    let idx = arena.len();
-    arena.push(p);
     if e.to == n - 1 {
+        if finished.len() >= k
+            && finished
+                .last()
+                .is_some_and(|worst| !compare_partial(&p, &arena[*worst]).is_lt())
+        {
+            return;
+        }
+        let idx = arena.len();
+        arena.push(p);
         finished.push(idx);
+        finished.sort_by(|a, b| compare_partial(&arena[*a], &arena[*b]));
+        finished.truncate(k);
         return;
     }
     let key = StateKey {
@@ -603,6 +630,14 @@ fn push_state(
         closure: p.closure,
     };
     let v = slot.entry(key).or_default();
+    if v.len() >= k
+        && v.last()
+            .is_some_and(|worst| !compare_partial(&p, &arena[*worst]).is_lt())
+    {
+        return;
+    }
+    let idx = arena.len();
+    arena.push(p);
     v.push(idx);
     v.sort_by(|a, b| compare_partial(&arena[*a], &arena[*b]));
     v.truncate(k);

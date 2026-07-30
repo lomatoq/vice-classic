@@ -183,7 +183,13 @@ fn measure_resuming(
                 .into(),
         );
     }
-    let groups = all_groups_with_variants(scope.variants())?;
+    // Sharding is a function of the stable group ID, so select the shard
+    // before constructing/certifying procedural scenes. This preserves the
+    // exact population while bounding each worker to its own groups.
+    let groups = groups_with_variants_filtered(scope.variants(), |group_id| {
+        measurement_shard(group_id, request.shard_count) == request.shard_index
+            && (scope != MeasurementScope::CalibrationSmoke || group_id == "proc/annulus/000")
+    })?;
     let cells = scope
         .cells()
         .into_iter()
@@ -198,10 +204,7 @@ fn measure_resuming(
     let mut jobs = Vec::new();
     let mut source_groups = BTreeSet::new();
     for (group_index, group) in groups.iter().enumerate() {
-        if SPLIT_POLICY_V1.split_of_group(group) != split
-            || (scope == MeasurementScope::CalibrationSmoke && group.id != "proc/annulus/000")
-            || measurement_shard(&group.id, request.shard_count) != request.shard_index
-        {
+        if SPLIT_POLICY_V1.split_of_group(group) != split {
             continue;
         }
         source_groups.insert(group.id.as_str());
@@ -375,9 +378,9 @@ struct PeakWorkingSetMonitor {
 
 impl PeakWorkingSetMonitor {
     fn start() -> Result<Self, String> {
-        let pid = sysinfo::get_current_pid().map_err(|error| error.to_string())?;
         let stop = Arc::new(AtomicBool::new(false));
         let peak = Arc::new(AtomicU64::new(0));
+        let pid = sysinfo::get_current_pid().map_err(|error| error.to_string())?;
         let worker_stop = Arc::clone(&stop);
         let worker_peak = Arc::clone(&peak);
         let worker = std::thread::spawn(move || {

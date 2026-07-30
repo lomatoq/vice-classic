@@ -37,6 +37,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use serde::Serialize;
 use vice_evidence::{BoundaryChain, BoundarySample};
@@ -127,7 +128,9 @@ pub struct BoundaryModel {
     pub residual_after: f64,
     /// §15 whole-loop constrained siblings, accepted and rejected alike.
     /// Empty on an open chain.
-    pub primitives: Vec<crate::primitive::LoopPrimitiveHypothesis>,
+    /// Shared because this immutable diagnostic catalog is identical across
+    /// every M7 variant cloned from the model.
+    pub primitives: Arc<Vec<crate::primitive::LoopPrimitiveHypothesis>>,
     /// Index into `primitives` when a whole-loop primitive beat both the free
     /// chain and the best composable relation sibling.
     pub primitive_kept: Option<usize>,
@@ -136,7 +139,9 @@ pub struct BoundaryModel {
     /// about how many were considered, and §15's comparison against the
     /// unconstrained sibling is only meaningful when the losing side is
     /// visible.
-    pub relations: Vec<crate::relation::RelationHypothesis>,
+    /// Shared because constrained variants change only the selected geometry,
+    /// code, and kept indices, not the catalog used to derive them.
+    pub relations: Arc<Vec<crate::relation::RelationHypothesis>>,
     /// How many of them were accepted, and are therefore folded into `code`.
     pub relations_kept: usize,
     /// Exact indices into `relations`; a count alone cannot identify which
@@ -321,8 +326,8 @@ fn apply_stage_h(
         model.relations_kept = relations_kept;
         model.relation_kept_indices = relation_sibling.relation_kept_indices;
     }
-    model.primitives = primitives;
-    model.relations = relations;
+    model.primitives = Arc::new(primitives);
+    model.relations = Arc::new(relations);
     model.worst_g1_spread_rad =
         selected_worst_g1_spread(&model.geometry, model.closure_smooth).unwrap_or(f64::INFINITY);
 }

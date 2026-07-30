@@ -316,9 +316,9 @@ pub(super) fn fit_forced_boundary_models_impl(
                     worst_model_to_evidence_px: out.worst_model_to_evidence_px,
                     residual_before: out.residual_before,
                     residual_after: out.residual_after,
-                    primitives: Vec::new(),
+                    primitives: Default::default(),
                     primitive_kept: None,
-                    relations: Vec::new(),
+                    relations: Default::default(),
                     relations_kept: 0,
                     relation_kept_indices: Vec::new(),
                 };
@@ -643,9 +643,9 @@ fn models_for_open_chain(
                     worst_model_to_evidence_px: out.worst_model_to_evidence_px,
                     residual_before: out.residual_before,
                     residual_after: out.residual_after,
-                    primitives: Vec::new(),
+                    primitives: Default::default(),
                     primitive_kept: None,
-                    relations: Vec::new(),
+                    relations: Default::default(),
                     relations_kept: 0,
                     relation_kept_indices: Vec::new(),
                 };

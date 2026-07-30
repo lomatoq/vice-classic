@@ -21,6 +21,7 @@ pub(super) fn rank_materializations(
     };
     let rank_count = materialization_order.len().min(rank_limit);
     let mut ranked = Vec::with_capacity(rank_count);
+    let mut workspace = crate::candidate::ProposalWorkspace::default();
     for &(topology_index, variant_index, formation_index) in &materialization_order[..rank_count] {
         let bundle = &fitted_arms[topology_index];
         let variant = &bundle.variants[variant_index];
@@ -28,24 +29,27 @@ pub(super) fn rank_materializations(
         let formation = formations[formation_index];
         let formation_class = vice_evidence::formation_id(&formation);
         let hypothesis_id = format!("{}/t{topology_index}/{formation_class}", variant.class);
-        let score = score_candidate_proposal(&CandidateRequest {
-            canvas,
-            evidence,
-            chains: &arm.chains,
-            models: &variant.models,
-            arm,
-            formation,
-            model_transactions: &variant.model_transactions,
-            transaction_base_arm: &fitted_arms[0].arm,
-            transaction_base_chains: &fitted_arms[0].arm.chains,
-            transaction_base_models: &fitted_arms[0].baseline_models,
-            transaction_base_formation: formations[0],
-            hypothesis_id,
-            formation_class,
-            image,
-            intent: request.intent,
-            config,
-        })
+        let score = score_candidate_proposal(
+            &CandidateRequest {
+                canvas,
+                evidence,
+                chains: &arm.chains,
+                models: &variant.models,
+                arm,
+                formation,
+                model_transactions: &variant.model_transactions,
+                transaction_base_arm: &fitted_arms[0].arm,
+                transaction_base_chains: &fitted_arms[0].arm.chains,
+                transaction_base_models: &fitted_arms[0].baseline_models,
+                transaction_base_formation: formations[0],
+                hypothesis_id,
+                formation_class,
+                image,
+                intent: request.intent,
+                config,
+            },
+            &mut workspace,
+        )
         .ok();
         ranked.push(((topology_index, variant_index, formation_index), score));
     }

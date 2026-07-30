@@ -8,7 +8,8 @@ use vice_geom::predicates::{closed_segments_intersect, shared_endpoint_segments_
 use vice_geom::Pt;
 use vice_ir::{BoundaryId, Canvas, JoinKind, Segment, ValidatedScene, VectorScene, VertexId};
 use vice_render::{
-    render_digest_sha256, render_mesh_partition, CertifiedMesh, PartitionRender, RenderOptions,
+    render_digest_sha256, render_mesh_partition_reusing, CertifiedMesh, PartitionRender,
+    PartitionRenderWorkspace, RenderOptions,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -715,6 +716,22 @@ pub fn preseal_scene(
     bindings: &[BoundaryBinding],
     cfg: VerificationConfig,
 ) -> Result<PresealedScene, VerificationError> {
+    preseal_scene_reusing(
+        scene,
+        bindings,
+        cfg,
+        None,
+        &mut PartitionRenderWorkspace::default(),
+    )
+}
+
+pub(crate) fn preseal_scene_reusing(
+    scene: &VectorScene,
+    bindings: &[BoundaryBinding],
+    cfg: VerificationConfig,
+    recycled_render: Option<PartitionRender>,
+    render_workspace: &mut PartitionRenderWorkspace,
+) -> Result<PresealedScene, VerificationError> {
     cfg.validate()?;
     let validated = ValidatedScene::new(scene.clone())?;
     let topology = topology_signature_sha256(scene)?;
@@ -739,7 +756,7 @@ pub fn preseal_scene(
             });
         }
     }
-    let render = render_mesh_partition(&mesh)?;
+    let render = render_mesh_partition_reusing(&mesh, recycled_render, render_workspace)?;
     let max_tessellation_deviation_px = mesh
         .mesh()
         .boundary_polylines

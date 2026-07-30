@@ -22,7 +22,7 @@ pub(super) fn fit_chain(
                     chain,
                     &vice_fit::FIT_BUDGET_V1,
                     canvas_dim_px,
-                    (2 * config.k_discrete_paths).min(2 * vice_fit::K_DISCRETE_PATHS),
+                    2 * vice_fit::K_DISCRETE_PATHS,
                     vice_fit::DISCRETE_PROPOSAL_SAMPLE_CAP_V1,
                 )
             } else {

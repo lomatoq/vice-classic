@@ -53,9 +53,9 @@ fn probe_model(chain: RefitChain) -> BoundaryModel {
         worst_model_to_evidence_px: 0.0,
         residual_before: 0.0,
         residual_after: 0.0,
-        primitives: Vec::new(),
+        primitives: Default::default(),
         primitive_kept: None,
-        relations: Vec::new(),
+        relations: Default::default(),
         relations_kept: 0,
         relation_kept_indices: Vec::new(),
     }

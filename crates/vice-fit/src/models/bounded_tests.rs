@@ -73,6 +73,12 @@ fn bounded_search_certifies_and_recodes_on_every_observation() {
             "the published residual code must use every physical observation"
         );
     }
+    let cloned = run.models[0].clone();
+    assert!(
+        std::sync::Arc::ptr_eq(&run.models[0].relations, &cloned.relations)
+            && std::sync::Arc::ptr_eq(&run.models[0].primitives, &cloned.primitives),
+        "variant clones must share immutable Stage-H catalogs"
+    );
 }
 
 #[test]

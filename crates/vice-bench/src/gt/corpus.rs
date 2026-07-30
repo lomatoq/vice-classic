@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 use super::adversarial::all_adversarial_groups;
 use super::authored::authored_groups;
 use super::degradation::{matrix_v1, render_cell, DegradationCell};
-use super::grammar::procedural_groups;
+use super::grammar::{procedural_groups, procedural_groups_filtered};
 use super::split::{summarize, Split, SplitPolicy, SplitSummary, SPLIT_POLICY_V1};
 use super::{GtSourceGroup, PartitionTruth, SalientFeature};
 use crate::hashing::sha256_hex;
@@ -136,6 +136,29 @@ pub(crate) fn all_groups_with_variants(
     let mut groups = procedural_groups(procedural_variants);
     groups.extend(authored_groups().map_err(|e| e.to_string())?);
     groups.extend(all_adversarial_groups());
+    groups.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(groups)
+}
+
+/// Assemble a stable subset by group ID, avoiding construction of rejected
+/// procedural groups. Authored and adversarial groups are deliberately small
+/// and are filtered after loading.
+pub(crate) fn groups_with_variants_filtered(
+    procedural_variants: usize,
+    keep: impl Fn(&str) -> bool,
+) -> Result<Vec<GtSourceGroup>, String> {
+    let mut groups = procedural_groups_filtered(procedural_variants, &keep);
+    groups.extend(
+        authored_groups()
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .filter(|group| keep(&group.id)),
+    );
+    groups.extend(
+        all_adversarial_groups()
+            .into_iter()
+            .filter(|group| keep(&group.id)),
+    );
     groups.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(groups)
 }

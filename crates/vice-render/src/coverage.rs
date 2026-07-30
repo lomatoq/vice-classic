@@ -108,6 +108,33 @@ pub fn polygon_coverage(
     row_start: u32,
     row_end: u32,
 ) -> Result<Vec<f64>, CoverageError> {
+    let mut output = Vec::new();
+    let mut workspace = CoverageWorkspace::default();
+    polygon_coverage_into(
+        loops,
+        width_px,
+        row_start,
+        row_end,
+        &mut output,
+        &mut workspace,
+    )?;
+    Ok(output)
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct CoverageWorkspace {
+    area: Vec<f64>,
+    diff: Vec<f64>,
+}
+
+pub(crate) fn polygon_coverage_into(
+    loops: &[&[Pt]],
+    width_px: u32,
+    row_start: u32,
+    row_end: u32,
+    output: &mut Vec<f64>,
+    workspace: &mut CoverageWorkspace,
+) -> Result<(), CoverageError> {
     if row_end < row_start {
         return Err(CoverageError::InvertedRowBand { row_start, row_end });
     }
@@ -152,29 +179,39 @@ pub fn polygon_coverage(
     let w = width_px as usize;
     let n_rows = (row_end - row_start) as usize;
     let stride = w + 1; // extra right-edge bucket per row
-    let mut area = vec![0.0f64; n_rows * stride];
-    let mut diff = vec![0.0f64; n_rows * stride];
+    workspace.area.clear();
+    workspace.area.resize(n_rows * stride, 0.0);
+    workspace.diff.clear();
+    workspace.diff.resize(n_rows * stride, 0.0);
 
     for lp in loops {
         for e in lp.windows(2) {
             accumulate_edge(
-                e[0], e[1], width_px, row_start, row_end, stride, &mut area, &mut diff,
+                e[0],
+                e[1],
+                width_px,
+                row_start,
+                row_end,
+                stride,
+                &mut workspace.area,
+                &mut workspace.diff,
             )?;
         }
     }
 
     // Fold: coverage(c) = area(c) + Σ_{c' > c} diff(c'), right-to-left.
-    let mut out = vec![0.0f64; n_rows * w];
+    output.clear();
+    output.resize(n_rows * w, 0.0);
     for r in 0..n_rows {
         let src = r * stride;
         let dst = r * w;
-        let mut suffix = diff[src + w];
+        let mut suffix = workspace.diff[src + w];
         for c in (0..w).rev() {
-            out[dst + c] = area[src + c] + suffix;
-            suffix += diff[src + c];
+            output[dst + c] = workspace.area[src + c] + suffix;
+            suffix += workspace.diff[src + c];
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `(num_hi - num_lo) / (den_hi - den_lo)`, computed so that a difference of

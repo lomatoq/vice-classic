@@ -80,6 +80,10 @@ pub struct ConfidenceCalibration {
     pub posterior_lower_bound_threshold: f64,
     pub minimum_top2_class_margin_bits: f64,
     pub maximum_posterior_predictive_bits_per_block: f64,
+    /// Maximum certified distance from the selected serialized boundary back
+    /// to its observed support. This is an observable selective-delivery
+    /// discriminator, not a ground-truth boundary error.
+    pub maximum_support_isotopy_displacement_px: f64,
     pub maximum_abs_residual_lag1: f64,
     pub maximum_topology_entropy_bits: f64,
     pub maximum_formation_entropy_bits: f64,
@@ -94,6 +98,7 @@ pub struct ConfidenceCalibration {
 pub struct ConfidenceMetrics {
     pub top2_class_margin_bits: f64,
     pub posterior_predictive_bits_per_block: f64,
+    pub support_isotopy_displacement_px: f64,
     pub max_abs_residual_lag1: f64,
     pub topology_entropy_upper_bound: vice_opt::BoundValue<f64>,
     pub formation_entropy_upper_bound: vice_opt::BoundValue<f64>,
@@ -181,6 +186,12 @@ impl ConfidenceCalibration {
         {
             return Err("posterior_predictive_mismatch");
         }
+        if !metrics.support_isotopy_displacement_px.is_finite()
+            || metrics.support_isotopy_displacement_px
+                > self.maximum_support_isotopy_displacement_px
+        {
+            return Err("support_isotopy_displacement_above_calibrated_threshold");
+        }
         if !metrics.max_abs_residual_lag1.is_finite()
             || metrics.max_abs_residual_lag1 > self.maximum_abs_residual_lag1
         {
@@ -214,7 +225,7 @@ impl ConfidenceCalibration {
     }
 
     pub fn validate_for_identity(&self, identity: &ModelIdentity) -> Result<(), &'static str> {
-        if self.schema != "vice-classic/confidence-calibration/v1"
+        if self.schema != "vice-classic/confidence-calibration/v2"
             || self.model_universe_sha256 != identity.universe_sha256
             || self.pricing_sha256 != identity.pricing_sha256
             || self.backend_sha256 != identity.backend_sha256
@@ -241,6 +252,8 @@ impl ConfidenceCalibration {
             || self.minimum_top2_class_margin_bits < 0.0
             || !self.maximum_posterior_predictive_bits_per_block.is_finite()
             || self.maximum_posterior_predictive_bits_per_block < 0.0
+            || !self.maximum_support_isotopy_displacement_px.is_finite()
+            || self.maximum_support_isotopy_displacement_px < 0.0
             || !self.maximum_abs_residual_lag1.is_finite()
             || !(0.0..=1.0).contains(&self.maximum_abs_residual_lag1)
             || !self.maximum_topology_entropy_bits.is_finite()
@@ -449,11 +462,10 @@ impl CoreConfig {
     pub fn development_for(preset: Preset) -> Self {
         let mut config = Self::development();
         if preset == Preset::Fast {
-            // Fast remains bounded, but one grammar path was not a usable
-            // selective-recovery lane: calibration showed that it left 234
-            // otherwise supported chains at the binding certificate. Four
-            // paths is still half the Quality floor and preserves a finite,
-            // declared search envelope.
+            // Preserve the four-path successful Fast lane. A certified miss
+            // jumps directly to the bounded sixteen-path recovery court; the
+            // intermediate eight-path v5b retry cost time but recovered only
+            // 28 of the 160+ rows needed by the coverage gate.
             config.k_discrete_paths = 4;
             config.beam.width = 4;
             config.beam.min_topology_classes = 1;
@@ -591,7 +603,7 @@ impl CoreConfig {
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            implementation: "vice-core/m7/v9",
+            implementation: "vice-core/m7/v10",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),
@@ -623,7 +635,7 @@ mod tests {
         config.seal = seal;
         let identity = config.identity();
         let mut calibration = json!({
-            "schema": "vice-classic/confidence-calibration/v1",
+            "schema": "vice-classic/confidence-calibration/v2",
             "model_universe_sha256": identity.universe_sha256,
             "pricing_sha256": identity.pricing_sha256,
             "backend_sha256": identity.backend_sha256,
@@ -638,6 +650,7 @@ mod tests {
             "posterior_lower_bound_threshold": 0.95,
             "minimum_top2_class_margin_bits": 0.0,
             "maximum_posterior_predictive_bits_per_block": 0.1,
+            "maximum_support_isotopy_displacement_px": 0.5,
             "maximum_abs_residual_lag1": 0.9,
             "maximum_topology_entropy_bits": 1.0,
             "maximum_formation_entropy_bits": 1.0,

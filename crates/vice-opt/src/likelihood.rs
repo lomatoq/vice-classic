@@ -143,6 +143,17 @@ pub struct ScoreBreakdown {
     pub diagnostics: LikelihoodDiagnostics,
 }
 
+/// Reusable full-resolution arrays for repeated scores of one observation.
+///
+/// Trust-region search evaluates many nearby scenes at identical dimensions.
+/// Reusing these arrays bounds the process working set without retaining any
+/// score, scene, or optimizer state between evaluations.
+#[derive(Debug, Default)]
+pub struct LikelihoodWorkspace {
+    predicted: Vec<[f64; 4]>,
+    residual: Vec<[f64; 4]>,
+}
+
 #[derive(Debug, Error, Clone, PartialEq)]
 pub enum LikelihoodError {
     #[error("block size {block_size_px} is below calibrated correlation support {calibrated_support_px}")]
@@ -166,9 +177,14 @@ pub enum LikelihoodError {
     InvalidScoreScope,
 }
 
-fn predicted_observation(scene: &VectorScene, render: &PartitionRender) -> Vec<[f64; 4]> {
+fn predicted_observation(
+    scene: &VectorScene,
+    render: &PartitionRender,
+    predicted: &mut Vec<[f64; 4]>,
+) {
     let n = render.width_px as usize * render.height_px as usize;
-    let mut predicted = vec![[0.0; 4]; n];
+    predicted.clear();
+    predicted.resize(n, [0.0; 4]);
     for (face, coverage) in scene.graph.faces.iter().zip(&render.face_coverage) {
         let p = match face.paint {
             Paint::OpaqueSolid(c) => {
@@ -182,32 +198,29 @@ fn predicted_observation(scene: &VectorScene, render: &PartitionRender) -> Vec<[
             }
         }
     }
-    predicted
 }
 
-fn serialized_prediction(bytes: &[u8], blend_space: BlendSpace) -> Vec<[f64; 4]> {
-    bytes
-        .chunks_exact(4)
-        .map(|pixel| {
-            let alpha = f64::from(pixel[3]) / 255.0;
-            if blend_space == BlendSpace::EncodedSrgb {
-                [
-                    f64::from(pixel[0]) / 255.0,
-                    f64::from(pixel[1]) / 255.0,
-                    f64::from(pixel[2]) / 255.0,
-                    alpha,
-                ]
-            } else if alpha == 0.0 {
-                [0.0; 4]
-            } else {
-                let linear = |channel: u8| {
-                    let encoded = (f64::from(channel) / 255.0 / alpha).clamp(0.0, 1.0);
-                    vice_ir::color::srgb_encoded_to_linear(encoded) * alpha
-                };
-                [linear(pixel[0]), linear(pixel[1]), linear(pixel[2]), alpha]
-            }
-        })
-        .collect()
+fn serialized_prediction(bytes: &[u8], blend_space: BlendSpace, predicted: &mut Vec<[f64; 4]>) {
+    predicted.clear();
+    predicted.extend(bytes.chunks_exact(4).map(|pixel| {
+        let alpha = f64::from(pixel[3]) / 255.0;
+        if blend_space == BlendSpace::EncodedSrgb {
+            [
+                f64::from(pixel[0]) / 255.0,
+                f64::from(pixel[1]) / 255.0,
+                f64::from(pixel[2]) / 255.0,
+                alpha,
+            ]
+        } else if alpha == 0.0 {
+            [0.0; 4]
+        } else {
+            let linear = |channel: u8| {
+                let encoded = (f64::from(channel) / 255.0 / alpha).clamp(0.0, 1.0);
+                vice_ir::color::srgb_encoded_to_linear(encoded) * alpha
+            };
+            [linear(pixel[0]), linear(pixel[1]), linear(pixel[2]), alpha]
+        }
+    }));
 }
 
 fn lag1(residual: &[[f64; 4]], width: usize, height: usize, dx: usize, dy: usize) -> f64 {
@@ -272,16 +285,56 @@ pub fn score_full_resolution_scope(
     priors: PriorCodeLengths,
     scope: ScoreScope,
 ) -> Result<ScoreBreakdown, LikelihoodError> {
+    let observation = ObservationTensor::of(observed, scene.formation.blend_space);
+    score_full_resolution_scope_with_tensor(scene, &observation, render, cfg, priors, scope)
+}
+
+/// Cached-observation counterpart of [`score_full_resolution_scope`].
+///
+/// Trust-region evaluation scores the same immutable observation many times.
+/// Carrying its tensor across those evaluations avoids repeatedly allocating
+/// two full-resolution four-channel arrays without changing any arithmetic.
+pub fn score_full_resolution_scope_with_tensor(
+    scene: &VectorScene,
+    observation: &ObservationTensor,
+    render: &PartitionRender,
+    cfg: BlockLikelihoodConfig,
+    priors: PriorCodeLengths,
+    scope: ScoreScope,
+) -> Result<ScoreBreakdown, LikelihoodError> {
+    score_full_resolution_scope_with_workspace(
+        scene,
+        observation,
+        render,
+        cfg,
+        priors,
+        scope,
+        &mut LikelihoodWorkspace::default(),
+    )
+}
+
+/// Reuses both full-resolution scratch arrays as well as the observation.
+#[allow(clippy::too_many_arguments)]
+pub fn score_full_resolution_scope_with_workspace(
+    scene: &VectorScene,
+    observation: &ObservationTensor,
+    render: &PartitionRender,
+    cfg: BlockLikelihoodConfig,
+    priors: PriorCodeLengths,
+    scope: ScoreScope,
+    workspace: &mut LikelihoodWorkspace,
+) -> Result<ScoreBreakdown, LikelihoodError> {
     cfg.validate()?;
     priors.validate()?;
     if !matches!(scene.formation.quantization, QuantizationModel::Uint8) {
         return Err(LikelihoodError::UnsupportedQuantization);
     }
-    if scene.canvas.width_px != observed.width_px()
-        || scene.canvas.height_px != observed.height_px()
-        || render.width_px != observed.width_px()
-        || render.height_px != observed.height_px()
-        || render.composite.len() != observed.pixel_count()
+    if observation.blend_space() != scene.formation.blend_space
+        || scene.canvas.width_px != observation.width_px()
+        || scene.canvas.height_px != observation.height_px()
+        || render.width_px != observation.width_px()
+        || render.height_px != observation.height_px()
+        || render.composite.len() != observation.len()
     {
         return Err(LikelihoodError::DimensionMismatch);
     }
@@ -289,15 +342,15 @@ pub fn score_full_resolution_scope(
         || render
             .face_coverage
             .iter()
-            .any(|v| v.len() != observed.pixel_count())
+            .any(|v| v.len() != observation.len())
     {
         return Err(LikelihoodError::FaceCoverageMismatch);
     }
 
+    predicted_observation(scene, render, &mut workspace.predicted);
     score_prediction(
-        scene,
-        observed,
-        predicted_observation(scene, render),
+        observation,
+        workspace,
         cfg,
         priors,
         PredictionSource::CertifiedInternalPartition,
@@ -342,23 +395,79 @@ pub fn score_serialized_full_resolution_scope(
     priors: PriorCodeLengths,
     scope: ScoreScope,
 ) -> Result<ScoreBreakdown, LikelihoodError> {
+    let observation = ObservationTensor::of(observed, scene.formation.blend_space);
+    score_serialized_full_resolution_scope_with_tensor(
+        scene,
+        &observation,
+        premultiplied_srgb8,
+        width_px,
+        height_px,
+        cfg,
+        priors,
+        scope,
+    )
+}
+
+/// Cached-observation counterpart of [`score_serialized_full_resolution_scope`].
+#[allow(clippy::too_many_arguments)]
+pub fn score_serialized_full_resolution_scope_with_tensor(
+    scene: &VectorScene,
+    observation: &ObservationTensor,
+    premultiplied_srgb8: &[u8],
+    width_px: u32,
+    height_px: u32,
+    cfg: BlockLikelihoodConfig,
+    priors: PriorCodeLengths,
+    scope: ScoreScope,
+) -> Result<ScoreBreakdown, LikelihoodError> {
+    score_serialized_full_resolution_scope_with_workspace(
+        scene,
+        observation,
+        premultiplied_srgb8,
+        width_px,
+        height_px,
+        cfg,
+        priors,
+        scope,
+        &mut LikelihoodWorkspace::default(),
+    )
+}
+
+/// Reuses both full-resolution scratch arrays as well as the observation.
+#[allow(clippy::too_many_arguments)]
+pub fn score_serialized_full_resolution_scope_with_workspace(
+    scene: &VectorScene,
+    observation: &ObservationTensor,
+    premultiplied_srgb8: &[u8],
+    width_px: u32,
+    height_px: u32,
+    cfg: BlockLikelihoodConfig,
+    priors: PriorCodeLengths,
+    scope: ScoreScope,
+    workspace: &mut LikelihoodWorkspace,
+) -> Result<ScoreBreakdown, LikelihoodError> {
     cfg.validate()?;
     priors.validate()?;
     if !matches!(scene.formation.quantization, QuantizationModel::Uint8) {
         return Err(LikelihoodError::UnsupportedQuantization);
     }
-    if scene.canvas.width_px != observed.width_px()
-        || scene.canvas.height_px != observed.height_px()
-        || width_px != observed.width_px()
-        || height_px != observed.height_px()
-        || premultiplied_srgb8.len() != observed.pixel_count() * 4
+    if observation.blend_space() != scene.formation.blend_space
+        || scene.canvas.width_px != observation.width_px()
+        || scene.canvas.height_px != observation.height_px()
+        || width_px != observation.width_px()
+        || height_px != observation.height_px()
+        || premultiplied_srgb8.len() != observation.len() * 4
     {
         return Err(LikelihoodError::DimensionMismatch);
     }
+    serialized_prediction(
+        premultiplied_srgb8,
+        scene.formation.blend_space,
+        &mut workspace.predicted,
+    );
     score_prediction(
-        scene,
-        observed,
-        serialized_prediction(premultiplied_srgb8, scene.formation.blend_space),
+        observation,
+        workspace,
         cfg,
         priors,
         PredictionSource::SerializedSvgRender,
@@ -409,34 +518,34 @@ fn score_window(
 }
 
 fn score_prediction(
-    scene: &VectorScene,
-    observed: &vice_image::CanonicalImage,
-    predicted: Vec<[f64; 4]>,
+    tensor: &ObservationTensor,
+    workspace: &mut LikelihoodWorkspace,
     cfg: BlockLikelihoodConfig,
     priors: PriorCodeLengths,
     prediction_source: PredictionSource,
     scope: ScoreScope,
 ) -> Result<ScoreBreakdown, LikelihoodError> {
-    let tensor = ObservationTensor::of(observed, scene.formation.blend_space);
-    if predicted.len() != tensor.len() {
+    if workspace.predicted.len() != tensor.len() {
         return Err(LikelihoodError::DimensionMismatch);
     }
-    let mut residual = vec![[0.0; 4]; tensor.len()];
+    workspace.residual.clear();
+    workspace.residual.resize(tensor.len(), [0.0; 4]);
     let mut deadzone = 0u64;
     for i in 0..tensor.len() {
         let obs = tensor.premul(i);
         let q = tensor.quantization_halfwidth(i);
         for ch in 0..4 {
-            let raw = obs[ch] - predicted[i][ch];
+            let raw = obs[ch] - workspace.predicted[i][ch];
             let outside = (raw.abs() - q[ch]).max(0.0);
-            residual[i][ch] = raw.signum() * outside;
+            workspace.residual[i][ch] = raw.signum() * outside;
             if outside == 0.0 {
                 deadzone += 1;
             }
         }
     }
+    let residual = &workspace.residual;
 
-    let (w, h) = (observed.width_px() as usize, observed.height_px() as usize);
+    let (w, h) = (tensor.width_px() as usize, tensor.height_px() as usize);
     let window = score_window(scope, w, h)?;
     let block = cfg.block_size_px as usize;
     let mut pixel_bits = 0.0;
@@ -462,16 +571,15 @@ fn score_prediction(
             blocks += 1;
         }
     }
-
     let mut iid_bits = 0.0;
-    for r in &residual {
+    for r in residual {
         for (value, sigma) in r.iter().zip(cfg.sigma_by_channel) {
             let z2 = value.powi(2) / sigma.powi(2);
             iid_bits += robust_bits(z2, cfg.student_t_degrees_of_freedom);
         }
     }
-    let lag1_x = lag1(&residual, w, h, 1, 0);
-    let lag1_y = lag1(&residual, w, h, 0, 1);
+    let lag1_x = lag1(residual, w, h, 1, 0);
+    let lag1_y = lag1(residual, w, h, 0, 1);
     let empirical = correlation_length(lag1_x.abs().max(lag1_y.abs()));
     let total_bits = pixel_bits
         + priors.topology_bits
@@ -494,7 +602,7 @@ fn score_prediction(
         diagnostics: LikelihoodDiagnostics {
             residual_model_id: cfg.residual_model_id,
             prediction_source,
-            source_sha256: observed.source_sha256().to_owned(),
+            source_sha256: tensor.source_sha256().to_owned(),
             calibrated_correlation_support_px: cfg.calibrated_correlation_support_px,
             empirical_correlation_length_px: empirical,
             lag1_x,

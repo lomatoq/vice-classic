@@ -57,6 +57,7 @@ pub fn paint_observation_premul(c: LinearRgb, blend: BlendSpace) -> [f64; CHANNE
 /// The premultiplied observation of a whole image, under one blend space.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObservationTensor {
+    source_sha256: String,
     width_px: u32,
     height_px: u32,
     blend: BlendSpace,
@@ -120,6 +121,7 @@ impl ObservationTensor {
             quant.push(q);
         }
         ObservationTensor {
+            source_sha256: img.source_sha256().to_owned(),
             width_px: img.width_px(),
             height_px: img.height_px(),
             blend,
@@ -130,6 +132,9 @@ impl ObservationTensor {
 
     pub fn width_px(&self) -> u32 {
         self.width_px
+    }
+    pub fn source_sha256(&self) -> &str {
+        &self.source_sha256
     }
     pub fn height_px(&self) -> u32 {
         self.height_px

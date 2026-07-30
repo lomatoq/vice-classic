@@ -17,10 +17,12 @@ pub mod trust_region;
 pub mod universe;
 
 pub use likelihood::{
-    score_full_resolution, score_full_resolution_scope, score_serialized_full_resolution,
-    score_serialized_full_resolution_scope, BlockLikelihoodConfig, LikelihoodDiagnostics,
-    LikelihoodError, PredictionSource, PriorCodeLengths, ResidualModelId, ScoreBreakdown,
-    ScoreOwnership,
+    score_full_resolution, score_full_resolution_scope, score_full_resolution_scope_with_tensor,
+    score_full_resolution_scope_with_workspace, score_serialized_full_resolution,
+    score_serialized_full_resolution_scope, score_serialized_full_resolution_scope_with_tensor,
+    score_serialized_full_resolution_scope_with_workspace, BlockLikelihoodConfig,
+    LikelihoodDiagnostics, LikelihoodError, LikelihoodWorkspace, PredictionSource,
+    PriorCodeLengths, ResidualModelId, ScoreBreakdown, ScoreOwnership,
 };
 pub use posterior::{
     finite_class_entropy_upper_bound, posterior_with_search_mass, BoundValue, ClassPosterior,
