@@ -19,10 +19,10 @@ pub use delivery::DeliveryCalibration;
 use delivery::{calibrate_delivery_seal, delivery_diagnostics_permit};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v12";
-pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
-pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
-pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
+    "vice-classic/m7-confidence-calibration-analysis/v13";
+pub const PROPOSED_BOUNDARY_P95_PX: f64 = super::M7_BOUNDARY_P95_GATE_PX;
+pub const PROPOSED_BOUNDARY_P99_PX: f64 = super::M7_BOUNDARY_P99_GATE_PX;
+pub const PROPOSED_BOUNDARY_MAX_PX: f64 = super::M7_BOUNDARY_MAX_GATE_PX;
 pub const PROPOSED_MAX_PALETTE_CODE_DELTA: u8 = 4;
 pub const PROPOSED_MAX_QUALITY_P95_MS: u64 = 10_000;
 pub const PROPOSED_MAX_FAST_P95_MS: u64 = 1_000;
@@ -43,9 +43,10 @@ pub struct ThresholdEvaluation {
     pub minimum_render_coverage: f64,
     pub source_coverage_met: bool,
     pub render_coverage_met: bool,
-    pub accepted_boundary_p95_px: Option<f64>,
-    pub accepted_boundary_p99_px: Option<f64>,
+    pub accepted_render_boundary_p95_q95_px: Option<f64>,
+    pub accepted_render_boundary_p99_q99_px: Option<f64>,
     pub accepted_boundary_max_px: Option<f64>,
+    pub accepted_boundary_samples: u64,
     pub boundary_p95_met: bool,
     pub boundary_p99_met: bool,
     pub boundary_max_met: bool,
@@ -219,23 +220,34 @@ pub fn analyze_calibration(
                         .is_some_and(|score| score >= threshold)
             })
             .collect::<Vec<_>>();
-        // A boundary p95/p99 is a population tail statistic, not a demand
-        // that every render's own tail summary stay below the population
-        // gate. The paired baseline court uses the same conservative
-        // quantile-of-render-summaries definition.
-        let (accepted_boundary_p95_px, accepted_boundary_p99_px, accepted_boundary_max_px) =
-            super::boundary_population_tail(&accepted_rows)
-                .map_or((None, None, None), |(p95, p99, max)| {
-                    (Some(p95), Some(p99), Some(max))
-                });
+        // A boundary p95/p99 is pooled over physical boundary samples, not a
+        // demand that every render's own tail summary stay below the gate.
+        // Per-render q95/q99 remain visible as conservative diagnostics.
+        let population_tail = super::boundary_population_tail(
+            &accepted_rows,
+            PROPOSED_BOUNDARY_P95_PX,
+            PROPOSED_BOUNDARY_P99_PX,
+            PROPOSED_BOUNDARY_MAX_PX,
+        );
+        let accepted_render_boundary_p95_q95_px =
+            population_tail.as_ref().map(|tail| tail.render_p95_q95_px);
+        let accepted_render_boundary_p99_q99_px =
+            population_tail.as_ref().map(|tail| tail.render_p99_q99_px);
+        let accepted_boundary_max_px = population_tail.as_ref().map(|tail| tail.max_px);
+        let accepted_boundary_samples = population_tail
+            .as_ref()
+            .map_or(0, |tail| tail.pooled_samples);
         let source_coverage_met = reliability.coverage_per_source >= bucket.min_coverage_per_source;
         let render_coverage_met = reliability.coverage_per_render >= bucket.min_coverage_per_render;
-        let boundary_p95_met =
-            accepted_boundary_p95_px.is_some_and(|value| value <= PROPOSED_BOUNDARY_P95_PX);
-        let boundary_p99_met =
-            accepted_boundary_p99_px.is_some_and(|value| value <= PROPOSED_BOUNDARY_P99_PX);
-        let boundary_max_met =
-            accepted_boundary_max_px.is_some_and(|value| value <= PROPOSED_BOUNDARY_MAX_PX);
+        let boundary_p95_met = population_tail
+            .as_ref()
+            .is_some_and(|tail| tail.p95_gate_met);
+        let boundary_p99_met = population_tail
+            .as_ref()
+            .is_some_and(|tail| tail.p99_gate_met);
+        let boundary_max_met = population_tail
+            .as_ref()
+            .is_some_and(|tail| tail.max_gate_met);
         let zero_catastrophic_required_by_core = reliability.groups_catastrophic == 0;
         let eligible = reliability.contract_met
             && source_coverage_met
@@ -253,9 +265,10 @@ pub fn analyze_calibration(
             minimum_render_coverage: bucket.min_coverage_per_render,
             source_coverage_met,
             render_coverage_met,
-            accepted_boundary_p95_px,
-            accepted_boundary_p99_px,
+            accepted_render_boundary_p95_q95_px,
+            accepted_render_boundary_p99_q99_px,
             accepted_boundary_max_px,
+            accepted_boundary_samples,
             boundary_p95_met,
             boundary_p99_met,
             boundary_max_met,
@@ -631,8 +644,30 @@ fn calibration_measurement_digest(report: &MeasurementReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::m7::BoundaryTail;
+    use crate::m7::{BoundaryGateCounts, BoundaryTail};
     use crate::m7::{MeasurementReport, TopologyComparison};
+
+    fn boundary(
+        samples: u64,
+        p95_px: f64,
+        p99_px: f64,
+        max_px: f64,
+        p95_at_or_below: u64,
+        p99_at_or_below: u64,
+    ) -> BoundaryTail {
+        BoundaryTail {
+            samples,
+            p95_px,
+            p99_px,
+            max_px,
+            gate_counts: BoundaryGateCounts {
+                p95_gate_px: PROPOSED_BOUNDARY_P95_PX,
+                samples_at_or_below_p95_gate: p95_at_or_below,
+                p99_gate_px: PROPOSED_BOUNDARY_P99_PX,
+                samples_at_or_below_p99_gate: p99_at_or_below,
+            },
+        }
+    }
 
     fn row(index: usize, catastrophic: bool) -> MeasurementRow {
         MeasurementRow {
@@ -700,12 +735,7 @@ mod tests {
                 selected_exterior: "opaque".into(),
                 exact: !catastrophic,
             }),
-            boundary: Some(BoundaryTail {
-                samples: 10,
-                p95_px: 0.2,
-                p99_px: 0.3,
-                max_px: 0.4,
-            }),
+            boundary: Some(boundary(100, 0.2, 0.3, 0.4, 100, 100)),
             max_palette_code_delta: Some(1),
             profile_max_channel_delta: Some(0),
             profile_mean_channel_delta: Some(0.0),
@@ -786,7 +816,7 @@ mod tests {
         assert!(selected.boundary_p95_met);
         assert!(selected.boundary_p99_met);
         assert!(selected.boundary_max_met);
-        assert_eq!(selected.accepted_boundary_p99_px, Some(0.3));
+        assert_eq!(selected.accepted_render_boundary_p99_q99_px, Some(0.3));
         assert_eq!(selected.accepted_boundary_max_px, Some(0.4));
         let calibration = analysis.calibration.expect("calibration");
         assert_eq!(calibration.accepted_source_groups, 459);
@@ -830,12 +860,7 @@ mod tests {
     #[test]
     fn population_p95_allows_a_sparse_non_catastrophic_render_tail() {
         let mut report = report(false);
-        report.rows[0].boundary = Some(BoundaryTail {
-            samples: 10,
-            p95_px: 0.50,
-            p99_px: 0.55,
-            max_px: 0.70,
-        });
+        report.rows[0].boundary = Some(boundary(100, 0.50, 0.55, 0.70, 95, 100));
         let analysis =
             analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
         assert!(analysis.gate_met);
@@ -844,8 +869,8 @@ mod tests {
             .iter()
             .find(|evaluation| evaluation.eligible)
             .expect("eligible threshold");
-        assert_eq!(selected.accepted_boundary_p95_px, Some(0.2));
-        assert_eq!(selected.accepted_boundary_p99_px, Some(0.3));
+        assert_eq!(selected.accepted_render_boundary_p95_q95_px, Some(0.2));
+        assert_eq!(selected.accepted_render_boundary_p99_q99_px, Some(0.3));
         assert_eq!(selected.accepted_boundary_max_px, Some(0.7));
     }
 
@@ -853,13 +878,23 @@ mod tests {
     fn population_p95_rejects_a_material_high_tail_fraction() {
         let mut report = report(false);
         for row in report.rows.iter_mut().take(24) {
-            row.boundary = Some(BoundaryTail {
-                samples: 10,
-                p95_px: 0.50,
-                p99_px: 0.55,
-                max_px: 0.70,
-            });
+            row.boundary = Some(boundary(100, 0.50, 0.55, 0.70, 0, 100));
         }
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(!analysis.gate_met);
+        assert!(analysis.calibration.is_none());
+    }
+
+    #[test]
+    fn differently_preregistered_boundary_counts_cannot_enter_calibration() {
+        let mut report = report(false);
+        report.rows[0]
+            .boundary
+            .as_mut()
+            .expect("fixture boundary")
+            .gate_counts
+            .p95_gate_px = 0.36;
         let analysis =
             analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
         assert!(!analysis.gate_met);
@@ -869,12 +904,7 @@ mod tests {
     #[test]
     fn population_max_still_rejects_a_single_render_outlier() {
         let mut report = report(false);
-        report.rows[0].boundary = Some(BoundaryTail {
-            samples: 10,
-            p95_px: 0.50,
-            p99_px: 0.61,
-            max_px: 1.51,
-        });
+        report.rows[0].boundary = Some(boundary(100, 0.50, 0.61, 1.51, 95, 99));
         let analysis =
             analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
         assert!(!analysis.gate_met);

@@ -150,3 +150,32 @@ fn an_unbound_stage_h_sibling_falls_back_to_the_certified_free_chain() {
     assert_eq!(model.relations_kept, 0);
     assert!(model.relation_kept_indices.is_empty());
 }
+
+#[test]
+fn a_stage_h_sibling_cannot_spend_the_whole_tube_when_the_free_chain_is_tighter() {
+    let chain = open_line(257);
+    let run = k_best_boundary_models_bounded(&chain, &crate::FIT_BUDGET_V1, 128.0, 2, 32)
+        .expect("straight free chain");
+    let mut model = run.models[0].clone();
+    let free = model.stage_h_free_geometry.clone();
+    let free_code = model.stage_h_free_code;
+    let typed = model
+        .geometry
+        .typed_chain()
+        .expect("straight selected chain")
+        .clone();
+    let mut displaced = typed;
+    for node in &mut displaced.nodes {
+        node.pos.y += 0.20;
+    }
+    model.geometry = crate::SelectedBoundaryGeometry::TypedChain { chain: displaced };
+    model.relations_kept = 1;
+    model.relation_kept_indices = vec![0];
+
+    retain_binding_certified_stage_h(&mut model, &chain.samples, false)
+        .expect("the tighter free sibling remains certified");
+    assert_eq!(model.geometry, free);
+    assert_eq!(model.code, free_code);
+    assert_eq!(model.relations_kept, 0);
+    assert!(model.relation_kept_indices.is_empty());
+}

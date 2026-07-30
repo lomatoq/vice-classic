@@ -16,7 +16,7 @@ use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
-pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v6";
+pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v7";
 const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -192,9 +192,10 @@ pub struct PresetReleaseVerdict {
     pub reliability: RiskCoverage,
     pub source_coverage_met: bool,
     pub render_coverage_met: bool,
-    pub accepted_boundary_p95_px: Option<f64>,
-    pub accepted_boundary_p99_px: Option<f64>,
+    pub accepted_render_boundary_p95_q95_px: Option<f64>,
+    pub accepted_render_boundary_p99_q99_px: Option<f64>,
     pub accepted_boundary_max_px: Option<f64>,
+    pub accepted_boundary_samples: u64,
     pub boundary_gates_met: bool,
     pub max_palette_code_delta: Option<u8>,
     pub palette_gate_met: bool,
@@ -380,14 +381,23 @@ fn analyze_preset(
         .copied()
         .filter(|row| row.production_accepted && row.production_provenance)
         .collect::<Vec<_>>();
-    let (accepted_boundary_p95_px, accepted_boundary_p99_px, accepted_boundary_max_px) =
-        super::boundary_population_tail(&accepted).map_or((None, None, None), |(p95, p99, max)| {
-            (Some(p95), Some(p99), Some(max))
-        });
-    let boundary_gates_met = accepted_boundary_p95_px
-        .is_some_and(|value| value <= gates.boundary_p95_px)
-        && accepted_boundary_p99_px.is_some_and(|value| value <= gates.boundary_p99_px)
-        && accepted_boundary_max_px.is_some_and(|value| value <= gates.boundary_max_px);
+    let population_tail = super::boundary_population_tail(
+        &accepted,
+        gates.boundary_p95_px,
+        gates.boundary_p99_px,
+        gates.boundary_max_px,
+    );
+    let accepted_render_boundary_p95_q95_px =
+        population_tail.as_ref().map(|tail| tail.render_p95_q95_px);
+    let accepted_render_boundary_p99_q99_px =
+        population_tail.as_ref().map(|tail| tail.render_p99_q99_px);
+    let accepted_boundary_max_px = population_tail.as_ref().map(|tail| tail.max_px);
+    let accepted_boundary_samples = population_tail
+        .as_ref()
+        .map_or(0, |tail| tail.pooled_samples);
+    let boundary_gates_met = population_tail
+        .as_ref()
+        .is_some_and(|tail| tail.p95_gate_met && tail.p99_gate_met && tail.max_gate_met);
     let max_palette_code_delta = accepted
         .iter()
         .filter_map(|row| row.max_palette_code_delta)
@@ -454,9 +464,10 @@ fn analyze_preset(
         reliability,
         source_coverage_met,
         render_coverage_met,
-        accepted_boundary_p95_px,
-        accepted_boundary_p99_px,
+        accepted_render_boundary_p95_q95_px,
+        accepted_render_boundary_p99_q99_px,
         accepted_boundary_max_px,
+        accepted_boundary_samples,
         boundary_gates_met,
         max_palette_code_delta,
         palette_gate_met,

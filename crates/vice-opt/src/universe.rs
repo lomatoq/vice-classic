@@ -418,11 +418,12 @@ impl SupportedModelUniverseV1 {
     /// content hash and full recalibration for those changes.
     pub fn m7() -> SupportedModelUniverseV1 {
         let mut universe = Self::v1();
-        // v5 adds the bounded Fast recovery path, production continuous
+        // v6 adds the bounded Fast recovery path, production continuous
         // geometry refinement, canonical opaque-label near-ties, and the
-        // declared numerical certificate around closed-chain bindings. Its
-        // confidence is calibrated from scratch.
-        universe.version = "m7-v5";
+        // declared numerical certificate plus Stage-H no-regression rule
+        // around closed-chain bindings. Its confidence is calibrated from
+        // scratch.
+        universe.version = "m7-v6";
         universe.topology.operators = vec![
             Family::admissible(
                 "topology_merge",
@@ -466,7 +467,7 @@ impl SupportedModelUniverseV1 {
                 "dense chains propose Quality k=16 or Fast k=4 paths at deterministic 32/64/96/128-sample levels; a certified Fast miss opens one bounded k=16 recovery, search stops after the first level with a certified model, attempts at most 3 paths per level, and retains at most 2 certified models per physical chain; every skipped level/path is reported as unexplored mass",
                 "proposal-path Jacobians use at most 64 mandatory-breakpoint-preserving samples and final continuous refits use at most 128; every retained model is physically recoded, Stage-H compared, binding-isotopy checked, and certified in both corridor directions on all observations",
                 "Stage-H relation Jacobians use at most 16 mandatory-breakpoint-preserving samples while relation residual code and both corridor checks use all observations",
-                "observed binding tubes include the maximum evidence halfwidth, half a physical sample interval, the frozen 1/64 px verifier tessellation certificate, and one 0.05 px fitter chord certificate; an optional Stage-H sibling outside that tube falls back to its certified free-chain sibling",
+                "observed binding tubes include the maximum evidence halfwidth, half a physical sample interval, the frozen 1/64 px verifier tessellation certificate, and one 0.05 px fitter chord certificate; an optional Stage-H sibling outside that tube or more than one fitter chord certificate worse than its certified free sibling falls back to that free sibling",
                 "opaque label-swapped mixture surrogates within 1e-9 canonicalize to the border-supported H2 reading while all palette hypotheses remain published",
                 "event-level M4.5 contours own topology while the canonical coverage-0.5 contour owns fit geometry whenever it binds bijectively to that topology",
                 "elliptic-arc fitting is omitted and charged to empirical unexplored search mass",

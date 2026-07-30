@@ -47,6 +47,16 @@ pub(super) fn judge_witness(
         p95_px: quantile(&distances, 0.95),
         p99_px: quantile(&distances, 0.99),
         max_px: *distances.last().expect("nonempty"),
+        gate_counts: BoundaryGateCounts {
+            p95_gate_px: M7_BOUNDARY_P95_GATE_PX,
+            samples_at_or_below_p95_gate: distances
+                .partition_point(|distance| *distance <= M7_BOUNDARY_P95_GATE_PX)
+                as u64,
+            p99_gate_px: M7_BOUNDARY_P99_GATE_PX,
+            samples_at_or_below_p99_gate: distances
+                .partition_point(|distance| *distance <= M7_BOUNDARY_P99_GATE_PX)
+                as u64,
+        },
     };
     let paint_delta = palette_code_delta(&truth.palette, &selected_truth.palette);
     Ok((topology, boundary, paint_delta))

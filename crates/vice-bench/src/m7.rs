@@ -40,9 +40,12 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v15";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v16";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
+pub const M7_BOUNDARY_P95_GATE_PX: f64 = 0.35;
+pub const M7_BOUNDARY_P99_GATE_PX: f64 = 0.60;
+pub const M7_BOUNDARY_MAX_GATE_PX: f64 = 1.50;
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -110,11 +113,20 @@ fn is_spine(cell: &DegradationCell) -> bool {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BoundaryGateCounts {
+    pub p95_gate_px: f64,
+    pub samples_at_or_below_p95_gate: u64,
+    pub p99_gate_px: f64,
+    pub samples_at_or_below_p99_gate: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BoundaryTail {
     pub samples: u64,
     pub p95_px: f64,
     pub p99_px: f64,
     pub max_px: f64,
+    pub gate_counts: BoundaryGateCounts,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -269,12 +281,25 @@ pub struct MeasurementRow {
     pub measurement_refusal: Option<String>,
 }
 
-/// Conservative population tails over accepted render summaries.
-///
-/// Each render already contains boundary-sample p95/p99/max values. The M7
-/// population court applies q95 to render p95s, q99 to render p99s, and an
-/// absolute maximum to render maxima. Missing summaries invalidate the tail.
-pub(crate) fn boundary_population_tail(rows: &[&MeasurementRow]) -> Option<(f64, f64, f64)> {
+pub(crate) struct BoundaryPopulationTail {
+    pub render_p95_q95_px: f64,
+    pub render_p99_q99_px: f64,
+    pub max_px: f64,
+    pub pooled_samples: u64,
+    pub p95_gate_met: bool,
+    pub p99_gate_met: bool,
+    pub max_gate_met: bool,
+}
+
+/// Exact pooled-sample gate decisions plus conservative render-tail
+/// diagnostics. Missing or differently preregistered counts invalidate the
+/// population summary.
+pub(crate) fn boundary_population_tail(
+    rows: &[&MeasurementRow],
+    p95_gate_px: f64,
+    p99_gate_px: f64,
+    max_gate_px: f64,
+) -> Option<BoundaryPopulationTail> {
     fn field_quantile(
         rows: &[&MeasurementRow],
         value: impl Fn(&BoundaryTail) -> f64,
@@ -292,11 +317,40 @@ pub(crate) fn boundary_population_tail(rows: &[&MeasurementRow]) -> Option<(f64,
         Some(values[index.min(values.len() - 1)])
     }
 
-    Some((
-        field_quantile(rows, |tail| tail.p95_px, 0.95)?,
-        field_quantile(rows, |tail| tail.p99_px, 0.99)?,
-        field_quantile(rows, |tail| tail.max_px, 1.0)?,
-    ))
+    let tails = rows
+        .iter()
+        .map(|row| row.boundary.as_ref())
+        .collect::<Option<Vec<_>>>()?;
+    if tails.is_empty()
+        || tails.iter().any(|tail| {
+            tail.samples == 0
+                || tail.gate_counts.p95_gate_px.to_bits() != p95_gate_px.to_bits()
+                || tail.gate_counts.p99_gate_px.to_bits() != p99_gate_px.to_bits()
+                || tail.gate_counts.samples_at_or_below_p95_gate > tail.samples
+                || tail.gate_counts.samples_at_or_below_p99_gate > tail.samples
+        })
+    {
+        return None;
+    }
+    let pooled_samples = tails
+        .iter()
+        .try_fold(0u64, |sum, tail| sum.checked_add(tail.samples))?;
+    let p95_at_or_below = tails.iter().try_fold(0u64, |sum, tail| {
+        sum.checked_add(tail.gate_counts.samples_at_or_below_p95_gate)
+    })?;
+    let p99_at_or_below = tails.iter().try_fold(0u64, |sum, tail| {
+        sum.checked_add(tail.gate_counts.samples_at_or_below_p99_gate)
+    })?;
+    let required = |q: f64| ((pooled_samples - 1) as f64 * q).ceil() as u64 + 1;
+    Some(BoundaryPopulationTail {
+        render_p95_q95_px: field_quantile(rows, |tail| tail.p95_px, 0.95)?,
+        render_p99_q99_px: field_quantile(rows, |tail| tail.p99_px, 0.99)?,
+        max_px: field_quantile(rows, |tail| tail.max_px, 1.0)?,
+        pooled_samples,
+        p95_gate_met: p95_at_or_below >= required(0.95),
+        p99_gate_met: p99_at_or_below >= required(0.99),
+        max_gate_met: tails.iter().all(|tail| tail.max_px <= max_gate_px),
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

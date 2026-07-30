@@ -482,11 +482,13 @@ fn retain_binding_certified_stage_h(
 ) -> Result<(), (f64, f64)> {
     let selected =
         observed_binding_isotopy(&model.geometry, samples, closed).unwrap_or((f64::INFINITY, 0.0));
-    if selected.0 <= selected.1 + BINDING_RELATION_RESCUE_MARGIN_PX_V1 {
-        return Ok(());
-    }
     let free = observed_binding_isotopy(&model.stage_h_free_geometry, samples, closed)
         .unwrap_or((f64::INFINITY, 0.0));
+    if selected.0 <= selected.1 + BINDING_RELATION_RESCUE_MARGIN_PX_V1
+        && selected.0 <= free.0 + BINDING_RELATION_RESCUE_MARGIN_PX_V1
+    {
+        return Ok(());
+    }
     if free.0 > free.1 + BINDING_RELATION_RESCUE_MARGIN_PX_V1 {
         return Err(
             if free.0 / free.1.max(f64::MIN_POSITIVE)
@@ -501,8 +503,9 @@ fn retain_binding_certified_stage_h(
 
     // Stage-H primitives and relations are optional MDL siblings of the
     // already certified free chain. A shorter sibling that leaves the
-    // observed binding tube is inadmissible; it must not discard the valid
-    // free reconstruction along with itself.
+    // observed binding tube or materially regresses the free sibling's
+    // observed-support displacement is inadmissible; it must not discard the
+    // valid free reconstruction along with itself.
     model.geometry = model.stage_h_free_geometry.clone();
     model.code = model.stage_h_free_code;
     model.primitive_kept = None;
