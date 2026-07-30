@@ -6,7 +6,7 @@ use thiserror::Error;
 use vice_geom::flatten::circular_arc_center;
 use vice_geom::predicates::{closed_segments_intersect, shared_endpoint_segments_overlap};
 use vice_geom::Pt;
-use vice_ir::{BoundaryId, JoinKind, Segment, ValidatedScene, VectorScene, VertexId};
+use vice_ir::{BoundaryId, Canvas, JoinKind, Segment, ValidatedScene, VectorScene, VertexId};
 use vice_render::{
     render_digest_sha256, render_mesh_partition, CertifiedMesh, PartitionRender, RenderOptions,
 };
@@ -33,9 +33,20 @@ impl VerificationConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "origin", rename_all = "snake_case")]
+pub enum BoundaryBindingOrigin {
+    ObservedDcel {
+        observed_chain_sha256: String,
+        dcel_boundary_sha256: String,
+    },
+    CanvasClosure {
+        canvas_sha256: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct BoundaryBinding {
-    observed_chain_sha256: String,
-    dcel_boundary_sha256: String,
+    origin: BoundaryBindingOrigin,
     support_geometry_sha256: String,
     boundary: BoundaryId,
     topology_signature_sha256: String,
@@ -45,7 +56,7 @@ pub struct BoundaryBinding {
 
 impl BoundaryBinding {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub fn new_observed(
         observed_chain_sha256: impl Into<String>,
         dcel_boundary_sha256: impl Into<String>,
         boundary: BoundaryId,
@@ -75,8 +86,10 @@ impl BoundaryBinding {
         let support_bytes = serde_json::to_vec(&support_polyline)
             .map_err(|_| VerificationError::BoundaryBinding)?;
         Ok(Self {
-            observed_chain_sha256,
-            dcel_boundary_sha256,
+            origin: BoundaryBindingOrigin::ObservedDcel {
+                observed_chain_sha256,
+                dcel_boundary_sha256,
+            },
             support_geometry_sha256: hex::encode(Sha256::digest(support_bytes)),
             boundary,
             topology_signature_sha256,
@@ -85,11 +98,61 @@ impl BoundaryBinding {
         })
     }
 
-    pub fn observed_chain_sha256(&self) -> &str {
-        &self.observed_chain_sha256
+    pub fn new_canvas_closure(
+        canvas: Canvas,
+        boundary: BoundaryId,
+        topology_signature_sha256: impl Into<String>,
+        support_polyline: Vec<Pt>,
+    ) -> Result<Self, VerificationError> {
+        let topology_signature_sha256 = topology_signature_sha256.into();
+        let canvas_sha256 = canvas_closure_sha256(canvas);
+        let expected = canvas_support_polyline(canvas);
+        if support_polyline != expected {
+            return Err(VerificationError::BoundaryBinding);
+        }
+        let digest_valid = |value: &str| {
+            value.len() == 64
+                && value
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        };
+        if !digest_valid(&topology_signature_sha256) {
+            return Err(VerificationError::BoundaryBinding);
+        }
+        let support_bytes = serde_json::to_vec(&support_polyline)
+            .map_err(|_| VerificationError::BoundaryBinding)?;
+        Ok(Self {
+            origin: BoundaryBindingOrigin::CanvasClosure { canvas_sha256 },
+            support_geometry_sha256: hex::encode(Sha256::digest(support_bytes)),
+            boundary,
+            topology_signature_sha256,
+            // Exact canvas geometry is required below. A positive tube keeps
+            // the common displacement machinery total without weakening it.
+            isotopy_tube_px: f64::EPSILON,
+            support_polyline,
+        })
     }
-    pub fn dcel_boundary_sha256(&self) -> &str {
-        &self.dcel_boundary_sha256
+
+    pub fn origin(&self) -> &BoundaryBindingOrigin {
+        &self.origin
+    }
+    pub fn observed_chain_sha256(&self) -> Option<&str> {
+        match &self.origin {
+            BoundaryBindingOrigin::ObservedDcel {
+                observed_chain_sha256,
+                ..
+            } => Some(observed_chain_sha256),
+            BoundaryBindingOrigin::CanvasClosure { .. } => None,
+        }
+    }
+    pub fn dcel_boundary_sha256(&self) -> Option<&str> {
+        match &self.origin {
+            BoundaryBindingOrigin::ObservedDcel {
+                dcel_boundary_sha256,
+                ..
+            } => Some(dcel_boundary_sha256),
+            BoundaryBindingOrigin::CanvasClosure { .. } => None,
+        }
     }
     pub fn support_geometry_sha256(&self) -> &str {
         &self.support_geometry_sha256
@@ -103,6 +166,41 @@ impl BoundaryBinding {
     pub fn support_polyline(&self) -> &[Pt] {
         &self.support_polyline
     }
+}
+
+fn canvas_support_polyline(canvas: Canvas) -> Vec<Pt> {
+    let width = f64::from(canvas.width_px);
+    let height = f64::from(canvas.height_px);
+    vec![
+        Pt::new(0.0, 0.0),
+        Pt::new(width, 0.0),
+        Pt::new(width, height),
+        Pt::new(0.0, height),
+        Pt::new(0.0, 0.0),
+    ]
+}
+
+pub fn canvas_closure_sha256(canvas: Canvas) -> String {
+    let bytes = serde_json::to_vec(&canvas).expect("Canvas serialization is infallible");
+    hex::encode(Sha256::digest(bytes))
+}
+
+fn is_exact_canvas_closure(scene: &VectorScene, binding: &BoundaryBinding) -> bool {
+    let boundary = &scene.graph.boundaries[binding.boundary.index()];
+    boundary.start_vertex == boundary.end_vertex
+        && scene.graph.vertices[boundary.start_vertex.index()].pos == Pt::new(0.0, 0.0)
+        && boundary.closure_join == Some(JoinKind::Corner)
+        && boundary.curve.interior_nodes.len() == 3
+        && boundary
+            .curve
+            .interior_nodes
+            .iter()
+            .all(|node| node.join == JoinKind::Corner)
+        && boundary.curve.segments.iter().all(Segment::is_line)
+        && boundary
+            .curve
+            .node_positions(Pt::new(0.0, 0.0), Pt::new(0.0, 0.0))
+            == canvas_support_polyline(scene.canvas)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -495,14 +593,34 @@ fn verify_bindings(
     let mut boundaries = BTreeSet::new();
     let mut chains = BTreeSet::new();
     let mut dcel_boundaries = BTreeSet::new();
+    let mut canvas_closures = 0usize;
     for binding in bindings {
         if binding.boundary.index() >= scene.graph.boundaries.len()
             || binding.topology_signature_sha256 != topology
             || !boundaries.insert(binding.boundary)
-            || !chains.insert(binding.observed_chain_sha256.as_str())
-            || !dcel_boundaries.insert(binding.dcel_boundary_sha256.as_str())
         {
             return Err(VerificationError::BoundaryBinding);
+        }
+        match &binding.origin {
+            BoundaryBindingOrigin::ObservedDcel {
+                observed_chain_sha256,
+                dcel_boundary_sha256,
+            } => {
+                if !chains.insert(observed_chain_sha256.as_str())
+                    || !dcel_boundaries.insert(dcel_boundary_sha256.as_str())
+                {
+                    return Err(VerificationError::BoundaryBinding);
+                }
+            }
+            BoundaryBindingOrigin::CanvasClosure { canvas_sha256 } => {
+                canvas_closures += 1;
+                if canvas_closures > 1
+                    || canvas_sha256 != &canvas_closure_sha256(scene.canvas)
+                    || !is_exact_canvas_closure(scene, binding)
+                {
+                    return Err(VerificationError::BoundaryBinding);
+                }
+            }
         }
     }
     Ok(())
@@ -546,8 +664,14 @@ pub fn preseal_scene(
         render_digest_sha256: render_digest_sha256(&render),
         boundaries: scene.graph.boundaries.len() as u64,
         faces: scene.graph.faces.len() as u64,
-        observed_chain_bindings: bindings.len() as u64,
-        dcel_boundary_bindings: bindings.len() as u64,
+        observed_chain_bindings: bindings
+            .iter()
+            .filter(|binding| matches!(&binding.origin, BoundaryBindingOrigin::ObservedDcel { .. }))
+            .count() as u64,
+        dcel_boundary_bindings: bindings
+            .iter()
+            .filter(|binding| matches!(&binding.origin, BoundaryBindingOrigin::ObservedDcel { .. }))
+            .count() as u64,
         g1_nodes,
         worst_g1_spread_rad,
         max_tessellation_deviation_px,

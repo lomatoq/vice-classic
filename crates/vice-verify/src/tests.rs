@@ -8,9 +8,9 @@ use vice_ir::{
 use vice_svg::{build_export_plan, materialize_svg, parse_and_render_independently, SvgProfile};
 
 use crate::{
-    preseal_scene, quantize_and_verify, seal_delivery, topology_signature_sha256, BoundaryBinding,
-    DeliverySealConfig, DeliverySealError, QuantizationPolicy, VerificationConfig,
-    VerificationError,
+    canvas_closure_sha256, preseal_scene, quantize_and_verify, seal_delivery,
+    topology_signature_sha256, BoundaryBinding, BoundaryBindingOrigin, DeliverySealConfig,
+    DeliverySealError, QuantizationPolicy, VerificationConfig, VerificationError,
 };
 
 fn square_scene() -> VectorScene {
@@ -130,7 +130,7 @@ fn bindings(scene: &VectorScene) -> Vec<BoundaryBinding> {
     (0..scene.graph.boundaries.len())
         .map(|index| {
             let boundary = &scene.graph.boundaries[index];
-            BoundaryBinding::new(
+            BoundaryBinding::new_observed(
                 hex::encode(Sha256::digest(format!("chain-{index}"))),
                 hex::encode(Sha256::digest(format!("dcel-boundary-{index}"))),
                 BoundaryId(index as u32),
@@ -166,6 +166,83 @@ fn every_boundary_identity_survives_preseal_and_quantization() {
             .topology_signature_sha256
     );
     assert_eq!(post.bindings(), bound);
+}
+
+#[test]
+fn an_exact_canvas_closure_has_a_distinct_non_observed_identity() {
+    let canvas = Canvas {
+        width_px: 10,
+        height_px: 10,
+    };
+    let mut scene = square_scene();
+    scene.graph.vertices = vec![GraphVertex {
+        pos: Pt::new(0.0, 0.0),
+    }];
+    scene.graph.boundaries = vec![Boundary {
+        left_face: FaceId(1),
+        right_face: FaceId(0),
+        start_vertex: VertexId(0),
+        end_vertex: VertexId(0),
+        closure_join: Some(JoinKind::Corner),
+        curve: CurveChain {
+            interior_nodes: vec![
+                ChainNode {
+                    pos: Pt::new(10.0, 0.0),
+                    join: JoinKind::Corner,
+                },
+                ChainNode {
+                    pos: Pt::new(10.0, 10.0),
+                    join: JoinKind::Corner,
+                },
+                ChainNode {
+                    pos: Pt::new(0.0, 10.0),
+                    join: JoinKind::Corner,
+                },
+            ],
+            segments: vec![Segment::Line; 4],
+        },
+    }];
+    scene.graph.half_edges = vec![
+        HalfEdge {
+            boundary: BoundaryId(0),
+            forward: true,
+            twin: HalfEdgeId(1),
+            next: HalfEdgeId(0),
+            face: FaceId(1),
+        },
+        HalfEdge {
+            boundary: BoundaryId(0),
+            forward: false,
+            twin: HalfEdgeId(0),
+            next: HalfEdgeId(1),
+            face: FaceId(0),
+        },
+    ];
+    scene.graph.faces[0].loops = vec![HalfEdgeId(1)];
+    scene.graph.faces[1].loops = vec![HalfEdgeId(0)];
+    let topology = topology_signature_sha256(&scene).unwrap();
+    let binding = BoundaryBinding::new_canvas_closure(
+        canvas,
+        BoundaryId(0),
+        topology,
+        vec![
+            Pt::new(0.0, 0.0),
+            Pt::new(10.0, 0.0),
+            Pt::new(10.0, 10.0),
+            Pt::new(0.0, 10.0),
+            Pt::new(0.0, 0.0),
+        ],
+    )
+    .unwrap();
+    assert_eq!(
+        binding.origin(),
+        &BoundaryBindingOrigin::CanvasClosure {
+            canvas_sha256: canvas_closure_sha256(canvas)
+        }
+    );
+    let pre = preseal_scene(&scene, &[binding], config()).unwrap();
+    assert_eq!(pre.certificate().observed_chain_bindings, 0);
+    assert_eq!(pre.certificate().dcel_boundary_bindings, 0);
 }
 
 #[test]
