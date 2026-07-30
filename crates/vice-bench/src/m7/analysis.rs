@@ -1,0 +1,430 @@
+//! M7 calibration analysis over raw held-out rows.
+//!
+//! This module never opens the sealed audit and never turns a placeholder
+//! into a gate. It proposes the confidence/search-mass values that a later,
+//! gate-only commit may freeze. Reliability is aggregated by source group,
+//! while every render remains visible for coverage and tail diagnostics.
+
+use serde::Serialize;
+use sha2::{Digest, Sha256};
+
+use super::{BoundaryTail, MeasurementReport, MeasurementRow, M7_MEASUREMENT_SCHEMA};
+use crate::correlation::ResidualModel;
+use crate::gt::raster::RasterProfile;
+use crate::gt::split::{AuditSeal, SealStatus};
+use crate::prereg::Preregistration;
+use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
+
+pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
+    "vice-classic/m7-confidence-calibration-analysis/v1";
+pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
+pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
+pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
+pub const PROPOSED_MAX_PALETTE_CODE_DELTA: u8 = 4;
+pub const PROPOSED_MAX_QUALITY_P95_MS: u64 = 10_000;
+pub const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ThresholdEvaluation {
+    pub posterior_lower_bound_threshold: f64,
+    pub reliability: RiskCoverage,
+    pub minimum_source_coverage: f64,
+    pub source_coverage_met: bool,
+    pub accepted_boundary_p95_worst_px: Option<f64>,
+    pub boundary_p95_met: bool,
+    pub zero_catastrophic_required_by_core: bool,
+    pub eligible: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CalibrationAnalysis {
+    pub schema: &'static str,
+    pub measurement_schema: String,
+    pub measurement_sha256: String,
+    pub preregistration_sha256: String,
+    pub identity: vice_opt::ModelIdentity,
+    pub audit_generation: u32,
+    pub audit_status: String,
+    pub raw_rows: u64,
+    pub target_rows: u64,
+    pub empirical_unexplored_relative_mass_upper_bound: f64,
+    pub quality_runtime_p95_ms: u64,
+    pub quality_runtime_met: bool,
+    pub threshold_evaluations: Vec<ThresholdEvaluation>,
+    pub selected_threshold: Option<f64>,
+    pub calibration: Option<vice_core::ConfidenceCalibration>,
+    pub gate_met: bool,
+    pub refusals: Vec<String>,
+}
+
+pub fn analyze_calibration(
+    report: &MeasurementReport,
+    audit: &AuditSeal,
+) -> Result<CalibrationAnalysis, String> {
+    if report.schema != M7_MEASUREMENT_SCHEMA
+        || report.scope != "calibration"
+        || report.split != "calibration"
+        || !report.complete
+        || report.included_shards.len() != report.shard_count as usize
+        || report.renders != report.expected_renders_included_shards
+    {
+        return Err(
+            "M7 calibration analysis requires one complete merged calibration report".into(),
+        );
+    }
+    let prereg = Preregistration::v1();
+    prereg
+        .check()
+        .map_err(|errors| format!("invalid preregistration: {}", errors.join("; ")))?;
+    let bucket = prereg
+        .buckets
+        .iter()
+        .find(|bucket| bucket.id == TARGET_BUCKET)
+        .ok_or_else(|| format!("preregistration has no {TARGET_BUCKET} bucket"))?;
+    let target_rows = report
+        .rows
+        .iter()
+        .filter(|row| {
+            row.size_px >= bucket.min_size_px
+                && row.size_px <= bucket.max_size_px
+                && bucket
+                    .identifiability
+                    .contains(&row.identifiability.as_str())
+        })
+        .collect::<Vec<_>>();
+    if target_rows.is_empty() {
+        return Err(format!("M7 report has no rows in {TARGET_BUCKET}"));
+    }
+    let empirical_upper = target_rows.iter().try_fold(0u64, |upper, row| {
+        if row.search_truncated == Some(true) && row.unexplored_proxy_hypotheses.is_none() {
+            Err(format!(
+                "{} / {} is truncated without an unexplored-mass proxy",
+                row.group_id, row.cell_id
+            ))
+        } else {
+            Ok(upper.max(row.unexplored_proxy_hypotheses.unwrap_or(0)))
+        }
+    })? as f64;
+
+    let mut scores = target_rows
+        .iter()
+        .filter_map(|row| effective_lower_bound(row, empirical_upper))
+        .filter(|score| score.is_finite() && *score >= 0.0)
+        .collect::<Vec<_>>();
+    scores.sort_by(f64::total_cmp);
+    scores.dedup_by(|left, right| left.total_cmp(right).is_eq());
+
+    let mut threshold_evaluations = Vec::with_capacity(scores.len());
+    for threshold in scores {
+        let outcomes = target_rows
+            .iter()
+            .map(|row| {
+                let accepted = row.candidate_available
+                    && effective_lower_bound(row, empirical_upper)
+                        .is_some_and(|score| score >= threshold);
+                Ok(RenderOutcome {
+                    group_id: row.group_id.clone(),
+                    cell_id: row.cell_id.clone(),
+                    profile: RasterProfile::from_id(&row.rasterizer).ok_or_else(|| {
+                        format!("unknown rasterizer profile {:?}", row.rasterizer)
+                    })?,
+                    accepted,
+                    catastrophic: accepted && !catastrophic_kinds(row).is_empty(),
+                    mandatory: true,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let reliability = risk_coverage(
+            TARGET_BUCKET,
+            &outcomes,
+            prereg.confidence,
+            prereg.risk_target,
+            Some((ResidualModel::Block, true)),
+        );
+        let accepted_boundary_p95_worst_px = target_rows
+            .iter()
+            .filter(|row| {
+                row.candidate_available
+                    && effective_lower_bound(row, empirical_upper)
+                        .is_some_and(|score| score >= threshold)
+            })
+            .filter_map(|row| row.boundary.as_ref().map(|tail| tail.p95_px))
+            .max_by(f64::total_cmp);
+        let source_coverage_met = reliability.coverage_per_source >= bucket.min_coverage_per_source;
+        let boundary_p95_met =
+            accepted_boundary_p95_worst_px.is_some_and(|worst| worst <= PROPOSED_BOUNDARY_P95_PX);
+        let zero_catastrophic_required_by_core = reliability.groups_catastrophic == 0;
+        let eligible = reliability.contract_met
+            && source_coverage_met
+            && boundary_p95_met
+            && zero_catastrophic_required_by_core;
+        threshold_evaluations.push(ThresholdEvaluation {
+            posterior_lower_bound_threshold: threshold,
+            reliability,
+            minimum_source_coverage: bucket.min_coverage_per_source,
+            source_coverage_met,
+            accepted_boundary_p95_worst_px,
+            boundary_p95_met,
+            zero_catastrophic_required_by_core,
+            eligible,
+        });
+    }
+    let selected = threshold_evaluations
+        .iter()
+        .find(|evaluation| evaluation.eligible);
+    let selected_threshold = selected.map(|evaluation| evaluation.posterior_lower_bound_threshold);
+    let quality_runtime_p95_ms = runtime_quantile(
+        &target_rows
+            .iter()
+            .map(|row| row.core_runtime_ms)
+            .collect::<Vec<_>>(),
+        0.95,
+    );
+    let quality_runtime_met = quality_runtime_p95_ms <= PROPOSED_MAX_QUALITY_P95_MS;
+    let audit_untouched = audit.status == SealStatus::Sealed;
+    let measurement_sha256 = calibration_measurement_digest(report);
+    let calibration = selected.map(|evaluation| vice_core::ConfidenceCalibration {
+        schema: "vice-classic/confidence-calibration/v1".into(),
+        model_universe_sha256: report.identity.universe_sha256.clone(),
+        pricing_sha256: report.identity.pricing_sha256.clone(),
+        backend_sha256: report.identity.backend_sha256.clone(),
+        config_sha256: report.identity.config_sha256.clone(),
+        calibration_split_sha256: measurement_sha256.clone(),
+        sealed_audit_generation: format!("generation-{}-sealed", audit.generation),
+        sealed_audit_untouched: audit_untouched,
+        confidence_level: prereg.confidence,
+        catastrophic_risk_target: prereg.risk_target,
+        accepted_source_groups: evaluation.reliability.groups_accepted,
+        catastrophic_source_groups: evaluation.reliability.groups_catastrophic,
+        posterior_lower_bound_threshold: evaluation.posterior_lower_bound_threshold,
+        empirical_unexplored_relative_mass_upper_bound: Some(empirical_upper),
+        buckets: vec![vice_core::CalibrationBucket {
+            name: TARGET_BUCKET.into(),
+            accepted_source_groups: evaluation.reliability.groups_accepted,
+            eligible_source_groups: evaluation.reliability.groups_total,
+            minimum_coverage: bucket.min_coverage_per_source,
+        }],
+    });
+    let mut refusals = Vec::new();
+    if selected.is_none() {
+        refusals.push(
+            "no posterior threshold simultaneously meets clustered risk, source coverage, \
+             boundary p95, and the core zero-catastrophic contract"
+                .into(),
+        );
+    }
+    if !quality_runtime_met {
+        refusals.push(format!(
+            "Quality runtime p95 {quality_runtime_p95_ms} ms exceeds \
+             {PROPOSED_MAX_QUALITY_P95_MS} ms"
+        ));
+    }
+    if !audit_untouched {
+        refusals.push("sealed audit is not sealed and untouched".into());
+    }
+    if let Some(calibration) = &calibration {
+        if let Err(reason) = calibration.validate_for_identity(&report.identity) {
+            refusals.push(format!("core rejected proposed calibration: {reason}"));
+        }
+    }
+    let gate_met = refusals.is_empty() && calibration.is_some();
+    Ok(CalibrationAnalysis {
+        schema: M7_CALIBRATION_ANALYSIS_SCHEMA,
+        measurement_schema: report.schema.clone(),
+        measurement_sha256,
+        preregistration_sha256: prereg.hash(),
+        identity: report.identity.clone(),
+        audit_generation: audit.generation,
+        audit_status: format!("{:?}", audit.status).to_lowercase(),
+        raw_rows: report.rows.len().try_into().unwrap_or(u64::MAX),
+        target_rows: target_rows.len().try_into().unwrap_or(u64::MAX),
+        empirical_unexplored_relative_mass_upper_bound: empirical_upper,
+        quality_runtime_p95_ms,
+        quality_runtime_met,
+        threshold_evaluations,
+        selected_threshold,
+        calibration,
+        gate_met,
+        refusals,
+    })
+}
+
+pub fn catastrophic_kinds(row: &MeasurementRow) -> Vec<&'static str> {
+    if !row.candidate_available {
+        return Vec::new();
+    }
+    let mut kinds = Vec::new();
+    if !row.topology.as_ref().is_some_and(|topology| topology.exact) {
+        kinds.push("wrong_visible_topology");
+    }
+    if !row.verifier_clean {
+        kinds.push("verification_or_serialized_mismatch");
+    }
+    if !row
+        .boundary
+        .as_ref()
+        .is_some_and(boundary_within_gross_gate)
+    {
+        kinds.push("gross_boundary_outlier");
+    }
+    if row
+        .max_palette_code_delta
+        .is_none_or(|delta| delta > PROPOSED_MAX_PALETTE_CODE_DELTA)
+    {
+        kinds.push("wrong_paint_or_missing_face");
+    }
+    kinds
+}
+
+fn boundary_within_gross_gate(tail: &BoundaryTail) -> bool {
+    tail.p99_px <= PROPOSED_BOUNDARY_P99_PX && tail.max_px <= PROPOSED_BOUNDARY_MAX_PX
+}
+
+fn effective_lower_bound(row: &MeasurementRow, empirical_upper: f64) -> Option<f64> {
+    if row.search_truncated == Some(false) {
+        return row.posterior_lower_bound;
+    }
+    let selected = row.selected_delivery_mass?;
+    let explored = row.explored_mass?;
+    let denominator = explored + empirical_upper;
+    (selected.is_finite() && selected >= 0.0 && denominator.is_finite() && denominator > 0.0)
+        .then_some(selected / denominator)
+}
+
+fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
+    if values.is_empty() {
+        return u64::MAX;
+    }
+    let mut values = values.to_vec();
+    values.sort_unstable();
+    let index = ((values.len() - 1) as f64 * quantile).ceil() as usize;
+    values[index.min(values.len() - 1)]
+}
+
+fn calibration_measurement_digest(report: &MeasurementReport) -> String {
+    let mut stable = report.clone();
+    stable.included_shards.clear();
+    stable.shard_count = 0;
+    stable.max_workers_per_shard = 0;
+    stable.resumed_rows = 0;
+    stable.runs = 0;
+    stable.elapsed_ms = 0;
+    for row in &mut stable.rows {
+        row.core_runtime_ms = 0;
+        row.court_runtime_ms = 0;
+        row.row_elapsed_ms = 0;
+    }
+    let bytes = serde_json::to_vec(&stable).expect("normalized M7 report serializes");
+    hex::encode(Sha256::digest(bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::m7::{MeasurementReport, TopologyComparison};
+
+    fn row(index: usize, catastrophic: bool) -> MeasurementRow {
+        MeasurementRow {
+            group_id: format!("group-{index:03}"),
+            scene_id: format!("group-{index:03}#a"),
+            shape_family: "synthetic".into(),
+            cell_id: "s128_ptiny-skia".into(),
+            size_px: 128,
+            rasterizer: "tiny-skia".into(),
+            identifiability: "identifiable".into(),
+            core_runtime_ms: 100,
+            court_runtime_ms: 1,
+            row_elapsed_ms: 101,
+            candidate_available: true,
+            selected_hypothesis_id: Some("h".into()),
+            search_truncated: Some(true),
+            explored_mass: Some(1.0),
+            selected_delivery_mass: Some(1.0),
+            retained_normalized_mass: Some(1.0),
+            delivery_classes: Some(1),
+            top2_class_margin_bits: None,
+            posterior_lower_bound: None,
+            posterior_bound_status: "unknown".into(),
+            unexplored_proxy_hypotheses: Some(10),
+            candidate_bytes: 100,
+            serialized_pixel_bits: Some(1.0),
+            serialized_pixel_bits_per_block: Some(0.01),
+            empirical_correlation_length_px: Some(1.0),
+            max_abs_lag1: Some(0.0),
+            topology: Some(TopologyComparison {
+                truth_visible_faces: 2,
+                selected_visible_faces: if catastrophic { 1 } else { 2 },
+                truth_components: 1,
+                selected_components: 1,
+                truth_holes: 0,
+                selected_holes: 0,
+                truth_exterior: "opaque".into(),
+                selected_exterior: "opaque".into(),
+                exact: !catastrophic,
+            }),
+            boundary: Some(BoundaryTail {
+                samples: 10,
+                p95_px: 0.2,
+                p99_px: 0.3,
+                max_px: 0.4,
+            }),
+            max_palette_code_delta: Some(1),
+            verifier_clean: true,
+            measurement_refusal: None,
+        }
+    }
+
+    fn report(catastrophic: bool) -> MeasurementReport {
+        let rows = (0..459)
+            .map(|index| row(index, catastrophic && index == 0))
+            .collect::<Vec<_>>();
+        MeasurementReport {
+            schema: M7_MEASUREMENT_SCHEMA.into(),
+            scope: "calibration".into(),
+            split: "calibration".into(),
+            procedural_variants_per_family: 200,
+            mandatory_sizes_px: vec![128, 256, 512],
+            rasterizers: vec!["tiny-skia".into()],
+            identity: vice_opt::ModelIdentity::new(
+                "0".repeat(64),
+                "1".repeat(64),
+                "2".repeat(64),
+                "3".repeat(64),
+            )
+            .unwrap(),
+            included_shards: vec![0],
+            shard_count: 1,
+            max_workers_per_shard: 2,
+            complete: true,
+            expected_renders_included_shards: rows.len() as u64,
+            resumed_rows: 0,
+            runs: 1,
+            source_groups: rows.len() as u64,
+            renders: rows.len() as u64,
+            candidates_available: rows.len() as u64,
+            truncated_renders: rows.len() as u64,
+            rows,
+            elapsed_ms: 1,
+        }
+    }
+
+    #[test]
+    fn zero_failure_459_group_population_mints_a_core_valid_calibration() {
+        let report = report(false);
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(analysis.gate_met);
+        let calibration = analysis.calibration.expect("calibration");
+        assert_eq!(calibration.accepted_source_groups, 459);
+        assert_eq!(calibration.catastrophic_source_groups, 0);
+        assert!(calibration.validate_for_identity(&report.identity).is_ok());
+    }
+
+    #[test]
+    fn an_indistinguishable_bad_row_prevents_a_zero_failure_calibration() {
+        let analysis =
+            analyze_calibration(&report(true), &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(!analysis.gate_met);
+        assert!(analysis.calibration.is_none());
+    }
+}

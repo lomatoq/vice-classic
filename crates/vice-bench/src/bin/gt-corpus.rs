@@ -278,6 +278,16 @@ enum Cmd {
         #[arg(long)]
         out: PathBuf,
     },
+    /// Propose the frozen R1 confidence policy from a complete calibration
+    /// report without opening the sealed audit.
+    M7Calibrate {
+        #[arg(long)]
+        report: PathBuf,
+        #[arg(long)]
+        audit_seal: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Enforce §27.7: an EXISTING gate file and production code may not
     /// change together. Pass `git diff --name-status` lines (status letter
     /// and path) via `--changed`, or a whole diff on stdin with `--stdin`.
@@ -822,6 +832,62 @@ fn real_main() -> i32 {
                 report.complete
             );
             0
+        }
+        Cmd::M7Calibrate {
+            report,
+            audit_seal,
+            out,
+        } => {
+            let report = match m7::read_report(&report) {
+                Ok(report) => report,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 2;
+                }
+            };
+            let audit: AuditSeal = match std::fs::read_to_string(&audit_seal)
+                .map_err(|error| error.to_string())
+                .and_then(|text| serde_json::from_str(&text).map_err(|error| error.to_string()))
+            {
+                Ok(audit) => audit,
+                Err(error) => {
+                    eprintln!("error: read {}: {error}", audit_seal.display());
+                    return 2;
+                }
+            };
+            let analysis = match m7::analysis::analyze_calibration(&report, &audit) {
+                Ok(analysis) => analysis,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 2;
+                }
+            };
+            if let Some(parent) = out.parent() {
+                if let Err(error) = std::fs::create_dir_all(parent) {
+                    eprintln!("error: create {}: {error}", parent.display());
+                    return 2;
+                }
+            }
+            let text = serde_json::to_string_pretty(&analysis).expect("analysis serializes");
+            if let Err(error) = std::fs::write(&out, format!("{text}\n")) {
+                eprintln!("error: write {}: {error}", out.display());
+                return 2;
+            }
+            println!(
+                "M7 calibration: gate_met={}, threshold={:?}, unexplored_upper={}, runtime_p95={}ms",
+                analysis.gate_met,
+                analysis.selected_threshold,
+                analysis.empirical_unexplored_relative_mass_upper_bound,
+                analysis.quality_runtime_p95_ms
+            );
+            for refusal in &analysis.refusals {
+                eprintln!("M7 calibration refusal: {refusal}");
+            }
+            if analysis.gate_met {
+                0
+            } else {
+                1
+            }
         }
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {

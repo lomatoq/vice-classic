@@ -1134,8 +1134,10 @@ fn vectorize_impl(
             }
         }
     }
-    let evaluation_truncated =
-        materialization_order.len() > config.beam.budget.max_candidates_considered;
+    let unmaterialized_by_candidate_budget = materialization_order
+        .len()
+        .saturating_sub(config.beam.budget.max_candidates_considered);
+    let evaluation_truncated = unmaterialized_by_candidate_budget > 0;
     materialization_order.truncate(config.beam.budget.max_candidates_considered);
     let scheduled_materializations = materialization_order.len();
     // A time budget cannot be subordinated to a quota: materialize one
@@ -1314,6 +1316,9 @@ fn vectorize_impl(
         }
     };
     selection.ledger.time_budget_exhausted |= time_truncated;
+    selection.ledger.unmaterialized_by_candidate_budget = unmaterialized_by_candidate_budget
+        .try_into()
+        .unwrap_or(u64::MAX);
     selection.ledger.unmaterialized_by_time_budget = if time_truncated {
         scheduled_materializations
             .saturating_sub(attempted_materializations)

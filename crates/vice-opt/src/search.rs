@@ -34,6 +34,9 @@ pub struct BeamCandidate {
 pub struct BudgetLedger {
     pub elapsed_ms: u64,
     pub time_budget_exhausted: bool,
+    /// Scheduled scene materializations omitted before scoring because the
+    /// finite candidate budget cut the deterministic schedule.
+    pub unmaterialized_by_candidate_budget: u64,
     pub unmaterialized_by_time_budget: u64,
     pub candidates_presented: u64,
     pub candidates_considered: u64,
@@ -190,6 +193,7 @@ pub fn select_diverse_beam(
         ledger: BudgetLedger {
             elapsed_ms,
             time_budget_exhausted: elapsed_ms > cfg.budget.max_elapsed_ms,
+            unmaterialized_by_candidate_budget: 0,
             unmaterialized_by_time_budget: 0,
             candidates_presented: presented,
             candidates_considered: considered.len() as u64,

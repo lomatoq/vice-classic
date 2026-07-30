@@ -6,6 +6,8 @@
 //! Rows are raw measurements: confidence and tail thresholds are frozen from
 //! calibration rows before the sealed-audit split is opened.
 
+pub mod analysis;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -30,7 +32,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v1";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v3";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
@@ -138,8 +140,19 @@ pub struct MeasurementRow {
     pub explored_mass: Option<f64>,
     pub selected_delivery_mass: Option<f64>,
     pub retained_normalized_mass: Option<f64>,
+    pub delivery_classes: Option<u64>,
+    pub top2_class_margin_bits: Option<f64>,
     pub posterior_lower_bound: Option<f64>,
     pub posterior_bound_status: String,
+    /// Finite empirical proxy for resource-pruned model mass: every omitted
+    /// schedule slot is charged one best-retained-hypothesis mass. This is an
+    /// R1 calibration variable, never a certified R2 bound.
+    pub unexplored_proxy_hypotheses: Option<u64>,
+    pub candidate_bytes: u64,
+    pub serialized_pixel_bits: Option<f64>,
+    pub serialized_pixel_bits_per_block: Option<f64>,
+    pub empirical_correlation_length_px: Option<f64>,
+    pub max_abs_lag1: Option<f64>,
     pub topology: Option<TopologyComparison>,
     pub boundary: Option<BoundaryTail>,
     pub max_palette_code_delta: Option<u8>,
@@ -239,8 +252,12 @@ struct MeasurementJournalHeader {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "record", rename_all = "snake_case")]
 enum MeasurementJournalRecord {
-    Header { header: MeasurementJournalHeader },
-    Row { row: MeasurementRow },
+    Header {
+        header: Box<MeasurementJournalHeader>,
+    },
+    Row {
+        row: Box<MeasurementRow>,
+    },
 }
 
 pub fn measure(request: MeasurementRequest) -> Result<MeasurementReport, String> {
@@ -300,7 +317,7 @@ pub fn measure_to_path(
         write_journal_record(
             &mut writer,
             &MeasurementJournalRecord::Header {
-                header: expected_header,
+                header: Box::new(expected_header),
             },
         )?;
     }
@@ -313,7 +330,9 @@ pub fn measure_to_path(
         |row| {
             write_journal_record(
                 &mut writer,
-                &MeasurementJournalRecord::Row { row: row.clone() },
+                &MeasurementJournalRecord::Row {
+                    row: Box::new(row.clone()),
+                },
             )
         },
     )?;
@@ -627,12 +646,12 @@ fn read_journal(path: &Path) -> Result<(MeasurementJournalHeader, Vec<Measuremen
         })?;
         match record {
             MeasurementJournalRecord::Header { header: found } if line_index == 0 => {
-                header = Some(found)
+                header = Some(*found)
             }
             MeasurementJournalRecord::Header { .. } => {
                 return Err(format!("{} contains more than one header", path.display()))
             }
-            MeasurementJournalRecord::Row { row } => rows.push(row),
+            MeasurementJournalRecord::Row { row } => rows.push(*row),
         }
     }
     header
@@ -803,8 +822,25 @@ fn measure_one(
             .map(|search| search.explored_mass),
         selected_delivery_mass: None,
         retained_normalized_mass: None,
+        delivery_classes: report
+            .search_mass
+            .as_ref()
+            .map(|search| search.delivery.len().try_into().unwrap_or(u64::MAX)),
+        top2_class_margin_bits: report.search_mass.as_ref().and_then(|search| {
+            let top1 = search.delivery.first()?.explored_mass;
+            let top2 = search.delivery.get(1)?.explored_mass;
+            (top1 > 0.0 && top2 > 0.0)
+                .then(|| (top1 / top2).log2())
+                .filter(|margin| margin.is_finite())
+        }),
         posterior_lower_bound: None,
         posterior_bound_status: "absent".into(),
+        unexplored_proxy_hypotheses: unexplored_proxy_hypotheses(report),
+        candidate_bytes: report.runtime.candidate_bytes,
+        serialized_pixel_bits: None,
+        serialized_pixel_bits_per_block: None,
+        empirical_correlation_length_px: None,
+        max_abs_lag1: None,
         topology: None,
         boundary: None,
         max_palette_code_delta: None,
@@ -847,6 +883,12 @@ fn measure_one(
             row.boundary = Some(boundary);
             row.max_palette_code_delta = Some(paint_delta);
             let candidate = &witness.candidate;
+            let diagnostics = &candidate.score.diagnostics;
+            row.serialized_pixel_bits = Some(candidate.score.pixel_bits);
+            row.serialized_pixel_bits_per_block = (diagnostics.blocks > 0)
+                .then_some(candidate.score.pixel_bits / diagnostics.blocks as f64);
+            row.empirical_correlation_length_px = Some(diagnostics.empirical_correlation_length_px);
+            row.max_abs_lag1 = Some(diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs()));
             row.verifier_clean = candidate.pre_quantization.worst_g1_spread_rad
                 <= config.verification.max_g1_spread_rad
                 && candidate.delivery_seal.profile_comparison.max_channel_delta
@@ -871,6 +913,33 @@ fn measure_one(
         .unwrap_or(u64::MAX);
     row.row_elapsed_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
     row
+}
+
+fn unexplored_proxy_hypotheses(report: &vice_core::VectorizeReport) -> Option<u64> {
+    let search = report.search_mass.as_ref()?;
+    if !search.truncated {
+        return Some(0);
+    }
+    let topology = report.topology.as_ref().map_or(0u64, |topology| {
+        topology
+            .prefit_budget_pruned_arms
+            .len()
+            .try_into()
+            .unwrap_or(u64::MAX)
+    });
+    let fit = report.fits.iter().fold(0u64, |total, fit| {
+        let skipped_levels = u64::try_from(fit.proposal_levels_skipped_after_certification)
+            .unwrap_or(u64::MAX)
+            .saturating_mul(vice_fit::K_DISCRETE_PATHS.try_into().unwrap_or(u64::MAX));
+        total
+            .saturating_add(fit.resource_pruned_proposals.try_into().unwrap_or(u64::MAX))
+            .saturating_add(skipped_levels)
+    });
+    let materialization = report.beam.as_ref().map_or(0u64, |beam| {
+        beam.unmaterialized_by_candidate_budget
+            .saturating_add(beam.unmaterialized_by_time_budget)
+    });
+    Some(topology.saturating_add(fit).saturating_add(materialization))
 }
 
 fn refusal_row(
@@ -899,8 +968,16 @@ fn refusal_row(
         explored_mass: None,
         selected_delivery_mass: None,
         retained_normalized_mass: None,
+        delivery_classes: None,
+        top2_class_margin_bits: None,
         posterior_lower_bound: None,
         posterior_bound_status: "absent".into(),
+        unexplored_proxy_hypotheses: None,
+        candidate_bytes: 0,
+        serialized_pixel_bits: None,
+        serialized_pixel_bits_per_block: None,
+        empirical_correlation_length_px: None,
+        max_abs_lag1: None,
         topology: None,
         boundary: None,
         max_palette_code_delta: None,
@@ -1225,8 +1302,16 @@ mod tests {
             explored_mass: None,
             selected_delivery_mass: None,
             retained_normalized_mass: None,
+            delivery_classes: None,
+            top2_class_margin_bits: None,
             posterior_lower_bound: None,
             posterior_bound_status: "absent".into(),
+            unexplored_proxy_hypotheses: None,
+            candidate_bytes: 0,
+            serialized_pixel_bits: None,
+            serialized_pixel_bits_per_block: None,
+            empirical_correlation_length_px: None,
+            max_abs_lag1: None,
             topology: None,
             boundary: None,
             max_palette_code_delta: None,
