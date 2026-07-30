@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v1";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v2";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -140,6 +140,7 @@ pub struct VectorizeReport {
     pub fits: Vec<vice_fit::ModelRun>,
     pub beam: Option<vice_opt::BudgetLedger>,
     pub search_mass: Option<vice_opt::SearchMassCertificate>,
+    pub confidence_metrics: Option<crate::ConfidenceMetrics>,
     pub candidates: Vec<CandidateSummary>,
     pub candidate_refusals: Vec<CandidateRefusal>,
     pub transaction_inventory: Option<TransactionInventory>,

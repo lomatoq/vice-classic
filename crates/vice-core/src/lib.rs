@@ -15,8 +15,9 @@ mod scene;
 mod types;
 
 pub use config::{
-    CalibrationBucket, ConfidenceCalibration, CoreConfig, Intent, IntentPriorPolicy, Preset,
-    ProductionConfigError, VectorizeRequest, M7_PRODUCTION_CONFIG_SHA256,
+    CalibrationBucket, ConfidenceCalibration, ConfidenceMetrics, CoreConfig, Intent,
+    IntentPriorPolicy, Preset, ProductionConfigError, VectorizeRequest,
+    M7_PRODUCTION_CONFIG_SHA256,
 };
 pub use pipeline::{vectorize, vectorize_for_calibration, vectorize_with_config};
 pub use types::{
@@ -219,6 +220,9 @@ mod tests {
             accepted_source_groups,
             catastrophic_source_groups: 0,
             posterior_lower_bound_threshold: 0.95,
+            minimum_top2_class_margin_bits: 0.0,
+            maximum_posterior_predictive_bits_per_block: 0.1,
+            maximum_abs_residual_lag1: 0.9,
             empirical_unexplored_relative_mass_upper_bound: Some(0.0),
             buckets: vec![CalibrationBucket {
                 name: "all".into(),
@@ -233,8 +237,29 @@ mod tests {
             retained_normalized_mass: 1.0,
             posterior_lower_bound: vice_opt::BoundValue::Certified(1.0),
         };
-        assert!(calibration(458).permits(&identity, &delivery).is_err());
-        assert!(calibration(459).permits(&identity, &delivery).is_ok());
+        let metrics = ConfidenceMetrics {
+            top2_class_margin_bits: 10.0,
+            posterior_predictive_bits_per_block: 0.01,
+            max_abs_residual_lag1: 0.1,
+        };
+        assert!(calibration(458)
+            .permits(&identity, &delivery, metrics)
+            .is_err());
+        assert!(calibration(459)
+            .permits(&identity, &delivery, metrics)
+            .is_ok());
+        let mut predictive_mismatch = metrics;
+        predictive_mismatch.posterior_predictive_bits_per_block = 0.11;
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, predictive_mismatch),
+            Err("posterior_predictive_mismatch")
+        );
+        let mut spatial_mismatch = metrics;
+        spatial_mismatch.max_abs_residual_lag1 = 0.91;
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, spatial_mismatch),
+            Err("residual_spatial_mismatch")
+        );
 
         for field in ["universe", "pricing", "backend", "config"] {
             let mut stale = calibration(459);
@@ -246,7 +271,7 @@ mod tests {
                 _ => unreachable!(),
             }
             assert!(
-                stale.permits(&identity, &delivery).is_err(),
+                stale.permits(&identity, &delivery, metrics).is_err(),
                 "stale {field} identity was accepted"
             );
         }
@@ -269,6 +294,10 @@ mod tests {
         let run = vectorize_for_calibration(&square_png(), &VectorizeRequest::default(), &config);
         let witness_expected = run.outcome.report().selected_hypothesis_id.is_some();
         assert_eq!(run.selected.is_some(), witness_expected);
+        assert_eq!(
+            run.outcome.report().confidence_metrics.is_some(),
+            witness_expected
+        );
         let outcome = run.outcome;
         assert!(!matches!(
             outcome,

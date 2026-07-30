@@ -78,10 +78,20 @@ pub struct ConfidenceCalibration {
     pub accepted_source_groups: u64,
     pub catastrophic_source_groups: u64,
     pub posterior_lower_bound_threshold: f64,
+    pub minimum_top2_class_margin_bits: f64,
+    pub maximum_posterior_predictive_bits_per_block: f64,
+    pub maximum_abs_residual_lag1: f64,
     /// Frozen R1 upper bound on omitted search mass relative to the best
     /// retained hypothesis. `None` means truncated search remains Unknown.
     pub empirical_unexplored_relative_mass_upper_bound: Option<f64>,
     pub buckets: Vec<CalibrationBucket>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct ConfidenceMetrics {
+    pub top2_class_margin_bits: f64,
+    pub posterior_predictive_bits_per_block: f64,
+    pub max_abs_residual_lag1: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -110,6 +120,7 @@ impl ConfidenceCalibration {
         &self,
         identity: &ModelIdentity,
         delivery: &vice_opt::DeliveryPosterior,
+        metrics: ConfidenceMetrics,
     ) -> Result<(), &'static str> {
         self.validate_for_identity(identity)?;
         let posterior_lower_bound = match &delivery.posterior_lower_bound {
@@ -121,6 +132,22 @@ impl ConfidenceCalibration {
             || posterior_lower_bound < self.posterior_lower_bound_threshold
         {
             return Err("posterior_below_calibrated_threshold");
+        }
+        if !metrics.top2_class_margin_bits.is_finite()
+            || metrics.top2_class_margin_bits < self.minimum_top2_class_margin_bits
+        {
+            return Err("top2_margin_below_calibrated_threshold");
+        }
+        if !metrics.posterior_predictive_bits_per_block.is_finite()
+            || metrics.posterior_predictive_bits_per_block
+                > self.maximum_posterior_predictive_bits_per_block
+        {
+            return Err("posterior_predictive_mismatch");
+        }
+        if !metrics.max_abs_residual_lag1.is_finite()
+            || metrics.max_abs_residual_lag1 > self.maximum_abs_residual_lag1
+        {
+            return Err("residual_spatial_mismatch");
         }
         Ok(())
     }
@@ -149,6 +176,12 @@ impl ConfidenceCalibration {
         }
         if !self.posterior_lower_bound_threshold.is_finite()
             || !(0.0..=1.0).contains(&self.posterior_lower_bound_threshold)
+            || !self.minimum_top2_class_margin_bits.is_finite()
+            || self.minimum_top2_class_margin_bits < 0.0
+            || !self.maximum_posterior_predictive_bits_per_block.is_finite()
+            || self.maximum_posterior_predictive_bits_per_block < 0.0
+            || !self.maximum_abs_residual_lag1.is_finite()
+            || !(0.0..=1.0).contains(&self.maximum_abs_residual_lag1)
             || self
                 .empirical_unexplored_relative_mass_upper_bound
                 .is_none_or(|bound| !bound.is_finite() || bound < 0.0)
@@ -491,6 +524,9 @@ mod tests {
             "accepted_source_groups": 459,
             "catastrophic_source_groups": 0,
             "posterior_lower_bound_threshold": 0.95,
+            "minimum_top2_class_margin_bits": 0.0,
+            "maximum_posterior_predictive_bits_per_block": 0.1,
+            "maximum_abs_residual_lag1": 0.9,
             "empirical_unexplored_relative_mass_upper_bound": 0.25,
             "buckets": [{
                 "name": "all",

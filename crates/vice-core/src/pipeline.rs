@@ -13,7 +13,7 @@ use vice_opt::{
 use crate::candidate::{
     materialize_candidate, CandidateCache, CandidateModelTransaction, CandidateRequest,
 };
-use crate::config::CoreConfig;
+use crate::config::{ConfidenceMetrics, CoreConfig};
 use crate::scene::{topology_arms, TopologyArm};
 use crate::types::{
     CalibrationRun, CalibrationWitness, CandidateRefusal, CandidateSummary, DecisionStatus,
@@ -24,6 +24,7 @@ use crate::types::{
 use crate::VectorizeRequest;
 
 const TRANSACTION_DIVERSITY_SEED_CLASSES: usize = 2;
+const SINGLE_DELIVERY_CLASS_MARGIN_BITS_V1: f64 = 1024.0;
 
 #[derive(Debug, Default)]
 struct ReportParts {
@@ -32,6 +33,7 @@ struct ReportParts {
     fits: Vec<vice_fit::ModelRun>,
     beam: Option<vice_opt::BudgetLedger>,
     search_mass: Option<vice_opt::SearchMassCertificate>,
+    confidence_metrics: Option<ConfidenceMetrics>,
     candidates: Vec<CandidateSummary>,
     candidate_refusals: Vec<CandidateRefusal>,
     transaction_inventory: Option<TransactionInventory>,
@@ -71,6 +73,7 @@ fn make_report(
         fits: parts.fits,
         beam: parts.beam,
         search_mass: parts.search_mass,
+        confidence_metrics: parts.confidence_metrics,
         runtime: RuntimeSummary {
             elapsed_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
             candidates_scored: parts.candidates.len() as u64,
@@ -1402,8 +1405,43 @@ fn vectorize_impl(
         .expect("posterior delivery is formed from candidates");
     parts.selected_hypothesis_id = Some(candidates[selected_index].score.hypothesis_id.clone());
     parts.search_mass = Some(search_mass.clone());
+    let selected = &candidates[selected_index];
+    let top2_class_margin_bits =
+        search_mass
+            .delivery
+            .get(1)
+            .map_or(SINGLE_DELIVERY_CLASS_MARGIN_BITS_V1, |runner_up| {
+                if runner_up.explored_mass > 0.0 {
+                    (best_delivery.explored_mass / runner_up.explored_mass)
+                        .log2()
+                        .clamp(0.0, SINGLE_DELIVERY_CLASS_MARGIN_BITS_V1)
+                } else {
+                    SINGLE_DELIVERY_CLASS_MARGIN_BITS_V1
+                }
+            });
+    let diagnostics = &selected.summary.score.diagnostics;
+    let predictive_bits_per_block = if diagnostics.blocks == 0 {
+        f64::MAX
+    } else {
+        selected.summary.score.pixel_bits / diagnostics.blocks as f64
+    };
+    let max_abs_residual_lag1 = diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs());
+    let confidence_metrics = ConfidenceMetrics {
+        top2_class_margin_bits,
+        posterior_predictive_bits_per_block: if predictive_bits_per_block.is_finite() {
+            predictive_bits_per_block
+        } else {
+            f64::MAX
+        },
+        max_abs_residual_lag1: if max_abs_residual_lag1.is_finite() {
+            max_abs_residual_lag1
+        } else {
+            f64::MAX
+        },
+    };
+    parts.confidence_metrics = Some(confidence_metrics);
     if let Some(observer) = calibration_observer.as_mut() {
-        observer(&candidates[selected_index]);
+        observer(selected);
     }
     if !production {
         return refuse(
@@ -1434,7 +1472,8 @@ fn vectorize_impl(
             started,
         );
     };
-    if let Err(detail) = calibration.permits(&config.identity(), &best_delivery) {
+    if let Err(detail) = calibration.permits(&config.identity(), &best_delivery, confidence_metrics)
+    {
         return refuse(
             DecisionStatus::Ambiguous,
             FailureReason::Confidence {
@@ -1449,7 +1488,6 @@ fn vectorize_impl(
         );
     }
 
-    let selected = &candidates[selected_index];
     let trace_json = if request.trace || request.dump_candidates > 0 {
         #[derive(Serialize)]
         struct Trace<'a> {

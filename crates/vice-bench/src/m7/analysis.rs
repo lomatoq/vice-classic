@@ -16,12 +16,15 @@ use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v1";
+    "vice-classic/m7-confidence-calibration-analysis/v2";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
 pub const PROPOSED_MAX_PALETTE_CODE_DELTA: u8 = 4;
 pub const PROPOSED_MAX_QUALITY_P95_MS: u64 = 10_000;
+pub const PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS: f64 = 0.0;
+pub const PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK: f64 = 0.10;
+pub const PROPOSED_MAX_ABS_RESIDUAL_LAG1: f64 = 0.90;
 pub const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -49,7 +52,8 @@ pub struct CalibrationAnalysis {
     pub target_rows: u64,
     pub empirical_unexplored_relative_mass_upper_bound: f64,
     pub quality_runtime_p95_ms: u64,
-    pub quality_runtime_met: bool,
+    pub quality_runtime_isolated: bool,
+    pub quality_runtime_met: Option<bool>,
     pub threshold_evaluations: Vec<ThresholdEvaluation>,
     pub selected_threshold: Option<f64>,
     pub calibration: Option<vice_core::ConfidenceCalibration>,
@@ -120,6 +124,7 @@ pub fn analyze_calibration(
             .iter()
             .map(|row| {
                 let accepted = row.candidate_available
+                    && diagnostics_permit(row)
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold);
                 Ok(RenderOutcome {
@@ -145,6 +150,7 @@ pub fn analyze_calibration(
             .iter()
             .filter(|row| {
                 row.candidate_available
+                    && diagnostics_permit(row)
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
@@ -180,7 +186,9 @@ pub fn analyze_calibration(
             .collect::<Vec<_>>(),
         0.95,
     );
-    let quality_runtime_met = quality_runtime_p95_ms <= PROPOSED_MAX_QUALITY_P95_MS;
+    let quality_runtime_isolated = report.max_workers_per_shard == 1 && report.shard_count == 1;
+    let quality_runtime_met =
+        quality_runtime_isolated.then_some(quality_runtime_p95_ms <= PROPOSED_MAX_QUALITY_P95_MS);
     let audit_untouched = audit.status == SealStatus::Sealed;
     let measurement_sha256 = calibration_measurement_digest(report);
     let calibration = selected.map(|evaluation| vice_core::ConfidenceCalibration {
@@ -197,6 +205,10 @@ pub fn analyze_calibration(
         accepted_source_groups: evaluation.reliability.groups_accepted,
         catastrophic_source_groups: evaluation.reliability.groups_catastrophic,
         posterior_lower_bound_threshold: evaluation.posterior_lower_bound_threshold,
+        minimum_top2_class_margin_bits: PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS,
+        maximum_posterior_predictive_bits_per_block:
+            PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK,
+        maximum_abs_residual_lag1: PROPOSED_MAX_ABS_RESIDUAL_LAG1,
         empirical_unexplored_relative_mass_upper_bound: Some(empirical_upper),
         buckets: vec![vice_core::CalibrationBucket {
             name: TARGET_BUCKET.into(),
@@ -213,7 +225,7 @@ pub fn analyze_calibration(
                 .into(),
         );
     }
-    if !quality_runtime_met {
+    if quality_runtime_met == Some(false) {
         refusals.push(format!(
             "Quality runtime p95 {quality_runtime_p95_ms} ms exceeds \
              {PROPOSED_MAX_QUALITY_P95_MS} ms"
@@ -240,6 +252,7 @@ pub fn analyze_calibration(
         target_rows: target_rows.len().try_into().unwrap_or(u64::MAX),
         empirical_unexplored_relative_mass_upper_bound: empirical_upper,
         quality_runtime_p95_ms,
+        quality_runtime_isolated,
         quality_runtime_met,
         threshold_evaluations,
         selected_threshold,
@@ -289,6 +302,21 @@ fn effective_lower_bound(row: &MeasurementRow, empirical_upper: f64) -> Option<f
     let denominator = explored + empirical_upper;
     (selected.is_finite() && selected >= 0.0 && denominator.is_finite() && denominator > 0.0)
         .then_some(selected / denominator)
+}
+
+fn diagnostics_permit(row: &MeasurementRow) -> bool {
+    let margin = if row.delivery_classes == Some(1) {
+        1024.0
+    } else {
+        row.top2_class_margin_bits.unwrap_or(f64::NEG_INFINITY)
+    };
+    margin >= PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS
+        && row
+            .serialized_pixel_bits_per_block
+            .is_some_and(|bits| bits <= PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK)
+        && row
+            .max_abs_lag1
+            .is_some_and(|lag| lag <= PROPOSED_MAX_ABS_RESIDUAL_LAG1)
 }
 
 fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
@@ -374,8 +402,8 @@ mod tests {
         }
     }
 
-    fn report(catastrophic: bool) -> MeasurementReport {
-        let rows = (0..459)
+    fn report_with_groups(group_count: usize, catastrophic: bool) -> MeasurementReport {
+        let rows = (0..group_count)
             .map(|index| row(index, catastrophic && index == 0))
             .collect::<Vec<_>>();
         MeasurementReport {
@@ -408,12 +436,18 @@ mod tests {
         }
     }
 
+    fn report(catastrophic: bool) -> MeasurementReport {
+        report_with_groups(459, catastrophic)
+    }
+
     #[test]
     fn zero_failure_459_group_population_mints_a_core_valid_calibration() {
         let report = report(false);
         let analysis =
             analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
         assert!(analysis.gate_met);
+        assert!(!analysis.quality_runtime_isolated);
+        assert_eq!(analysis.quality_runtime_met, None);
         let calibration = analysis.calibration.expect("calibration");
         assert_eq!(calibration.accepted_source_groups, 459);
         assert_eq!(calibration.catastrophic_source_groups, 0);
@@ -426,5 +460,17 @@ mod tests {
             analyze_calibration(&report(true), &AuditSeal::sealed(1)).expect("analysis succeeds");
         assert!(!analysis.gate_met);
         assert!(analysis.calibration.is_none());
+    }
+
+    #[test]
+    fn predictive_mismatch_abstains_before_reliability_is_minted() {
+        let mut report = report_with_groups(460, true);
+        report.rows[0].serialized_pixel_bits_per_block = Some(0.11);
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(analysis.gate_met);
+        let calibration = analysis.calibration.expect("calibration");
+        assert_eq!(calibration.accepted_source_groups, 459);
+        assert_eq!(calibration.catastrophic_source_groups, 0);
     }
 }
