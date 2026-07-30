@@ -241,7 +241,7 @@ impl CoreConfig {
                 max_backtracks: 8,
                 full_check_every_accepted_blocks: 1,
             },
-            k_discrete_paths: 64,
+            k_discrete_paths: vice_fit::K_DISCRETE_PATHS,
             export_decimal_places: 12,
             apron_width_px: 0.01,
             exact_prior: IntentPriorPolicy {
