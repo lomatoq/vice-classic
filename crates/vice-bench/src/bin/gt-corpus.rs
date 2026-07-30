@@ -35,6 +35,9 @@ mod dcel_cmd;
 #[path = "gt-corpus/geometry_cmd.rs"]
 mod geometry_cmd;
 
+#[path = "gt-corpus/m7_cmd.rs"]
+mod m7_cmd;
+
 #[derive(Parser)]
 #[command(
     name = "gt-corpus",
@@ -287,6 +290,41 @@ enum Cmd {
         audit_seal: PathBuf,
         #[arg(long)]
         out: PathBuf,
+    },
+    /// Deliberately open the untouched sealed-audit generation and bind the
+    /// act to the current corpus, preregistration, and frozen gates.
+    M7AuditOpen {
+        #[arg(long)]
+        audit_seal: PathBuf,
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long)]
+        gates: PathBuf,
+        /// Must name the immutable release-candidate commit.
+        #[arg(long)]
+        note: String,
+    },
+    /// Measure the already-opened M7 sealed audit with the digest-pinned
+    /// Quality production configuration.
+    M7AuditMeasure {
+        #[arg(long)]
+        audit_seal: PathBuf,
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long)]
+        gates: PathBuf,
+        #[arg(long)]
+        production_config: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, default_value_t = 1)]
+        workers: usize,
+        #[arg(long, default_value_t = 0)]
+        shard_index: u32,
+        #[arg(long, default_value_t = 1)]
+        shard_count: u32,
+        #[arg(long)]
+        resume: bool,
     },
     /// Enforce §27.7: an EXISTING gate file and production code may not
     /// change together. Pass `git diff --name-status` lines (status letter
@@ -889,6 +927,67 @@ fn real_main() -> i32 {
                 1
             }
         }
+        Cmd::M7AuditOpen {
+            audit_seal,
+            manifest,
+            gates,
+            note,
+        } => match m7_cmd::open(&audit_seal, &manifest, &gates, &note) {
+            Ok(seal) => {
+                println!(
+                    "M7 sealed audit generation {} opened and hash-bound: {}",
+                    seal.generation,
+                    audit_seal.display()
+                );
+                0
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
+        Cmd::M7AuditMeasure {
+            audit_seal,
+            manifest,
+            gates,
+            production_config,
+            out,
+            workers,
+            shard_index,
+            shard_count,
+            resume,
+        } => match m7_cmd::measure(
+            &audit_seal,
+            &manifest,
+            &gates,
+            &production_config,
+            &out,
+            workers,
+            shard_index,
+            shard_count,
+            resume,
+        ) {
+            Ok(report) => {
+                println!(
+                    "M7 sealed audit shards {:?}/{}: {}/{} renders, {} production successes",
+                    report.included_shards,
+                    report.shard_count,
+                    report.renders,
+                    report.expected_renders_included_shards,
+                    report
+                        .rows
+                        .iter()
+                        .filter(|row| row.production_accepted)
+                        .count()
+                );
+                println!("M7 sealed-audit measurement: {}", out.display());
+                0
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {
                 Ok(v) => v,

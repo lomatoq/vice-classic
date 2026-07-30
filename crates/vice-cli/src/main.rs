@@ -102,6 +102,10 @@ enum Cmd {
         /// New or empty output directory.
         #[arg(long)]
         out: PathBuf,
+        /// Digest-pinned release configuration. When omitted, the canonical
+        /// repository config for the selected preset is used.
+        #[arg(long)]
+        production_config: Option<PathBuf>,
         #[arg(long)]
         trace: bool,
         #[arg(long, default_value_t = 0)]
@@ -326,6 +330,7 @@ fn run() -> i32 {
             intent,
             preset,
             out,
+            production_config,
             trace,
             dump_candidates,
             strict,
@@ -369,8 +374,12 @@ fn run() -> i32 {
                 milestone_debug,
                 oracle_override,
             };
-            let config = vice_core::CoreConfig::development_for(request.preset);
-            let outcome = vice_core::vectorize_with_config(&bytes, &request, &config);
+            let production_config = production_config.unwrap_or_else(|| match request.preset {
+                vice_core::Preset::Fast => PathBuf::from("configs/M7_PRODUCTION_FAST.json"),
+                vice_core::Preset::Quality => PathBuf::from("configs/M7_PRODUCTION_QUALITY.json"),
+            });
+            let outcome =
+                vice_core::vectorize_with_production_config(&bytes, &request, &production_config);
             let write_result = match &outcome {
                 vice_core::VectorizeOutcome::Success(success) => {
                     let artifacts = &success.artifacts;

@@ -318,10 +318,13 @@ struct ConfigIdentity<'a> {
     implementation: &'a str,
 }
 
-/// Release binding updated only after the canonical M7 production
-/// configuration is measured. The all-zero value deliberately makes every
-/// pre-freeze file fail closed.
-pub const M7_PRODUCTION_CONFIG_SHA256: &str =
+/// Release bindings updated only after the canonical M7 production
+/// configurations are measured. The all-zero values deliberately make every
+/// pre-freeze file fail closed. Fast and Quality have different search
+/// envelopes and therefore different config identities and calibrations.
+pub const M7_FAST_PRODUCTION_CONFIG_SHA256: &str =
+    "0000000000000000000000000000000000000000000000000000000000000000";
+pub const M7_QUALITY_PRODUCTION_CONFIG_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 
 #[derive(Debug, Deserialize)]
@@ -380,7 +383,11 @@ impl CoreConfig {
     /// identities are recomputed before the private production bit is set.
     pub fn load_production_for(preset: Preset, path: &Path) -> Result<Self, ProductionConfigError> {
         let bytes = std::fs::read(path)?;
-        Self::production_from_bytes(preset, &bytes, M7_PRODUCTION_CONFIG_SHA256)
+        let expected_digest = match preset {
+            Preset::Fast => M7_FAST_PRODUCTION_CONFIG_SHA256,
+            Preset::Quality => M7_QUALITY_PRODUCTION_CONFIG_SHA256,
+        };
+        Self::production_from_bytes(preset, &bytes, expected_digest)
     }
 
     fn production_from_bytes(

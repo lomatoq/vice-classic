@@ -140,6 +140,38 @@ fn vectorize_failure_writes_only_the_typed_report_and_no_svg() {
 }
 
 #[test]
+fn vectorize_never_falls_back_when_the_production_config_is_untrusted() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("result");
+    let missing = dir.path().join("missing-production-config.json");
+    let run = vicec()
+        .arg("vectorize")
+        .arg(repo_root().join("tests/fixtures/smoke/circle_64.png"))
+        .args(["--mode", "flat2", "--preset", "fast"])
+        .arg("--production-config")
+        .arg(&missing)
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(run.status.code(), Some(2));
+    let files: Vec<_> = std::fs::read_dir(&output)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect();
+    assert_eq!(files, [std::ffi::OsString::from("result.report.json")]);
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.join("result.report.json")).unwrap()).unwrap();
+    assert_eq!(report["status"], "failed");
+    assert_eq!(report["production"], false);
+    assert_eq!(report["reason"]["reason"], "internal");
+    assert!(report["reason"]["detail"]
+        .as_str()
+        .unwrap()
+        .contains("production configuration refused"));
+}
+
+#[test]
 fn vectorize_refuses_to_mix_a_new_verdict_with_stale_output() {
     let dir = tempfile::tempdir().unwrap();
     let output = dir.path().join("result");

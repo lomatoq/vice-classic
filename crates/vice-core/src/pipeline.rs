@@ -727,6 +727,42 @@ pub fn vectorize_with_config(
     vectorize_impl(bytes, request, config, None)
 }
 
+/// Load a digest-pinned production configuration and execute the production
+/// path. A missing, tampered, stale, or pre-freeze configuration becomes a
+/// typed `failed` report; it never falls back to development thresholds.
+pub fn vectorize_with_production_config(
+    bytes: &[u8],
+    request: &VectorizeRequest,
+    path: &std::path::Path,
+) -> VectorizeOutcome {
+    match CoreConfig::load_production_for(request.preset, path) {
+        Ok(config) => vectorize_impl(bytes, request, &config, None),
+        Err(error) => {
+            let config = CoreConfig::development_for(request.preset);
+            // Decode failures are faults in the input, independent of release
+            // configuration availability. Preserve that typed outcome while
+            // still making every decodable input fail closed on the config.
+            if vice_image::CanonicalImage::decode_png(bytes, &vice_image::DecodeLimits::default())
+                .is_err()
+            {
+                return vectorize_impl(bytes, request, &config, None);
+            }
+            refuse(
+                DecisionStatus::Failed,
+                FailureReason::Internal {
+                    detail: format!("production configuration refused: {error}"),
+                },
+                request,
+                &config,
+                digest(bytes),
+                false,
+                ReportParts::default(),
+                Instant::now(),
+            )
+        }
+    }
+}
+
 /// Run the exact production candidate path but retain the selected canonical
 /// witness for the held-out GT court. The outcome remains non-success under
 /// a development config; this API cannot set the private production seal.

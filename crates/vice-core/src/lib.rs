@@ -17,9 +17,11 @@ mod types;
 pub use config::{
     CalibrationBucket, ConfidenceCalibration, ConfidenceMetrics, CoreConfig, Intent,
     IntentPriorPolicy, PerturbationStability, Preset, ProductionConfigError, VectorizeRequest,
-    M7_PRODUCTION_CONFIG_SHA256,
+    M7_FAST_PRODUCTION_CONFIG_SHA256, M7_QUALITY_PRODUCTION_CONFIG_SHA256,
 };
-pub use pipeline::{vectorize, vectorize_for_calibration, vectorize_with_config};
+pub use pipeline::{
+    vectorize, vectorize_for_calibration, vectorize_with_config, vectorize_with_production_config,
+};
 pub use types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal, DecisionStatus,
     FailureReason, SuccessArtifacts, TopologyArmRefusal, TopologyArmTrace, TopologyEnvelopeTrace,

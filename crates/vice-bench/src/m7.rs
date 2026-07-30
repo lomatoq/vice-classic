@@ -32,7 +32,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v6";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v7";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
@@ -134,6 +134,9 @@ pub struct MeasurementRow {
     pub core_runtime_ms: u64,
     pub court_runtime_ms: u64,
     pub row_elapsed_ms: u64,
+    pub decision_status: String,
+    pub production_provenance: bool,
+    pub production_accepted: bool,
     pub candidate_available: bool,
     pub selected_hypothesis_id: Option<String>,
     pub search_truncated: Option<bool>,
@@ -275,11 +278,29 @@ enum MeasurementJournalRecord {
 }
 
 pub fn measure(request: MeasurementRequest) -> Result<MeasurementReport, String> {
-    measure_resuming(request, Vec::new(), 0, 0, 0, |_| Ok(()))
+    let config = CoreConfig::development_for(preset_for_scope(request.scope));
+    measure_with_config(request, &config)
+}
+
+pub fn measure_with_config(
+    request: MeasurementRequest,
+    config: &CoreConfig,
+) -> Result<MeasurementReport, String> {
+    measure_resuming(request, config, Vec::new(), 0, 0, 0, |_| Ok(()))
 }
 
 pub fn measure_to_path(
     request: MeasurementRequest,
+    out: &Path,
+    resume: bool,
+) -> Result<MeasurementReport, String> {
+    let config = CoreConfig::development_for(preset_for_scope(request.scope));
+    measure_to_path_with_config(request, &config, out, resume)
+}
+
+pub fn measure_to_path_with_config(
+    request: MeasurementRequest,
+    config: &CoreConfig,
     out: &Path,
     resume: bool,
 ) -> Result<MeasurementReport, String> {
@@ -292,7 +313,7 @@ pub fn measure_to_path(
         ));
     }
 
-    let expected_header = journal_header(request)?;
+    let expected_header = journal_header(request, config)?;
     let mut rows = Vec::new();
     let mut previous_elapsed_ms = 0;
     let mut previous_runs = 0;
@@ -337,6 +358,7 @@ pub fn measure_to_path(
     }
     let report = measure_resuming(
         request,
+        config,
         rows,
         previous_elapsed_ms,
         previous_runs,
@@ -359,6 +381,7 @@ pub fn measure_to_path(
 
 fn measure_resuming(
     request: MeasurementRequest,
+    config: &CoreConfig,
     resume_rows: Vec<MeasurementRow>,
     previous_elapsed_ms: u64,
     previous_runs: u32,
@@ -368,6 +391,13 @@ fn measure_resuming(
     let request = request.validate()?;
     let started = Instant::now();
     let scope = request.scope;
+    if (scope == MeasurementScope::SealedAudit) != config.is_sealed_production() {
+        return Err(
+            "sealed-audit measurement requires a digest-pinned production config, while \
+             development/calibration measurement requires an unsealed config"
+                .into(),
+        );
+    }
     let groups = all_groups_with_variants(scope.variants())?;
     let cells = scope
         .cells()
@@ -378,12 +408,7 @@ fn measure_resuming(
         return Err("M7 measurement selected no degradation cells".into());
     }
     let split = scope.split();
-    let preset = if scope == MeasurementScope::Smoke {
-        Preset::Fast
-    } else {
-        Preset::Quality
-    };
-    let config = CoreConfig::development_for(preset);
+    let preset = preset_for_scope(scope);
     let identity = config.identity();
     let mut jobs = Vec::new();
     let mut source_groups = BTreeSet::new();
@@ -454,7 +479,7 @@ fn measure_resuming(
                 let pending = &pending;
                 let groups = &groups;
                 let cells = &cells;
-                let config = &config;
+                let config = config;
                 threads.spawn(move || loop {
                     let index = next.fetch_add(1, Ordering::Relaxed);
                     let Some(job) = pending.get(index) else {
@@ -573,7 +598,18 @@ fn measurement_shard(group_id: &str, shard_count: u32) -> u32 {
         .rem_euclid(u64::from(shard_count)) as u32
 }
 
-fn journal_header(request: MeasurementRequest) -> Result<MeasurementJournalHeader, String> {
+fn preset_for_scope(scope: MeasurementScope) -> Preset {
+    if scope == MeasurementScope::Smoke {
+        Preset::Fast
+    } else {
+        Preset::Quality
+    }
+}
+
+fn journal_header(
+    request: MeasurementRequest,
+    config: &CoreConfig,
+) -> Result<MeasurementJournalHeader, String> {
     let cells = request
         .scope
         .cells()
@@ -583,11 +619,6 @@ fn journal_header(request: MeasurementRequest) -> Result<MeasurementJournalHeade
     if cells.is_empty() {
         return Err("M7 measurement selected no degradation cells".into());
     }
-    let preset = if request.scope == MeasurementScope::Smoke {
-        Preset::Fast
-    } else {
-        Preset::Quality
-    };
     let mut sizes = cells.iter().map(|cell| cell.size_px).collect::<Vec<_>>();
     sizes.sort_unstable();
     sizes.dedup();
@@ -604,7 +635,7 @@ fn journal_header(request: MeasurementRequest) -> Result<MeasurementJournalHeade
         procedural_variants_per_family: request.scope.variants(),
         mandatory_sizes_px: sizes,
         rasterizers,
-        identity: CoreConfig::development_for(preset).identity(),
+        identity: config.identity(),
         shard_index: request.shard_index,
         shard_count: request.shard_count,
     })
@@ -811,7 +842,7 @@ fn measure_one(
     };
     let request = VectorizeRequest {
         preset,
-        production: false,
+        production: config.is_sealed_production(),
         ..VectorizeRequest::default()
     };
     let run = vice_core::vectorize_for_calibration(&png, &request, config);
@@ -827,6 +858,9 @@ fn measure_one(
         core_runtime_ms: report.runtime.elapsed_ms,
         court_runtime_ms: 0,
         row_elapsed_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
+        decision_status: format!("{:?}", report.status).to_lowercase(),
+        production_provenance: report.production,
+        production_accepted: matches!(&run.outcome, vice_core::VectorizeOutcome::Success(_)),
         candidate_available: false,
         selected_hypothesis_id: report.selected_hypothesis_id.clone(),
         search_truncated: report.search_mass.as_ref().map(|search| search.truncated),
@@ -1040,6 +1074,9 @@ fn refusal_row(
         core_runtime_ms: 0,
         court_runtime_ms: 0,
         row_elapsed_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
+        decision_status: "measurement_refused".into(),
+        production_provenance: false,
+        production_accepted: false,
         candidate_available: false,
         selected_hypothesis_id: None,
         search_truncated: None,
@@ -1388,6 +1425,9 @@ mod tests {
             core_runtime_ms: 1,
             court_runtime_ms: 1,
             row_elapsed_ms: 2,
+            decision_status: "measurement_refused".into(),
+            production_provenance: false,
+            production_accepted: false,
             candidate_available: false,
             selected_hypothesis_id: None,
             search_truncated: None,
