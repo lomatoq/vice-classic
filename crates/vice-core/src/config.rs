@@ -449,7 +449,12 @@ impl CoreConfig {
     pub fn development_for(preset: Preset) -> Self {
         let mut config = Self::development();
         if preset == Preset::Fast {
-            config.k_discrete_paths = 1;
+            // Fast remains bounded, but one grammar path was not a usable
+            // selective-recovery lane: calibration showed that it left 234
+            // otherwise supported chains at the binding certificate. Four
+            // paths is still half the Quality floor and preserves a finite,
+            // declared search envelope.
+            config.k_discrete_paths = 4;
             config.beam.width = 4;
             config.beam.min_topology_classes = 1;
             config.beam.min_formation_classes = 1;
@@ -501,7 +506,11 @@ impl CoreConfig {
                 contraction: 0.5,
                 finite_difference_step: 1.0 / 65_535.0,
                 min_bits_improvement: 1e-9,
-                max_rounds: 2,
+                // Two rounds only made one coarse geometry move followed by
+                // paint. Four bounded rounds let the exact serialized
+                // objective refine that move instead of publishing its first
+                // finite-difference step.
+                max_rounds: 4,
                 max_backtracks: 4,
                 full_check_every_accepted_blocks: 1,
             },
@@ -510,7 +519,11 @@ impl CoreConfig {
             // rescue before confidence is judged.
             geometry_refinement_trigger_bits_per_block: 0.1,
             small_geometry_refinement_trigger_bits_per_block: 0.01,
-            k_discrete_paths: vice_fit::K_DISCRETE_PATHS,
+            // M7 calibration needs a wider final-certification court than the
+            // M6 eight-path gate. The fitter still retains at most two fully
+            // certified models per physical chain and reports every omitted
+            // path as search truncation.
+            k_discrete_paths: 2 * vice_fit::K_DISCRETE_PATHS,
             export_decimal_places: 12,
             apron_width_px: 0.01,
             exact_prior: IntentPriorPolicy {
@@ -578,7 +591,7 @@ impl CoreConfig {
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            implementation: "vice-core/m7/v7",
+            implementation: "vice-core/m7/v9",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),
@@ -722,5 +735,17 @@ mod tests {
         };
         assert_eq!(config.identity(), posterior);
         assert_ne!(config.delivery_policy_sha256(), delivery);
+    }
+
+    #[test]
+    fn m7_presets_keep_the_declared_bounded_recovery_depths() {
+        let quality = CoreConfig::development_for(Preset::Quality);
+        let fast = CoreConfig::development_for(Preset::Fast);
+
+        assert_eq!(quality.k_discrete_paths, 2 * vice_fit::K_DISCRETE_PATHS);
+        assert_eq!(fast.k_discrete_paths, 4);
+        assert_eq!(quality.trust_region.max_rounds, 4);
+        assert_eq!(fast.trust_region.max_rounds, 2);
+        assert!(fast.k_discrete_paths < quality.k_discrete_paths);
     }
 }

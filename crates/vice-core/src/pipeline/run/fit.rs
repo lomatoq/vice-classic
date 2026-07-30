@@ -14,14 +14,15 @@ pub(super) fn fit_chain(
             vice_fit::DISCRETE_PROPOSAL_SAMPLE_CAP_V1,
         )
         .or_else(|primary| {
-            if config.k_discrete_paths == 1 {
-                // Preserve successful one-path Fast latency, then try one
-                // bounded four-path recovery after a certified primary miss.
+            if config.k_discrete_paths < 2 * vice_fit::K_DISCRETE_PATHS {
+                // A certified miss opens exactly one wider deterministic
+                // level. This is recovery inside the same finite grammar, not
+                // a fallback to a different fitter or representation.
                 vice_fit::k_best_boundary_models_bounded(
                     chain,
                     &vice_fit::FIT_BUDGET_V1,
                     canvas_dim_px,
-                    4,
+                    (2 * config.k_discrete_paths).min(2 * vice_fit::K_DISCRETE_PATHS),
                     vice_fit::DISCRETE_PROPOSAL_SAMPLE_CAP_V1,
                 )
             } else {

@@ -14,6 +14,11 @@ use super::{PaintLayout, SceneCandidate};
 use crate::config::CoreConfig;
 
 const DEPENDENCY_HALO_PX: u32 = 2;
+// Independent pre-seal and canonical pre-quantization tessellations of the
+// unchanged scene may differ by one certified fitter chord tolerance. Keep
+// that numerical envelope while still rejecting a material support regression.
+const SUPPORT_MONOTONICITY_TOLERANCE_PX: f64 =
+    vice_fit::BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1;
 // Large enough to lose every real comparison, small enough that the
 // trust-region gradient norm cannot overflow when an infeasible perturbation
 // is compared with a finite parent.
@@ -50,6 +55,7 @@ struct ContinuousProblem<'a> {
     background_paint_offset: Option<usize>,
     export_decimal_places: u32,
     apron_width_px: f64,
+    baseline_support_isotopy_displacement_px: f64,
     surrogate_cache: RefCell<BTreeMap<Vec<u64>, f64>>,
     exact_cache: RefCell<BTreeMap<Vec<u64>, f64>>,
     fixed_mesh_signatures: RefCell<BTreeMap<u64, Vec<usize>>>,
@@ -193,8 +199,16 @@ impl ContinuousProblem<'_> {
 
     fn presealed(&self, parameters: &[f64]) -> Result<vice_verify::PresealedScene, String> {
         let scene = self.materialize(parameters, true)?;
-        vice_verify::preseal_scene(&scene, self.bindings, self.verification)
-            .map_err(|error| error.to_string())
+        let presealed = vice_verify::preseal_scene(&scene, self.bindings, self.verification)
+            .map_err(|error| error.to_string())?;
+        if presealed.certificate().max_support_isotopy_displacement_px
+            > self.baseline_support_isotopy_displacement_px + SUPPORT_MONOTONICITY_TOLERANCE_PX
+        {
+            return Err(
+                "continuous geometry increased observed-support isotopy displacement".into(),
+            );
+        }
+        Ok(presealed)
     }
 
     fn presealed_on_fixed_mesh(
@@ -230,6 +244,16 @@ impl ContinuousProblem<'_> {
             self.quantization,
         )
         .map_err(|error| error.to_string())?;
+        if verified
+            .pre_quantization_certificate()
+            .max_support_isotopy_displacement_px
+            > self.baseline_support_isotopy_displacement_px + SUPPORT_MONOTONICITY_TOLERANCE_PX
+        {
+            return Err(
+                "serialized continuous geometry increased observed-support isotopy displacement"
+                    .into(),
+            );
+        }
         let scene = verified.scene();
         let plan =
             vice_svg::build_export_plan(scene, self.export_decimal_places, self.apron_width_px)
@@ -505,7 +529,11 @@ pub(crate) fn optimize_continuous(
         .filter(|binding| binding.observed_chain_sha256().is_some())
         .map(vice_verify::BoundaryBinding::isotopy_tube_px)
         .fold(f64::INFINITY, f64::min);
-    let max_translation_px = (minimum_tube * 0.25).clamp(0.05, 0.25);
+    // The verifier, not an arbitrary quarter-pixel box, owns the safe
+    // neighbourhood. Permit most of the already-certified tube while keeping
+    // a small guard for quantization and require support displacement to be
+    // monotone below.
+    let max_translation_px = (minimum_tube * 0.9).clamp(0.05, 1.0);
     let mut initial = Vec::new();
     let mut parameter_kinds = Vec::new();
     let mut geometry_groups = Vec::new();
@@ -606,6 +634,11 @@ pub(crate) fn optimize_continuous(
         } else {
             None
         };
+    let baseline_support_isotopy_displacement_px =
+        vice_verify::preseal_scene(&candidate.scene, &candidate.bindings, config.verification)
+            .map_err(|error| error.to_string())?
+            .certificate()
+            .max_support_isotopy_displacement_px;
     let problem = ContinuousProblem {
         scene: &candidate.scene,
         bindings: &candidate.bindings,
@@ -621,6 +654,7 @@ pub(crate) fn optimize_continuous(
         background_paint_offset,
         export_decimal_places: config.export_decimal_places,
         apron_width_px: config.apron_width_px,
+        baseline_support_isotopy_displacement_px,
         surrogate_cache: RefCell::new(BTreeMap::new()),
         exact_cache: RefCell::new(BTreeMap::new()),
         fixed_mesh_signatures: RefCell::new(BTreeMap::new()),
@@ -654,13 +688,7 @@ pub(crate) fn optimize_continuous(
     if !geometry_active {
         blocks.retain(|block| !block.name.starts_with("geometry_"));
     }
-    let mut trust_region = config.trust_region;
-    if geometry_active {
-        // One alternating geometry/paint pass is the bounded M7 rescue. The
-        // calibrated trigger keeps this expensive path out of the p95 body.
-        trust_region.max_rounds = 1;
-    }
-    let result = optimize_best_deterministic(&problem, vec![initial], &blocks, trust_region)
+    let result = optimize_best_deterministic(&problem, vec![initial], &blocks, config.trust_region)
         .map_err(|error| error.to_string())?;
     let geometry_scene = problem.materialize(&result.parameters, false)?;
     let final_scene = problem.materialize(&result.parameters, true)?;
