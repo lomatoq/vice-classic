@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v9";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v10";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -77,6 +77,7 @@ pub enum CandidateFailureStage {
     IndependentRender,
     SerializedLikelihood,
     DeliverySeal,
+    SupportMonotonicity,
     CanonicalArtifact,
 }
 

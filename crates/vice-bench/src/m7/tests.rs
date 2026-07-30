@@ -170,3 +170,41 @@ fn merge_is_complete_only_for_one_copy_of_every_shard() {
     assert_eq!(merged.renders, 2);
     assert!(merge_reports(vec![synthetic_report(0, 2), synthetic_report(0, 2)]).is_err());
 }
+
+#[test]
+fn quality_keeps_the_certified_primary_lane_on_the_annulus_tail_regression() {
+    const SHARDS: u32 = 4096;
+    let group = "proc/annulus/054";
+    let shard = measurement_shard(group, SHARDS);
+    let mut request = MeasurementRequest::new(MeasurementScope::Calibration);
+    request.preset = Preset::Quality;
+    request.size_filter = Some(128);
+    request.workers = 1;
+    request.shard_index = shard;
+    request.shard_count = SHARDS;
+
+    let report = measure(request).expect("targeted calibration measurement");
+    let row = report
+        .rows
+        .iter()
+        .find(|row| row.group_id == group)
+        .expect("the stable shard contains the regression group");
+    let boundary = row
+        .boundary
+        .as_ref()
+        .expect("the protected primary lane remains measurable");
+
+    assert!(row.candidate_available);
+    assert!(
+        row.selected_hypothesis_id
+            .as_deref()
+            .is_some_and(|id| id.contains("/t0/")),
+        "{:?}",
+        row.selected_hypothesis_id
+    );
+    assert!(
+        boundary.max_px <= M7_BOUNDARY_P99_GATE_PX,
+        "{}",
+        boundary.max_px
+    );
+}

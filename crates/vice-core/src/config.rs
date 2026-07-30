@@ -531,11 +531,13 @@ impl CoreConfig {
             // rescue before confidence is judged.
             geometry_refinement_trigger_bits_per_block: 0.1,
             small_geometry_refinement_trigger_bits_per_block: 0.01,
-            // M7 calibration needs a wider final-certification court than the
-            // M6 eight-path gate. The fitter still retains at most two fully
-            // certified models per physical chain and reports every omitted
-            // path as search truncation.
-            k_discrete_paths: 2 * vice_fit::K_DISCRETE_PATHS,
+            // Both presets protect the same bounded four-path primary lane.
+            // A certified miss opens one sixteen-path recovery inside the same
+            // finite grammar. Quality remains wider in topology/formation
+            // materialization, beam width, and continuous optimization; using
+            // k=16 before a miss displaced certified primary candidates and
+            // produced held-out renderer boundary regressions.
+            k_discrete_paths: 4,
             export_decimal_places: 12,
             apron_width_px: 0.01,
             exact_prior: IntentPriorPolicy {
@@ -751,14 +753,18 @@ mod tests {
     }
 
     #[test]
-    fn m7_presets_keep_the_declared_bounded_recovery_depths() {
+    fn m7_presets_share_the_protected_primary_lane_but_quality_keeps_the_wider_court() {
         let quality = CoreConfig::development_for(Preset::Quality);
         let fast = CoreConfig::development_for(Preset::Fast);
 
-        assert_eq!(quality.k_discrete_paths, 2 * vice_fit::K_DISCRETE_PATHS);
+        assert_eq!(quality.k_discrete_paths, 4);
         assert_eq!(fast.k_discrete_paths, 4);
         assert_eq!(quality.trust_region.max_rounds, 4);
         assert_eq!(fast.trust_region.max_rounds, 2);
-        assert!(fast.k_discrete_paths < quality.k_discrete_paths);
+        assert!(quality.beam.width > fast.beam.width);
+        assert!(
+            quality.beam.budget.max_candidates_considered
+                > fast.beam.budget.max_candidates_considered
+        );
     }
 }

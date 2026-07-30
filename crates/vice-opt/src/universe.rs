@@ -464,7 +464,7 @@ impl SupportedModelUniverseV1 {
         ];
         universe.search = SearchUniverse {
             truncation_rules: vec![
-                "dense chains propose Quality k=16 or Fast k=4 paths at deterministic 32/64/96/128-sample levels; a certified Fast miss opens one bounded k=16 recovery, search stops after the first level with a certified model, attempts at most 3 paths per level, and retains at most 2 certified models per physical chain; every skipped level/path is reported as unexplored mass",
+                "dense chains protect the same k=4 primary path court for Fast and Quality at deterministic 32/64/96/128-sample levels; a certified miss opens one bounded k=16 recovery, search stops after the first level with a certified model, attempts at most 3 paths per level, and retains at most 2 certified models per physical chain; Quality remains wider in topology/formation materialization, beam width, and continuous optimization, and every skipped level/path is reported as unexplored mass",
                 "proposal-path Jacobians use at most 64 mandatory-breakpoint-preserving samples and final continuous refits use at most 128; every retained model is physically recoded, Stage-H compared, binding-isotopy checked, and certified in both corridor directions on all observations",
                 "Stage-H relation Jacobians use at most 16 mandatory-breakpoint-preserving samples while relation residual code and both corridor checks use all observations",
                 "observed binding tubes include the maximum evidence halfwidth, half a physical sample interval, the frozen 1/64 px verifier tessellation certificate, and one 0.05 px fitter chord certificate; an optional Stage-H sibling outside that tube or more than one fitter chord certificate worse than its certified free sibling falls back to that free sibling",
@@ -474,6 +474,7 @@ impl SupportedModelUniverseV1 {
                 "M4.5 supplies a finite critical-connectivity envelope; arms pruned by the prefit budget are reported as unexplored",
                 "the deterministic diverse beam is capped by candidate, memory, and elapsed-time budgets (Quality 8500 ms, Fast 1000 ms) with topology and formation seed quotas",
                 "continuous scene optimization uses one deterministic evidence-solved start, relation-preserving geometry similarity blocks plus paint blocks, and quantized serialized exact acceptance; Quality uses at most 4 trust-region rounds with 4 backtracks per block and Fast uses at most 2 rounds with 4 backtracks; unreached materializations and optimizer alternatives remain explicit unexplored mass",
+                "after exact scoring, a topology or formation candidate whose observed-support isotopy displacement is more than one certified fitter chord worse than the best verified canonical-topology baseline receives a typed support-monotonicity refusal and cannot become a delivery",
                 "only hypotheses with equal canonical delivery bytes collapse into one posterior delivery-equivalence class",
                 "topology and geometry complexity caps bound every materialized scene",
                 "geometry outside the numeric domain is refused before scoring",

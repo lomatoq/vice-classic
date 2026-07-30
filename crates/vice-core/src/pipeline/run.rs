@@ -381,6 +381,43 @@ pub(super) fn vectorize_impl(
         .iter()
         .map(|candidate| candidate.estimated_memory_bytes)
         .sum();
+    let canonical_topology_arm = &fitted_arms[0].arm.class;
+    let baseline_support_displacement_px = candidates
+        .iter()
+        .filter(|candidate| &candidate.summary.topology_arm == canonical_topology_arm)
+        .map(|candidate| {
+            candidate
+                .summary
+                .pre_quantization
+                .max_support_isotopy_displacement_px
+        })
+        .min_by(f64::total_cmp);
+    if let Some(baseline) = baseline_support_displacement_px {
+        let maximum = baseline + vice_fit::BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1;
+        let mut support_refusals = Vec::new();
+        candidates.retain(|candidate| {
+            let displacement = candidate
+                .summary
+                .pre_quantization
+                .max_support_isotopy_displacement_px;
+            if displacement <= maximum {
+                true
+            } else {
+                support_refusals.push(CandidateRefusal {
+                    hypothesis_id: candidate.score.hypothesis_id.clone(),
+                    stage: CandidateFailureStage::SupportMonotonicity,
+                    detail: format!(
+                        "observed-support displacement {displacement}px exceeds the best verified \
+                         canonical-topology baseline {baseline}px plus one certified fitter chord \
+                         {}px",
+                        vice_fit::BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1
+                    ),
+                });
+                false
+            }
+        });
+        candidate_refusals.extend(support_refusals);
+    }
     parts.candidates = candidates
         .iter()
         .map(|candidate| candidate.summary.clone())

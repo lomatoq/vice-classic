@@ -16,10 +16,10 @@ use crate::candidate::{
 use crate::config::{ConfidenceMetrics, CoreConfig, PerturbationStability};
 use crate::scene::{topology_arms, TopologyArm};
 use crate::types::{
-    CalibrationRun, CalibrationWitness, CandidateRefusal, CandidateSummary, DecisionStatus,
-    FailureReason, RuntimeSummary, SuccessArtifacts, TopologyArmRefusal, TopologyEnvelopeTrace,
-    TransactionInventory, TransactionInventoryRow, VectorizeOutcome, VectorizeReport,
-    VectorizeSuccess, CORE_REPORT_SCHEMA,
+    CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal, CandidateSummary,
+    DecisionStatus, FailureReason, RuntimeSummary, SuccessArtifacts, TopologyArmRefusal,
+    TopologyEnvelopeTrace, TransactionInventory, TransactionInventoryRow, VectorizeOutcome,
+    VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 use crate::VectorizeRequest;
 
