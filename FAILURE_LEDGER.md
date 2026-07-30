@@ -4911,10 +4911,38 @@ be a production-observable certificate with honest posterior/search-mass
 accounting; ground-truth boundary error and corpus identity may not become a
 runtime rule.
 
-**Status.** Open M7 blocker. Raw evidence is
+**Status.** Production fix implemented and targeted validation green; the
+blocker remains open until the one final complete calibration confirms the
+population result. Quality report schema v11 now carries a same-source,
+same-intent `quality_admission_witness`. Its identity is the exact protected
+Fast configuration, that identity is itself bound into the Quality config
+identity, and a missing verified witness produces typed
+`boundary_outside_selective_core` before Quality can publish a calibration or
+production candidate. The rule has no ground-truth, corpus-id, or hidden
+override input.
+
+Two live former failures were remeasured through the production candidate
+path: `proc/annulus/001` at 256 px and `proc/annulus/045` at 128 px now both
+abstain with no candidate. A positive `proc/bezier_blob/022` row that shared
+the latter deterministic diagnostic shard retained its candidate, so the
+mechanism is not an unconditional Quality shutdown. All 12 `vice-core` tests
+and strict clippy for `vice-core`, `vice-opt`, and `vice-bench` pass. The
+earlier frozen paired-report simulation remains the population-level
+precheck: applying this exact Fast-candidate predicate removed 79 Quality rows
+and produced a green 1531-candidate calibration.
+
+An isolated optimized 512 px calibration-smoke measurement records Quality
+at 17.018 s and Fast at 8.104 s, above the provisional 10 s/1 s research
+targets. This is an honest diagnostic miss, not a correctness release
+refusal: the executable release policy explicitly marks runtime
+non-blocking while retaining bounded-growth and memory as hard gates. The
+Quality report accounts for the complete Fast-witness wall time and work.
+
+Original raw evidence is
 `runs/m7/v13-fa4494c-shards/{quality,fast}.json` with analyses beside it; the
 directory is intentionally ignored and must be reproduced from the named
-commit before a release claim. The untouched sealed audit has not been opened,
-no M7 review SHA exists, and no further full calibration should run until one
-general corroboration/abstention mechanism closes the 46-row class and an
-isolated runtime court is ready.
+commit before a release claim. Targeted v14 diagnostics are under the ignored
+`runs/m7/v14-fast-witness-targeted/` directory. The untouched sealed audit has
+not been opened and no M7 review SHA exists. The next permitted expensive
+step is one complete Fast/Quality calibration on the new identity; this
+paragraph must not be read as that final population proof.

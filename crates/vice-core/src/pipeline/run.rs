@@ -14,6 +14,7 @@ pub(super) fn vectorize_impl(
     request: &VectorizeRequest,
     config: &CoreConfig,
     mut calibration_observer: Option<&mut CalibrationObserver<'_>>,
+    quality_admission_witness: Option<QualityAdmissionWitness>,
 ) -> VectorizeOutcome {
     let input = match prepare_input(bytes, request, config) {
         Ok(input) => input,
@@ -28,6 +29,7 @@ pub(super) fn vectorize_impl(
         formations,
         mut parts,
     } = input;
+    parts.quality_admission_witness = quality_admission_witness;
     let topology = topology_arms(&evidence);
     let proposal = topology.proposal;
     let topology_classes_upper_bound = proposal

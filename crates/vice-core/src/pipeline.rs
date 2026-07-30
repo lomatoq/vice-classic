@@ -17,11 +17,11 @@ use crate::config::{ConfidenceMetrics, CoreConfig, PerturbationStability};
 use crate::scene::{topology_arms, TopologyArm};
 use crate::types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal, CandidateSummary,
-    DecisionStatus, FailureReason, RuntimeSummary, SuccessArtifacts, TopologyArmRefusal,
-    TopologyEnvelopeTrace, TransactionInventory, TransactionInventoryRow, VectorizeOutcome,
-    VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    DecisionStatus, FailureReason, QualityAdmissionWitness, RuntimeSummary, SuccessArtifacts,
+    TopologyArmRefusal, TopologyEnvelopeTrace, TransactionInventory, TransactionInventoryRow,
+    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
-use crate::VectorizeRequest;
+use crate::{Preset, VectorizeRequest};
 
 const TRANSACTION_DIVERSITY_SEED_CLASSES: usize = 2;
 const SINGLE_DELIVERY_CLASS_MARGIN_BITS_V1: f64 = 1024.0;
@@ -40,6 +40,7 @@ struct ReportParts {
     beam: Option<vice_opt::BudgetLedger>,
     search_mass: Option<vice_opt::SearchMassCertificate>,
     confidence_metrics: Option<ConfidenceMetrics>,
+    quality_admission_witness: Option<QualityAdmissionWitness>,
     candidates: Vec<CandidateSummary>,
     candidate_refusals: Vec<CandidateRefusal>,
     transaction_inventory: Option<TransactionInventory>,
@@ -83,6 +84,7 @@ fn make_report(
         beam: parts.beam,
         search_mass: parts.search_mass,
         confidence_metrics: parts.confidence_metrics,
+        quality_admission_witness: parts.quality_admission_witness,
         runtime: RuntimeSummary {
             elapsed_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
             candidates_scored: parts.candidates.len() as u64,
@@ -200,7 +202,7 @@ pub fn vectorize_with_config(
     request: &VectorizeRequest,
     config: &CoreConfig,
 ) -> VectorizeOutcome {
-    vectorize_impl(bytes, request, config, None)
+    vectorize_with_admission_witness(bytes, request, config, None)
 }
 
 /// Load a digest-pinned production configuration and execute the production
@@ -212,7 +214,7 @@ pub fn vectorize_with_production_config(
     path: &std::path::Path,
 ) -> VectorizeOutcome {
     match CoreConfig::load_production_for(request.preset, path) {
-        Ok(config) => vectorize_impl(bytes, request, &config, None),
+        Ok(config) => vectorize_with_admission_witness(bytes, request, &config, None),
         Err(error) => {
             let config = CoreConfig::development_for(request.preset);
             // Decode failures are faults in the input, independent of release
@@ -221,7 +223,7 @@ pub fn vectorize_with_production_config(
             if vice_image::CanonicalImage::decode_png(bytes, &vice_image::DecodeLimits::default())
                 .is_err()
             {
-                return vectorize_impl(bytes, request, &config, None);
+                return vectorize_impl(bytes, request, &config, None, None);
             }
             refuse(
                 DecisionStatus::Failed,
@@ -264,12 +266,175 @@ pub fn vectorize_for_calibration(
             selected = Some(witness(candidate));
             baseline = baseline_candidate.map(witness);
         };
-    let outcome = vectorize_impl(bytes, request, config, Some(&mut capture));
+    let outcome = vectorize_with_admission_witness(bytes, request, config, Some(&mut capture));
     CalibrationRun {
         outcome,
         selected,
         baseline,
     }
+}
+
+fn vectorize_with_admission_witness(
+    bytes: &[u8],
+    request: &VectorizeRequest,
+    config: &CoreConfig,
+    calibration_observer: Option<&mut CalibrationObserver<'_>>,
+) -> VectorizeOutcome {
+    if request.preset != config.preset() {
+        return refuse(
+            DecisionStatus::Failed,
+            FailureReason::Internal {
+                detail: format!(
+                    "request preset {:?} does not match supplied {:?} core configuration",
+                    request.preset,
+                    config.preset()
+                ),
+            },
+            request,
+            config,
+            digest(bytes),
+            false,
+            ReportParts::default(),
+            Instant::now(),
+        );
+    }
+    if request.preset != Preset::Quality || !config.requires_fast_admission_witness() {
+        return vectorize_impl(bytes, request, config, calibration_observer, None);
+    }
+
+    let started = Instant::now();
+    let mut witness_request = request.clone();
+    witness_request.preset = Preset::Fast;
+    let witness_config = CoreConfig::development_for(Preset::Fast);
+    let mut selected_witness = None;
+    let mut capture = |candidate: &crate::candidate::MaterializedCandidate,
+                       _: Option<&crate::candidate::MaterializedCandidate>| {
+        selected_witness = Some(candidate.summary.clone());
+    };
+    let witness_outcome = vectorize_impl(
+        bytes,
+        &witness_request,
+        &witness_config,
+        Some(&mut capture),
+        None,
+    );
+    let prefix_elapsed_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
+    let witness_report = witness_outcome.report();
+    let witness_runtime = witness_report.runtime.clone();
+    let source_sha256 = witness_report
+        .source_sha256
+        .clone()
+        .unwrap_or_else(|| digest(bytes));
+    let certificate = QualityAdmissionWitness {
+        schema: "vice-classic/m7-quality-fast-admission-witness/v1",
+        source_sha256: source_sha256.clone(),
+        intent: request.intent,
+        witness_preset: Preset::Fast,
+        witness_identity: witness_config.identity(),
+        decision_status: witness_report.status,
+        decision_reason: witness_report.reason.clone(),
+        candidate_available: selected_witness.is_some(),
+        selected_hypothesis_id: selected_witness
+            .as_ref()
+            .map(|candidate| candidate.hypothesis_id.clone()),
+        selected_scene_digest_sha256: selected_witness
+            .as_ref()
+            .map(|candidate| candidate.scene_digest_sha256.clone()),
+        selected_delivery_digest: selected_witness
+            .as_ref()
+            .map(|candidate| candidate.delivery_digest.clone()),
+        runtime: witness_runtime.clone(),
+    };
+
+    if selected_witness.is_none() {
+        let preserve_input_or_fault = matches!(
+            witness_report.reason,
+            Some(
+                FailureReason::Decode { .. }
+                    | FailureReason::Evidence { .. }
+                    | FailureReason::FormationOutsideUniverse { .. }
+                    | FailureReason::BoundaryOutsideSelectiveCore { .. }
+                    | FailureReason::Internal { .. }
+            )
+        );
+        let status = if preserve_input_or_fault {
+            witness_report.status
+        } else {
+            DecisionStatus::Ambiguous
+        };
+        let reason = if preserve_input_or_fault {
+            witness_report
+                .reason
+                .clone()
+                .unwrap_or_else(|| FailureReason::Internal {
+                    detail: "Fast admission witness stopped without a typed reason".into(),
+                })
+        } else {
+            FailureReason::BoundaryOutsideSelectiveCore {
+                detail: format!(
+                    "Quality delivery requires a verified protected Fast-lane witness on the \
+                     same source and intent; the witness lane returned {:?}: {}",
+                    witness_report.status,
+                    witness_report.reason.as_ref().map_or_else(
+                        || "no typed reason".to_string(),
+                        |reason| format!("{reason:?}")
+                    )
+                ),
+            }
+        };
+        let production = request.production
+            && config.is_sealed_production()
+            && !request.research_override
+            && request.milestone_debug.is_none()
+            && request.oracle_override.is_none()
+            && witness_report
+                .evidence
+                .as_ref()
+                .is_none_or(|evidence| evidence.production);
+        let parts = ReportParts {
+            evidence: witness_report.evidence.clone(),
+            quality_admission_witness: Some(certificate),
+            ..ReportParts::default()
+        };
+        return refuse(
+            status,
+            reason,
+            request,
+            config,
+            source_sha256,
+            production,
+            parts,
+            started,
+        );
+    }
+
+    let mut outcome = vectorize_impl(
+        bytes,
+        request,
+        config,
+        calibration_observer,
+        Some(certificate),
+    );
+    let report = match &mut outcome {
+        VectorizeOutcome::Success(success) => &mut success.report,
+        VectorizeOutcome::Ambiguous(report)
+        | VectorizeOutcome::Unsupported(report)
+        | VectorizeOutcome::Failed(report) => report,
+    };
+    report.runtime.elapsed_ms = report.runtime.elapsed_ms.saturating_add(prefix_elapsed_ms);
+    report.runtime.candidates_scored = report
+        .runtime
+        .candidates_scored
+        .saturating_add(witness_runtime.candidates_scored);
+    report.runtime.candidate_bytes = report
+        .runtime
+        .candidate_bytes
+        .max(witness_runtime.candidate_bytes);
+    if let VectorizeOutcome::Success(success) = &mut outcome {
+        success.artifacts.report_json =
+            serde_json::to_vec(&success.report).expect("report serializes");
+    }
+    outcome
 }
 
 mod run;

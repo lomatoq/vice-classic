@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v10";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v11";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -31,6 +31,28 @@ pub struct RuntimeSummary {
     pub elapsed_ms: u64,
     pub candidates_scored: u64,
     pub candidate_bytes: u64,
+}
+
+/// Production-observable admission certificate for the wider Quality lane.
+///
+/// Quality may refine a delivery only after the protected Fast lane has
+/// independently produced a verified candidate on the same source and
+/// request intent. The witness is not itself a delivery acceptance and does
+/// not import ground truth into the runtime rule.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct QualityAdmissionWitness {
+    pub schema: &'static str,
+    pub source_sha256: String,
+    pub intent: crate::Intent,
+    pub witness_preset: crate::Preset,
+    pub witness_identity: vice_opt::ModelIdentity,
+    pub decision_status: DecisionStatus,
+    pub decision_reason: Option<FailureReason>,
+    pub candidate_available: bool,
+    pub selected_hypothesis_id: Option<String>,
+    pub selected_scene_digest_sha256: Option<String>,
+    pub selected_delivery_digest: Option<String>,
+    pub runtime: RuntimeSummary,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -166,6 +188,7 @@ pub struct VectorizeReport {
     pub beam: Option<vice_opt::BudgetLedger>,
     pub search_mass: Option<vice_opt::SearchMassCertificate>,
     pub confidence_metrics: Option<crate::ConfidenceMetrics>,
+    pub quality_admission_witness: Option<QualityAdmissionWitness>,
     pub candidates: Vec<CandidateSummary>,
     pub candidate_refusals: Vec<CandidateRefusal>,
     pub transaction_inventory: Option<TransactionInventory>,

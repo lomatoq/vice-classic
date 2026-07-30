@@ -296,6 +296,7 @@ fn is_sha256(value: &str) -> bool {
 
 #[derive(Debug, Clone)]
 pub struct CoreConfig {
+    preset: Preset,
     pub likelihood: BlockLikelihoodConfig,
     pub verification: VerificationConfig,
     pub quantization: QuantizationPolicy,
@@ -313,6 +314,10 @@ pub struct CoreConfig {
     pub exact_prior: IntentPriorPolicy,
     pub clean_prior: IntentPriorPolicy,
     pub confidence: Option<ConfidenceCalibration>,
+    // Quality may refine only after the protected Fast lane supplies a
+    // verified same-input admission witness. Kept private so a caller cannot
+    // silently disable the calibrated selective-core rule.
+    quality_requires_fast_admission_witness: bool,
     // Only a verified repository-owned production loader may set this. A
     // caller cannot turn a development config into a production config by
     // attaching a lookalike calibration struct.
@@ -321,6 +326,7 @@ pub struct CoreConfig {
 
 #[derive(Serialize)]
 struct ConfigIdentity<'a> {
+    preset: Preset,
     likelihood: BlockLikelihoodConfig,
     max_g1_spread_rad: f64,
     curve_separation_margin_px: f64,
@@ -334,6 +340,7 @@ struct ConfigIdentity<'a> {
     apron_width_px: f64,
     exact_prior: IntentPriorPolicy,
     clean_prior: IntentPriorPolicy,
+    quality_fast_admission_witness: Option<vice_opt::ModelIdentity>,
     implementation: &'a str,
 }
 
@@ -462,6 +469,7 @@ impl CoreConfig {
     pub fn development_for(preset: Preset) -> Self {
         let mut config = Self::development();
         if preset == Preset::Fast {
+            config.preset = Preset::Fast;
             // Preserve the four-path successful Fast lane. A certified miss
             // jumps directly to the bounded sixteen-path recovery court; the
             // intermediate eight-path v5b retry cost time but recovered only
@@ -475,12 +483,14 @@ impl CoreConfig {
             config.trust_region.max_rounds = 2;
             config.trust_region.max_backtracks = 4;
             config.geometry_refinement_trigger_bits_per_block = 0.1;
+            config.quality_requires_fast_admission_witness = false;
         }
         config
     }
 
     pub fn development() -> Self {
         Self {
+            preset: Preset::Quality,
             likelihood: BlockLikelihoodConfig::new(2, 2.0, [25.57 / 255.0; 4], 4.0)
                 .expect("static likelihood"),
             verification: VerificationConfig {
@@ -549,12 +559,21 @@ impl CoreConfig {
                 constrained_promotion_extra_bits: 0.0,
             },
             confidence: None,
+            quality_requires_fast_admission_witness: true,
             sealed_production: false,
         }
     }
 
     pub fn is_sealed_production(&self) -> bool {
         self.sealed_production
+    }
+
+    pub(crate) fn preset(&self) -> Preset {
+        self.preset
+    }
+
+    pub(crate) fn requires_fast_admission_witness(&self) -> bool {
+        self.quality_requires_fast_admission_witness
     }
 
     /// Identity of the delivery acceptance policy. It is deliberately
@@ -589,7 +608,11 @@ impl CoreConfig {
             )
             .as_bytes(),
         ));
+        let quality_fast_admission_witness = self
+            .quality_requires_fast_admission_witness
+            .then(|| Self::development_for(Preset::Fast).identity());
         let identity = ConfigIdentity {
+            preset: self.preset,
             likelihood: self.likelihood,
             max_g1_spread_rad: self.verification.max_g1_spread_rad,
             curve_separation_margin_px: self.verification.curve_separation_margin_px,
@@ -605,7 +628,8 @@ impl CoreConfig {
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            implementation: "vice-core/m7/v12",
+            quality_fast_admission_witness,
+            implementation: "vice-core/m7/v13",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),
@@ -761,6 +785,8 @@ mod tests {
         assert_eq!(fast.k_discrete_paths, 4);
         assert_eq!(quality.trust_region.max_rounds, 4);
         assert_eq!(fast.trust_region.max_rounds, 2);
+        assert!(quality.requires_fast_admission_witness());
+        assert!(!fast.requires_fast_admission_witness());
         assert!(quality.beam.width > fast.beam.width);
         assert!(
             quality.beam.budget.max_candidates_considered

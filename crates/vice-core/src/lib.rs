@@ -24,13 +24,20 @@ pub use pipeline::{
 };
 pub use types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal, DecisionStatus,
-    FailureReason, SuccessArtifacts, TopologyArmRefusal, TopologyArmTrace, TopologyEnvelopeTrace,
-    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    FailureReason, QualityAdmissionWitness, SuccessArtifacts, TopologyArmRefusal, TopologyArmTrace,
+    TopologyEnvelopeTrace, VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fast_request() -> VectorizeRequest {
+        VectorizeRequest {
+            preset: Preset::Fast,
+            ..VectorizeRequest::default()
+        }
+    }
 
     fn square_png() -> Vec<u8> {
         let width = 32;
@@ -319,6 +326,16 @@ mod tests {
             outcome.report().reason,
             Some(FailureReason::Decode { .. })
         ));
+        let admission = outcome
+            .report()
+            .quality_admission_witness
+            .as_ref()
+            .expect("Quality reports its attempted protected Fast witness");
+        assert!(!admission.candidate_available);
+        assert_eq!(
+            admission.source_sha256,
+            outcome.report().source_sha256.as_deref().unwrap()
+        );
     }
 
     #[test]
@@ -330,6 +347,21 @@ mod tests {
         config.geometry_refinement_trigger_bits_per_block = f64::MIN_POSITIVE;
         config.small_geometry_refinement_trigger_bits_per_block = f64::MIN_POSITIVE;
         let run = vectorize_for_calibration(&square_png(), &VectorizeRequest::default(), &config);
+        let admission = run
+            .outcome
+            .report()
+            .quality_admission_witness
+            .as_ref()
+            .expect("Quality carries a production-observable Fast admission witness");
+        assert!(admission.candidate_available);
+        assert_eq!(
+            admission.witness_identity,
+            CoreConfig::development_for(Preset::Fast).identity()
+        );
+        assert_eq!(
+            admission.source_sha256,
+            run.outcome.report().source_sha256.as_deref().unwrap()
+        );
         let witness_expected = run.outcome.report().selected_hypothesis_id.is_some();
         assert_eq!(run.selected.is_some(), witness_expected);
         assert_eq!(
@@ -399,8 +431,7 @@ mod tests {
     fn disconnected_flat2_components_share_one_scene_and_palette() {
         let mut config = CoreConfig::development_for(Preset::Fast);
         config.k_discrete_paths = 1;
-        let run =
-            vectorize_for_calibration(&two_component_png(), &VectorizeRequest::default(), &config);
+        let run = vectorize_for_calibration(&two_component_png(), &fast_request(), &config);
         assert!(
             run.selected.is_some(),
             "a selected multi-component candidate needs a calibration witness"
@@ -464,7 +495,7 @@ mod tests {
     #[test]
     fn transparent_hole_is_preserved_as_a_dcel_face() {
         let config = CoreConfig::development_for(Preset::Fast);
-        let outcome = vectorize_with_config(&annulus_png(), &VectorizeRequest::default(), &config);
+        let outcome = vectorize_with_config(&annulus_png(), &fast_request(), &config);
         assert!(!matches!(outcome, VectorizeOutcome::Failed(_)));
         assert_eq!(outcome.report().fits.len(), 2);
         assert!(
@@ -481,11 +512,7 @@ mod tests {
     #[test]
     fn mirrored_components_enter_a_scene_level_relation_transaction() {
         let config = CoreConfig::development_for(Preset::Fast);
-        let outcome = vectorize_with_config(
-            &mirrored_components_png(),
-            &VectorizeRequest::default(),
-            &config,
-        );
+        let outcome = vectorize_with_config(&mirrored_components_png(), &fast_request(), &config);
         assert!(!matches!(outcome, VectorizeOutcome::Failed(_)));
         assert_eq!(outcome.report().fits.len(), 2);
         assert!(
@@ -519,8 +546,7 @@ mod tests {
         config.beam.min_topology_classes = 2;
         config.beam.budget.max_candidates_considered = 32;
         config.beam.budget.max_elapsed_ms = 60_000;
-        let outcome =
-            vectorize_with_config(&weak_bridge_png(), &VectorizeRequest::default(), &config);
+        let outcome = vectorize_with_config(&weak_bridge_png(), &fast_request(), &config);
         assert!(!matches!(outcome, VectorizeOutcome::Failed(_)));
         let topology = outcome
             .report()
