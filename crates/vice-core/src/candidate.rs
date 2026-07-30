@@ -205,9 +205,8 @@ pub(crate) fn materialize_candidate(
             candidate,
             request.image,
             base.render(),
-            request.config.likelihood,
             prior,
-            request.config.trust_region,
+            request.config,
         )
         .map_err(|error| {
             refusal(

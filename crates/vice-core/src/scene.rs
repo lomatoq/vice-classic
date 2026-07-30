@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::collections::BTreeMap;
+
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vice_evidence::{BackgroundHypothesis, BoundaryChain, Flat2Evidence};
@@ -10,11 +13,13 @@ use vice_ir::{
 use vice_opt::{
     apply_compound_transaction, optimize_best_deterministic, BlockSpec, CompoundTransaction,
     OptimizationResult, PriorCodeLengths, SceneMutation, ScoreScope, TransactionKind,
-    TrustRegionConfig, TrustRegionProblem,
+    TrustRegionProblem,
 };
 use vice_render::PartitionRender;
 use vice_topology::{audit, signature, Dcel, Labelling};
 use vice_verify::{topology_signature_sha256, BoundaryBinding};
+
+use crate::config::CoreConfig;
 
 #[derive(Debug, Clone)]
 pub(crate) struct TopologyArm {
@@ -410,6 +415,9 @@ struct PaintProblem<'a> {
     likelihood: vice_opt::BlockLikelihoodConfig,
     priors: PriorCodeLengths,
     layout: PaintLayout,
+    export_decimal_places: u32,
+    apron_width_px: f64,
+    exact_cache: RefCell<BTreeMap<Vec<u64>, f64>>,
 }
 
 impl PaintProblem<'_> {
@@ -434,7 +442,7 @@ impl PaintProblem<'_> {
 }
 
 impl TrustRegionProblem for PaintProblem<'_> {
-    fn exact_bits(
+    fn surrogate_bits(
         &self,
         parameters: &[f64],
         _scope: ScoreScope,
@@ -452,6 +460,39 @@ impl TrustRegionProblem for PaintProblem<'_> {
         .map_err(|error| error.to_string())
     }
 
+    fn exact_bits(
+        &self,
+        parameters: &[f64],
+        _scope: ScoreScope,
+        _token: vice_opt::EvaluationToken,
+    ) -> Result<f64, String> {
+        let key: Vec<u64> = parameters.iter().map(|value| value.to_bits()).collect();
+        if let Some(bits) = self.exact_cache.borrow().get(&key) {
+            return Ok(*bits);
+        }
+        let scene = self.materialize(parameters)?;
+        let plan =
+            vice_svg::build_export_plan(&scene, self.export_decimal_places, self.apron_width_px)
+                .map_err(|error| error.to_string())?;
+        let svg = vice_svg::materialize_svg(&plan, vice_svg::SvgProfile::SeamSafe)
+            .map_err(|error| error.to_string())?;
+        let witness =
+            vice_svg::parse_and_render_independently(&svg).map_err(|error| error.to_string())?;
+        let bits = vice_opt::score_serialized_full_resolution(
+            &scene,
+            self.observed,
+            witness.premultiplied_rgba8(),
+            witness.width_px(),
+            witness.height_px(),
+            self.likelihood,
+            self.priors,
+        )
+        .map(|score| score.total_bits)
+        .map_err(|error| error.to_string())?;
+        self.exact_cache.borrow_mut().insert(key, bits);
+        Ok(bits)
+    }
+
     fn project(&self, parameters: &mut [f64], block: &BlockSpec) -> Result<(), String> {
         for &index in &block.parameter_indices {
             parameters[index] = parameters[index].clamp(0.0, 1.0);
@@ -464,9 +505,8 @@ pub(crate) fn optimize_paint(
     candidate: SceneCandidate,
     observed: &vice_image::CanonicalImage,
     fixed_render: &PartitionRender,
-    likelihood: vice_opt::BlockLikelihoodConfig,
     priors: PriorCodeLengths,
-    config: TrustRegionConfig,
+    config: &CoreConfig,
 ) -> Result<(SceneCandidate, OptimizationResult), String> {
     let foreground = paint(&candidate.scene, candidate.paint_layout.foreground)?;
     let mut initial = foreground.components().to_vec();
@@ -477,9 +517,12 @@ pub(crate) fn optimize_paint(
         scene: &candidate.scene,
         render: fixed_render,
         observed,
-        likelihood,
+        likelihood: config.likelihood,
         priors,
         layout: candidate.paint_layout,
+        export_decimal_places: config.export_decimal_places,
+        apron_width_px: config.apron_width_px,
+        exact_cache: RefCell::new(BTreeMap::new()),
     };
     let mut blocks = vec![BlockSpec {
         name: "foreground_paint".into(),
@@ -506,7 +549,7 @@ pub(crate) fn optimize_paint(
                 .collect()
         })
         .collect();
-    let result = optimize_best_deterministic(&problem, starts, &blocks, config)
+    let result = optimize_best_deterministic(&problem, starts, &blocks, config.trust_region)
         .map_err(|error| error.to_string())?;
     let optimized = problem.materialize(&result.parameters)?;
     let mut mutations = vec![SceneMutation::ReplaceFacePaint {

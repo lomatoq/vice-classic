@@ -46,6 +46,17 @@ pub struct EvaluationToken {
 }
 
 pub trait TrustRegionProblem {
+    /// Fixed-mesh/local approximation used only to estimate a direction.
+    /// Acceptance is always decided by `exact_bits`.
+    fn surrogate_bits(
+        &self,
+        parameters: &[f64],
+        scope: ScoreScope,
+        token: EvaluationToken,
+    ) -> Result<f64, String> {
+        self.exact_bits(parameters, scope, token)
+    }
+
     fn exact_bits(
         &self,
         parameters: &[f64],
@@ -148,6 +159,22 @@ fn evaluate<P: TrustRegionProblem>(
     }
 }
 
+fn evaluate_surrogate<P: TrustRegionProblem>(
+    problem: &P,
+    parameters: &[f64],
+    scope: ScoreScope,
+    token: EvaluationToken,
+) -> Result<f64, TrustRegionError> {
+    let bits = problem
+        .surrogate_bits(parameters, scope, token)
+        .map_err(TrustRegionError::Evaluation)?;
+    if bits.is_finite() {
+        Ok(bits)
+    } else {
+        Err(TrustRegionError::NonFiniteScore)
+    }
+}
+
 fn validate_blocks(blocks: &[BlockSpec], parameter_count: usize) -> Result<(), TrustRegionError> {
     if blocks.is_empty()
         || blocks.iter().any(|b| {
@@ -212,6 +239,7 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
     let mut radius = cfg.initial_radius;
     let mut trace = Vec::new();
     let mut accepted_blocks = 0usize;
+    let mut verified_accepted_blocks = 0usize;
     let mut verified_parameters = parameters.clone();
     let mut verified_bits = evaluate(
         problem,
@@ -235,7 +263,8 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
                 fixed_mesh_id: comparison_id,
             };
             comparison_id += 1;
-            let parent_for_gradient = evaluate(problem, &parameters, block.scope, gradient_token)?;
+            let parent_for_gradient =
+                evaluate_surrogate(problem, &parameters, block.scope, gradient_token)?;
             let mut gradient = vec![0.0; block.parameter_indices.len()];
             for (slot, (&index, &scale)) in block
                 .parameter_indices
@@ -246,7 +275,7 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
                 let mut perturbed = parameters.clone();
                 perturbed[index] += cfg.finite_difference_step * scale;
                 project_checked(problem, &mut perturbed, block)?;
-                let child = evaluate(problem, &perturbed, block.scope, gradient_token)?;
+                let child = evaluate_surrogate(problem, &perturbed, block.scope, gradient_token)?;
                 let delta = perturbed[index] - parameters[index];
                 gradient[slot] = if delta == 0.0 {
                     0.0
@@ -324,7 +353,10 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
                 };
                 comparison_id += 1;
                 let full_bits = evaluate(problem, &parameters, ScoreScope::FULL, token)?;
-                let rollback = full_bits > verified_bits + cfg.min_bits_improvement;
+                // A local/ROI improvement is provisional. The full-scene
+                // serialized objective must itself improve; equality and any
+                // regression roll back to the last verified state.
+                let full_improved = full_bits + cfg.min_bits_improvement < verified_bits;
                 trace.push(OptimizationTraceRow {
                     round,
                     block: block.name.clone(),
@@ -333,17 +365,19 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
                     parent_bits: verified_bits,
                     child_bits: full_bits,
                     radius,
-                    accepted: !rollback,
+                    accepted: full_improved,
                     full_check: true,
-                    rolled_back_to_verified: rollback,
+                    rolled_back_to_verified: !full_improved,
                 });
-                if rollback {
-                    parameters.clone_from(&verified_parameters);
-                    cache_epoch += 1;
-                    radius = (radius * cfg.contraction).max(cfg.minimum_radius);
-                } else {
+                if full_improved {
                     verified_parameters.clone_from(&parameters);
                     verified_bits = full_bits;
+                    verified_accepted_blocks = accepted_blocks;
+                } else {
+                    parameters.clone_from(&verified_parameters);
+                    accepted_blocks = verified_accepted_blocks;
+                    cache_epoch += 1;
+                    radius = (radius * cfg.contraction).max(cfg.minimum_radius);
                 }
             }
         }
@@ -351,15 +385,37 @@ pub fn optimize_trust_region<P: TrustRegionProblem>(
             break;
         }
     }
-    let final_token = EvaluationToken {
-        cache_epoch,
-        comparison_id,
-        fixed_mesh_id: comparison_id,
-    };
-    let full_bits = evaluate(problem, &parameters, ScoreScope::FULL, final_token)?;
+    if parameters != verified_parameters {
+        let final_token = EvaluationToken {
+            cache_epoch,
+            comparison_id,
+            fixed_mesh_id: comparison_id,
+        };
+        let full_bits = evaluate(problem, &parameters, ScoreScope::FULL, final_token)?;
+        let full_improved = full_bits + cfg.min_bits_improvement < verified_bits;
+        trace.push(OptimizationTraceRow {
+            round: cfg.max_rounds,
+            block: "final_full_scene".into(),
+            cache_epoch,
+            comparison_id: final_token.comparison_id,
+            parent_bits: verified_bits,
+            child_bits: full_bits,
+            radius,
+            accepted: full_improved,
+            full_check: true,
+            rolled_back_to_verified: !full_improved,
+        });
+        if full_improved {
+            verified_parameters.clone_from(&parameters);
+            verified_bits = full_bits;
+        } else {
+            parameters.clone_from(&verified_parameters);
+            accepted_blocks = verified_accepted_blocks;
+        }
+    }
     Ok(OptimizationResult {
         parameters,
-        full_bits,
+        full_bits: verified_bits,
         accepted_blocks,
         trace,
     })
@@ -496,5 +552,54 @@ mod tests {
             assert_eq!(matching.len(), 2);
             assert_eq!(matching[0].2.cache_epoch, matching[1].2.cache_epoch);
         }
+    }
+
+    struct LocalTrap;
+
+    impl TrustRegionProblem for LocalTrap {
+        fn exact_bits(
+            &self,
+            p: &[f64],
+            scope: ScoreScope,
+            _token: EvaluationToken,
+        ) -> Result<f64, String> {
+            if scope.global {
+                Ok(p[0].powi(2))
+            } else {
+                Ok((p[0] - 1.0).powi(2))
+            }
+        }
+
+        fn project(&self, _p: &mut [f64], _block: &BlockSpec) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn full_scene_check_rejects_an_outside_roi_regression() {
+        let block = BlockSpec {
+            name: "local_trap".into(),
+            parameter_indices: vec![0],
+            scales: vec![1.0],
+            max_radius: 1.0,
+            scope: ScoreScope {
+                roi: Some(Rect {
+                    x0: 2,
+                    y0: 2,
+                    x1: 6,
+                    y1: 6,
+                }),
+                halo_px: 2,
+                global: false,
+            },
+        };
+        let got = optimize_trust_region(&LocalTrap, vec![0.0], &[block], config()).unwrap();
+        assert_eq!(got.parameters, vec![0.0]);
+        assert_eq!(got.full_bits, 0.0);
+        assert_eq!(got.accepted_blocks, 0);
+        assert!(got
+            .trace
+            .iter()
+            .any(|row| row.full_check && row.rolled_back_to_verified));
     }
 }
