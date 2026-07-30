@@ -105,6 +105,59 @@ pub fn analyze(
     Ok(verdict)
 }
 
+pub fn determinism(
+    inputs: &[std::path::PathBuf],
+    out: &Path,
+) -> Result<m7::determinism::DeterminismVerdict, String> {
+    let reports = inputs
+        .iter()
+        .map(|path| {
+            Ok(m7::determinism::DeterminismInput {
+                label: path.display().to_string(),
+                raw_sha256: vice_bench::hashing::sha256_file(path)
+                    .map_err(|error| error.to_string())?,
+                report: m7::read_report(path)?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let verdict = m7::determinism::analyze(reports)?;
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    }
+    let text = serde_json::to_string_pretty(&verdict).map_err(|error| error.to_string())?;
+    std::fs::write(out, format!("{text}\n"))
+        .map_err(|error| format!("write {}: {error}", out.display()))?;
+    Ok(verdict)
+}
+
+pub fn baseline_court(
+    seal_path: &Path,
+    manifest: &Path,
+    gates_path: &Path,
+    quality_report: &Path,
+    fast_report: &Path,
+    out: &Path,
+) -> Result<m7::baseline::BaselineCourtVerdict, String> {
+    let seal = read_seal(seal_path)?;
+    let (corpus_hash, prereg_hash, gates_hash) = release_hashes(manifest, gates_path)?;
+    seal.check(&corpus_hash, &prereg_hash, &gates_hash)
+        .map_err(|error| error.to_string())?;
+    let gates =
+        GatesFile::load_for_a_gate_decision(gates_path).map_err(|error| error.to_string())?;
+    let quality = m7::read_report(quality_report)?;
+    let fast = m7::read_report(fast_report)?;
+    let verdict = m7::baseline::analyze(&quality, &fast, &seal, &gates)?;
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    }
+    let text = serde_json::to_string_pretty(&verdict).map_err(|error| error.to_string())?;
+    std::fs::write(out, format!("{text}\n"))
+        .map_err(|error| format!("write {}: {error}", out.display()))?;
+    Ok(verdict)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

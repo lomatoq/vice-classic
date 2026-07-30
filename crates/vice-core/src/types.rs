@@ -198,6 +198,9 @@ pub struct CalibrationWitness {
 pub struct CalibrationRun {
     pub outcome: VectorizeOutcome,
     pub selected: Option<CalibrationWitness>,
+    /// Best verified free-chain candidate: the frozen pre-M7 internal
+    /// baseline judged on exactly the same raster and delivery path.
+    pub baseline: Option<CalibrationWitness>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

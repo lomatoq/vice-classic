@@ -227,7 +227,7 @@ fn validate_report(report: &MeasurementReport, preset: vice_core::Preset) -> Res
     Ok(())
 }
 
-fn target_rows(report: &MeasurementReport) -> Vec<&MeasurementRow> {
+pub(crate) fn target_rows(report: &MeasurementReport) -> Vec<&MeasurementRow> {
     report
         .rows
         .iter()
@@ -360,7 +360,10 @@ fn analyze_preset(
     })
 }
 
-fn catastrophic_with_gates(row: &MeasurementRow, gates: M7ReleaseGates) -> Vec<&'static str> {
+pub(crate) fn catastrophic_with_gates(
+    row: &MeasurementRow,
+    gates: M7ReleaseGates,
+) -> Vec<&'static str> {
     let mut kinds = catastrophic_kinds(row);
     if row.boundary.as_ref().is_none_or(|tail| {
         tail.p99_px > gates.boundary_p99_px || tail.max_px > gates.boundary_max_px

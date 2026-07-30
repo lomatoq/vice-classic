@@ -366,6 +366,30 @@ enum Cmd {
         #[arg(long)]
         out: PathBuf,
     },
+    /// Prove decisions and selected artifact bytes agree across isolated
+    /// repeats and supported worker counts for both presets.
+    M7Determinism {
+        #[arg(long, required = true, num_args = 1..)]
+        inputs: Vec<PathBuf>,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Compare production selections to the paired frozen free-chain
+    /// baseline and run the randomized identity-blind source-level court.
+    M7BaselineCourt {
+        #[arg(long)]
+        audit_seal: PathBuf,
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long)]
+        gates: PathBuf,
+        #[arg(long)]
+        quality_report: PathBuf,
+        #[arg(long)]
+        fast_report: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Enforce §27.7: an EXISTING gate file and production code may not
     /// change together. Pass `git diff --name-status` lines (status letter
     /// and path) via `--changed`, or a whole diff on stdin with `--stdin`.
@@ -1096,6 +1120,65 @@ fn real_main() -> i32 {
                 2
             }
         },
+        Cmd::M7Determinism { inputs, out } => match m7_cmd::determinism(&inputs, &out) {
+            Ok(verdict) => {
+                for preset in &verdict.presets {
+                    println!(
+                        "M7 {:?} determinism: isolated={}, parallel={}, equal={}",
+                        preset.preset,
+                        preset.isolated_repeats,
+                        preset.parallel_runs,
+                        preset.all_normalized_bytes_equal
+                    );
+                }
+                println!("M7 determinism artifact: {}", out.display());
+                if verdict.gate_met {
+                    0
+                } else {
+                    1
+                }
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
+        Cmd::M7BaselineCourt {
+            audit_seal,
+            manifest,
+            gates,
+            quality_report,
+            fast_report,
+            out,
+        } => match m7_cmd::baseline_court(
+            &audit_seal,
+            &manifest,
+            &gates,
+            &quality_report,
+            &fast_report,
+            &out,
+        ) {
+            Ok(verdict) => {
+                println!(
+                    "M7 baseline/blind court: gate_met={}, Quality wins={}/{}, Fast wins={}/{}",
+                    verdict.gate_met,
+                    verdict.quality.blind.selected_wins,
+                    verdict.quality.blind.non_tied_trials,
+                    verdict.fast.blind.selected_wins,
+                    verdict.fast.blind.non_tied_trials,
+                );
+                println!("M7 baseline/blind artifact: {}", out.display());
+                if verdict.gate_met {
+                    0
+                } else {
+                    1
+                }
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {
                 Ok(v) => v,
@@ -1158,7 +1241,7 @@ fn real_main() -> i32 {
                 }
                 // Split on lines only AFTER the NUL check: the whole point
                 // of the refusal is that `--name-status -z` has no lines.
-                if buf.contains(' ') {
+                if buf.as_bytes().contains(&0) {
                     eprintln!(
                         "error: {}",
                         vice_bench::gates::UnrecognizedForm::NulSeparated

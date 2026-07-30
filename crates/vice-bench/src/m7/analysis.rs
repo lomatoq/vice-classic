@@ -6,7 +6,6 @@
 //! while every render remains visible for coverage and tail diagnostics.
 
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 
 use super::{BoundaryTail, MeasurementReport, MeasurementRow, M7_MEASUREMENT_SCHEMA};
 use crate::correlation::ResidualModel;
@@ -433,20 +432,7 @@ fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
 }
 
 fn calibration_measurement_digest(report: &MeasurementReport) -> String {
-    let mut stable = report.clone();
-    stable.included_shards.clear();
-    stable.shard_count = 0;
-    stable.max_workers_per_shard = 0;
-    stable.resumed_rows = 0;
-    stable.runs = 0;
-    stable.elapsed_ms = 0;
-    for row in &mut stable.rows {
-        row.core_runtime_ms = 0;
-        row.court_runtime_ms = 0;
-        row.row_elapsed_ms = 0;
-    }
-    let bytes = serde_json::to_vec(&stable).expect("normalized M7 report serializes");
-    hex::encode(Sha256::digest(bytes))
+    super::determinism::normalized_digest(report)
 }
 
 #[cfg(test)]
@@ -471,6 +457,11 @@ mod tests {
             production_accepted: false,
             candidate_available: true,
             selected_hypothesis_id: Some("h".into()),
+            selected_scene_digest_sha256: Some("4".repeat(64)),
+            selected_delivery_digest_sha256: Some("5".repeat(64)),
+            selected_artifact_bundle_sha256: Some("6".repeat(64)),
+            selected_complexity: None,
+            internal_baseline: None,
             search_truncated: Some(true),
             explored_mass: Some(1.0),
             topology_classes_upper_bound: Some(1),

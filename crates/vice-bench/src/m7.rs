@@ -7,6 +7,8 @@
 //! calibration rows before the sealed-audit split is opened.
 
 pub mod analysis;
+pub mod baseline;
+pub mod determinism;
 pub mod release;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -35,7 +37,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v8";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v11";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
@@ -126,6 +128,33 @@ pub struct TopologyComparison {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SceneComplexity {
+    pub vertices: u64,
+    pub boundaries: u64,
+    pub curve_segments: u64,
+    pub canonical_delivery_bytes: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InternalBaselineMeasurement {
+    pub hypothesis_id: String,
+    pub scene_digest_sha256: String,
+    pub delivery_digest_sha256: String,
+    pub artifact_bundle_sha256: String,
+    pub topology: TopologyComparison,
+    pub boundary: BoundaryTail,
+    pub max_palette_code_delta: u8,
+    pub profile_max_channel_delta: u8,
+    pub profile_mean_channel_delta: f64,
+    pub internal_to_pure_max_channel_delta: u8,
+    pub internal_to_pure_mean_channel_delta: f64,
+    pub internal_to_seam_max_channel_delta: u8,
+    pub internal_to_seam_mean_channel_delta: f64,
+    pub complexity: SceneComplexity,
+    pub verifier_clean: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeasurementRow {
     pub group_id: String,
     pub scene_id: String,
@@ -142,6 +171,11 @@ pub struct MeasurementRow {
     pub production_accepted: bool,
     pub candidate_available: bool,
     pub selected_hypothesis_id: Option<String>,
+    pub selected_scene_digest_sha256: Option<String>,
+    pub selected_delivery_digest_sha256: Option<String>,
+    pub selected_artifact_bundle_sha256: Option<String>,
+    pub selected_complexity: Option<SceneComplexity>,
+    pub internal_baseline: Option<InternalBaselineMeasurement>,
     pub search_truncated: Option<bool>,
     pub explored_mass: Option<f64>,
     pub topology_classes_upper_bound: Option<u64>,
@@ -953,6 +987,11 @@ fn measure_one(
         production_accepted: matches!(&run.outcome, vice_core::VectorizeOutcome::Success(_)),
         candidate_available: false,
         selected_hypothesis_id: report.selected_hypothesis_id.clone(),
+        selected_scene_digest_sha256: None,
+        selected_delivery_digest_sha256: None,
+        selected_artifact_bundle_sha256: None,
+        selected_complexity: None,
+        internal_baseline: None,
         search_truncated: report.search_mass.as_ref().map(|search| search.truncated),
         explored_mass: report
             .search_mass
@@ -1075,6 +1114,10 @@ fn measure_one(
         ));
         return row;
     };
+    row.selected_scene_digest_sha256 = Some(witness.candidate.scene_digest_sha256.clone());
+    row.selected_delivery_digest_sha256 = Some(witness.candidate.delivery_digest.clone());
+    row.selected_artifact_bundle_sha256 = Some(artifact_bundle_digest(&witness));
+    row.selected_complexity = scene_complexity(&witness).ok();
     let court_started = Instant::now();
     match judge_witness(truth_scene, cell, &witness) {
         Ok((topology, boundary, paint_delta)) => {
@@ -1105,6 +1148,10 @@ fn measure_one(
         }
         Err(error) => row.measurement_refusal = Some(error),
     }
+    if let Some(baseline) = run.baseline {
+        row.internal_baseline =
+            measure_internal_baseline(truth_scene, cell, &baseline, config).ok();
+    }
     row.court_runtime_ms = court_started
         .elapsed()
         .as_millis()
@@ -1112,6 +1159,101 @@ fn measure_one(
         .unwrap_or(u64::MAX);
     row.row_elapsed_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
     row
+}
+
+fn artifact_bundle_digest(witness: &vice_core::CalibrationWitness) -> String {
+    let mut hash = Sha256::new();
+    for (name, bytes) in [
+        ("scene", witness.scene_json.as_slice()),
+        ("export_plan", witness.export_plan_json.as_slice()),
+        ("pure_svg", witness.pure_partition_svg.as_slice()),
+        ("seam_svg", witness.seam_safe_svg.as_slice()),
+        ("render", witness.rendered_png.as_slice()),
+        ("seal", witness.seal_json.as_slice()),
+    ] {
+        hash.update((name.len() as u64).to_be_bytes());
+        hash.update(name.as_bytes());
+        hash.update((bytes.len() as u64).to_be_bytes());
+        hash.update(bytes);
+    }
+    hex::encode(hash.finalize())
+}
+
+fn scene_complexity(witness: &vice_core::CalibrationWitness) -> Result<SceneComplexity, String> {
+    let scene = vice_ir::parse_scene(&witness.scene_json)
+        .map_err(|error| format!("parse scene for complexity: {error}"))?;
+    Ok(SceneComplexity {
+        vertices: scene.graph.vertices.len().try_into().unwrap_or(u64::MAX),
+        boundaries: scene.graph.boundaries.len().try_into().unwrap_or(u64::MAX),
+        curve_segments: scene
+            .graph
+            .boundaries
+            .iter()
+            .map(|boundary| u64::try_from(boundary.curve.segments.len()).unwrap_or(u64::MAX))
+            .fold(0u64, u64::saturating_add),
+        canonical_delivery_bytes: [
+            witness.scene_json.len(),
+            witness.export_plan_json.len(),
+            witness.pure_partition_svg.len(),
+            witness.seam_safe_svg.len(),
+            witness.rendered_png.len(),
+            witness.seal_json.len(),
+        ]
+        .into_iter()
+        .map(|bytes| u64::try_from(bytes).unwrap_or(u64::MAX))
+        .fold(0u64, u64::saturating_add),
+    })
+}
+
+fn measure_internal_baseline(
+    truth_scene: &GtScene,
+    cell: &DegradationCell,
+    witness: &vice_core::CalibrationWitness,
+    config: &CoreConfig,
+) -> Result<InternalBaselineMeasurement, String> {
+    let (topology, boundary, max_palette_code_delta) = judge_witness(truth_scene, cell, witness)?;
+    Ok(InternalBaselineMeasurement {
+        hypothesis_id: witness.candidate.hypothesis_id.clone(),
+        scene_digest_sha256: witness.candidate.scene_digest_sha256.clone(),
+        delivery_digest_sha256: witness.candidate.delivery_digest.clone(),
+        artifact_bundle_sha256: artifact_bundle_digest(witness),
+        topology,
+        boundary,
+        max_palette_code_delta,
+        profile_max_channel_delta: witness
+            .candidate
+            .delivery_seal
+            .profile_comparison
+            .max_channel_delta,
+        profile_mean_channel_delta: witness
+            .candidate
+            .delivery_seal
+            .profile_comparison
+            .mean_channel_delta,
+        internal_to_pure_max_channel_delta: witness
+            .candidate
+            .delivery_seal
+            .internal_to_pure_comparison
+            .max_channel_delta,
+        internal_to_pure_mean_channel_delta: witness
+            .candidate
+            .delivery_seal
+            .internal_to_pure_comparison
+            .mean_channel_delta,
+        internal_to_seam_max_channel_delta: witness
+            .candidate
+            .delivery_seal
+            .internal_to_seam_comparison
+            .max_channel_delta,
+        internal_to_seam_mean_channel_delta: witness
+            .candidate
+            .delivery_seal
+            .internal_to_seam_comparison
+            .mean_channel_delta,
+        complexity: scene_complexity(witness)?,
+        verifier_clean: witness.candidate.pre_quantization.worst_g1_spread_rad
+            <= config.verification.max_g1_spread_rad,
+    })
 }
 
 fn measured_bound(bound: &BoundValue<f64>) -> (Option<f64>, String) {
@@ -1174,6 +1316,11 @@ fn refusal_row(
         production_accepted: false,
         candidate_available: false,
         selected_hypothesis_id: None,
+        selected_scene_digest_sha256: None,
+        selected_delivery_digest_sha256: None,
+        selected_artifact_bundle_sha256: None,
+        selected_complexity: None,
+        internal_baseline: None,
         search_truncated: None,
         explored_mass: None,
         topology_classes_upper_bound: None,
@@ -1531,6 +1678,11 @@ mod tests {
             production_accepted: false,
             candidate_available: false,
             selected_hypothesis_id: None,
+            selected_scene_digest_sha256: None,
+            selected_delivery_digest_sha256: None,
+            selected_artifact_bundle_sha256: None,
+            selected_complexity: None,
+            internal_baseline: None,
             search_truncated: None,
             explored_mass: None,
             topology_classes_upper_bound: None,

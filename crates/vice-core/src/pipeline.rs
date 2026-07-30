@@ -773,26 +773,40 @@ pub fn vectorize_for_calibration(
     config: &CoreConfig,
 ) -> CalibrationRun {
     let mut selected = None;
-    let mut capture = |candidate: &crate::candidate::MaterializedCandidate| {
-        selected = Some(CalibrationWitness {
-            candidate: candidate.summary.clone(),
-            scene_json: candidate.scene_json.clone(),
-            export_plan_json: candidate.plan_json.clone(),
-            pure_partition_svg: candidate.pure_svg.clone(),
-            seam_safe_svg: candidate.seam_svg.clone(),
-            rendered_png: candidate.render_png.clone(),
-            seal_json: candidate.seal_json.clone(),
-        });
+    let mut baseline = None;
+    let witness = |candidate: &crate::candidate::MaterializedCandidate| CalibrationWitness {
+        candidate: candidate.summary.clone(),
+        scene_json: candidate.scene_json.clone(),
+        export_plan_json: candidate.plan_json.clone(),
+        pure_partition_svg: candidate.pure_svg.clone(),
+        seam_safe_svg: candidate.seam_svg.clone(),
+        rendered_png: candidate.render_png.clone(),
+        seal_json: candidate.seal_json.clone(),
     };
+    let mut capture =
+        |candidate: &crate::candidate::MaterializedCandidate,
+         baseline_candidate: Option<&crate::candidate::MaterializedCandidate>| {
+            selected = Some(witness(candidate));
+            baseline = baseline_candidate.map(witness);
+        };
     let outcome = vectorize_impl(bytes, request, config, Some(&mut capture));
-    CalibrationRun { outcome, selected }
+    CalibrationRun {
+        outcome,
+        selected,
+        baseline,
+    }
 }
 
 fn vectorize_impl(
     bytes: &[u8],
     request: &VectorizeRequest,
     config: &CoreConfig,
-    mut calibration_observer: Option<&mut dyn FnMut(&crate::candidate::MaterializedCandidate)>,
+    mut calibration_observer: Option<
+        &mut dyn FnMut(
+            &crate::candidate::MaterializedCandidate,
+            Option<&crate::candidate::MaterializedCandidate>,
+        ),
+    >,
 ) -> VectorizeOutcome {
     let started = Instant::now();
     let source_sha256 = digest(bytes);
@@ -1607,7 +1621,10 @@ fn vectorize_impl(
     };
     parts.confidence_metrics = Some(confidence_metrics.clone());
     if let Some(observer) = calibration_observer.as_mut() {
-        observer(selected);
+        let baseline = candidates
+            .iter()
+            .find(|candidate| candidate.score.hypothesis_id.starts_with("baseline-free/"));
+        observer(selected, baseline);
     }
     if !production {
         return refuse(

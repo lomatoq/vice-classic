@@ -116,7 +116,7 @@ impl Default for GeometryOracleConfig {
     }
 }
 
-const BACKEND_SOURCE_PATHS: [(&str, &str); 27] = [
+const BACKEND_SOURCE_PATHS: [(&str, &str); 28] = [
     (
         "crates/vice-fit/src/code.rs",
         include_str!("../../../vice-fit/src/code.rs"),
@@ -160,6 +160,10 @@ const BACKEND_SOURCE_PATHS: [(&str, &str); 27] = [
     (
         "crates/vice-fit/src/models.rs",
         include_str!("../../../vice-fit/src/models.rs"),
+    ),
+    (
+        "crates/vice-fit/src/models/bounded_tests.rs",
+        include_str!("../../../vice-fit/src/models/bounded_tests.rs"),
     ),
     (
         "crates/vice-fit/src/models/closed.rs",
