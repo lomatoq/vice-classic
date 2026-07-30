@@ -16,7 +16,7 @@ mod types;
 
 pub use config::{
     CalibrationBucket, ConfidenceCalibration, CoreConfig, Intent, IntentPriorPolicy, Preset,
-    VectorizeRequest,
+    ProductionConfigError, VectorizeRequest, M7_PRODUCTION_CONFIG_SHA256,
 };
 pub use pipeline::{vectorize, vectorize_with_config};
 pub use types::{
@@ -208,6 +208,9 @@ mod tests {
         let calibration = |accepted_source_groups| ConfidenceCalibration {
             schema: "vice-classic/confidence-calibration/v1".into(),
             model_universe_sha256: identity.universe_sha256.clone(),
+            pricing_sha256: identity.pricing_sha256.clone(),
+            backend_sha256: identity.backend_sha256.clone(),
+            config_sha256: identity.config_sha256.clone(),
             calibration_split_sha256: "1".repeat(64),
             sealed_audit_generation: "audit-1".into(),
             sealed_audit_untouched: true,
@@ -232,6 +235,21 @@ mod tests {
         };
         assert!(calibration(458).permits(&identity, &delivery).is_err());
         assert!(calibration(459).permits(&identity, &delivery).is_ok());
+
+        for field in ["universe", "pricing", "backend", "config"] {
+            let mut stale = calibration(459);
+            match field {
+                "universe" => stale.model_universe_sha256 = "2".repeat(64),
+                "pricing" => stale.pricing_sha256 = "2".repeat(64),
+                "backend" => stale.backend_sha256 = "2".repeat(64),
+                "config" => stale.config_sha256 = "2".repeat(64),
+                _ => unreachable!(),
+            }
+            assert!(
+                stale.permits(&identity, &delivery).is_err(),
+                "stale {field} identity was accepted"
+            );
+        }
     }
 
     #[test]

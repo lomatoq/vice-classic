@@ -1,4 +1,6 @@
-use serde::Serialize;
+use std::path::Path;
+
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vice_opt::{
     model_universe_hash, BeamConfig, BlockLikelihoodConfig, ModelIdentity, SearchBudget,
@@ -13,7 +15,7 @@ pub enum Intent {
     Clean,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Preset {
     Fast,
@@ -51,7 +53,8 @@ impl Default for VectorizeRequest {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CalibrationBucket {
     pub name: String,
     pub accepted_source_groups: u64,
@@ -59,10 +62,14 @@ pub struct CalibrationBucket {
     pub minimum_coverage: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfidenceCalibration {
     pub schema: String,
     pub model_universe_sha256: String,
+    pub pricing_sha256: String,
+    pub backend_sha256: String,
+    pub config_sha256: String,
     pub calibration_split_sha256: String,
     pub sealed_audit_generation: String,
     pub sealed_audit_untouched: bool,
@@ -104,8 +111,28 @@ impl ConfidenceCalibration {
         identity: &ModelIdentity,
         delivery: &vice_opt::DeliveryPosterior,
     ) -> Result<(), &'static str> {
+        self.validate_for_identity(identity)?;
+        let posterior_lower_bound = match &delivery.posterior_lower_bound {
+            vice_opt::BoundValue::Certified(value)
+            | vice_opt::BoundValue::EmpiricallyCalibrated(value) => *value,
+            vice_opt::BoundValue::Unknown => return Err("posterior_search_mass_unknown"),
+        };
+        if !posterior_lower_bound.is_finite()
+            || posterior_lower_bound < self.posterior_lower_bound_threshold
+        {
+            return Err("posterior_below_calibrated_threshold");
+        }
+        Ok(())
+    }
+
+    pub fn validate_for_identity(&self, identity: &ModelIdentity) -> Result<(), &'static str> {
         if self.schema != "vice-classic/confidence-calibration/v1"
             || self.model_universe_sha256 != identity.universe_sha256
+            || self.pricing_sha256 != identity.pricing_sha256
+            || self.backend_sha256 != identity.backend_sha256
+            || self.config_sha256 != identity.config_sha256
+            || !is_sha256(&self.calibration_split_sha256)
+            || self.sealed_audit_generation.is_empty()
             || !self.sealed_audit_untouched
         {
             return Err("calibration_identity_or_audit");
@@ -120,9 +147,21 @@ impl ConfidenceCalibration {
         {
             return Err("calibration_statistical_gate");
         }
+        if !self.posterior_lower_bound_threshold.is_finite()
+            || !(0.0..=1.0).contains(&self.posterior_lower_bound_threshold)
+            || self
+                .empirical_unexplored_relative_mass_upper_bound
+                .is_none_or(|bound| !bound.is_finite() || bound < 0.0)
+        {
+            return Err("calibration_search_mass_gate");
+        }
+        let mut bucket_names = std::collections::BTreeSet::new();
         if self.buckets.is_empty()
             || self.buckets.iter().any(|bucket| {
-                bucket.eligible_source_groups == 0
+                bucket.name.is_empty()
+                    || !bucket_names.insert(bucket.name.as_str())
+                    || bucket.eligible_source_groups == 0
+                    || bucket.accepted_source_groups > bucket.eligible_source_groups
                     || !bucket.minimum_coverage.is_finite()
                     || !(0.0..=1.0).contains(&bucket.minimum_coverage)
                     || bucket.accepted_source_groups as f64 / (bucket.eligible_source_groups as f64)
@@ -131,18 +170,15 @@ impl ConfidenceCalibration {
         {
             return Err("calibration_coverage_gate");
         }
-        let posterior_lower_bound = match &delivery.posterior_lower_bound {
-            vice_opt::BoundValue::Certified(value)
-            | vice_opt::BoundValue::EmpiricallyCalibrated(value) => *value,
-            vice_opt::BoundValue::Unknown => return Err("posterior_search_mass_unknown"),
-        };
-        if !posterior_lower_bound.is_finite()
-            || posterior_lower_bound < self.posterior_lower_bound_threshold
-        {
-            return Err("posterior_below_calibrated_threshold");
-        }
         Ok(())
     }
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 #[derive(Debug, Clone)]
@@ -179,12 +215,124 @@ struct ConfigIdentity<'a> {
     apron_width_px: f64,
     exact_prior: IntentPriorPolicy,
     clean_prior: IntentPriorPolicy,
-    confidence_sha256: Option<String>,
-    sealed_production: bool,
     implementation: &'a str,
 }
 
+/// Release binding updated only after the canonical M7 production
+/// configuration is measured. The all-zero value deliberately makes every
+/// pre-freeze file fail closed.
+pub const M7_PRODUCTION_CONFIG_SHA256: &str =
+    "0000000000000000000000000000000000000000000000000000000000000000";
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionConfigFile {
+    schema: String,
+    preset: Preset,
+    delivery_seal: DeliverySealFile,
+    calibration: ConfidenceCalibration,
+    identity: IdentityFile,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeliverySealFile {
+    max_profile_channel_delta: u8,
+    max_profile_mean_channel_delta: f64,
+    max_internal_channel_delta: u8,
+    max_internal_mean_channel_delta: f64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct IdentityFile {
+    universe_sha256: String,
+    pricing_sha256: String,
+    backend_sha256: String,
+    config_sha256: String,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ProductionConfigError {
+    #[error("read production config: {0}")]
+    Read(#[from] std::io::Error),
+    #[error("production config bytes do not match the release trust anchor")]
+    UntrustedDigest,
+    #[error("invalid production config JSON: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("unsupported production config schema or preset")]
+    SchemaOrPreset,
+    #[error("production config contains a non-finite delivery threshold")]
+    InvalidDeliverySeal,
+    #[error("production config identity is malformed")]
+    InvalidIdentity,
+    #[error("production config identity does not match this executable")]
+    StaleIdentity,
+    #[error("production confidence calibration is not release-eligible: {0}")]
+    Calibration(&'static str),
+}
+
 impl CoreConfig {
+    /// Load the one release-authorized M7 production configuration.
+    ///
+    /// Parsing a lookalike file is insufficient: the exact canonical bytes
+    /// must match the digest pinned into the executable, and all four model
+    /// identities are recomputed before the private production bit is set.
+    pub fn load_production_for(preset: Preset, path: &Path) -> Result<Self, ProductionConfigError> {
+        let bytes = std::fs::read(path)?;
+        Self::production_from_bytes(preset, &bytes, M7_PRODUCTION_CONFIG_SHA256)
+    }
+
+    fn production_from_bytes(
+        preset: Preset,
+        bytes: &[u8],
+        expected_digest: &str,
+    ) -> Result<Self, ProductionConfigError> {
+        let digest = hex::encode(Sha256::digest(bytes));
+        if !is_sha256(expected_digest) || digest != expected_digest {
+            return Err(ProductionConfigError::UntrustedDigest);
+        }
+        let file: ProductionConfigFile = serde_json::from_slice(bytes)?;
+        if file.schema != "vice-classic/m7-production-config/v1" || file.preset != preset {
+            return Err(ProductionConfigError::SchemaOrPreset);
+        }
+        let seal = DeliverySealConfig {
+            max_profile_channel_delta: file.delivery_seal.max_profile_channel_delta,
+            max_profile_mean_channel_delta: file.delivery_seal.max_profile_mean_channel_delta,
+            max_internal_channel_delta: file.delivery_seal.max_internal_channel_delta,
+            max_internal_mean_channel_delta: file.delivery_seal.max_internal_mean_channel_delta,
+        };
+        if !seal.max_profile_mean_channel_delta.is_finite()
+            || seal.max_profile_mean_channel_delta < 0.0
+            || !seal.max_internal_mean_channel_delta.is_finite()
+            || seal.max_internal_mean_channel_delta < 0.0
+        {
+            return Err(ProductionConfigError::InvalidDeliverySeal);
+        }
+        let expected_identity = ModelIdentity::new(
+            file.identity.universe_sha256,
+            file.identity.pricing_sha256,
+            file.identity.backend_sha256,
+            file.identity.config_sha256,
+        )
+        .map_err(|_| ProductionConfigError::InvalidIdentity)?;
+        let mut config = Self::development_for(preset);
+        config.seal = seal;
+        config.confidence = Some(file.calibration);
+        let actual_identity = config.identity();
+        if actual_identity != expected_identity {
+            return Err(ProductionConfigError::StaleIdentity);
+        }
+        config
+            .confidence
+            .as_ref()
+            .expect("just installed")
+            .validate_for_identity(&actual_identity)
+            .map_err(ProductionConfigError::Calibration)?;
+        config.sealed_production = true;
+        Ok(config)
+    }
+
     pub fn development_for(preset: Preset) -> Self {
         let mut config = Self::development();
         if preset == Preset::Fast {
@@ -296,11 +444,6 @@ impl CoreConfig {
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            confidence_sha256: self
-                .confidence
-                .as_ref()
-                .map(ConfidenceCalibration::digest_sha256),
-            sealed_production: self.sealed_production,
             implementation: "vice-core/m7/v1",
         };
         let config_sha256 = hex::encode(Sha256::digest(
@@ -313,5 +456,116 @@ impl CoreConfig {
             config_sha256,
         )
         .expect("sha256 identities")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn production_bytes(stale_calibration_field: Option<&str>) -> Vec<u8> {
+        let preset = Preset::Fast;
+        let seal = DeliverySealConfig {
+            max_profile_channel_delta: 1,
+            max_profile_mean_channel_delta: 0.01,
+            max_internal_channel_delta: 1,
+            max_internal_mean_channel_delta: 0.01,
+        };
+        let mut config = CoreConfig::development_for(preset);
+        config.seal = seal;
+        let identity = config.identity();
+        let mut calibration = json!({
+            "schema": "vice-classic/confidence-calibration/v1",
+            "model_universe_sha256": identity.universe_sha256,
+            "pricing_sha256": identity.pricing_sha256,
+            "backend_sha256": identity.backend_sha256,
+            "config_sha256": identity.config_sha256,
+            "calibration_split_sha256": "1".repeat(64),
+            "sealed_audit_generation": "audit-1",
+            "sealed_audit_untouched": true,
+            "confidence_level": 0.99,
+            "catastrophic_risk_target": 0.01,
+            "accepted_source_groups": 459,
+            "catastrophic_source_groups": 0,
+            "posterior_lower_bound_threshold": 0.95,
+            "empirical_unexplored_relative_mass_upper_bound": 0.25,
+            "buckets": [{
+                "name": "all",
+                "accepted_source_groups": 459,
+                "eligible_source_groups": 459,
+                "minimum_coverage": 1.0
+            }]
+        });
+        if let Some(field) = stale_calibration_field {
+            calibration[field] = json!("2".repeat(64));
+        }
+        serde_json::to_vec(&json!({
+            "schema": "vice-classic/m7-production-config/v1",
+            "preset": "fast",
+            "delivery_seal": {
+                "max_profile_channel_delta": seal.max_profile_channel_delta,
+                "max_profile_mean_channel_delta": seal.max_profile_mean_channel_delta,
+                "max_internal_channel_delta": seal.max_internal_channel_delta,
+                "max_internal_mean_channel_delta": seal.max_internal_mean_channel_delta
+            },
+            "calibration": calibration,
+            "identity": identity
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn only_exact_trust_anchored_bytes_can_set_production() {
+        let bytes = production_bytes(None);
+        let digest = hex::encode(Sha256::digest(&bytes));
+        let config = CoreConfig::production_from_bytes(Preset::Fast, &bytes, &digest)
+            .expect("valid pinned config");
+        assert!(config.is_sealed_production());
+
+        let mut tampered = bytes;
+        tampered.push(b' ');
+        assert!(matches!(
+            CoreConfig::production_from_bytes(Preset::Fast, &tampered, &digest),
+            Err(ProductionConfigError::UntrustedDigest)
+        ));
+    }
+
+    #[test]
+    fn a_freshly_pinned_file_still_cannot_carry_stale_calibration() {
+        for field in [
+            "model_universe_sha256",
+            "pricing_sha256",
+            "backend_sha256",
+            "config_sha256",
+        ] {
+            let bytes = production_bytes(Some(field));
+            let digest = hex::encode(Sha256::digest(&bytes));
+            assert!(
+                matches!(
+                    CoreConfig::production_from_bytes(Preset::Fast, &bytes, &digest),
+                    Err(ProductionConfigError::Calibration(
+                        "calibration_identity_or_audit"
+                    ))
+                ),
+                "stale calibration field {field} was accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn confidence_does_not_create_a_circular_model_config_identity() {
+        let mut config = CoreConfig::development_for(Preset::Fast);
+        let before = config.identity();
+        let file: serde_json::Value = serde_json::from_slice(&production_bytes(None)).unwrap();
+        let mut calibration: ConfidenceCalibration =
+            serde_json::from_value(file["calibration"].clone()).unwrap();
+        calibration.model_universe_sha256 = before.universe_sha256.clone();
+        calibration.pricing_sha256 = before.pricing_sha256.clone();
+        calibration.backend_sha256 = before.backend_sha256.clone();
+        calibration.config_sha256 = before.config_sha256.clone();
+        config.confidence = Some(calibration);
+        config.sealed_production = true;
+        assert_eq!(config.identity(), before);
     }
 }
