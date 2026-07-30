@@ -15,7 +15,7 @@ use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v5";
+    "vice-classic/m7-confidence-calibration-analysis/v6";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
@@ -39,9 +39,15 @@ pub struct ThresholdEvaluation {
     pub posterior_lower_bound_threshold: f64,
     pub reliability: RiskCoverage,
     pub minimum_source_coverage: f64,
+    pub minimum_render_coverage: f64,
     pub source_coverage_met: bool,
+    pub render_coverage_met: bool,
     pub accepted_boundary_p95_worst_px: Option<f64>,
+    pub accepted_boundary_p99_worst_px: Option<f64>,
+    pub accepted_boundary_max_worst_px: Option<f64>,
     pub boundary_p95_met: bool,
+    pub boundary_p99_met: bool,
+    pub boundary_max_met: bool,
     pub zero_catastrophic_required_by_core: bool,
     pub eligible: bool,
 }
@@ -176,21 +182,55 @@ pub fn analyze_calibration(
             })
             .filter_map(|row| row.boundary.as_ref().map(|tail| tail.p95_px))
             .max_by(f64::total_cmp);
+        let accepted_boundary_p99_worst_px = target_rows
+            .iter()
+            .filter(|row| {
+                row.candidate_available
+                    && diagnostics_permit(row, empirical_upper)
+                    && effective_lower_bound(row, empirical_upper)
+                        .is_some_and(|score| score >= threshold)
+            })
+            .filter_map(|row| row.boundary.as_ref().map(|tail| tail.p99_px))
+            .max_by(f64::total_cmp);
+        let accepted_boundary_max_worst_px = target_rows
+            .iter()
+            .filter(|row| {
+                row.candidate_available
+                    && diagnostics_permit(row, empirical_upper)
+                    && effective_lower_bound(row, empirical_upper)
+                        .is_some_and(|score| score >= threshold)
+            })
+            .filter_map(|row| row.boundary.as_ref().map(|tail| tail.max_px))
+            .max_by(f64::total_cmp);
         let source_coverage_met = reliability.coverage_per_source >= bucket.min_coverage_per_source;
+        let render_coverage_met = reliability.coverage_per_render >= bucket.min_coverage_per_render;
         let boundary_p95_met =
             accepted_boundary_p95_worst_px.is_some_and(|worst| worst <= PROPOSED_BOUNDARY_P95_PX);
+        let boundary_p99_met =
+            accepted_boundary_p99_worst_px.is_some_and(|worst| worst <= PROPOSED_BOUNDARY_P99_PX);
+        let boundary_max_met =
+            accepted_boundary_max_worst_px.is_some_and(|worst| worst <= PROPOSED_BOUNDARY_MAX_PX);
         let zero_catastrophic_required_by_core = reliability.groups_catastrophic == 0;
         let eligible = reliability.contract_met
             && source_coverage_met
+            && render_coverage_met
             && boundary_p95_met
+            && boundary_p99_met
+            && boundary_max_met
             && zero_catastrophic_required_by_core;
         threshold_evaluations.push(ThresholdEvaluation {
             posterior_lower_bound_threshold: threshold,
             reliability,
             minimum_source_coverage: bucket.min_coverage_per_source,
+            minimum_render_coverage: bucket.min_coverage_per_render,
             source_coverage_met,
+            render_coverage_met,
             accepted_boundary_p95_worst_px,
+            accepted_boundary_p99_worst_px,
+            accepted_boundary_max_worst_px,
             boundary_p95_met,
+            boundary_p99_met,
+            boundary_max_met,
             zero_catastrophic_required_by_core,
             eligible,
         });
@@ -247,15 +287,20 @@ pub fn analyze_calibration(
     if selected.is_none() {
         refusals.push(
             "no posterior threshold simultaneously meets clustered risk, source coverage, \
-             boundary p95, and the core zero-catastrophic contract"
+             boundary p95/p99/max tails, and the core zero-catastrophic contract"
                 .into(),
         );
     }
-    if runtime_met == Some(false) {
-        refusals.push(format!(
+    match runtime_met {
+        Some(true) => {}
+        Some(false) => refusals.push(format!(
             "{:?} runtime p95 {runtime_p95_ms} ms exceeds {runtime_limit_ms} ms",
             report.preset
-        ));
+        )),
+        None => refusals.push(format!(
+            "{:?} calibration was not measured as one isolated worker/shard",
+            report.preset
+        )),
     }
     if !audit_untouched {
         refusals.push("sealed audit is not sealed and untouched".into());
@@ -403,7 +448,7 @@ pub fn proposed_delivery_seal() -> vice_verify::DeliverySealConfig {
 
 fn delivery_diagnostics_permit(row: &MeasurementRow) -> bool {
     row.profile_max_channel_delta
-        .is_some_and(|value| value <= PROPOSED_MAX_PROFILE_CHANNEL_DELTA)
+        .is_some_and(|value| value == PROPOSED_MAX_PROFILE_CHANNEL_DELTA)
         && row
             .profile_mean_channel_delta
             .is_some_and(|value| value <= PROPOSED_MAX_PROFILE_MEAN_CHANNEL_DELTA)
@@ -453,6 +498,7 @@ mod tests {
             court_runtime_ms: 1,
             row_elapsed_ms: 101,
             decision_status: "ambiguous".into(),
+            decision_reason: Some("confidence".into()),
             production_provenance: false,
             production_accepted: false,
             candidate_available: true,
@@ -463,6 +509,8 @@ mod tests {
             selected_complexity: None,
             internal_baseline: None,
             pf_oracle: None,
+            cost_refusal_histogram: Vec::new(),
+            numerical_conditioning: crate::m7::NumericalConditioningDiagnostics::default(),
             search_truncated: Some(true),
             explored_mass: Some(1.0),
             topology_classes_upper_bound: Some(1),
@@ -540,9 +588,10 @@ mod tests {
             )
             .unwrap(),
             delivery_policy_sha256: "4".repeat(64),
+            confidence_calibration: None,
             included_shards: vec![0],
             shard_count: 1,
-            max_workers_per_shard: 2,
+            max_workers_per_shard: 1,
             complete: true,
             expected_renders_included_shards: rows.len() as u64,
             resumed_rows: 0,
@@ -567,12 +616,36 @@ mod tests {
         let analysis =
             analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
         assert!(analysis.gate_met);
-        assert!(!analysis.runtime_isolated);
-        assert_eq!(analysis.runtime_met, None);
+        assert!(analysis.runtime_isolated);
+        assert_eq!(analysis.runtime_met, Some(true));
+        let selected = analysis
+            .threshold_evaluations
+            .iter()
+            .find(|evaluation| evaluation.eligible)
+            .expect("eligible threshold");
+        assert!(selected.boundary_p95_met);
+        assert!(selected.boundary_p99_met);
+        assert!(selected.boundary_max_met);
+        assert_eq!(selected.accepted_boundary_p99_worst_px, Some(0.3));
+        assert_eq!(selected.accepted_boundary_max_worst_px, Some(0.4));
         let calibration = analysis.calibration.expect("calibration");
         assert_eq!(calibration.accepted_source_groups, 459);
         assert_eq!(calibration.catastrophic_source_groups, 0);
         assert!(calibration.validate_for_identity(&report.identity).is_ok());
+    }
+
+    #[test]
+    fn a_parallel_calibration_cannot_mint_a_production_config() {
+        let mut report = report(false);
+        report.max_workers_per_shard = 2;
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(!analysis.gate_met);
+        assert!(analysis.production_config.is_none());
+        assert!(analysis
+            .refusals
+            .iter()
+            .any(|refusal| refusal.contains("not measured as one isolated worker")));
     }
 
     #[test]

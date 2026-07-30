@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use crate::gates::GatesFile;
 
 pub const M7_RUNNER_ATTESTATION_SCHEMA: &str = "vice-classic/m7-runner-attestation/v1";
-pub const M7_GATE_PROVENANCE_SCHEMA: &str = "vice-classic/m7-gate-provenance/v1";
+pub const M7_GATE_PROVENANCE_SCHEMA: &str = "vice-classic/m7-gate-provenance/v2";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -51,9 +51,13 @@ pub struct GateProvenance {
     pub status: String,
     pub milestone: String,
     pub source_commit_sha: String,
-    pub calibration_measurement_sha256: String,
+    pub quality_calibration_measurement_sha256: String,
+    pub fast_calibration_measurement_sha256: String,
     pub geometry_measurement_sha256: String,
-    pub calibration_command: String,
+    pub quality_production_config_sha256: String,
+    pub fast_production_config_sha256: String,
+    pub quality_calibration_command: String,
+    pub fast_calibration_command: String,
     pub geometry_command: String,
     pub asserted_gate_keys: Vec<String>,
 }
@@ -159,6 +163,14 @@ pub fn load_threshold_source(
     let provenance: GateProvenance =
         toml::from_str(&provenance_text).map_err(|error| error.to_string())?;
     validate_provenance(&provenance, &gates)?;
+    if provenance.quality_production_config_sha256 != vice_core::M7_QUALITY_PRODUCTION_CONFIG_SHA256
+        || provenance.fast_production_config_sha256 != vice_core::M7_FAST_PRODUCTION_CONFIG_SHA256
+    {
+        return Err(
+            "M7 gate provenance production-config digests differ from the attested executable"
+                .into(),
+        );
+    }
     let root = canonical(Path::new(&attestation.repository_root))?;
     let git = canonical(Path::new(&attestation.git.canonical_path))?;
     verify_commit_exists(&git, &root, &provenance.source_commit_sha)?;
@@ -251,38 +263,72 @@ fn validate_provenance(provenance: &GateProvenance, gates: &GatesFile) -> Result
     if provenance.schema != M7_GATE_PROVENANCE_SCHEMA
         || provenance.status != "frozen"
         || provenance.milestone != "M7"
-        || provenance.calibration_command.trim().is_empty()
-        || provenance.geometry_command.trim().is_empty()
+        || !is_measurement_command(&provenance.quality_calibration_command)
+        || !is_measurement_command(&provenance.fast_calibration_command)
+        || !is_measurement_command(&provenance.geometry_command)
     {
         return Err("M7 gate provenance is not a frozen structured measurement record".into());
     }
     validate_commit_sha(&provenance.source_commit_sha)?;
     for digest in [
-        &provenance.calibration_measurement_sha256,
+        &provenance.quality_calibration_measurement_sha256,
+        &provenance.fast_calibration_measurement_sha256,
         &provenance.geometry_measurement_sha256,
+        &provenance.quality_production_config_sha256,
+        &provenance.fast_production_config_sha256,
     ] {
-        if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        if digest.len() != 64
+            || !digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            || digest.bytes().all(|byte| byte == b'0')
+        {
             return Err("M7 structured provenance carries a malformed artifact digest".into());
         }
     }
-    let section = gates
-        .doc
-        .sections
-        .get("m7_selective")
-        .ok_or_else(|| "missing m7_selective gate section".to_string())?;
     let mut declared = provenance.asserted_gate_keys.clone();
     declared.sort();
     declared.dedup();
-    let mut actual = section.values.keys().cloned().collect::<Vec<_>>();
+    let mut actual = ["boundary_accuracy", "m7_selective"]
+        .into_iter()
+        .flat_map(|section_name| {
+            gates
+                .doc
+                .sections
+                .get(section_name)
+                .into_iter()
+                .flat_map(move |section| {
+                    section
+                        .values
+                        .keys()
+                        .map(move |key| format!("{section_name}.{key}"))
+                })
+        })
+        .collect::<Vec<_>>();
+    if actual.is_empty()
+        || !gates.doc.sections.contains_key("boundary_accuracy")
+        || !gates.doc.sections.contains_key("m7_selective")
+    {
+        return Err("missing M7 boundary or selective gate section".into());
+    }
     actual.sort();
     if declared != actual {
-        return Err("structured provenance does not enumerate every M7 selective gate key".into());
+        return Err("structured provenance does not enumerate every M7 release gate key".into());
     }
     Ok(())
 }
 
+fn is_measurement_command(command: &str) -> bool {
+    let command = command.trim();
+    !command.is_empty() && command != "placeholder"
+}
+
 fn validate_commit_sha(value: &str) -> Result<(), String> {
-    if value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+    if value.len() == 40
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
         Ok(())
     } else {
         Err("event commit SHA must be exactly 40 hexadecimal characters".into())

@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v7";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v8";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -154,6 +154,10 @@ pub struct VectorizeReport {
     pub calibration: Option<crate::ConfidenceCalibration>,
     pub evidence: Option<vice_evidence::Flat2Analysis>,
     pub topology: Option<TopologyEnvelopeTrace>,
+    /// Complete fit diagnostics for every materialized topology arm. `fits`
+    /// below remains the selected primary arm's model payload for backwards
+    /// navigation; release accounting must use this complete population.
+    pub fit_diagnostics: Vec<vice_fit::ModelRun>,
     pub fits: Vec<vice_fit::ModelRun>,
     pub beam: Option<vice_opt::BudgetLedger>,
     pub search_mass: Option<vice_opt::SearchMassCertificate>,

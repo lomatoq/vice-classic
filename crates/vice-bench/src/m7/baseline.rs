@@ -15,7 +15,7 @@ use crate::gt::split::{AuditSeal, SealStatus};
 use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 
-pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v1";
+pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v2";
 
 #[derive(Debug, Clone, Copy)]
 struct CourtGates {
@@ -158,6 +158,8 @@ pub struct BaselineCourtVerdict {
     pub release_commit_sha: String,
     pub runner_attestation_sha256: String,
     pub gate_provenance_sha256: String,
+    pub quality_report_sha256: String,
+    pub fast_report_sha256: String,
     pub quality: PresetBaselineVerdict,
     pub fast: PresetBaselineVerdict,
     pub gate_met: bool,
@@ -182,6 +184,8 @@ pub fn analyze(
         );
     }
     let gates = CourtGates::from_file(gates_file)?;
+    let quality_report_sha256 = super::report_content_sha256(quality);
+    let fast_report_sha256 = super::report_content_sha256(fast);
     let quality = analyze_preset(quality, gates)?;
     let fast = analyze_preset(fast, gates)?;
     let mut refusals = Vec::new();
@@ -200,6 +204,8 @@ pub fn analyze(
         release_commit_sha: threshold_source.event_commit_sha.clone(),
         runner_attestation_sha256: threshold_source.attestation_sha256.clone(),
         gate_provenance_sha256: threshold_source.provenance_sha256.clone(),
+        quality_report_sha256,
+        fast_report_sha256,
         gate_met: refusals.is_empty(),
         quality,
         fast,

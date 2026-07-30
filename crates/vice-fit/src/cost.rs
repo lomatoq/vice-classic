@@ -121,6 +121,22 @@ pub enum CostRefusal {
     NonFinite { sample: usize },
 }
 
+impl CostRefusal {
+    /// Stable histogram key for release accounting.
+    ///
+    /// Indices and support bounds remain in the serialized diagnostic, but
+    /// they must not split one refusal class into one bucket per sample.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Input { .. } => "input",
+            Self::SupportOutOfRange { .. } => "support_out_of_range",
+            Self::NormalLineMisses { .. } => "normal_line_misses",
+            Self::NotFlattenable => "not_flattenable",
+            Self::NonFinite { .. } => "non_finite",
+        }
+    }
+}
+
 /// The deviation, as a fraction of the corridor halfwidth, below which a
 /// sample is not asked how its normal deviation compares with its Euclidean
 /// one.

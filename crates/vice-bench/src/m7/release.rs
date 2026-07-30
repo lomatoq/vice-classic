@@ -15,7 +15,7 @@ use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
-pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v1";
+pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v3";
 const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -33,6 +33,14 @@ pub struct M7ReleaseGates {
     pub max_profile_mean_channel_delta: f64,
     pub max_internal_channel_delta: u8,
     pub max_internal_mean_channel_delta: f64,
+    pub posterior_lower_bound_threshold: f64,
+    pub empirical_unexplored_relative_mass_upper_bound: f64,
+    pub min_top2_class_margin_bits: f64,
+    pub max_posterior_predictive_bits_per_block: f64,
+    pub max_abs_residual_lag1: f64,
+    pub max_topology_entropy_bits: f64,
+    pub max_formation_entropy_bits: f64,
+    pub min_perturbation_stability: f64,
 }
 
 impl M7ReleaseGates {
@@ -81,6 +89,42 @@ impl M7ReleaseGates {
                 "m7_selective",
                 "gate_max_internal_mean_channel_delta",
             )?,
+            posterior_lower_bound_threshold: f64_gate(
+                gates,
+                "m7_selective",
+                "posterior_lower_bound_threshold",
+            )?,
+            empirical_unexplored_relative_mass_upper_bound: f64_gate(
+                gates,
+                "m7_selective",
+                "empirical_unexplored_relative_mass_upper_bound",
+            )?,
+            min_top2_class_margin_bits: f64_gate(
+                gates,
+                "m7_selective",
+                "gate_min_top2_class_margin_bits",
+            )?,
+            max_posterior_predictive_bits_per_block: f64_gate(
+                gates,
+                "m7_selective",
+                "gate_max_posterior_predictive_bits_per_block",
+            )?,
+            max_abs_residual_lag1: f64_gate(gates, "m7_selective", "gate_max_abs_residual_lag1")?,
+            max_topology_entropy_bits: f64_gate(
+                gates,
+                "m7_selective",
+                "gate_max_topology_entropy_bits",
+            )?,
+            max_formation_entropy_bits: f64_gate(
+                gates,
+                "m7_selective",
+                "gate_max_formation_entropy_bits",
+            )?,
+            min_perturbation_stability: f64_gate(
+                gates,
+                "m7_selective",
+                "gate_min_perturbation_stability",
+            )?,
         })
     }
 }
@@ -116,6 +160,21 @@ pub struct StratumSummary {
     pub accepted: u64,
     pub catastrophic: u64,
     pub refusal_statuses: BTreeMap<String, u64>,
+    pub refusal_reasons: BTreeMap<String, u64>,
+    pub cost_refusal_histogram: BTreeMap<String, u64>,
+    pub numerical_conditioning: ConditioningSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Default)]
+pub struct ConditioningSummary {
+    pub evidence_pairs: u64,
+    pub evidence_pairs_refused: u64,
+    pub evidence_conditioning_min: Option<f64>,
+    pub evidence_conditioning_max: Option<f64>,
+    pub fit_runs: u64,
+    pub fit_material_cost_samples: u64,
+    pub fit_worst_normal_to_euclidean_ratio: Option<f64>,
+    pub fit_worst_ratio_at_deviation_px: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -138,6 +197,7 @@ pub struct PresetReleaseVerdict {
     pub runtime_gate_met: bool,
     pub peak_working_set_bytes: u64,
     pub memory_gate_met: bool,
+    pub calibration_gate_met: bool,
     pub catastrophic_kinds: BTreeMap<String, u64>,
     pub by_family: BTreeMap<String, StratumSummary>,
     pub by_size: BTreeMap<String, StratumSummary>,
@@ -158,6 +218,13 @@ pub struct ReleaseVerdict {
     pub release_commit_sha: String,
     pub runner_attestation_sha256: String,
     pub gate_provenance_sha256: String,
+    pub quality_calibration_measurement_sha256: String,
+    pub fast_calibration_measurement_sha256: String,
+    pub geometry_measurement_sha256: String,
+    pub quality_production_config_sha256: String,
+    pub fast_production_config_sha256: String,
+    pub quality_report_sha256: String,
+    pub fast_report_sha256: String,
     pub quality: PresetReleaseVerdict,
     pub fast: PresetReleaseVerdict,
     pub same_population: bool,
@@ -211,6 +278,28 @@ pub fn analyze_release(
         release_commit_sha: threshold_source.event_commit_sha.clone(),
         runner_attestation_sha256: threshold_source.attestation_sha256.clone(),
         gate_provenance_sha256: threshold_source.provenance_sha256.clone(),
+        quality_calibration_measurement_sha256: threshold_source
+            .provenance
+            .quality_calibration_measurement_sha256
+            .clone(),
+        fast_calibration_measurement_sha256: threshold_source
+            .provenance
+            .fast_calibration_measurement_sha256
+            .clone(),
+        geometry_measurement_sha256: threshold_source
+            .provenance
+            .geometry_measurement_sha256
+            .clone(),
+        quality_production_config_sha256: threshold_source
+            .provenance
+            .quality_production_config_sha256
+            .clone(),
+        fast_production_config_sha256: threshold_source
+            .provenance
+            .fast_production_config_sha256
+            .clone(),
+        quality_report_sha256: super::report_content_sha256(quality),
+        fast_report_sha256: super::report_content_sha256(fast),
         quality: quality_verdict,
         fast: fast_verdict,
         same_population,
@@ -309,6 +398,7 @@ fn analyze_preset(
     let runtime_isolated = report.max_workers_per_shard == 1 && report.shard_count == 1;
     let runtime_gate_met = runtime_isolated && runtime_p95_ms <= runtime_limit_ms;
     let memory_gate_met = report.peak_working_set_bytes <= gates.max_peak_memory_bytes;
+    let calibration_gate_met = calibration_matches_gates(report, gates);
     let source_coverage_met = reliability.coverage_per_source >= gates.min_source_coverage;
     let render_coverage_met = reliability.coverage_per_render >= gates.min_render_coverage;
     let mut kinds = BTreeMap::new();
@@ -339,6 +429,9 @@ fn analyze_preset(
     if !memory_gate_met {
         refusals.push("process peak memory exceeds the frozen gate".into());
     }
+    if !calibration_gate_met {
+        refusals.push("production confidence calibration differs from the frozen gates".into());
+    }
     Ok(PresetReleaseVerdict {
         preset: report.preset,
         identity: report.identity.clone(),
@@ -358,6 +451,7 @@ fn analyze_preset(
         runtime_gate_met,
         peak_working_set_bytes: report.peak_working_set_bytes,
         memory_gate_met,
+        calibration_gate_met,
         catastrophic_kinds: kinds,
         by_family: stratify(&rows, |row| row.shape_family.clone(), gates),
         by_size: stratify(&rows, |row| row.size_px.to_string(), gates),
@@ -366,6 +460,26 @@ fn analyze_preset(
         gate_met: refusals.is_empty(),
         refusals,
     })
+}
+
+fn calibration_matches_gates(report: &MeasurementReport, gates: M7ReleaseGates) -> bool {
+    report
+        .confidence_calibration
+        .as_ref()
+        .is_some_and(|calibration| {
+            calibration.validate_for_identity(&report.identity).is_ok()
+                && calibration.posterior_lower_bound_threshold
+                    == gates.posterior_lower_bound_threshold
+                && calibration.empirical_unexplored_relative_mass_upper_bound
+                    == Some(gates.empirical_unexplored_relative_mass_upper_bound)
+                && calibration.minimum_top2_class_margin_bits == gates.min_top2_class_margin_bits
+                && calibration.maximum_posterior_predictive_bits_per_block
+                    == gates.max_posterior_predictive_bits_per_block
+                && calibration.maximum_abs_residual_lag1 == gates.max_abs_residual_lag1
+                && calibration.maximum_topology_entropy_bits == gates.max_topology_entropy_bits
+                && calibration.maximum_formation_entropy_bits == gates.max_formation_entropy_bits
+                && calibration.minimum_perturbation_stability == gates.min_perturbation_stability
+        })
 }
 
 pub(crate) fn catastrophic_with_gates(
@@ -444,8 +558,18 @@ fn stratify(
             accepted: 0,
             catastrophic: 0,
             refusal_statuses: BTreeMap::new(),
+            refusal_reasons: BTreeMap::new(),
+            cost_refusal_histogram: BTreeMap::new(),
+            numerical_conditioning: ConditioningSummary::default(),
         });
         entry.renders += 1;
+        for refusal in &row.cost_refusal_histogram {
+            *entry
+                .cost_refusal_histogram
+                .entry(format!("{}/{}", refusal.family, refusal.reason))
+                .or_default() += refusal.count;
+        }
+        merge_conditioning(&mut entry.numerical_conditioning, row);
         if accepted {
             entry.accepted += 1;
             entry.catastrophic += u64::from(!catastrophic_with_gates(row, gates).is_empty());
@@ -454,9 +578,57 @@ fn stratify(
                 .refusal_statuses
                 .entry(row.decision_status.clone())
                 .or_default() += 1;
+            *entry
+                .refusal_reasons
+                .entry(
+                    row.decision_reason
+                        .clone()
+                        .unwrap_or_else(|| "unclassified".into()),
+                )
+                .or_default() += 1;
         }
     }
     out
+}
+
+fn merge_conditioning(summary: &mut ConditioningSummary, row: &MeasurementRow) {
+    let diagnostics = &row.numerical_conditioning;
+    summary.evidence_pairs = summary
+        .evidence_pairs
+        .saturating_add(diagnostics.evidence_pairs);
+    summary.evidence_pairs_refused = summary
+        .evidence_pairs_refused
+        .saturating_add(diagnostics.evidence_pairs_refused);
+    summary.fit_runs = summary.fit_runs.saturating_add(diagnostics.fit_runs);
+    summary.fit_material_cost_samples = summary
+        .fit_material_cost_samples
+        .saturating_add(diagnostics.fit_material_cost_samples);
+    if diagnostics.evidence_conditioning_min.is_some_and(|value| {
+        summary
+            .evidence_conditioning_min
+            .is_none_or(|old| value < old)
+    }) {
+        summary.evidence_conditioning_min = diagnostics.evidence_conditioning_min;
+    }
+    if diagnostics.evidence_conditioning_max.is_some_and(|value| {
+        summary
+            .evidence_conditioning_max
+            .is_none_or(|old| value > old)
+    }) {
+        summary.evidence_conditioning_max = diagnostics.evidence_conditioning_max;
+    }
+    if diagnostics
+        .fit_worst_normal_to_euclidean_ratio
+        .is_some_and(|value| {
+            summary
+                .fit_worst_normal_to_euclidean_ratio
+                .is_none_or(|old| value > old)
+        })
+    {
+        summary.fit_worst_normal_to_euclidean_ratio =
+            diagnostics.fit_worst_normal_to_euclidean_ratio;
+        summary.fit_worst_ratio_at_deviation_px = diagnostics.fit_worst_ratio_at_deviation_px;
+    }
 }
 
 fn population_keys(report: &MeasurementReport) -> BTreeSet<(&str, &str, &str)> {
@@ -514,6 +686,20 @@ mod tests {
                     "gate_max_internal_mean_channel_delta",
                     toml::Value::Float(0.25),
                 ),
+                ("posterior_lower_bound_threshold", toml::Value::Float(0.75)),
+                (
+                    "empirical_unexplored_relative_mass_upper_bound",
+                    toml::Value::Float(1.0),
+                ),
+                ("gate_min_top2_class_margin_bits", toml::Value::Float(0.0)),
+                (
+                    "gate_max_posterior_predictive_bits_per_block",
+                    toml::Value::Float(0.10),
+                ),
+                ("gate_max_abs_residual_lag1", toml::Value::Float(0.90)),
+                ("gate_max_topology_entropy_bits", toml::Value::Float(1.0)),
+                ("gate_max_formation_entropy_bits", toml::Value::Float(1.0)),
+                ("gate_min_perturbation_stability", toml::Value::Float(0.95)),
             ]
             .into_iter()
             .map(|(key, value)| (key.into(), value))

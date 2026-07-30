@@ -51,24 +51,28 @@ fn seal_cycle_succeeds_and_is_deterministic_across_repeats() {
 ///
 /// - `shared_edge` render digest `1a9feb47…`: UNCHANGED across the fix.
 /// - `quad_blob` render digest: `cc6f9615…` → `f14a9102…`.
+///
+/// Re-frozen again when the closed-boundary seam became explicit canonical IR
+/// state (`3d8f308`). Both scene digests moved; both render digests stayed
+/// byte-identical, proving that the identity change did not alter raster output.
 #[test]
 fn golden_render_digests_are_frozen() {
     let shared = shared_edge_scene(48, 32).into_inner();
     let a = seal_render_cycle(&shared, &opts()).unwrap();
+    let blob = quad_blob_scene().into_inner();
+    let b = seal_render_cycle(&blob, &opts()).unwrap();
     assert_eq!(
         a.scene_digest_sha256,
-        "a944335805aae1a89c87b3e66741c48a97b6570a2e1a2ddeb1a6037882f6ea03"
+        "9af740154ceb5172c0cc475c1468b55a57d4e9e60c4b5d1a7cedcf5f95d126e8"
     );
     assert_eq!(
         a.render_digest_sha256,
         "1a9feb47afff462d200fd1ec33fba34c4fb694f093ff64576b15135d30f1fe0e"
     );
 
-    let blob = quad_blob_scene().into_inner();
-    let b = seal_render_cycle(&blob, &opts()).unwrap();
     assert_eq!(
         b.scene_digest_sha256,
-        "778abab606cde43574fe2a3620ebd593724cf754bd1201743c755df13aef7d12"
+        "dce246bd38975ebcb8c89fa184d95c245990f2864dcc25de08a7312ca1689ddd"
     );
     assert_eq!(
         b.render_digest_sha256,

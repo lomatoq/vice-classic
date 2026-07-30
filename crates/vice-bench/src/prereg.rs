@@ -33,6 +33,8 @@ pub struct Bucket {
     /// bucket fails regardless of its risk bound — the clause that stops a
     /// system passing by abstaining from almost everything (§1.5).
     pub min_coverage_per_source: f64,
+    /// Separate mandatory-render coverage floor.
+    pub min_coverage_per_render: f64,
     /// Provisional SLO target of §29 for this bucket, or `None` where the
     /// bucket has no boundary target at all.
     ///
@@ -93,6 +95,7 @@ impl Preregistration {
                     max_size_px: 512,
                     identifiability: &["identifiable"],
                     min_coverage_per_source: 0.80,
+                    min_coverage_per_render: 0.80,
                     boundary_p95_px: Some(0.35),
                 },
                 Bucket {
@@ -101,6 +104,7 @@ impl Preregistration {
                     max_size_px: 64,
                     identifiability: &["identifiable"],
                     min_coverage_per_source: 0.60,
+                    min_coverage_per_render: 0.60,
                     boundary_p95_px: Some(0.50),
                 },
                 Bucket {
@@ -113,6 +117,7 @@ impl Preregistration {
                     // here would be preregistering a number nobody has
                     // justified.
                     min_coverage_per_source: 0.0,
+                    min_coverage_per_render: 0.0,
                     boundary_p95_px: Some(1.0),
                 },
                 Bucket {
@@ -121,6 +126,7 @@ impl Preregistration {
                     max_size_px: 512,
                     identifiability: &["equivalent_family"],
                     min_coverage_per_source: 0.0,
+                    min_coverage_per_render: 0.0,
                     boundary_p95_px: Some(0.50),
                 },
                 Bucket {
@@ -131,6 +137,7 @@ impl Preregistration {
                     // Scored on correct ABSTENTION (§29), so a coverage
                     // floor here would reward exactly the wrong behaviour.
                     min_coverage_per_source: 0.0,
+                    min_coverage_per_render: 0.0,
                     // Scored on correct ABSTENTION, so there is no boundary
                     // target - stated as absence, not as an infinity the
                     // serializer would flatten to null.
@@ -256,6 +263,9 @@ impl Preregistration {
             if !(0.0..=1.0).contains(&b.min_coverage_per_source) {
                 bad.push(format!("{}: coverage floor outside [0,1]", b.id));
             }
+            if !(0.0..=1.0).contains(&b.min_coverage_per_render) {
+                bad.push(format!("{}: render coverage floor outside [0,1]", b.id));
+            }
             // A non-finite threshold is invisible to the hash (it prints as
             // `null`), so it may not be a threshold at all.
             if let Some(v) = b.boundary_p95_px {
@@ -272,7 +282,7 @@ impl Preregistration {
         for b in &self.buckets {
             if b.identifiability == ["identifiable"]
                 && b.min_size_px >= 64
-                && b.min_coverage_per_source <= 0.0
+                && (b.min_coverage_per_source <= 0.0 || b.min_coverage_per_render <= 0.0)
             {
                 bad.push(format!(
                     "{}: an identifiable bucket at >= 64 px must preregister a coverage floor",
@@ -323,6 +333,13 @@ mod tests {
             p.check().is_err(),
             "an identifiable bucket at >= 64 px without a coverage floor would let total \
              abstention pass"
+        );
+
+        let mut p = base.clone();
+        p.buckets[0].min_coverage_per_render = 0.0;
+        assert!(
+            p.check().is_err(),
+            "an identifiable bucket at >= 64 px needs a render coverage floor"
         );
 
         let mut p = base.clone();
@@ -415,5 +432,5 @@ mod tests {
         assert_ne!(other.hash(), h, "a weaker target must change the hash");
     }
 
-    const FROZEN_V1_HASH: &str = "ea04a7b409c3cd42049be40108dce1ef918ea84ecc904824d6cca9afc316f0ba";
+    const FROZEN_V1_HASH: &str = "67223533f3a4ab4d9e413d4b8e32b944523c0fb8111cfdc5201bf17fabce062b";
 }

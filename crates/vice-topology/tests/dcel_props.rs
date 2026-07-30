@@ -36,8 +36,8 @@ use std::collections::BTreeSet;
 use vice_ir::{ComplementaryConnectivity, PixelConnectivity};
 use vice_topology::continuation::EditKind;
 use vice_topology::dcel::{
-    apply, audit, is_the_assembly_of_its_own_labelling, Edit, InvariantViolation, Outcome, Roi,
-    TransactionRefusal,
+    apply, audit, is_the_assembly_of_its_own_labelling, Edit, IncrementalRebuildError,
+    InvariantViolation, Outcome, Roi, TransactionRefusal,
 };
 use vice_topology::{
     audit_every_labelling, signature, structural_fixtures, with_a_distant_witness, Dcel, Labelling,
@@ -438,6 +438,7 @@ fn every_refusal_variant_is_in_all_names() {
             count: 1,
             first: String::new(),
         },
+        TransactionRefusal::IncrementalRebuildFailed(IncrementalRebuildError::NoChangedPixels),
         TransactionRefusal::CandidateFailedAudit(InvariantViolation::SuccessorNotAPermutation {
             detail: String::new(),
         }),

@@ -799,6 +799,11 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         // declared independent cell and binds production Stage-F chains to GT
         // labels. The sealed audit remains unreachable.
         "vice-bench/src/geometry/observations.rs",
+        // M7's measurement scheduler is the declared release-court population
+        // door. Scope is typed, split filtering happens before jobs are
+        // created, and sealed-audit measurement additionally requires the
+        // digest-pinned production configuration.
+        "vice-bench/src/m7/measure.rs",
         // The ONE mint site of the frozen-measurement handle. It names the
         // split-filtered accessor and nothing wider, which
         // `the_only_mint_site_for_the_legal_handle_cannot_widen_it` checks.
@@ -1049,8 +1054,9 @@ fn no_workflow_redirects_the_gate_file() {
 
     // And there is no SECOND gate-shaped file for anything to be pointed at.
     // The red team's sidecar was a copy of the gate file with every threshold
-    // at 1; what makes a file a gate is that it declares frozen sections, so
-    // that is what is looked for rather than a name or a location.
+    // at 1. A threshold file is gate-shaped when it declares frozen sections;
+    // the M7 provenance file is also gate-shaped from its schema onward,
+    // including while its status is still `placeholder` before the freeze.
     // THE WHOLE REPOSITORY, not `configs/`. Condition 26 / M45-N24: a sidecar
     // only had to be written somewhere else for this to miss it, so the scope
     // was a directory rather than the property. `target/`, `.git/` and `runs/`
@@ -1077,7 +1083,10 @@ fn no_workflow_redirects_the_gate_file() {
                 continue;
             }
             let text = std::fs::read_to_string(&path).unwrap_or_default();
-            if !text.contains("status = \"frozen\"") {
+            let declares_frozen_gate = text.contains("status = \"frozen\"");
+            let declares_m7_gate_provenance =
+                text.contains("schema = \"vice-classic/m7-gate-provenance/");
+            if !declares_frozen_gate && !declares_m7_gate_provenance {
                 continue;
             }
             out.push(
@@ -1194,6 +1203,11 @@ fn only_declared_modules_call_the_render_pipeline() {
         // module derives from an independent raster. GT is labels/scoring,
         // never the fitted observation.
         "vice-bench/src/geometry/observations.rs",
+        // M7's release court renders each typed population job exactly once
+        // before handing the bytes to the production calibration path. Its
+        // scheduler and split gate live in `m7/measure.rs`; the render call
+        // itself remains here beside the row it produces.
+        "vice-bench/src/m7.rs",
         "vice-bench/src/oracle/ceiling.rs",
         "vice-bench/src/topology/mod.rs",
         "vice-bench/src/topology/ambiguity.rs",

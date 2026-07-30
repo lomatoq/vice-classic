@@ -122,20 +122,28 @@ pub fn measure(
     m7::measure_to_path_with_config(request, &config, out, resume)
 }
 
+pub struct GovernancePaths<'a> {
+    pub seal: &'a Path,
+    pub manifest: &'a Path,
+    pub gates: &'a Path,
+    pub runner_attestation: &'a Path,
+    pub gate_provenance: &'a Path,
+}
+
 pub fn analyze(
-    seal_path: &Path,
-    manifest: &Path,
-    gates_path: &Path,
-    runner_attestation: &Path,
-    gate_provenance: &Path,
+    governance: GovernancePaths<'_>,
     quality_report: &Path,
     fast_report: &Path,
     out: &Path,
 ) -> Result<m7::release::ReleaseVerdict, String> {
-    let threshold_source = threshold_source(runner_attestation, gates_path, gate_provenance)?;
-    let seal = read_seal(seal_path)?;
+    let threshold_source = threshold_source(
+        governance.runner_attestation,
+        governance.gates,
+        governance.gate_provenance,
+    )?;
+    let seal = read_seal(governance.seal)?;
     let (corpus_hash, prereg_hash, gates_hash) =
-        release_hashes(manifest, &threshold_source.digest_input)?;
+        release_hashes(governance.manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
     let quality = m7::read_report(quality_report)?;
@@ -178,19 +186,19 @@ pub fn determinism(
 }
 
 pub fn baseline_court(
-    seal_path: &Path,
-    manifest: &Path,
-    gates_path: &Path,
-    runner_attestation: &Path,
-    gate_provenance: &Path,
+    governance: GovernancePaths<'_>,
     quality_report: &Path,
     fast_report: &Path,
     out: &Path,
 ) -> Result<m7::baseline::BaselineCourtVerdict, String> {
-    let threshold_source = threshold_source(runner_attestation, gates_path, gate_provenance)?;
-    let seal = read_seal(seal_path)?;
+    let threshold_source = threshold_source(
+        governance.runner_attestation,
+        governance.gates,
+        governance.gate_provenance,
+    )?;
+    let seal = read_seal(governance.seal)?;
     let (corpus_hash, prereg_hash, gates_hash) =
-        release_hashes(manifest, &threshold_source.digest_input)?;
+        release_hashes(governance.manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
     let quality = m7::read_report(quality_report)?;
@@ -207,19 +215,19 @@ pub fn baseline_court(
 }
 
 pub fn oracle(
-    seal_path: &Path,
-    manifest: &Path,
-    gates_path: &Path,
-    runner_attestation: &Path,
-    gate_provenance: &Path,
+    governance: GovernancePaths<'_>,
     quality_report: &Path,
     fast_report: &Path,
     out: &Path,
 ) -> Result<m7::oracle::M7OracleVerdict, String> {
-    let threshold_source = threshold_source(runner_attestation, gates_path, gate_provenance)?;
-    let seal = read_seal(seal_path)?;
+    let threshold_source = threshold_source(
+        governance.runner_attestation,
+        governance.gates,
+        governance.gate_provenance,
+    )?;
+    let seal = read_seal(governance.seal)?;
     let (corpus_hash, prereg_hash, gates_hash) =
-        release_hashes(manifest, &threshold_source.digest_input)?;
+        release_hashes(governance.manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
     let quality = m7::read_report(quality_report)?;
@@ -245,6 +253,18 @@ pub fn geometry_calibrate(out: &Path) -> Result<vice_bench::geometry::M7Geometry
     std::fs::write(out, format!("{text}\n"))
         .map_err(|error| format!("write {}: {error}", out.display()))?;
     Ok(measurements)
+}
+
+pub fn canonical_artifact(
+    release: &Path,
+    baseline: &Path,
+    oracle: &Path,
+    determinism: &Path,
+    out: &Path,
+) -> Result<m7::artifact::CanonicalArtifact, String> {
+    let artifact = m7::artifact::assemble(release, baseline, oracle, determinism)?;
+    m7::artifact::write(out, &artifact)?;
+    Ok(artifact)
 }
 
 #[cfg(test)]

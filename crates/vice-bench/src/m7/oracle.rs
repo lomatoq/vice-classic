@@ -10,7 +10,7 @@ use crate::gt::split::{AuditSeal, SealStatus};
 use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 
-pub const M7_ORACLE_SCHEMA: &str = "vice-classic/m7-complete-oracle/v1";
+pub const M7_ORACLE_SCHEMA: &str = "vice-classic/m7-complete-oracle/v2";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PfArmAggregate {
@@ -72,6 +72,8 @@ pub struct M7OracleVerdict {
     pub release_commit_sha: String,
     pub runner_attestation_sha256: String,
     pub gate_provenance_sha256: String,
+    pub quality_report_sha256: String,
+    pub fast_report_sha256: String,
     pub quality_pf: PfPresetVerdict,
     pub fast_pf: PfPresetVerdict,
     pub geometry: GeometryOracleVerdict,
@@ -171,6 +173,8 @@ pub fn run_release(
         release_commit_sha: threshold_source.event_commit_sha.clone(),
         runner_attestation_sha256: threshold_source.attestation_sha256.clone(),
         gate_provenance_sha256: threshold_source.provenance_sha256.clone(),
+        quality_report_sha256: super::report_content_sha256(quality),
+        fast_report_sha256: super::report_content_sha256(fast),
         quality_pf,
         fast_pf,
         geometry,

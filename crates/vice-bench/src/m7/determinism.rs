@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 
 use super::{MeasurementReport, M7_MEASUREMENT_SCHEMA};
 
-pub const M7_DETERMINISM_SCHEMA: &str = "vice-classic/m7-determinism/v1";
+pub const M7_DETERMINISM_SCHEMA: &str = "vice-classic/m7-determinism/v2";
 
 #[derive(Debug, Clone)]
 pub struct DeterminismInput {
@@ -20,6 +20,7 @@ pub struct DeterminismInput {
 pub struct DeterminismRun {
     pub label: String,
     pub raw_sha256: String,
+    pub canonical_report_sha256: String,
     pub workers: u32,
     pub normalized_decision_and_artifact_sha256: String,
     pub rows: u64,
@@ -75,6 +76,7 @@ pub fn analyze(inputs: Vec<DeterminismInput>) -> Result<DeterminismVerdict, Stri
             .map(|input| DeterminismRun {
                 workers: input.report.max_workers_per_shard,
                 normalized_decision_and_artifact_sha256: normalized_digest(&input.report),
+                canonical_report_sha256: super::report_content_sha256(&input.report),
                 rows: input.report.renders,
                 label: input.label,
                 raw_sha256: input.raw_sha256,
