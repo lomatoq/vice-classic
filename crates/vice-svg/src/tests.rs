@@ -36,6 +36,7 @@ fn nested_scene() -> VectorScene {
         right_face: FaceId(0),
         start_vertex: VertexId(0),
         end_vertex: VertexId(0),
+        closure_join: Some(JoinKind::Corner),
         curve: closed_square(Pt::new(1.0, 1.0), Pt::new(9.0, 9.0)),
     };
     let inner = Boundary {
@@ -43,6 +44,7 @@ fn nested_scene() -> VectorScene {
         right_face: FaceId(1),
         start_vertex: VertexId(1),
         end_vertex: VertexId(1),
+        closure_join: Some(JoinKind::Corner),
         curve: closed_square(Pt::new(3.0, 3.0), Pt::new(7.0, 7.0)),
     };
     VectorScene {

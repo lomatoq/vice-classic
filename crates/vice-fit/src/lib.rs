@@ -86,8 +86,9 @@ pub use primitive::{
     LoopPrimitiveHypothesis, LoopPrimitiveKind,
 };
 pub use refit::{
-    canonical_angle, closure_g1_spread_rad, g1_readings, ArcAnchor, G1Reading, Handle, RefitChain,
-    RefitNode, RefitRefusal, RefitSegment, FEASIBLE_HALFWIDTHS,
+    canonical_angle, closure_g1_spread_rad, g1_readings, ArcAnchor, G1Reading, Handle,
+    LoweredBoundaryGeometry, RefitChain, RefitNode, RefitRefusal, RefitSegment,
+    FEASIBLE_HALFWIDTHS,
 };
 pub use relation::{apply_accepted, relation_hypotheses, RelationHypothesis, RelationKind};
 pub use schedule::{

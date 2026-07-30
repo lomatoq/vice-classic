@@ -13,7 +13,7 @@ rejected». Требования: ordered maps, запрет `-0`/NaN/Inf, share
 
 1. **Формат: canonical JSON** с фиксированным порядком полей (порядок
    объявления структур; serde) и компактной записью без пробелов. Версия
-   формата — тег `schema = "vice-classic/scene/v1"` в envelope; изменение
+   формата — тег `schema = "vice-classic/scene/v2"` в envelope; изменение
    формата = смена тега = reviewed change (golden-тест делает дрейф
    видимым и не даёт «починить» digest молча).
 2. **Canonical relabeling перед сериализацией.** Байты обязаны быть чистой
@@ -42,7 +42,7 @@ rejected». Требования: ordered maps, запрет `-0`/NaN/Inf, share
 7. **Parsing строгий:** `deny_unknown_fields` везде (serde также отклоняет
    дубликаты полей структур), затем schema-tag check, затем ПОЛНАЯ
    валидация сцены. Мусор не может пройти в IR через сериализацию.
-8. **Golden-артефакт:** `crates/vice-ir/tests/golden/scene_v1.json`
+8. **Golden-артефакт:** `crates/vice-ir/tests/golden/scene_v2.json`
    (сцена со всеми видами сегментов, smooth joins, transparent hole,
    loop-boundary) + замороженный sha256 в `golden_digest.rs`.
 
@@ -60,6 +60,14 @@ rejected». Требования: ordered maps, запрет `-0`/NaN/Inf, share
 
 - Любое изменение IR-типов меняет canonical формат → golden-тест упадёт →
   осознанный bump `SCENE_SCHEMA` в том же reviewed change.
+
+## Эволюция v2
+
+M7 добавил к каждой `Boundary` поле `closure_join`. Оно обязательно для
+self-loop boundary и отсутствует для открытой boundary. Так угол или G1-параметр
+в точке замыкания больше не теряется между refit, квантизацией, сериализацией и
+независимым verifier. Это изменило канонические байты, поэтому schema и golden
+артефакт подняты с v1 до v2 в одном reviewed change.
 - Квантование параметров (полный seal) появится в M7 поверх этого
   скелета: оно будет менять ЗНАЧЕНИЯ shared-объектов один раз перед той же
   сериализацией.

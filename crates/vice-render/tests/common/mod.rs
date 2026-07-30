@@ -72,6 +72,7 @@ pub fn wire_scene_raw(
             right_face: FaceId(b.right as u32),
             start_vertex: VertexId(b.start as u32),
             end_vertex: VertexId(b.end as u32),
+            closure_join: (b.start == b.end).then_some(vice_ir::JoinKind::Corner),
             curve: b.chain.clone(),
         })
         .collect();

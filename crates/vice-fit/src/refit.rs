@@ -106,6 +106,14 @@ pub struct RefitChain {
     pub segments: Vec<RefitSegment>,
 }
 
+/// Canonical geometry of one graph boundary, including the join at the
+/// repeated endpoint when the boundary is a self-loop.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LoweredBoundaryGeometry {
+    pub curve: CurveChain,
+    pub closure_join: Option<JoinKind>,
+}
+
 /// Why a chain could not be refitted or lowered.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(tag = "refit_refusal", rename_all = "snake_case")]
@@ -342,6 +350,13 @@ impl RefitChain {
     /// RT6-A1 wrote the disagreement down through an arc anchored at its other
     /// end, and the solver accepted it.
     pub fn lower(&self) -> Result<CurveChain, RefitRefusal> {
+        Ok(self.lower_boundary_geometry()?.curve)
+    }
+
+    /// Lower the complete boundary representation. Unlike [`Self::lower`],
+    /// this preserves the repeated-endpoint join of a closed chain so M7 can
+    /// quantize, serialize, and independently verify that seam.
+    pub fn lower_boundary_geometry(&self) -> Result<LoweredBoundaryGeometry, RefitRefusal> {
         if self.segments.is_empty() || self.nodes.len() != self.segments.len() + 1 {
             return Err(RefitRefusal::Malformed);
         }
@@ -522,7 +537,18 @@ impl RefitChain {
                 });
             }
         }
-        Ok(lowered)
+        let closure_join = if self.start() == self.end() {
+            Some(match closure_angle {
+                Some(tangent_angle_rad) => JoinKind::SmoothG1 { tangent_angle_rad },
+                None => JoinKind::Corner,
+            })
+        } else {
+            None
+        };
+        Ok(LoweredBoundaryGeometry {
+            curve: lowered,
+            closure_join,
+        })
     }
 
     pub fn start(&self) -> Pt {
@@ -698,7 +724,16 @@ mod tests {
                 },
             ],
         };
-        let lowered = chain.lower().expect("closed shared seam lowers");
+        let complete = chain
+            .lower_boundary_geometry()
+            .expect("closed shared seam lowers");
+        assert_eq!(
+            complete.closure_join,
+            Some(JoinKind::SmoothG1 {
+                tangent_angle_rad: 0.0
+            })
+        );
+        let lowered = complete.curve;
         let spread = closure_g1_spread_rad(&lowered, chain.start(), chain.end(), 0.0)
             .expect("closure witness");
         assert!(spread < crate::GATE_MAX_G1_SPREAD_RAD);

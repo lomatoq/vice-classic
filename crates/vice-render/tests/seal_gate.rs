@@ -205,6 +205,7 @@ fn permute_scene_reversed(scene: &vice_ir::VectorScene) -> vice_ir::VectorScene 
         right_face: FaceId(0),
         start_vertex: VertexId(0),
         end_vertex: VertexId(0),
+        closure_join: Some(vice_ir::JoinKind::Corner),
         curve: vice_ir::CurveChain::single(vice_ir::Segment::Line),
     };
     let mut boundaries = vec![placeholder; nb];
@@ -214,6 +215,7 @@ fn permute_scene_reversed(scene: &vice_ir::VectorScene) -> vice_ir::VectorScene 
             right_face: FaceId(pf(b.right_face.index()) as u32),
             start_vertex: VertexId(pv(b.start_vertex.index()) as u32),
             end_vertex: VertexId(pv(b.end_vertex.index()) as u32),
+            closure_join: b.closure_join,
             curve: b.curve.clone(),
         };
     }

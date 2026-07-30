@@ -26,6 +26,7 @@ fn square_scene() -> VectorScene {
             right_face: FaceId(0),
             start_vertex: VertexId(i),
             end_vertex: VertexId((i + 1) % 4),
+            closure_join: None,
             curve: CurveChain::single(Segment::Line),
         })
         .collect();
@@ -194,6 +195,65 @@ fn a_declared_smooth_join_that_geometry_does_not_read_is_rejected() {
     assert!(matches!(
         preseal_scene(&scene, &bindings(&scene), config()),
         Err(VerificationError::G1 { .. })
+    ));
+}
+
+#[test]
+fn a_declared_smooth_closure_seam_is_independently_checked() {
+    let mut scene = square_scene();
+    scene.graph.vertices = vec![GraphVertex {
+        pos: Pt::new(5.0, 2.0),
+    }];
+    scene.graph.boundaries = vec![Boundary {
+        left_face: FaceId(1),
+        right_face: FaceId(0),
+        start_vertex: VertexId(0),
+        end_vertex: VertexId(0),
+        closure_join: Some(JoinKind::SmoothG1 {
+            tangent_angle_rad: std::f64::consts::FRAC_PI_2,
+        }),
+        curve: CurveChain {
+            interior_nodes: vec![ChainNode {
+                pos: Pt::new(5.0, 8.0),
+                join: JoinKind::Corner,
+            }],
+            segments: vec![
+                Segment::Cubic {
+                    ctrl1: Pt::new(8.0, 2.0),
+                    ctrl2: Pt::new(8.0, 8.0),
+                },
+                Segment::Cubic {
+                    ctrl1: Pt::new(2.0, 8.0),
+                    ctrl2: Pt::new(2.0, 2.0),
+                },
+            ],
+        },
+    }];
+    scene.graph.half_edges = vec![
+        HalfEdge {
+            boundary: BoundaryId(0),
+            forward: true,
+            twin: HalfEdgeId(1),
+            next: HalfEdgeId(0),
+            face: FaceId(1),
+        },
+        HalfEdge {
+            boundary: BoundaryId(0),
+            forward: false,
+            twin: HalfEdgeId(0),
+            next: HalfEdgeId(1),
+            face: FaceId(0),
+        },
+    ];
+    scene.graph.faces[0].loops = vec![HalfEdgeId(1)];
+    scene.graph.faces[1].loops = vec![HalfEdgeId(0)];
+    vice_ir::validate_scene(&scene).unwrap();
+    assert!(matches!(
+        preseal_scene(&scene, &bindings(&scene), config()),
+        Err(VerificationError::G1 {
+            boundary: BoundaryId(0),
+            ..
+        })
     ));
 }
 

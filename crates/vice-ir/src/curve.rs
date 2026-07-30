@@ -5,7 +5,9 @@
 //! - the chain's two ENDPOINTS live in the graph vertices referenced by the
 //!   owning [`crate::graph::Boundary`] — they are never duplicated here;
 //! - interior nodes between segments are stored once in `interior_nodes`;
-//! - a smooth join stores its shared tangent parameter once, at the node.
+//! - a smooth join stores its shared tangent parameter once, at the node;
+//! - a self-loop's repeated-endpoint join lives once on its owning
+//!   [`crate::graph::Boundary`].
 //!
 //! Exact G1 arises from parameterization/joint solve (M6); M1 carries the
 //! shared tangent parameter in the types but does not yet enforce

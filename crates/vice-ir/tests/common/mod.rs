@@ -120,6 +120,7 @@ fn add_ring(
             right_face: right,
             start_vertex: VertexId(v_base + j as u32),
             end_vertex: VertexId(v_base + ((j + 1) % k) as u32),
+            closure_join: (k == 1).then_some(JoinKind::Corner),
             curve: chain.clone(),
         });
     }
@@ -326,6 +327,7 @@ pub fn apply_permutation(
         right_face: FaceId(0),
         start_vertex: VertexId(0),
         end_vertex: VertexId(0),
+        closure_join: Some(JoinKind::Corner),
         curve: CurveChain::single(Segment::Line),
     };
     let mut boundaries = vec![placeholder; g.boundaries.len()];
@@ -335,6 +337,7 @@ pub fn apply_permutation(
             right_face: FaceId(perm_f[b.right_face.index()] as u32),
             start_vertex: VertexId(perm_v[b.start_vertex.index()] as u32),
             end_vertex: VertexId(perm_v[b.end_vertex.index()] as u32),
+            closure_join: b.closure_join,
             curve: b.curve.clone(),
         };
     }

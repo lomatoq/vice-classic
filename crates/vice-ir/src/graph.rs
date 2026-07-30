@@ -70,6 +70,10 @@ pub struct Boundary {
     pub right_face: FaceId,
     pub start_vertex: VertexId,
     pub end_vertex: VertexId,
+    /// Join at the repeated endpoint of a self-loop boundary. Present
+    /// exactly when `start_vertex == end_vertex`, so a closed-chain seam
+    /// cannot lose its corner/G1 declaration.
+    pub closure_join: Option<crate::curve::JoinKind>,
     pub curve: CurveChain,
 }
 

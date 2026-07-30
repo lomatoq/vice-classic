@@ -28,7 +28,7 @@ use crate::validate::{validate_scene, SceneError};
 
 /// Version tag of the canonical byte format. Changing the format or this
 /// tag invalidates every recorded digest: reviewed change only.
-pub const SCENE_SCHEMA: &str = "vice-classic/scene/v1";
+pub const SCENE_SCHEMA: &str = "vice-classic/scene/v2";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -114,7 +114,8 @@ pub fn canonicalize_graph(g: &PlanarGraph) -> PlanarGraph {
         (
             perm_v[b.start_vertex.index()],
             perm_v[b.end_vertex.index()],
-            serde_json::to_string(&b.curve).expect("curve serializes"),
+            serde_json::to_string(&(&b.closure_join, &b.curve))
+                .expect("boundary geometry serializes"),
         )
     };
     let keys: Vec<(usize, usize, String)> = g.boundaries.iter().map(b_key).collect();
@@ -214,6 +215,7 @@ pub fn canonicalize_graph(g: &PlanarGraph) -> PlanarGraph {
             right_face: FaceId(perm_f[b.right_face.index()] as u32),
             start_vertex: VertexId(perm_v[b.start_vertex.index()] as u32),
             end_vertex: VertexId(perm_v[b.end_vertex.index()] as u32),
+            closure_join: b.closure_join,
             curve: b.curve.clone(),
         });
     }
@@ -314,7 +316,7 @@ mod tests {
         let bytes = canonical_scene_bytes(&s).unwrap();
         let tampered = String::from_utf8(bytes)
             .unwrap()
-            .replace("vice-classic/scene/v1", "vice-classic/scene/v999");
+            .replace("vice-classic/scene/v2", "vice-classic/scene/v999");
         match parse_scene(tampered.as_bytes()) {
             Err(ParseError::SchemaMismatch { .. }) => {}
             other => panic!("expected SchemaMismatch, got {other:?}"),
@@ -331,8 +333,8 @@ mod tests {
             Err(ParseError::Json(_))
         ));
         let duplicate = text.replacen(
-            "\"schema\":\"vice-classic/scene/v1\"",
-            "\"schema\":\"vice-classic/scene/v1\",\"schema\":\"vice-classic/scene/v1\"",
+            "\"schema\":\"vice-classic/scene/v2\"",
+            "\"schema\":\"vice-classic/scene/v2\",\"schema\":\"vice-classic/scene/v2\"",
             1,
         );
         assert!(matches!(

@@ -534,6 +534,7 @@ fn torus_rotation_system_rejected_by_euler() {
             right_face: p,
             start_vertex: VertexId(0),
             end_vertex: VertexId(0),
+            closure_join: Some(JoinKind::Corner),
             curve: mk_chain(f64::from(i) * 9.0),
         });
     }
@@ -860,4 +861,39 @@ fn validated_scene_is_the_typed_precondition() {
         Err(SceneError::Graph(GraphError::UnrepresentedJunction { .. })) => {}
         other => panic!("expected UnrepresentedJunction, got {other:?}"),
     }
+}
+
+#[test]
+fn closure_join_presence_matches_self_loop_identity() {
+    let mut closed = build_scene(32, 32, &[loop_island(Pt::new(16.0, 16.0), 5.0, red())]);
+    closed.graph.boundaries[0].closure_join = None;
+    assert!(matches!(
+        validate_scene(&closed),
+        Err(SceneError::Graph(GraphError::MissingClosureJoin(
+            BoundaryId(0)
+        )))
+    ));
+
+    let mut open = one_square_scene();
+    open.graph.boundaries[0].closure_join = Some(JoinKind::Corner);
+    assert!(matches!(
+        validate_scene(&open),
+        Err(SceneError::Graph(GraphError::ClosureJoinOnOpenBoundary(
+            BoundaryId(0)
+        )))
+    ));
+}
+
+#[test]
+fn rejects_noncanonical_closure_tangent() {
+    let mut scene = build_scene(32, 32, &[loop_island(Pt::new(16.0, 16.0), 5.0, red())]);
+    scene.graph.boundaries[0].closure_join = Some(JoinKind::SmoothG1 {
+        tangent_angle_rad: -std::f64::consts::PI,
+    });
+    assert!(matches!(
+        validate_scene(&scene),
+        Err(SceneError::Graph(
+            GraphError::ClosureTangentAngleOutOfRange(BoundaryId(0))
+        ))
+    ));
 }

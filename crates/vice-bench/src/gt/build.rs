@@ -289,6 +289,7 @@ impl SceneBuilder {
                     right_face: FaceId(d.right as u32),
                     start_vertex: VertexId(d.start as u32),
                     end_vertex: VertexId(d.end as u32),
+                    closure_join: (d.start == d.end).then_some(vice_ir::JoinKind::Corner),
                     curve: d.chain.clone(),
                 })
                 .collect(),

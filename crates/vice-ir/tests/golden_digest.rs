@@ -2,7 +2,7 @@
 //!
 //! The golden scene exercises every segment kind, both join kinds, a
 //! transparent hole face and a single-vertex loop boundary. Its canonical
-//! bytes are committed at `tests/golden/scene_v1.json` and the sha256 is
+//! bytes are committed at `tests/golden/scene_v2.json` and the sha256 is
 //! frozen below.
 //!
 //! If this test fails, the canonical byte format changed. That is a
@@ -16,8 +16,15 @@ use common::*;
 use vice_geom::Pt;
 use vice_ir::{canonical_scene_bytes, parse_scene, scene_digest_sha256};
 
-const GOLDEN_DIGEST: &str = "112d0478f86b57ca94bb8d1805042894ce2e1da640297f119853fca61cc2f1f9";
-const GOLDEN_BYTES: &[u8] = include_bytes!("golden/scene_v1.json");
+const GOLDEN_DIGEST: &str = "be955ba9d2086efaaf8f9981785be1a0870257de0789e3e9fe3641494b2e501c";
+const GOLDEN_FILE: &[u8] = include_bytes!("golden/scene_v2.json");
+
+fn golden_bytes() -> &'static [u8] {
+    // Text artifacts carry the repository's terminal LF; canonical JSON
+    // deliberately does not. The frozen payload is the file content before
+    // that single transport newline.
+    GOLDEN_FILE.strip_suffix(b"\n").unwrap_or(GOLDEN_FILE)
+}
 
 fn golden_scene() -> vice_ir::VectorScene {
     build_scene(
@@ -35,7 +42,8 @@ fn golden_scene() -> vice_ir::VectorScene {
 fn golden_bytes_are_stable() {
     let bytes = canonical_scene_bytes(&golden_scene()).unwrap();
     assert_eq!(
-        bytes, GOLDEN_BYTES,
+        bytes,
+        golden_bytes(),
         "canonical byte format drifted from the committed golden file"
     );
 }
@@ -47,7 +55,7 @@ fn golden_digest_is_stable() {
 
 #[test]
 fn golden_file_parses_and_roundtrips() {
-    let parsed = parse_scene(GOLDEN_BYTES).unwrap();
-    assert_eq!(canonical_scene_bytes(&parsed).unwrap(), GOLDEN_BYTES);
+    let parsed = parse_scene(golden_bytes()).unwrap();
+    assert_eq!(canonical_scene_bytes(&parsed).unwrap(), golden_bytes());
     assert_eq!(scene_digest_sha256(&parsed).unwrap(), GOLDEN_DIGEST);
 }

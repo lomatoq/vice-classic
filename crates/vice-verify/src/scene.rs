@@ -330,6 +330,22 @@ fn verify_g1(scene: &VectorScene, max_spread: f64) -> Result<(u64, f64), Verific
                 });
             }
         }
+        if let Some(JoinKind::SmoothG1 { tangent_angle_rad }) = boundary.closure_join {
+            nodes += 1;
+            let declared = Pt::new(tangent_angle_rad.cos(), tangent_angle_rad.sin());
+            let last = ends.len() - 1;
+            let spread = angle_gap(ends[last].1, ends[0].0)
+                .max(angle_gap(ends[last].1, declared))
+                .max(angle_gap(ends[0].0, declared));
+            worst = worst.max(spread);
+            if spread > max_spread {
+                return Err(VerificationError::G1 {
+                    boundary: BoundaryId(bi as u32),
+                    node: boundary.curve.interior_nodes.len(),
+                    spread_rad: spread,
+                });
+            }
+        }
     }
     Ok((nodes, worst))
 }

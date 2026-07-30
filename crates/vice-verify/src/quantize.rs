@@ -163,6 +163,15 @@ fn quantize_scene(
         );
     }
     for boundary in &mut output.graph.boundaries {
+        if let Some(JoinKind::SmoothG1 { tangent_angle_rad }) = &mut boundary.closure_join {
+            quantize_tangent_angle(
+                tangent_angle_rad,
+                scale,
+                &mut sites,
+                &mut changed,
+                &mut max_delta,
+            );
+        }
         for node in &mut boundary.curve.interior_nodes {
             quantize_point(
                 &mut node.pos,

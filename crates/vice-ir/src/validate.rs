@@ -97,6 +97,12 @@ pub enum GraphError {
     },
     #[error("boundary {boundary:?} interior node {node}: tangent angle outside (-pi, pi]")]
     TangentAngleOutOfRange { boundary: BoundaryId, node: usize },
+    #[error("open boundary {0:?} must not declare a closure join")]
+    ClosureJoinOnOpenBoundary(BoundaryId),
+    #[error("self-loop boundary {0:?} must declare its closure join")]
+    MissingClosureJoin(BoundaryId),
+    #[error("boundary {0:?} closure tangent angle outside (-pi, pi]")]
+    ClosureTangentAngleOutOfRange(BoundaryId),
     #[error("half-edge count {half_edges} != 2 * boundary count {boundaries}")]
     HalfEdgeCount {
         half_edges: usize,
@@ -314,6 +320,11 @@ fn check_numbers(scene: &VectorScene) -> Result<(), SceneError> {
         check_pt(v.pos, &|| format!("vertices[{i}].pos"))?;
     }
     for (bi, b) in g.boundaries.iter().enumerate() {
+        if let Some(JoinKind::SmoothG1 { tangent_angle_rad }) = b.closure_join {
+            check(tangent_angle_rad, &|| {
+                format!("boundaries[{bi}].closure_join.tangent_angle_rad")
+            })?;
+        }
         for (ni, n) in b.curve.interior_nodes.iter().enumerate() {
             check_pt(n.pos, &|| {
                 format!("boundaries[{bi}].curve.interior_nodes[{ni}].pos")
@@ -462,6 +473,17 @@ fn check_boundaries(g: &PlanarGraph) -> Result<(), GraphError> {
         let bid = BoundaryId(bi as u32);
         if b.left_face == b.right_face {
             return Err(GraphError::DanglingCrack(bid, b.left_face));
+        }
+        match (b.start_vertex == b.end_vertex, b.closure_join) {
+            (false, Some(_)) => return Err(GraphError::ClosureJoinOnOpenBoundary(bid)),
+            (true, None) => return Err(GraphError::MissingClosureJoin(bid)),
+            (true, Some(JoinKind::SmoothG1 { tangent_angle_rad }))
+                if !(tangent_angle_rad > -std::f64::consts::PI
+                    && tangent_angle_rad <= std::f64::consts::PI) =>
+            {
+                return Err(GraphError::ClosureTangentAngleOutOfRange(bid));
+            }
+            _ => {}
         }
         let chain = &b.curve;
         if chain.segments.is_empty() {
