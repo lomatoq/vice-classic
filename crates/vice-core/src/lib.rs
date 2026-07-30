@@ -223,6 +223,8 @@ mod tests {
             minimum_top2_class_margin_bits: 0.0,
             maximum_posterior_predictive_bits_per_block: 0.1,
             maximum_abs_residual_lag1: 0.9,
+            maximum_topology_entropy_bits: 1.0,
+            maximum_formation_entropy_bits: 1.0,
             empirical_unexplored_relative_mass_upper_bound: Some(0.0),
             buckets: vec![CalibrationBucket {
                 name: "all".into(),
@@ -241,24 +243,38 @@ mod tests {
             top2_class_margin_bits: 10.0,
             posterior_predictive_bits_per_block: 0.01,
             max_abs_residual_lag1: 0.1,
+            topology_entropy_upper_bound: vice_opt::BoundValue::Certified(0.0),
+            formation_entropy_upper_bound: vice_opt::BoundValue::Certified(0.0),
         };
         assert!(calibration(458)
-            .permits(&identity, &delivery, metrics)
+            .permits(&identity, &delivery, &metrics)
             .is_err());
         assert!(calibration(459)
-            .permits(&identity, &delivery, metrics)
+            .permits(&identity, &delivery, &metrics)
             .is_ok());
-        let mut predictive_mismatch = metrics;
+        let mut predictive_mismatch = metrics.clone();
         predictive_mismatch.posterior_predictive_bits_per_block = 0.11;
         assert_eq!(
-            calibration(459).permits(&identity, &delivery, predictive_mismatch),
+            calibration(459).permits(&identity, &delivery, &predictive_mismatch),
             Err("posterior_predictive_mismatch")
         );
-        let mut spatial_mismatch = metrics;
+        let mut spatial_mismatch = metrics.clone();
         spatial_mismatch.max_abs_residual_lag1 = 0.91;
         assert_eq!(
-            calibration(459).permits(&identity, &delivery, spatial_mismatch),
+            calibration(459).permits(&identity, &delivery, &spatial_mismatch),
             Err("residual_spatial_mismatch")
+        );
+        let mut unknown_entropy = metrics.clone();
+        unknown_entropy.topology_entropy_upper_bound = vice_opt::BoundValue::Unknown;
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &unknown_entropy),
+            Err("topology_entropy_above_calibrated_threshold")
+        );
+        let mut excessive_entropy = metrics.clone();
+        excessive_entropy.formation_entropy_upper_bound = vice_opt::BoundValue::Certified(1.01);
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &excessive_entropy),
+            Err("formation_entropy_above_calibrated_threshold")
         );
 
         for field in ["universe", "pricing", "backend", "config"] {
@@ -271,7 +287,7 @@ mod tests {
                 _ => unreachable!(),
             }
             assert!(
-                stale.permits(&identity, &delivery, metrics).is_err(),
+                stale.permits(&identity, &delivery, &metrics).is_err(),
                 "stale {field} identity was accepted"
             );
         }
@@ -316,7 +332,7 @@ mod tests {
         assert!(outcome.report().candidates.iter().all(|candidate| topology
             .materialized_arms
             .iter()
-            .any(|arm| arm.class == candidate.topology_class)));
+            .any(|arm| arm.topology_class == candidate.topology_class)));
         let inventory = outcome
             .report()
             .transaction_inventory

@@ -32,7 +32,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v3";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v4";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
@@ -138,6 +138,10 @@ pub struct MeasurementRow {
     pub selected_hypothesis_id: Option<String>,
     pub search_truncated: Option<bool>,
     pub explored_mass: Option<f64>,
+    pub topology_classes_upper_bound: Option<u64>,
+    pub formation_classes_upper_bound: Option<u64>,
+    pub top_topology_explored_mass: Option<f64>,
+    pub top_formation_explored_mass: Option<f64>,
     pub selected_delivery_mass: Option<f64>,
     pub retained_normalized_mass: Option<f64>,
     pub delivery_classes: Option<u64>,
@@ -153,6 +157,10 @@ pub struct MeasurementRow {
     pub serialized_pixel_bits_per_block: Option<f64>,
     pub empirical_correlation_length_px: Option<f64>,
     pub max_abs_lag1: Option<f64>,
+    pub topology_entropy_upper_bound: Option<f64>,
+    pub topology_entropy_bound_status: String,
+    pub formation_entropy_upper_bound: Option<f64>,
+    pub formation_entropy_bound_status: String,
     pub topology: Option<TopologyComparison>,
     pub boundary: Option<BoundaryTail>,
     pub max_palette_code_delta: Option<u8>,
@@ -820,6 +828,24 @@ fn measure_one(
             .search_mass
             .as_ref()
             .map(|search| search.explored_mass),
+        topology_classes_upper_bound: report
+            .search_mass
+            .as_ref()
+            .map(|search| search.topology_classes_upper_bound),
+        formation_classes_upper_bound: report
+            .search_mass
+            .as_ref()
+            .map(|search| search.formation_classes_upper_bound),
+        top_topology_explored_mass: report
+            .search_mass
+            .as_ref()
+            .and_then(|search| search.topology.first())
+            .map(|class| class.explored_mass),
+        top_formation_explored_mass: report
+            .search_mass
+            .as_ref()
+            .and_then(|search| search.formation.first())
+            .map(|class| class.explored_mass),
         selected_delivery_mass: None,
         retained_normalized_mass: None,
         delivery_classes: report
@@ -841,12 +867,26 @@ fn measure_one(
         serialized_pixel_bits_per_block: None,
         empirical_correlation_length_px: None,
         max_abs_lag1: None,
+        topology_entropy_upper_bound: None,
+        topology_entropy_bound_status: "absent".into(),
+        formation_entropy_upper_bound: None,
+        formation_entropy_bound_status: "absent".into(),
         topology: None,
         boundary: None,
         max_palette_code_delta: None,
         verifier_clean: false,
         measurement_refusal: None,
     };
+    if let Some(metrics) = &report.confidence_metrics {
+        (
+            row.topology_entropy_upper_bound,
+            row.topology_entropy_bound_status,
+        ) = measured_bound(&metrics.topology_entropy_upper_bound);
+        (
+            row.formation_entropy_upper_bound,
+            row.formation_entropy_bound_status,
+        ) = measured_bound(&metrics.formation_entropy_upper_bound);
+    }
     if let Some(best) = report
         .search_mass
         .as_ref()
@@ -915,6 +955,14 @@ fn measure_one(
     row
 }
 
+fn measured_bound(bound: &BoundValue<f64>) -> (Option<f64>, String) {
+    match bound {
+        BoundValue::Certified(value) => (Some(*value), "certified".into()),
+        BoundValue::EmpiricallyCalibrated(value) => (Some(*value), "empirically_calibrated".into()),
+        BoundValue::Unknown => (None, "unknown".into()),
+    }
+}
+
 fn unexplored_proxy_hypotheses(report: &vice_core::VectorizeReport) -> Option<u64> {
     let search = report.search_mass.as_ref()?;
     if !search.truncated {
@@ -966,6 +1014,10 @@ fn refusal_row(
         selected_hypothesis_id: None,
         search_truncated: None,
         explored_mass: None,
+        topology_classes_upper_bound: None,
+        formation_classes_upper_bound: None,
+        top_topology_explored_mass: None,
+        top_formation_explored_mass: None,
         selected_delivery_mass: None,
         retained_normalized_mass: None,
         delivery_classes: None,
@@ -978,6 +1030,10 @@ fn refusal_row(
         serialized_pixel_bits_per_block: None,
         empirical_correlation_length_px: None,
         max_abs_lag1: None,
+        topology_entropy_upper_bound: None,
+        topology_entropy_bound_status: "absent".into(),
+        formation_entropy_upper_bound: None,
+        formation_entropy_bound_status: "absent".into(),
         topology: None,
         boundary: None,
         max_palette_code_delta: None,
@@ -1300,6 +1356,10 @@ mod tests {
             selected_hypothesis_id: None,
             search_truncated: None,
             explored_mass: None,
+            topology_classes_upper_bound: None,
+            formation_classes_upper_bound: None,
+            top_topology_explored_mass: None,
+            top_formation_explored_mass: None,
             selected_delivery_mass: None,
             retained_normalized_mass: None,
             delivery_classes: None,
@@ -1312,6 +1372,10 @@ mod tests {
             serialized_pixel_bits_per_block: None,
             empirical_correlation_length_px: None,
             max_abs_lag1: None,
+            topology_entropy_upper_bound: None,
+            topology_entropy_bound_status: "absent".into(),
+            formation_entropy_upper_bound: None,
+            formation_entropy_bound_status: "absent".into(),
             topology: None,
             boundary: None,
             max_palette_code_delta: None,

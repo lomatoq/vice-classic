@@ -81,17 +81,21 @@ pub struct ConfidenceCalibration {
     pub minimum_top2_class_margin_bits: f64,
     pub maximum_posterior_predictive_bits_per_block: f64,
     pub maximum_abs_residual_lag1: f64,
+    pub maximum_topology_entropy_bits: f64,
+    pub maximum_formation_entropy_bits: f64,
     /// Frozen R1 upper bound on omitted search mass relative to the best
     /// retained hypothesis. `None` means truncated search remains Unknown.
     pub empirical_unexplored_relative_mass_upper_bound: Option<f64>,
     pub buckets: Vec<CalibrationBucket>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ConfidenceMetrics {
     pub top2_class_margin_bits: f64,
     pub posterior_predictive_bits_per_block: f64,
     pub max_abs_residual_lag1: f64,
+    pub topology_entropy_upper_bound: vice_opt::BoundValue<f64>,
+    pub formation_entropy_upper_bound: vice_opt::BoundValue<f64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -120,7 +124,7 @@ impl ConfidenceCalibration {
         &self,
         identity: &ModelIdentity,
         delivery: &vice_opt::DeliveryPosterior,
-        metrics: ConfidenceMetrics,
+        metrics: &ConfidenceMetrics,
     ) -> Result<(), &'static str> {
         self.validate_for_identity(identity)?;
         let posterior_lower_bound = match &delivery.posterior_lower_bound {
@@ -148,6 +152,21 @@ impl ConfidenceCalibration {
             || metrics.max_abs_residual_lag1 > self.maximum_abs_residual_lag1
         {
             return Err("residual_spatial_mismatch");
+        }
+        let entropy_value = |bound: &vice_opt::BoundValue<f64>| match bound {
+            vice_opt::BoundValue::Certified(value)
+            | vice_opt::BoundValue::EmpiricallyCalibrated(value) => Some(*value),
+            vice_opt::BoundValue::Unknown => None,
+        };
+        if entropy_value(&metrics.topology_entropy_upper_bound)
+            .is_none_or(|value| !value.is_finite() || value > self.maximum_topology_entropy_bits)
+        {
+            return Err("topology_entropy_above_calibrated_threshold");
+        }
+        if entropy_value(&metrics.formation_entropy_upper_bound)
+            .is_none_or(|value| !value.is_finite() || value > self.maximum_formation_entropy_bits)
+        {
+            return Err("formation_entropy_above_calibrated_threshold");
         }
         Ok(())
     }
@@ -182,6 +201,10 @@ impl ConfidenceCalibration {
             || self.maximum_posterior_predictive_bits_per_block < 0.0
             || !self.maximum_abs_residual_lag1.is_finite()
             || !(0.0..=1.0).contains(&self.maximum_abs_residual_lag1)
+            || !self.maximum_topology_entropy_bits.is_finite()
+            || self.maximum_topology_entropy_bits < 0.0
+            || !self.maximum_formation_entropy_bits.is_finite()
+            || self.maximum_formation_entropy_bits < 0.0
             || self
                 .empirical_unexplored_relative_mass_upper_bound
                 .is_none_or(|bound| !bound.is_finite() || bound < 0.0)
@@ -479,7 +502,7 @@ impl CoreConfig {
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            implementation: "vice-core/m7/v2",
+            implementation: "vice-core/m7/v3",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),
@@ -527,6 +550,8 @@ mod tests {
             "minimum_top2_class_margin_bits": 0.0,
             "maximum_posterior_predictive_bits_per_block": 0.1,
             "maximum_abs_residual_lag1": 0.9,
+            "maximum_topology_entropy_bits": 1.0,
+            "maximum_formation_entropy_bits": 1.0,
             "empirical_unexplored_relative_mass_upper_bound": 0.25,
             "buckets": [{
                 "name": "all",

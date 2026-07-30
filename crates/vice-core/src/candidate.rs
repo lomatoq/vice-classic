@@ -535,13 +535,13 @@ pub(crate) fn materialize_candidate(
     let scored = ScoredHypothesis {
         hypothesis_id: request.hypothesis_id.clone(),
         delivery_digest: delivery_digest.clone(),
-        topology_class: request.arm.class.clone(),
+        topology_class: request.arm.topology_class.clone(),
         formation_class: request.formation_class.clone(),
         total_bits: score.total_bits,
     };
     let summary = CandidateSummary {
         hypothesis_id: request.hypothesis_id,
-        topology_class: request.arm.class.clone(),
+        topology_class: request.arm.topology_class.clone(),
         formation_class: request.formation_class,
         scene_digest_sha256,
         delivery_digest,

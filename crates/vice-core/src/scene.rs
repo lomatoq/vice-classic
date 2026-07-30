@@ -24,6 +24,10 @@ use crate::types::{TopologyArmRefusal, TopologyArmTrace};
 
 #[derive(Debug, Clone)]
 pub(crate) struct TopologyArm {
+    /// Visible combinatorial equivalence class. Distinct event-level
+    /// labellings with the same Flat2 component/hole structure remain
+    /// separate search arms but share posterior topology mass.
+    pub topology_class: String,
     pub class: String,
     pub dcel: Dcel,
     pub chains: Vec<BoundaryChain>,
@@ -263,8 +267,13 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> TopologyArmSet {
             hypothesis.signature.background_connectivity,
             hypothesis.signature.digest
         );
+        let topology_class = format!(
+            "flat2-components{}-holes{}",
+            hypothesis.signature.components, hypothesis.signature.holes
+        );
         let trace = TopologyArmTrace {
             class: class.clone(),
+            topology_class: topology_class.clone(),
             signature_sha256: hypothesis.signature.digest.clone(),
             components: hypothesis.signature.components,
             holes: hypothesis.signature.holes,
@@ -278,6 +287,7 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> TopologyArmSet {
         };
         traces.push(trace.clone());
         arms.push(TopologyArm {
+            topology_class,
             class,
             dcel,
             chains,

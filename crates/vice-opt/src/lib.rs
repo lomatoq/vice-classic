@@ -22,9 +22,9 @@ pub use likelihood::{
     ScoreBreakdown, ScoreOwnership,
 };
 pub use posterior::{
-    posterior_with_search_mass, BoundValue, DeliveryPosterior, ModelIdentity, PosteriorError,
-    ScoredHypothesis, SearchMassCertificate, SearchMassInput, UnexploredMassBound,
-    UnexploredMassInput,
+    finite_class_entropy_upper_bound, posterior_with_search_mass, BoundValue, ClassPosterior,
+    DeliveryPosterior, ModelIdentity, PosteriorError, ScoredHypothesis, SearchMassCertificate,
+    SearchMassInput, UnexploredMassBound, UnexploredMassInput,
 };
 pub use search::{
     select_diverse_beam, BeamCandidate, BeamConfig, BeamError, BeamSelection, BudgetLedger,

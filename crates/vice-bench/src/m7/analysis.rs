@@ -16,7 +16,7 @@ use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v2";
+    "vice-classic/m7-confidence-calibration-analysis/v3";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
@@ -25,6 +25,8 @@ pub const PROPOSED_MAX_QUALITY_P95_MS: u64 = 10_000;
 pub const PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS: f64 = 0.0;
 pub const PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK: f64 = 0.10;
 pub const PROPOSED_MAX_ABS_RESIDUAL_LAG1: f64 = 0.90;
+pub const PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS: f64 = 1.0;
+pub const PROPOSED_MAX_FORMATION_ENTROPY_BITS: f64 = 1.0;
 pub const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -124,7 +126,7 @@ pub fn analyze_calibration(
             .iter()
             .map(|row| {
                 let accepted = row.candidate_available
-                    && diagnostics_permit(row)
+                    && diagnostics_permit(row, empirical_upper)
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold);
                 Ok(RenderOutcome {
@@ -150,7 +152,7 @@ pub fn analyze_calibration(
             .iter()
             .filter(|row| {
                 row.candidate_available
-                    && diagnostics_permit(row)
+                    && diagnostics_permit(row, empirical_upper)
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
@@ -209,6 +211,8 @@ pub fn analyze_calibration(
         maximum_posterior_predictive_bits_per_block:
             PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK,
         maximum_abs_residual_lag1: PROPOSED_MAX_ABS_RESIDUAL_LAG1,
+        maximum_topology_entropy_bits: PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS,
+        maximum_formation_entropy_bits: PROPOSED_MAX_FORMATION_ENTROPY_BITS,
         empirical_unexplored_relative_mass_upper_bound: Some(empirical_upper),
         buckets: vec![vice_core::CalibrationBucket {
             name: TARGET_BUCKET.into(),
@@ -304,7 +308,32 @@ fn effective_lower_bound(row: &MeasurementRow, empirical_upper: f64) -> Option<f
         .then_some(selected / denominator)
 }
 
-fn diagnostics_permit(row: &MeasurementRow) -> bool {
+fn calibrated_entropy_upper_bound(
+    row: &MeasurementRow,
+    empirical_unexplored_relative_mass_upper_bound: f64,
+    topology: bool,
+) -> Option<f64> {
+    let explored_mass = row.explored_mass?;
+    let denominator = explored_mass + empirical_unexplored_relative_mass_upper_bound;
+    let (top_mass, class_count) = if topology {
+        (
+            row.top_topology_explored_mass?,
+            row.topology_classes_upper_bound?,
+        )
+    } else {
+        (
+            row.top_formation_explored_mass?,
+            row.formation_classes_upper_bound?,
+        )
+    };
+    (denominator.is_finite() && denominator > 0.0 && top_mass >= 0.0)
+        .then(|| (top_mass / denominator).clamp(0.0, 1.0))
+        .and_then(|top_probability| {
+            vice_opt::finite_class_entropy_upper_bound(top_probability, class_count)
+        })
+}
+
+fn diagnostics_permit(row: &MeasurementRow, empirical_upper: f64) -> bool {
     let margin = if row.delivery_classes == Some(1) {
         1024.0
     } else {
@@ -317,6 +346,10 @@ fn diagnostics_permit(row: &MeasurementRow) -> bool {
         && row
             .max_abs_lag1
             .is_some_and(|lag| lag <= PROPOSED_MAX_ABS_RESIDUAL_LAG1)
+        && calibrated_entropy_upper_bound(row, empirical_upper, true)
+            .is_some_and(|bits| bits <= PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS)
+        && calibrated_entropy_upper_bound(row, empirical_upper, false)
+            .is_some_and(|bits| bits <= PROPOSED_MAX_FORMATION_ENTROPY_BITS)
 }
 
 fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
@@ -367,6 +400,10 @@ mod tests {
             selected_hypothesis_id: Some("h".into()),
             search_truncated: Some(true),
             explored_mass: Some(1.0),
+            topology_classes_upper_bound: Some(1),
+            formation_classes_upper_bound: Some(1),
+            top_topology_explored_mass: Some(1.0),
+            top_formation_explored_mass: Some(1.0),
             selected_delivery_mass: Some(1.0),
             retained_normalized_mass: Some(1.0),
             delivery_classes: Some(1),
@@ -379,6 +416,10 @@ mod tests {
             serialized_pixel_bits_per_block: Some(0.01),
             empirical_correlation_length_px: Some(1.0),
             max_abs_lag1: Some(0.0),
+            topology_entropy_upper_bound: Some(0.0),
+            topology_entropy_bound_status: "empirically_calibrated".into(),
+            formation_entropy_upper_bound: Some(0.0),
+            formation_entropy_bound_status: "empirically_calibrated".into(),
             topology: Some(TopologyComparison {
                 truth_visible_faces: 2,
                 selected_visible_faces: if catastrophic { 1 } else { 2 },
@@ -472,5 +513,16 @@ mod tests {
         let calibration = analysis.calibration.expect("calibration");
         assert_eq!(calibration.accepted_source_groups, 459);
         assert_eq!(calibration.catastrophic_source_groups, 0);
+    }
+
+    #[test]
+    fn empirical_omitted_mass_cannot_hide_multi_class_entropy() {
+        let mut row = row(0, false);
+        row.topology_classes_upper_bound = Some(4);
+        row.top_topology_explored_mass = Some(0.1);
+        let entropy =
+            calibrated_entropy_upper_bound(&row, 10.0, true).expect("finite entropy bound");
+        assert!(entropy > PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS);
+        assert!(!diagnostics_permit(&row, 10.0));
     }
 }

@@ -88,12 +88,24 @@ pub struct SearchMassInput {
     pub identity: ModelIdentity,
     pub explored_kept: Vec<ScoredHypothesis>,
     pub budget_pruned: Vec<ScoredHypothesis>,
+    /// Finite class counts from the versioned topology/formation envelope.
+    /// They include classes that were refused or pruned before exact scoring.
+    pub topology_classes_upper_bound: u64,
+    pub formation_classes_upper_bound: u64,
     pub unexplored: UnexploredMassInput,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DeliveryPosterior {
     pub delivery_digest: String,
+    pub explored_mass: f64,
+    pub retained_normalized_mass: f64,
+    pub posterior_lower_bound: BoundValue<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ClassPosterior {
+    pub class_id: String,
     pub explored_mass: f64,
     pub retained_normalized_mass: f64,
     pub posterior_lower_bound: BoundValue<f64>,
@@ -113,7 +125,13 @@ pub struct SearchMassCertificate {
     pub unexplored_mass_upper_bound: BoundValue<f64>,
     pub denominator_mass_upper_bound: BoundValue<f64>,
     pub truncated: bool,
+    pub topology_classes_upper_bound: u64,
+    pub formation_classes_upper_bound: u64,
     pub delivery: Vec<DeliveryPosterior>,
+    pub topology: Vec<ClassPosterior>,
+    pub formation: Vec<ClassPosterior>,
+    pub topology_entropy_upper_bound: BoundValue<f64>,
+    pub formation_entropy_upper_bound: BoundValue<f64>,
 }
 
 impl SearchMassCertificate {
@@ -141,6 +159,88 @@ fn relative_mass(bits: f64, reference_bits: f64) -> f64 {
     exponent.exp2()
 }
 
+fn class_posteriors(
+    hypotheses: impl Iterator<Item = (String, f64)>,
+    explored_mass: f64,
+    denominator_mass_upper_bound: &BoundValue<f64>,
+) -> Vec<ClassPosterior> {
+    let mut by_class = BTreeMap::<String, f64>::new();
+    for (class_id, mass) in hypotheses {
+        *by_class.entry(class_id).or_default() += mass;
+    }
+    let mut classes = by_class
+        .into_iter()
+        .map(|(class_id, mass)| ClassPosterior {
+            class_id,
+            explored_mass: mass,
+            retained_normalized_mass: mass / explored_mass,
+            posterior_lower_bound: match denominator_mass_upper_bound {
+                BoundValue::Certified(denominator) => BoundValue::Certified(mass / denominator),
+                BoundValue::EmpiricallyCalibrated(denominator) => {
+                    BoundValue::EmpiricallyCalibrated(mass / denominator)
+                }
+                BoundValue::Unknown => BoundValue::Unknown,
+            },
+        })
+        .collect::<Vec<_>>();
+    classes.sort_by(|left, right| {
+        right
+            .retained_normalized_mass
+            .total_cmp(&left.retained_normalized_mass)
+            .then_with(|| left.class_id.cmp(&right.class_id))
+    });
+    classes
+}
+
+pub fn finite_class_entropy_upper_bound(
+    top_probability_lower: f64,
+    class_count_upper_bound: u64,
+) -> Option<f64> {
+    if !top_probability_lower.is_finite()
+        || !(0.0..=1.0).contains(&top_probability_lower)
+        || class_count_upper_bound == 0
+    {
+        return None;
+    }
+    if class_count_upper_bound == 1 {
+        return Some(0.0);
+    }
+    let class_count = class_count_upper_bound as f64;
+    if top_probability_lower <= 1.0 / class_count {
+        Some(class_count.log2())
+    } else {
+        let remainder = 1.0 - top_probability_lower;
+        let binary_entropy = if remainder == 0.0 {
+            0.0
+        } else {
+            -top_probability_lower * top_probability_lower.log2() - remainder * remainder.log2()
+        };
+        Some(binary_entropy + remainder * (class_count - 1.0).log2())
+    }
+}
+
+fn entropy_upper_bound(
+    classes: &[ClassPosterior],
+    class_count_upper_bound: u64,
+    denominator_mass_upper_bound: &BoundValue<f64>,
+) -> BoundValue<f64> {
+    let entropy = |denominator: f64| {
+        let top_probability_lower = classes
+            .first()
+            .map_or(0.0, |class| class.explored_mass / denominator)
+            .clamp(0.0, 1.0);
+        finite_class_entropy_upper_bound(top_probability_lower, class_count_upper_bound)
+            .expect("validated finite class envelope")
+    };
+    match denominator_mass_upper_bound {
+        BoundValue::Certified(denominator) => BoundValue::Certified(entropy(*denominator)),
+        BoundValue::EmpiricallyCalibrated(denominator) => {
+            BoundValue::EmpiricallyCalibrated(entropy(*denominator))
+        }
+        BoundValue::Unknown => BoundValue::Unknown,
+    }
+}
+
 pub fn posterior_with_search_mass(
     input: SearchMassInput,
 ) -> Result<SearchMassCertificate, PosteriorError> {
@@ -160,6 +260,25 @@ pub fn posterior_with_search_mass(
                 Err(PosteriorError::NonFiniteScore)
             };
         }
+    }
+    let topology_classes = input
+        .explored_kept
+        .iter()
+        .chain(input.budget_pruned.iter())
+        .map(|hypothesis| hypothesis.topology_class.as_str())
+        .collect::<BTreeSet<_>>();
+    let formation_classes = input
+        .explored_kept
+        .iter()
+        .chain(input.budget_pruned.iter())
+        .map(|hypothesis| hypothesis.formation_class.as_str())
+        .collect::<BTreeSet<_>>();
+    if input.topology_classes_upper_bound == 0
+        || input.formation_classes_upper_bound == 0
+        || topology_classes.len() as u64 > input.topology_classes_upper_bound
+        || formation_classes.len() as u64 > input.formation_classes_upper_bound
+    {
+        return Err(PosteriorError::InvalidSupportedUniverse);
     }
     if matches!(
         input.unexplored,
@@ -268,6 +387,44 @@ pub fn posterior_with_search_mass(
             .total_cmp(&a.retained_normalized_mass)
             .then_with(|| a.delivery_digest.cmp(&b.delivery_digest))
     });
+    let topology = class_posteriors(
+        input
+            .explored_kept
+            .iter()
+            .chain(input.budget_pruned.iter())
+            .map(|hypothesis| {
+                (
+                    hypothesis.topology_class.clone(),
+                    relative_mass(hypothesis.total_bits, reference_bits),
+                )
+            }),
+        explored_mass,
+        &denominator_mass_upper_bound,
+    );
+    let formation = class_posteriors(
+        input
+            .explored_kept
+            .iter()
+            .chain(input.budget_pruned.iter())
+            .map(|hypothesis| {
+                (
+                    hypothesis.formation_class.clone(),
+                    relative_mass(hypothesis.total_bits, reference_bits),
+                )
+            }),
+        explored_mass,
+        &denominator_mass_upper_bound,
+    );
+    let topology_entropy_upper_bound = entropy_upper_bound(
+        &topology,
+        input.topology_classes_upper_bound,
+        &denominator_mass_upper_bound,
+    );
+    let formation_entropy_upper_bound = entropy_upper_bound(
+        &formation,
+        input.formation_classes_upper_bound,
+        &denominator_mass_upper_bound,
+    );
     Ok(SearchMassCertificate {
         identity: input.identity,
         supported_hypotheses,
@@ -281,7 +438,13 @@ pub fn posterior_with_search_mass(
         unexplored_mass_upper_bound,
         denominator_mass_upper_bound,
         truncated,
+        topology_classes_upper_bound: input.topology_classes_upper_bound,
+        formation_classes_upper_bound: input.formation_classes_upper_bound,
         delivery,
+        topology,
+        formation,
+        topology_entropy_upper_bound,
+        formation_entropy_upper_bound,
     })
 }
 
@@ -309,12 +472,30 @@ mod tests {
         }
     }
 
+    fn h_classes(
+        id: &str,
+        delivery: &str,
+        topology: &str,
+        formation: &str,
+        bits: f64,
+    ) -> ScoredHypothesis {
+        ScoredHypothesis {
+            hypothesis_id: id.into(),
+            delivery_digest: delivery.into(),
+            topology_class: topology.into(),
+            formation_class: formation.into(),
+            total_bits: bits,
+        }
+    }
+
     #[test]
     fn delivery_equivalent_hypotheses_aggregate_before_confidence() {
         let got = posterior_with_search_mass(SearchMassInput {
             identity: identity(),
             explored_kept: vec![h("a", "same", 10.0)],
             budget_pruned: vec![h("b", "same", 11.0), h("c", "other", 12.0)],
+            topology_classes_upper_bound: 1,
+            formation_classes_upper_bound: 1,
             unexplored: UnexploredMassInput::Complete,
         })
         .unwrap();
@@ -331,6 +512,8 @@ mod tests {
             identity: identity(),
             explored_kept: vec![h("a", "a", 10.0), h("b", "b", 12.0)],
             budget_pruned: vec![],
+            topology_classes_upper_bound: 1,
+            formation_classes_upper_bound: 1,
             unexplored: UnexploredMassInput::Complete,
         })
         .unwrap();
@@ -338,6 +521,8 @@ mod tests {
             identity: identity(),
             explored_kept: vec![h("a", "a", 10.0), h("b", "b", 12.0)],
             budget_pruned: vec![],
+            topology_classes_upper_bound: 1,
+            formation_classes_upper_bound: 1,
             unexplored: UnexploredMassInput::Certified {
                 hypotheses: 18,
                 best_possible_bits: 14.0,
@@ -363,6 +548,8 @@ mod tests {
             identity: identity(),
             explored_kept: vec![h("a", "a", 10.0)],
             budget_pruned: vec![],
+            topology_classes_upper_bound: 1,
+            formation_classes_upper_bound: 1,
             unexplored: UnexploredMassInput::Unknown,
         })
         .unwrap();
@@ -380,6 +567,8 @@ mod tests {
             identity: identity(),
             explored_kept: vec![h("a", "a", 10.0)],
             budget_pruned: vec![],
+            topology_classes_upper_bound: 1,
+            formation_classes_upper_bound: 1,
             unexplored: UnexploredMassInput::EmpiricallyCalibrated {
                 relative_mass_upper_bound: 0.25,
             },
@@ -388,6 +577,30 @@ mod tests {
         assert_eq!(
             got.best_delivery().unwrap().posterior_lower_bound,
             BoundValue::EmpiricallyCalibrated(0.8)
+        );
+    }
+
+    #[test]
+    fn class_entropy_bound_accounts_for_unexplored_mass_and_finite_envelope() {
+        let got = posterior_with_search_mass(SearchMassInput {
+            identity: identity(),
+            explored_kept: vec![h_classes("a", "a", "t1", "f", 10.0)],
+            budget_pruned: vec![],
+            topology_classes_upper_bound: 2,
+            formation_classes_upper_bound: 1,
+            unexplored: UnexploredMassInput::EmpiricallyCalibrated {
+                relative_mass_upper_bound: 0.25,
+            },
+        })
+        .unwrap();
+        let BoundValue::EmpiricallyCalibrated(topology_entropy) = got.topology_entropy_upper_bound
+        else {
+            panic!("empirical search mass must produce an empirical entropy bound")
+        };
+        assert!((topology_entropy - 0.721_928_094_887_362_3).abs() < 1e-12);
+        assert_eq!(
+            got.formation_entropy_upper_bound,
+            BoundValue::EmpiricallyCalibrated(0.0)
         );
     }
 }

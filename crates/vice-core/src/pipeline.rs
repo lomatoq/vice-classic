@@ -906,6 +906,18 @@ fn vectorize_impl(
     }
     let topology = topology_arms(&evidence);
     let proposal = topology.proposal;
+    let topology_classes_upper_bound = proposal
+        .envelope
+        .hypotheses
+        .iter()
+        .map(|hypothesis| (hypothesis.signature.components, hypothesis.signature.holes))
+        .collect::<BTreeSet<_>>()
+        .len() as u64;
+    let formation_classes_upper_bound = formations
+        .iter()
+        .map(vice_evidence::formation_id)
+        .collect::<BTreeSet<_>>()
+        .len() as u64;
     let mut topology_traces = topology.traces;
     let mut topology_refusals = topology.refusals;
     let arms = topology.arms;
@@ -1349,6 +1361,8 @@ fn vectorize_impl(
         identity: config.identity(),
         explored_kept,
         budget_pruned,
+        topology_classes_upper_bound,
+        formation_classes_upper_bound,
         unexplored: if topology_budget_truncated
             || fit_truncated
             || evaluation_truncated
@@ -1438,8 +1452,10 @@ fn vectorize_impl(
         } else {
             f64::MAX
         },
+        topology_entropy_upper_bound: search_mass.topology_entropy_upper_bound.clone(),
+        formation_entropy_upper_bound: search_mass.formation_entropy_upper_bound.clone(),
     };
-    parts.confidence_metrics = Some(confidence_metrics);
+    parts.confidence_metrics = Some(confidence_metrics.clone());
     if let Some(observer) = calibration_observer.as_mut() {
         observer(selected);
     }
@@ -1472,7 +1488,8 @@ fn vectorize_impl(
             started,
         );
     };
-    if let Err(detail) = calibration.permits(&config.identity(), &best_delivery, confidence_metrics)
+    if let Err(detail) =
+        calibration.permits(&config.identity(), &best_delivery, &confidence_metrics)
     {
         return refuse(
             DecisionStatus::Ambiguous,

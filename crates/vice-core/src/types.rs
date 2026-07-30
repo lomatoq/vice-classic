@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v2";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v3";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -89,6 +89,7 @@ pub struct TransactionInventory {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TopologyArmTrace {
     pub class: String,
+    pub topology_class: String,
     pub signature_sha256: String,
     pub components: u32,
     pub holes: u32,
