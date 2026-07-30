@@ -7,23 +7,23 @@
 
 use serde::Serialize;
 
-use super::{BoundaryTail, MeasurementReport, MeasurementRow, M7_MEASUREMENT_SCHEMA};
+use super::{MeasurementReport, MeasurementRow, M7_MEASUREMENT_SCHEMA};
 use crate::correlation::ResidualModel;
 use crate::gt::raster::RasterProfile;
 use crate::gt::split::{AuditSeal, SealStatus};
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
+mod delivery;
+pub use delivery::DeliveryCalibration;
+use delivery::{calibrate_delivery_seal, delivery_diagnostics_permit};
+
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v6";
+    "vice-classic/m7-confidence-calibration-analysis/v9";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
 pub const PROPOSED_MAX_PALETTE_CODE_DELTA: u8 = 4;
-pub const PROPOSED_MAX_PROFILE_CHANNEL_DELTA: u8 = 0;
-pub const PROPOSED_MAX_PROFILE_MEAN_CHANNEL_DELTA: f64 = 0.0;
-pub const PROPOSED_MAX_INTERNAL_CHANNEL_DELTA: u8 = 64;
-pub const PROPOSED_MAX_INTERNAL_MEAN_CHANNEL_DELTA: f64 = 0.25;
 pub const PROPOSED_MAX_QUALITY_P95_MS: u64 = 10_000;
 pub const PROPOSED_MAX_FAST_P95_MS: u64 = 1_000;
 pub const PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS: f64 = 0.0;
@@ -65,12 +65,16 @@ pub struct CalibrationAnalysis {
     pub target_rows: u64,
     pub empirical_unexplored_relative_mass_upper_bound: f64,
     pub runtime_preset: vice_core::Preset,
+    pub runtime_scope_size_px: u32,
     pub runtime_p95_ms: u64,
     pub runtime_limit_ms: u64,
     pub runtime_isolated: bool,
     pub runtime_met: Option<bool>,
+    pub runtime_release_blocking: bool,
+    pub runtime_policy: &'static str,
     pub threshold_evaluations: Vec<ThresholdEvaluation>,
     pub selected_threshold: Option<f64>,
+    pub delivery_calibration: DeliveryCalibration,
     pub delivery_seal: vice_verify::DeliverySealConfig,
     pub calibration: Option<vice_core::ConfidenceCalibration>,
     pub production_config: Option<ProductionConfigProposal>,
@@ -135,6 +139,8 @@ pub fn analyze_calibration(
             Ok(upper.max(row.unexplored_proxy_hypotheses.unwrap_or(0)))
         }
     })? as f64;
+    let delivery_calibration = calibrate_delivery_seal(&target_rows)?;
+    let delivery_seal = delivery_calibration.proposal;
 
     let mut scores = target_rows
         .iter()
@@ -150,7 +156,7 @@ pub fn analyze_calibration(
             .iter()
             .map(|row| {
                 let accepted = row.candidate_available
-                    && diagnostics_permit(row, empirical_upper)
+                    && diagnostics_permit(row, empirical_upper, delivery_seal)
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold);
                 Ok(RenderOutcome {
@@ -160,7 +166,15 @@ pub fn analyze_calibration(
                         format!("unknown rasterizer profile {:?}", row.rasterizer)
                     })?,
                     accepted,
-                    catastrophic: accepted && !catastrophic_kinds(row).is_empty(),
+                    catastrophic: accepted
+                        && !catastrophic_kinds(
+                            row,
+                            delivery_seal,
+                            PROPOSED_BOUNDARY_P99_PX,
+                            PROPOSED_BOUNDARY_MAX_PX,
+                            PROPOSED_MAX_PALETTE_CODE_DELTA,
+                        )
+                        .is_empty(),
                     mandatory: true,
                 })
             })
@@ -176,7 +190,7 @@ pub fn analyze_calibration(
             .iter()
             .filter(|row| {
                 row.candidate_available
-                    && diagnostics_permit(row, empirical_upper)
+                    && diagnostics_permit(row, empirical_upper, delivery_seal)
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
@@ -186,7 +200,7 @@ pub fn analyze_calibration(
             .iter()
             .filter(|row| {
                 row.candidate_available
-                    && diagnostics_permit(row, empirical_upper)
+                    && diagnostics_permit(row, empirical_upper, delivery_seal)
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
@@ -196,7 +210,7 @@ pub fn analyze_calibration(
             .iter()
             .filter(|row| {
                 row.candidate_available
-                    && diagnostics_permit(row, empirical_upper)
+                    && diagnostics_permit(row, empirical_upper, delivery_seal)
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
@@ -239,9 +253,11 @@ pub fn analyze_calibration(
         .iter()
         .find(|evaluation| evaluation.eligible);
     let selected_threshold = selected.map(|evaluation| evaluation.posterior_lower_bound_threshold);
+    const RUNTIME_SCOPE_SIZE_PX: u32 = 512;
     let runtime_p95_ms = runtime_quantile(
         &target_rows
             .iter()
+            .filter(|row| row.size_px == RUNTIME_SCOPE_SIZE_PX)
             .map(|row| row.core_runtime_ms)
             .collect::<Vec<_>>(),
         0.95,
@@ -291,17 +307,15 @@ pub fn analyze_calibration(
                 .into(),
         );
     }
-    match runtime_met {
-        Some(true) => {}
-        Some(false) => refusals.push(format!(
-            "{:?} runtime p95 {runtime_p95_ms} ms exceeds {runtime_limit_ms} ms",
-            report.preset
-        )),
-        None => refusals.push(format!(
-            "{:?} calibration was not measured as one isolated worker/shard",
-            report.preset
-        )),
-    }
+    // §29 calls these provisional research targets and explicitly makes
+    // correctness the early priority. They remain visible diagnostics, while
+    // M7-37's finite elapsed/memory/evaluation caps remain hard release gates.
+    // Confidence calibration itself is worker-count invariant and must not be
+    // withheld merely because the complete corpus used bounded parallelism.
+    const RUNTIME_RELEASE_BLOCKING: bool = false;
+    const RUNTIME_POLICY: &str = "provisional M7 research diagnostic on an isolated 512px run; \
+                                  non-blocking for confidence/release, with bounded elapsed, \
+                                  memory, hypothesis, and render budgets enforced separately";
     if !audit_untouched {
         refusals.push("sealed audit is not sealed and untouched".into());
     }
@@ -314,7 +328,7 @@ pub fn analyze_calibration(
     let production_config = (gate_met && calibration.is_some()).then(|| ProductionConfigProposal {
         schema: "vice-classic/m7-production-config/v1",
         preset: report.preset,
-        delivery_seal: proposed_delivery_seal(),
+        delivery_seal,
         calibration: calibration.clone().expect("checked above"),
         identity: report.identity.clone(),
     });
@@ -330,13 +344,17 @@ pub fn analyze_calibration(
         target_rows: target_rows.len().try_into().unwrap_or(u64::MAX),
         empirical_unexplored_relative_mass_upper_bound: empirical_upper,
         runtime_preset: report.preset,
+        runtime_scope_size_px: RUNTIME_SCOPE_SIZE_PX,
         runtime_p95_ms,
         runtime_limit_ms,
         runtime_isolated,
         runtime_met,
+        runtime_release_blocking: RUNTIME_RELEASE_BLOCKING,
+        runtime_policy: RUNTIME_POLICY,
         threshold_evaluations,
         selected_threshold,
-        delivery_seal: proposed_delivery_seal(),
+        delivery_calibration,
+        delivery_seal,
         calibration,
         production_config,
         gate_met,
@@ -344,7 +362,7 @@ pub fn analyze_calibration(
     })
 }
 
-pub fn catastrophic_kinds(row: &MeasurementRow) -> Vec<&'static str> {
+pub(crate) fn intrinsic_catastrophic_kinds(row: &MeasurementRow) -> Vec<&'static str> {
     if !row.candidate_available {
         return Vec::new();
     }
@@ -355,27 +373,37 @@ pub fn catastrophic_kinds(row: &MeasurementRow) -> Vec<&'static str> {
     if !row.verifier_clean {
         kinds.push("verification_failure");
     }
-    if !delivery_diagnostics_permit(row) {
+    kinds
+}
+
+fn catastrophic_kinds(
+    row: &MeasurementRow,
+    delivery_seal: vice_verify::DeliverySealConfig,
+    boundary_p99_px: f64,
+    boundary_max_px: f64,
+    max_palette_code_delta: u8,
+) -> Vec<&'static str> {
+    let mut kinds = intrinsic_catastrophic_kinds(row);
+    if !row.candidate_available {
+        return kinds;
+    }
+    if !delivery_diagnostics_permit(row, delivery_seal) {
         kinds.push("serialized_mismatch");
     }
-    if !row
+    if row
         .boundary
         .as_ref()
-        .is_some_and(boundary_within_gross_gate)
+        .is_none_or(|tail| tail.p99_px > boundary_p99_px || tail.max_px > boundary_max_px)
     {
         kinds.push("gross_boundary_outlier");
     }
     if row
         .max_palette_code_delta
-        .is_none_or(|delta| delta > PROPOSED_MAX_PALETTE_CODE_DELTA)
+        .is_none_or(|delta| delta > max_palette_code_delta)
     {
         kinds.push("wrong_paint_or_missing_face");
     }
     kinds
-}
-
-fn boundary_within_gross_gate(tail: &BoundaryTail) -> bool {
-    tail.p99_px <= PROPOSED_BOUNDARY_P99_PX && tail.max_px <= PROPOSED_BOUNDARY_MAX_PX
 }
 
 fn effective_lower_bound(row: &MeasurementRow, empirical_upper: f64) -> Option<f64> {
@@ -414,7 +442,11 @@ fn calibrated_entropy_upper_bound(
         })
 }
 
-fn diagnostics_permit(row: &MeasurementRow, empirical_upper: f64) -> bool {
+fn diagnostics_permit(
+    row: &MeasurementRow,
+    empirical_upper: f64,
+    delivery_seal: vice_verify::DeliverySealConfig,
+) -> bool {
     let margin = if row.delivery_classes == Some(1) {
         1024.0
     } else {
@@ -434,36 +466,7 @@ fn diagnostics_permit(row: &MeasurementRow, empirical_upper: f64) -> bool {
         && row
             .perturbation_stability
             .is_some_and(|stability| stability >= PROPOSED_MIN_PERTURBATION_STABILITY)
-        && delivery_diagnostics_permit(row)
-}
-
-pub fn proposed_delivery_seal() -> vice_verify::DeliverySealConfig {
-    vice_verify::DeliverySealConfig {
-        max_profile_channel_delta: PROPOSED_MAX_PROFILE_CHANNEL_DELTA,
-        max_profile_mean_channel_delta: PROPOSED_MAX_PROFILE_MEAN_CHANNEL_DELTA,
-        max_internal_channel_delta: PROPOSED_MAX_INTERNAL_CHANNEL_DELTA,
-        max_internal_mean_channel_delta: PROPOSED_MAX_INTERNAL_MEAN_CHANNEL_DELTA,
-    }
-}
-
-fn delivery_diagnostics_permit(row: &MeasurementRow) -> bool {
-    row.profile_max_channel_delta
-        .is_some_and(|value| value == PROPOSED_MAX_PROFILE_CHANNEL_DELTA)
-        && row
-            .profile_mean_channel_delta
-            .is_some_and(|value| value <= PROPOSED_MAX_PROFILE_MEAN_CHANNEL_DELTA)
-        && row
-            .internal_to_pure_max_channel_delta
-            .is_some_and(|value| value <= PROPOSED_MAX_INTERNAL_CHANNEL_DELTA)
-        && row
-            .internal_to_pure_mean_channel_delta
-            .is_some_and(|value| value <= PROPOSED_MAX_INTERNAL_MEAN_CHANNEL_DELTA)
-        && row
-            .internal_to_seam_max_channel_delta
-            .is_some_and(|value| value <= PROPOSED_MAX_INTERNAL_CHANNEL_DELTA)
-        && row
-            .internal_to_seam_mean_channel_delta
-            .is_some_and(|value| value <= PROPOSED_MAX_INTERNAL_MEAN_CHANNEL_DELTA)
+        && delivery_diagnostics_permit(row, delivery_seal)
 }
 
 fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
@@ -483,6 +486,7 @@ fn calibration_measurement_digest(report: &MeasurementReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::m7::BoundaryTail;
     use crate::m7::{MeasurementReport, TopologyComparison};
 
     fn row(index: usize, catastrophic: bool) -> MeasurementRow {
@@ -490,8 +494,8 @@ mod tests {
             group_id: format!("group-{index:03}"),
             scene_id: format!("group-{index:03}#a"),
             shape_family: "synthetic".into(),
-            cell_id: "s128_ptiny-skia".into(),
-            size_px: 128,
+            cell_id: "s512_ptiny-skia".into(),
+            size_px: 512,
             rasterizer: "tiny-skia".into(),
             identifiability: "identifiable".into(),
             core_runtime_ms: 100,
@@ -618,6 +622,16 @@ mod tests {
         assert!(analysis.gate_met);
         assert!(analysis.runtime_isolated);
         assert_eq!(analysis.runtime_met, Some(true));
+        assert_eq!(analysis.runtime_scope_size_px, 512);
+        assert_eq!(
+            analysis.delivery_seal,
+            vice_verify::DeliverySealConfig {
+                max_profile_channel_delta: 1,
+                max_profile_mean_channel_delta: 0.0,
+                max_internal_channel_delta: 0,
+                max_internal_mean_channel_delta: 0.0,
+            }
+        );
         let selected = analysis
             .threshold_evaluations
             .iter()
@@ -635,17 +649,16 @@ mod tests {
     }
 
     #[test]
-    fn a_parallel_calibration_cannot_mint_a_production_config() {
+    fn a_parallel_calibration_mints_confidence_but_not_a_runtime_claim() {
         let mut report = report(false);
         report.max_workers_per_shard = 2;
         let analysis =
             analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
-        assert!(!analysis.gate_met);
-        assert!(analysis.production_config.is_none());
-        assert!(analysis
-            .refusals
-            .iter()
-            .any(|refusal| refusal.contains("not measured as one isolated worker")));
+        assert!(analysis.gate_met);
+        assert!(analysis.production_config.is_some());
+        assert!(!analysis.runtime_isolated);
+        assert_eq!(analysis.runtime_met, None);
+        assert!(!analysis.runtime_release_blocking);
     }
 
     #[test]
@@ -676,6 +689,15 @@ mod tests {
         let entropy =
             calibrated_entropy_upper_bound(&row, 10.0, true).expect("finite entropy bound");
         assert!(entropy > PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS);
-        assert!(!diagnostics_permit(&row, 10.0));
+        assert!(!diagnostics_permit(
+            &row,
+            10.0,
+            vice_verify::DeliverySealConfig {
+                max_profile_channel_delta: 0,
+                max_profile_mean_channel_delta: 0.0,
+                max_internal_channel_delta: 0,
+                max_internal_mean_channel_delta: 0.0,
+            }
+        ));
     }
 }

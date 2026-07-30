@@ -289,6 +289,11 @@ pub struct CoreConfig {
     pub seal: DeliverySealConfig,
     pub beam: BeamConfig,
     pub trust_region: TrustRegionConfig,
+    /// A cheap serialized full-resolution score decides whether the M6
+    /// geometry is already inside the M7 likelihood basin. Geometry blocks
+    /// run only above this predictive-misfit trigger; paint blocks always run.
+    pub geometry_refinement_trigger_bits_per_block: f64,
+    pub small_geometry_refinement_trigger_bits_per_block: f64,
     pub k_discrete_paths: usize,
     pub export_decimal_places: u32,
     pub apron_width_px: f64,
@@ -309,6 +314,8 @@ struct ConfigIdentity<'a> {
     quantization: QuantizationPolicy,
     beam: BeamConfig,
     trust_region: TrustRegionConfig,
+    geometry_refinement_trigger_bits_per_block: f64,
+    small_geometry_refinement_trigger_bits_per_block: f64,
     k_discrete_paths: usize,
     export_decimal_places: u32,
     apron_width_px: f64,
@@ -450,6 +457,7 @@ impl CoreConfig {
             config.beam.budget.max_elapsed_ms = 1_000;
             config.trust_region.max_rounds = 2;
             config.trust_region.max_backtracks = 4;
+            config.geometry_refinement_trigger_bits_per_block = 0.1;
         }
         config
     }
@@ -497,6 +505,11 @@ impl CoreConfig {
                 max_backtracks: 4,
                 full_check_every_accepted_blocks: 1,
             },
+            // Match the calibrated predictive-delivery ceiling: a scene that
+            // would abstain for >0.10 bits/block receives one bounded geometry
+            // rescue before confidence is judged.
+            geometry_refinement_trigger_bits_per_block: 0.1,
+            small_geometry_refinement_trigger_bits_per_block: 0.01,
             k_discrete_paths: vice_fit::K_DISCRETE_PATHS,
             export_decimal_places: 12,
             apron_width_px: 0.01,
@@ -556,12 +569,16 @@ impl CoreConfig {
             quantization: self.quantization,
             beam: self.beam,
             trust_region: self.trust_region,
+            geometry_refinement_trigger_bits_per_block: self
+                .geometry_refinement_trigger_bits_per_block,
+            small_geometry_refinement_trigger_bits_per_block: self
+                .small_geometry_refinement_trigger_bits_per_block,
             k_discrete_paths: self.k_discrete_paths,
             export_decimal_places: self.export_decimal_places,
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            implementation: "vice-core/m7/v6",
+            implementation: "vice-core/m7/v7",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),

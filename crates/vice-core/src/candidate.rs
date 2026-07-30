@@ -15,7 +15,7 @@ use vice_svg::{
 use vice_verify::{quantize_and_verify, seal_delivery};
 
 use crate::config::CoreConfig;
-use crate::scene::{build_scene_candidate, optimize_paint, SceneCandidate, TopologyArm};
+use crate::scene::{build_scene_candidate, optimize_continuous, SceneCandidate, TopologyArm};
 use crate::types::{
     CandidateFailureStage, CandidateRefusal, CandidateRelationSolveTrace, CandidateSummary,
 };
@@ -49,7 +49,7 @@ struct SerializedDelivery {
 struct OptimizedScene {
     scene: vice_ir::VectorScene,
     optimizer: OptimizationResult,
-    transaction: TransactionApplication,
+    transactions: Vec<TransactionApplication>,
 }
 
 #[derive(Debug, Default)]
@@ -83,6 +83,12 @@ pub(crate) struct CandidateRequest<'a> {
     pub config: &'a CoreConfig,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ProposalScore {
+    pub total_bits: f64,
+    pub scene_digest_sha256: String,
+}
+
 fn digest(bytes: impl AsRef<[u8]>) -> String {
     hex::encode(Sha256::digest(bytes.as_ref()))
 }
@@ -103,6 +109,11 @@ fn selected_relation_solve_trace(models: &[BoundaryModel]) -> Vec<CandidateRelat
                 residual_contract:
                     "signed_normal_deviation/halfwidth*sqrt(independent_observations)",
                 projected_finite_difference: true,
+                m7_continuous_parameterization:
+                    "relation-preserving boundary similarity free coordinates",
+                m7_constraint_projection:
+                    "M6 projected normal-Jacobian solve, then exact similarity invariance and \
+                     pre/post-quantization verification on every accepted M7 step",
                 rows: hypothesis.solve_trace.clone(),
             });
         }
@@ -415,6 +426,61 @@ fn build_transactional_candidate(
     ))
 }
 
+/// Cheap full-resolution ordering score used before the independently
+/// serialized court. It uses the same scene construction, verifier,
+/// likelihood and priors as final materialization, but no trust-region or SVG
+/// subprocess. It may only reorder scheduled hypotheses.
+pub(crate) fn score_candidate_proposal(
+    request: &CandidateRequest<'_>,
+) -> Result<ProposalScore, CandidateRefusal> {
+    let hypothesis_id = request.hypothesis_id.clone();
+    let (candidate, _) = build_transactional_candidate(request).map_err(|error| {
+        refusal(
+            &hypothesis_id,
+            CandidateFailureStage::SceneConstruction,
+            error,
+        )
+    })?;
+    let opaque_paints = 1 + usize::from(!candidate.paint_layout.background.is_empty());
+    let prior = priors(
+        request.models,
+        opaque_paints,
+        request.intent,
+        request.config,
+    );
+    let verified = vice_verify::quantize_and_verify(
+        &candidate.scene,
+        &candidate.bindings,
+        request.config.verification,
+        request.config.quantization,
+    )
+    .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::Quantization, error))?;
+    let score = vice_opt::score_full_resolution(
+        verified.scene(),
+        request.image,
+        verified.render(),
+        request.config.likelihood,
+        prior,
+    )
+    .map_err(|error| {
+        refusal(
+            &hypothesis_id,
+            CandidateFailureStage::ProposalLikelihood,
+            error,
+        )
+    })?;
+    Ok(ProposalScore {
+        total_bits: score.total_bits,
+        scene_digest_sha256: vice_ir::scene_digest_sha256(verified.scene()).map_err(|error| {
+            refusal(
+                &hypothesis_id,
+                CandidateFailureStage::CanonicalArtifact,
+                error,
+            )
+        })?,
+    })
+}
+
 pub(crate) fn materialize_candidate(
     request: CandidateRequest<'_>,
     cache: &mut CandidateCache,
@@ -435,8 +501,10 @@ pub(crate) fn materialize_candidate(
         request.intent,
         request.config,
     );
+    let preserve_scene_relations = request.hypothesis_id.starts_with("scene-repetition-")
+        || request.hypothesis_id.starts_with("scene-mirror-");
     let optimization_key = format!(
-        "{}|{}",
+        "{}|{}|preserve_scene_relations={preserve_scene_relations}",
         vice_ir::scene_digest_sha256(&candidate.scene).map_err(|error| {
             refusal(
                 &hypothesis_id,
@@ -455,7 +523,7 @@ pub(crate) fn materialize_candidate(
     let optimizer = if let Some(cached) = cache.optimized_by_scene_and_prior.get(&optimization_key)
     {
         candidate.scene = cached.scene.clone();
-        transactions.push(cached.transaction.clone());
+        transactions.extend(cached.transactions.clone());
         cached.optimizer.clone()
     } else {
         let base = vice_verify::preseal_scene(
@@ -464,32 +532,33 @@ pub(crate) fn materialize_candidate(
             request.config.verification,
         )
         .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::Preseal, error))?;
-        let (optimized, optimizer, paint_transaction): (
+        let (optimized, optimizer, continuous_transactions): (
             _,
             OptimizationResult,
-            TransactionApplication,
-        ) = optimize_paint(
+            Vec<TransactionApplication>,
+        ) = optimize_continuous(
             candidate,
             request.image,
             base.render(),
             prior,
             request.config,
+            preserve_scene_relations,
         )
         .map_err(|error| {
             refusal(
                 &hypothesis_id,
-                CandidateFailureStage::PaintOptimization,
+                CandidateFailureStage::ContinuousOptimization,
                 error,
             )
         })?;
         candidate = optimized;
-        transactions.push(paint_transaction.clone());
+        transactions.extend(continuous_transactions.clone());
         cache.optimized_by_scene_and_prior.insert(
             optimization_key,
             OptimizedScene {
                 scene: candidate.scene.clone(),
                 optimizer: optimizer.clone(),
-                transaction: paint_transaction,
+                transactions: continuous_transactions,
             },
         );
         optimizer

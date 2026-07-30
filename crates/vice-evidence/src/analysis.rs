@@ -1,26 +1,10 @@
 //! The M4 Flat2 analysis: hypotheses in, a typed outcome out
 //! (spec §7, §9.2, §10, §1.4, §1.6, §28 M4).
 //!
-//! This is the stage §7 calls *"palette + exterior hypotheses → minimal
-//! global formation hypotheses → premultiplied mixture evidence"*, stopping
-//! exactly where M4 stops: no topology envelope (M4.5), no fitter (M6), no
-//! confidence (§1.5 binds that to a calibration this project cannot yet
-//! perform).
-//!
-//! ## Why the outcome is a class and not a hypothesis
-//!
-//! The label-swapped reading of §9.2 has the SAME alpha field up to
-//! `α ↔ 1−α` and byte-identical residuals (proved in
-//! `mixture::tests::swapping_the_two_faces_maps_alpha_to_its_complement…`).
-//! Calling that an ambiguity would report every two-colour image as
-//! ambiguous while reporting nothing about the world. So hypotheses are
-//! grouped into MIXTURE CLASSES — the same two faces, whichever way round —
-//! and ambiguity is judged BETWEEN classes, which is the §6.3 idea of a
-//! delivery-equivalence class applied to the only thing M4 delivers.
-//!
-//! ## The three outcomes
-//!
-//! §1.4 keeps `Ambiguous` and `Unsupported` apart, and so does this:
+//! This stage stops at M4 evidence: no topology envelope, fitter, or
+//! confidence. Label-swapped hypotheses share an alpha field up to
+//! `α ↔ 1−α` and byte-identical residuals, so they form one mixture class;
+//! ambiguity is judged between physically different classes.
 //!
 //! - **Supported** — exactly one mixture class explains the pixels;
 //! - **Ambiguous** — two or more physically different classes do;
@@ -28,15 +12,13 @@
 //!   interior fill with a true constant `0 < α < 1`, which §1.6 removes
 //!   from Flat2 v1 outright.
 //!
-//! Note what `Unsupported` is NOT allowed to be: the SILENT reading. A
-//! constant 50 % fill over a transparent exterior fits a two-colour coverage
-//! model perfectly — as "coverage one half, everywhere" — and delivering
-//! that would be the exact failure §1.6 names.
+//! `Unsupported` prevents the silent reading of a constant partial-alpha fill
+//! as partial geometric coverage—the exact failure §1.6 names.
 
 use serde::Serialize;
 use vice_image::{CanonicalImage, ObservationTensor};
 use vice_ir::color::linear_to_srgb_encoded;
-use vice_ir::{BlendSpace, LinearRgb};
+use vice_ir::{BlendSpace, LinearRgb, PixelFilter};
 
 use crate::boundary::{
     contour_length_px, observe_boundaries, BoundaryConfig, BoundaryObservation, BOUNDARY_CONFIG_V1,
@@ -44,7 +26,7 @@ use crate::boundary::{
 use crate::corridor::{CorridorConfig, CORRIDOR_CONFIG_V1};
 use crate::formation::{
     blend_space_is_identifiable, filter_is_identifiable, filter_penalty, for_palette, formation_id,
-    resolved_fraction, transition_width_px,
+    resolved_fraction, transition_width_px, PIXEL_FILTERS,
 };
 use crate::interior::{interior_confidence, InteriorConfig, InteriorSummary, INTERIOR_CONFIG_V1};
 use crate::mixture::{
@@ -246,6 +228,18 @@ pub fn analyze_full(
     cfg: &AnalysisConfig,
     override_hypothesis: Option<Flat2Hypothesis>,
 ) -> AnalysisOutput {
+    analyze_full_for_filters(img, cfg, override_hypothesis, PIXEL_FILTERS)
+}
+
+/// [`analyze_full`] restricted to filters admitted by the caller's universe.
+/// Filtering happens before surrogate selection (§8.2), so an unsupported M4
+/// winner cannot suppress a supported M7 explanation.
+pub fn analyze_full_for_filters(
+    img: &CanonicalImage,
+    cfg: &AnalysisConfig,
+    override_hypothesis: Option<Flat2Hypothesis>,
+    supported_filters: &[PixelFilter],
+) -> AnalysisOutput {
     let linear = ObservationTensor::of(img, BlendSpace::LinearLight);
     let encoded = ObservationTensor::of(img, BlendSpace::EncodedSrgb);
     // Interior confidence and the palette are read off the LINEAR tensor:
@@ -274,7 +268,10 @@ pub fn analyze_full(
     let mut evidences: Vec<(Flat2Evidence, EvidenceSummary)> = Vec::new();
     let mut refused = Vec::new();
     for h in &hypotheses {
-        for f in for_palette(h) {
+        for f in for_palette(h)
+            .into_iter()
+            .filter(|formation| supported_filters.contains(&formation.pixel_filter))
+        {
             let t = match f.blend_space {
                 BlendSpace::LinearLight => &linear,
                 BlendSpace::EncodedSrgb => &encoded,
@@ -697,6 +694,30 @@ mod tests {
         assert!(a.canonical_json().contains("\"production\": false"));
         // And a normal run is production.
         assert!(analyze(&disc(32, 9.0), &ANALYSIS_CONFIG_V1, None).production);
+    }
+
+    #[test]
+    fn a_supported_filter_scope_is_applied_before_evidence_selection() {
+        let output = analyze_full_for_filters(
+            &disc(48, 14.0),
+            &ANALYSIS_CONFIG_V1,
+            None,
+            &[PixelFilter::Box],
+        );
+        assert!(output.report.is_supported(), "{:?}", output.report.outcome);
+        assert!(output
+            .report
+            .evidences
+            .iter()
+            .all(|summary| summary.formation.contains("/box/")));
+        assert_eq!(
+            output
+                .chosen
+                .expect("supported evidence")
+                .formation
+                .pixel_filter,
+            PixelFilter::Box
+        );
     }
 
     /// §10.2 as a property of the ARTIFACT: no field of this report is in

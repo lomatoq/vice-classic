@@ -10,7 +10,8 @@ use vice_opt::{
 };
 
 use crate::candidate::{
-    materialize_candidate, CandidateCache, CandidateModelTransaction, CandidateRequest,
+    materialize_candidate, score_candidate_proposal, CandidateCache, CandidateModelTransaction,
+    CandidateRequest,
 };
 use crate::config::{ConfidenceMetrics, CoreConfig, PerturbationStability};
 use crate::scene::{topology_arms, TopologyArm};

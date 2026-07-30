@@ -92,7 +92,7 @@ fn hierarchy_stops_after_the_first_certified_level_and_reports_the_rest() {
 }
 
 #[test]
-fn binding_certificate_does_not_invent_a_closing_support_edge() {
+fn binding_certificate_closes_only_a_declared_closed_support() {
     let points = [Pt::new(0.0, 0.0), Pt::new(2.0, 2.0), Pt::new(4.0, 0.0)];
     let samples = points
         .into_iter()
@@ -105,7 +105,10 @@ fn binding_certificate_does_not_invent_a_closing_support_edge() {
             corr_length_px: 0.5,
         })
         .collect::<Vec<_>>();
-    let support = observed_support_polyline(&samples);
-    assert_eq!(support, points);
-    assert_ne!(support.first(), support.last());
+    let open = observed_support_polyline(&samples, false);
+    assert_eq!(open, points);
+    assert_ne!(open.first(), open.last());
+    let closed = observed_support_polyline(&samples, true);
+    assert_eq!(&closed[..closed.len() - 1], points);
+    assert_eq!(closed.first(), closed.last());
 }

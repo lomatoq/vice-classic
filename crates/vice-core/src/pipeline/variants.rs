@@ -382,58 +382,75 @@ pub(super) fn final_scene_variants(
     }
     for left in 0..baseline.len() {
         for right in left + 1..baseline.len() {
-            if let Some(sibling) = repeated_scene_sibling(
-                &baseline[left],
-                &baseline[right],
-                &chains[right],
-                canvas_dim_px,
-                baseline.len(),
-            ) {
-                let mut models = baseline.clone();
-                models[right] = sibling;
-                variants.push(FinalSceneVariant {
-                    class: format!("scene-repetition-c{left}-c{right}"),
-                    models: models.clone(),
-                    model_transactions: vec![CandidateModelTransaction {
-                        kind: TransactionKind::RelationPromote,
-                        parent_models: baseline.clone(),
-                    }],
-                });
-                variants.push(FinalSceneVariant {
-                    class: format!("scene-repetition-c{left}-c{right}-demote"),
-                    models: baseline.clone(),
-                    model_transactions: vec![CandidateModelTransaction {
-                        kind: TransactionKind::RelationDemote,
-                        parent_models: models,
-                    }],
-                });
-            }
-            if let Some(sibling) = mirrored_scene_sibling(
-                &baseline[left],
-                &baseline[right],
-                &chains[left],
-                &chains[right],
-                canvas_dim_px,
-                baseline.len(),
-            ) {
-                let mut models = baseline.clone();
-                models[right] = sibling;
-                variants.push(FinalSceneVariant {
-                    class: format!("scene-mirror-c{left}-c{right}"),
-                    models: models.clone(),
-                    model_transactions: vec![CandidateModelTransaction {
-                        kind: TransactionKind::RelationPromote,
-                        parent_models: baseline.clone(),
-                    }],
-                });
-                variants.push(FinalSceneVariant {
-                    class: format!("scene-mirror-c{left}-c{right}-demote"),
-                    models: baseline.clone(),
-                    model_transactions: vec![CandidateModelTransaction {
-                        kind: TransactionKind::RelationDemote,
-                        parent_models: models,
-                    }],
-                });
+            // A proxy winner can be locally valid yet fail the scene verifier
+            // once paired. Preserve the two bounded M7 path siblings on each
+            // side so mirror/repetition is not represented by one brittle M6
+            // start.
+            for (left_path, left_model) in fits[left].models.iter().take(2).enumerate() {
+                for (right_path, right_model) in fits[right].models.iter().take(2).enumerate() {
+                    let left_model = free_model(left_model);
+                    let right_model = free_model(right_model);
+                    let suffix = if left_path == 0 && right_path == 0 {
+                        String::new()
+                    } else {
+                        format!("-p{left_path}p{right_path}")
+                    };
+                    if let Some(sibling) = repeated_scene_sibling(
+                        &left_model,
+                        &right_model,
+                        &chains[right],
+                        canvas_dim_px,
+                        baseline.len(),
+                    ) {
+                        let mut models = baseline.clone();
+                        models[left] = left_model.clone();
+                        models[right] = sibling;
+                        variants.push(FinalSceneVariant {
+                            class: format!("scene-repetition-c{left}-c{right}{suffix}"),
+                            models: models.clone(),
+                            model_transactions: vec![CandidateModelTransaction {
+                                kind: TransactionKind::RelationPromote,
+                                parent_models: baseline.clone(),
+                            }],
+                        });
+                        variants.push(FinalSceneVariant {
+                            class: format!("scene-repetition-c{left}-c{right}{suffix}-demote"),
+                            models: baseline.clone(),
+                            model_transactions: vec![CandidateModelTransaction {
+                                kind: TransactionKind::RelationDemote,
+                                parent_models: models,
+                            }],
+                        });
+                    }
+                    if let Some(sibling) = mirrored_scene_sibling(
+                        &left_model,
+                        &right_model,
+                        &chains[left],
+                        &chains[right],
+                        canvas_dim_px,
+                        baseline.len(),
+                    ) {
+                        let mut models = baseline.clone();
+                        models[left] = left_model.clone();
+                        models[right] = sibling;
+                        variants.push(FinalSceneVariant {
+                            class: format!("scene-mirror-c{left}-c{right}{suffix}"),
+                            models: models.clone(),
+                            model_transactions: vec![CandidateModelTransaction {
+                                kind: TransactionKind::RelationPromote,
+                                parent_models: baseline.clone(),
+                            }],
+                        });
+                        variants.push(FinalSceneVariant {
+                            class: format!("scene-mirror-c{left}-c{right}{suffix}-demote"),
+                            models: baseline.clone(),
+                            model_transactions: vec![CandidateModelTransaction {
+                                kind: TransactionKind::RelationDemote,
+                                parent_models: models,
+                            }],
+                        });
+                    }
+                }
             }
         }
     }

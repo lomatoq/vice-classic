@@ -324,7 +324,7 @@ pub(super) fn fit_forced_boundary_models_impl(
                 };
                 if continuous_sample_cap.is_some() {
                     let (displacement_px, allowed_px) =
-                        observed_binding_isotopy(&model.stage_h_free_geometry, samples)
+                        observed_binding_isotopy(&model.stage_h_free_geometry, samples, closed)
                             .unwrap_or((f64::INFINITY, 0.0));
                     if displacement_px > allowed_px + BINDING_RELATION_RESCUE_MARGIN_PX_V1 {
                         binding_isotopy_refusals.push((displacement_px, allowed_px));
@@ -341,7 +341,7 @@ pub(super) fn fit_forced_boundary_models_impl(
                 );
                 if continuous_sample_cap.is_some() {
                     let (displacement_px, allowed_px) =
-                        observed_binding_isotopy(&model.geometry, samples)
+                        observed_binding_isotopy(&model.geometry, samples, closed)
                             .unwrap_or((f64::INFINITY, 0.0));
                     if displacement_px > allowed_px {
                         binding_isotopy_refusals.push((displacement_px, allowed_px));

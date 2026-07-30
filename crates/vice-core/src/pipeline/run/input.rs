@@ -61,10 +61,11 @@ pub(super) fn prepare_input(
         );
     }
 
-    let analysis = vice_evidence::analyze_full(
+    let analysis = vice_evidence::analyze_full_for_filters(
         &image,
         &vice_evidence::ANALYSIS_CONFIG_V1,
         request.oracle_override.clone(),
+        &[vice_ir::PixelFilter::Box],
     );
     let production = provenance_production && analysis.report.production;
     let parts = ReportParts {

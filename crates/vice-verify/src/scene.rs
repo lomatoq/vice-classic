@@ -235,6 +235,27 @@ impl PresealedScene {
     pub fn render(&self) -> &PartitionRender {
         &self.render
     }
+    /// Connectivity-only signature for one fixed-mesh optimizer comparison.
+    ///
+    /// Geometry coordinates intentionally do not enter this vector: an inner
+    /// solve may move them, but it must retain the same boundary subdivision
+    /// and face-loop combinatorics until the exact court rebuilds the scene.
+    pub fn mesh_combinatorics_signature(&self) -> Vec<usize> {
+        let mesh = self.mesh.mesh();
+        let mut signature = Vec::new();
+        signature.push(mesh.boundary_polylines.len());
+        signature.extend(
+            mesh.boundary_polylines
+                .iter()
+                .map(|polyline| polyline.points.len()),
+        );
+        signature.push(mesh.face_loops.len());
+        for loops in &mesh.face_loops {
+            signature.push(loops.len());
+            signature.extend(loops.iter().map(|polygon| polygon.points.len()));
+        }
+        signature
+    }
     pub fn bindings(&self) -> &[BoundaryBinding] {
         &self.bindings
     }

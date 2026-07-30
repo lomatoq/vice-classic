@@ -422,16 +422,21 @@ fn directed_polyline_distance(points: &[vice_geom::Pt], target: &[vice_geom::Pt]
         .fold(0.0, f64::max)
 }
 
-fn observed_support_polyline(samples: &[BoundarySample]) -> Vec<vice_geom::Pt> {
-    // Preserve the exact support representation later stored in
-    // `BoundaryBinding`; neither fitter nor verifier may invent an extra seam
-    // segment when the sampled chain does not repeat its first point.
-    samples.iter().map(|sample| sample.p).collect()
+fn observed_support_polyline(samples: &[BoundarySample], closed: bool) -> Vec<vice_geom::Pt> {
+    let mut support = samples.iter().map(|sample| sample.p).collect::<Vec<_>>();
+    // Open chains retain their literal support. A closed observation owns the
+    // seam even though physical resampling does not duplicate its first
+    // sample; omitting that edge makes a valid closure look non-isotopic.
+    if closed && support.len() >= 2 && support.first() != support.last() {
+        support.push(support[0]);
+    }
+    support
 }
 
 fn observed_binding_isotopy(
     geometry: &SelectedBoundaryGeometry,
     samples: &[BoundarySample],
+    closed: bool,
 ) -> Option<(f64, f64)> {
     let fitted = match geometry {
         SelectedBoundaryGeometry::TypedChain { chain } => crate::solve::flatten_chain_at_tolerance(
@@ -444,7 +449,7 @@ fn observed_binding_isotopy(
             ..
         } => verification_polyline.clone(),
     };
-    let support = observed_support_polyline(samples);
+    let support = observed_support_polyline(samples, closed);
     if fitted.len() < 2 || support.len() < 2 {
         return None;
     }

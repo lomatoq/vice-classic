@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v8";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v9";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -59,6 +59,8 @@ pub struct CandidateRelationSolveTrace {
     pub continuous_solve_samples: usize,
     pub residual_contract: &'static str,
     pub projected_finite_difference: bool,
+    pub m7_continuous_parameterization: &'static str,
+    pub m7_constraint_projection: &'static str,
     pub rows: Vec<vice_fit::RelationSolveTraceRow>,
 }
 
@@ -67,7 +69,8 @@ pub struct CandidateRelationSolveTrace {
 pub enum CandidateFailureStage {
     SceneConstruction,
     Preseal,
-    PaintOptimization,
+    ProposalLikelihood,
+    ContinuousOptimization,
     Quantization,
     ExportPlan,
     SvgMaterialization,

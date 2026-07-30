@@ -53,8 +53,8 @@ pub mod palette;
 pub mod support;
 
 pub use analysis::{
-    analyze, analyze_full, AnalysisConfig, AnalysisOutput, Flat2Analysis, Flat2Outcome,
-    UnsupportedReason, ANALYSIS_CONFIG_V1, ANALYSIS_SCHEMA, MAX_RESIDUAL_P95_CODES,
+    analyze, analyze_full, analyze_full_for_filters, AnalysisConfig, AnalysisOutput, Flat2Analysis,
+    Flat2Outcome, UnsupportedReason, ANALYSIS_CONFIG_V1, ANALYSIS_SCHEMA, MAX_RESIDUAL_P95_CODES,
 };
 pub use boundary::{
     observe_boundaries, BoundaryChain, BoundaryConfig, BoundaryObservation, BoundaryRefusal,

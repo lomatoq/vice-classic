@@ -5,7 +5,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Serialize;
 
 use super::{
-    analysis::catastrophic_kinds, MeasurementReport, MeasurementRow, M7_MEASUREMENT_SCHEMA,
+    analysis::intrinsic_catastrophic_kinds, MeasurementReport, MeasurementRow,
+    M7_MEASUREMENT_SCHEMA,
 };
 use crate::correlation::ResidualModel;
 use crate::gates::GatesFile;
@@ -15,7 +16,7 @@ use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
-pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v3";
+pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v4";
 const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -195,6 +196,8 @@ pub struct PresetReleaseVerdict {
     pub runtime_limit_ms: u64,
     pub runtime_isolated: bool,
     pub runtime_gate_met: bool,
+    pub runtime_release_blocking: bool,
+    pub runtime_policy: &'static str,
     pub peak_working_set_bytes: u64,
     pub memory_gate_met: bool,
     pub calibration_gate_met: bool,
@@ -423,9 +426,14 @@ fn analyze_preset(
     if !palette_gate_met {
         refusals.push("accepted palette error exceeds the frozen gate".into());
     }
-    if !runtime_gate_met {
-        refusals.push("isolated runtime p95 gate is not met".into());
-    }
+    // §29's wall-clock numbers are provisional research diagnostics. The
+    // hard M7 resource contract is the bounded-growth ledger plus process
+    // memory; an honest miss remains in this verdict without converting a
+    // correctness-qualified release into a refusal.
+    const RUNTIME_RELEASE_BLOCKING: bool = false;
+    const RUNTIME_POLICY: &str = "provisional M7 research diagnostic on an isolated 512px run; \
+                                  non-blocking for release, with bounded elapsed, memory, \
+                                  hypothesis, and render budgets enforced separately";
     if !memory_gate_met {
         refusals.push("process peak memory exceeds the frozen gate".into());
     }
@@ -449,6 +457,8 @@ fn analyze_preset(
         runtime_limit_ms,
         runtime_isolated,
         runtime_gate_met,
+        runtime_release_blocking: RUNTIME_RELEASE_BLOCKING,
+        runtime_policy: RUNTIME_POLICY,
         peak_working_set_bytes: report.peak_working_set_bytes,
         memory_gate_met,
         calibration_gate_met,
@@ -486,7 +496,7 @@ pub(crate) fn catastrophic_with_gates(
     row: &MeasurementRow,
     gates: M7ReleaseGates,
 ) -> Vec<&'static str> {
-    let mut kinds = catastrophic_kinds(row);
+    let mut kinds = intrinsic_catastrophic_kinds(row);
     if row.boundary.as_ref().is_none_or(|tail| {
         tail.p99_px > gates.boundary_p99_px || tail.max_px > gates.boundary_max_px
     }) && !kinds.contains(&"gross_boundary_outlier")

@@ -317,6 +317,10 @@ mod tests {
     fn a_flat2_png_enters_the_selective_pipeline_without_false_success() {
         let mut config = CoreConfig::development();
         config.k_discrete_paths = 1;
+        // Force the production geometry branch so this call-site test cannot
+        // pass with a paint-only continuous optimizer.
+        config.geometry_refinement_trigger_bits_per_block = f64::MIN_POSITIVE;
+        config.small_geometry_refinement_trigger_bits_per_block = f64::MIN_POSITIVE;
         let run = vectorize_for_calibration(&square_png(), &VectorizeRequest::default(), &config);
         let witness_expected = run.outcome.report().selected_hypothesis_id.is_some();
         assert_eq!(run.selected.is_some(), witness_expected);
@@ -353,6 +357,10 @@ mod tests {
             .expect("a run that entered search publishes transaction inventory");
         assert!(inventory.complete_kind_enumeration);
         assert_eq!(inventory.rows.len(), vice_opt::TransactionKind::ALL.len());
+        assert!(inventory
+            .rows
+            .iter()
+            .all(|row| row.atomic_applied <= row.proposed));
         let paint = inventory
             .rows
             .iter()
@@ -368,6 +376,11 @@ mod tests {
         assert!(outcome.report().candidates.iter().all(|candidate| {
             candidate.optimizer.full_check_every_accepted_blocks == 1
                 && !candidate.optimizer.block_plan.is_empty()
+                && candidate
+                    .optimizer
+                    .block_plan
+                    .iter()
+                    .any(|block| block.name.starts_with("geometry_"))
                 && candidate.optimizer.block_plan.iter().all(|block| {
                     !block.scope.global && block.scope.roi.is_some() && block.scope.halo_px > 0
                 })
@@ -416,7 +429,19 @@ mod tests {
                     .candidate_refusals
                     .iter()
                     .any(|refusal| refusal.hypothesis_id.starts_with("scene-repetition-")),
-            "scene repetition was not searched"
+            "scene repetition was not searched; candidates={:?}; refusals={:?}",
+            outcome
+                .report()
+                .candidates
+                .iter()
+                .map(|candidate| candidate.hypothesis_id.as_str())
+                .collect::<Vec<_>>(),
+            outcome
+                .report()
+                .candidate_refusals
+                .iter()
+                .map(|refusal| refusal.hypothesis_id.as_str())
+                .collect::<Vec<_>>()
         );
         assert!(
             outcome.report().candidates.iter().any(|candidate| {

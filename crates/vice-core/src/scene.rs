@@ -1,6 +1,3 @@
-use std::cell::RefCell;
-use std::collections::BTreeMap;
-
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vice_evidence::{BackgroundHypothesis, BoundaryChain, Flat2Evidence};
@@ -8,18 +5,11 @@ use vice_fit::{BoundaryModel, LoweredBoundaryGeometry, SelectedBoundaryGeometry}
 use vice_geom::Pt;
 use vice_ir::{
     Boundary, BoundaryId, Canvas, ChainNode, CurveChain, Face, FaceId, GraphVertex, HalfEdge,
-    HalfEdgeId, JoinKind, LinearRgb, Paint, PlanarGraph, Segment, VectorScene, VertexId,
+    HalfEdgeId, JoinKind, Paint, PlanarGraph, Segment, VectorScene, VertexId,
 };
-use vice_opt::{
-    apply_compound_transaction_traced, optimize_best_deterministic, BlockSpec, CompoundTransaction,
-    OptimizationResult, PriorCodeLengths, SceneMutation, ScoreScope, TransactionApplication,
-    TransactionKind, TrustRegionProblem,
-};
-use vice_render::PartitionRender;
 use vice_topology::{audit, Dcel};
 use vice_verify::{topology_signature_sha256, BoundaryBinding};
 
-use crate::config::CoreConfig;
 use crate::types::{TopologyArmRefusal, TopologyArmTrace};
 
 #[derive(Debug, Clone)]
@@ -666,5 +656,5 @@ pub(crate) fn build_scene_candidate(
     })
 }
 
-mod paint;
-pub(crate) use paint::optimize_paint;
+mod continuous;
+pub(crate) use continuous::optimize_continuous;

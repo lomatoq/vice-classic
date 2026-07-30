@@ -1,7 +1,11 @@
 use super::*;
 
+mod fit;
+use fit::fit_chain;
 mod input;
 use input::{prepare_input, PreparedInput};
+mod proposal;
+use proposal::rank_materializations;
 mod trace;
 use trace::build_trace;
 
@@ -116,29 +120,7 @@ pub(super) fn vectorize_impl(
             let fit = if let Some(cached) = fit_cache.get(&fit_key) {
                 cached.clone()
             } else {
-                let fit = if canvas_dim_px >= 128.0 {
-                    vice_fit::k_best_boundary_models_bounded(
-                        chain,
-                        &vice_fit::FIT_BUDGET_V1,
-                        canvas_dim_px,
-                        config.k_discrete_paths,
-                        vice_fit::DISCRETE_PROPOSAL_SAMPLE_CAP_V1,
-                    )
-                    .map_err(|error| format!("{error:?}"))
-                } else {
-                    vice_fit::k_best_boundary_models(
-                        chain,
-                        &vice_fit::FIT_BUDGET_V1,
-                        canvas_dim_px,
-                        config.k_discrete_paths,
-                    )
-                    .map_err(|error| format!("{error:?}"))
-                }
-                .and_then(|fit| {
-                    (!fit.models.is_empty())
-                        .then_some(fit)
-                        .ok_or_else(|| "typed fitter produced no admissible model".to_string())
-                });
+                let fit = fit_chain(chain, canvas_dim_px, config);
                 fit_cache.insert(fit_key, fit.clone());
                 fit
             };
@@ -279,13 +261,26 @@ pub(super) fn vectorize_impl(
         .saturating_sub(config.beam.budget.max_candidates_considered);
     let evaluation_truncated = unmaterialized_by_candidate_budget > 0;
     materialization_order.truncate(config.beam.budget.max_candidates_considered);
+    // M6's evidence/description ordering may not monopolize M7's expensive
+    // serialized slots, so reorder one bounded prefix by the real likelihood.
+    let mandatory_relation_materializations = rank_materializations(
+        &mut materialization_order,
+        &fitted_arms,
+        &formations,
+        canvas,
+        &evidence,
+        &image,
+        request,
+        config,
+    );
     let scheduled_materializations = materialization_order.len();
     // A time budget cannot be subordinated to a quota: materialize one
     // deterministic seed so the run has a candidate, then enforce the
     // deadline before every further topology/formation/transaction seed.
     // Unreached diversity slots remain explicit unexplored mass.
     let mandatory_diversity_materializations =
-        usize::from(diversity_seed_materializations > 0 && scheduled_materializations > 0);
+        usize::from(diversity_seed_materializations > 0 && scheduled_materializations > 0)
+            .max(mandatory_relation_materializations.min(scheduled_materializations));
     let mut attempted_materializations = 0usize;
     let mut time_truncated = false;
     'materialization: for (topology_index, variant_index, formation_index) in materialization_order
@@ -328,6 +323,9 @@ pub(super) fn vectorize_impl(
         }
         *proposed_transactions
             .entry(TransactionKind::PaintChange)
+            .or_default() += 1;
+        *proposed_transactions
+            .entry(TransactionKind::JointEscape)
             .or_default() += 1;
         let formation_class = vice_evidence::formation_id(formation);
         let hypothesis_id = format!("{}/t{topology_index}/{formation_class}", variant.class);
