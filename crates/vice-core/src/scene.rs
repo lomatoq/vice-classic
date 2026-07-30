@@ -16,10 +16,11 @@ use vice_opt::{
     TransactionKind, TrustRegionProblem,
 };
 use vice_render::PartitionRender;
-use vice_topology::{audit, signature, Dcel, Labelling};
+use vice_topology::{audit, Dcel};
 use vice_verify::{topology_signature_sha256, BoundaryBinding};
 
 use crate::config::CoreConfig;
+use crate::types::{TopologyArmRefusal, TopologyArmTrace};
 
 #[derive(Debug, Clone)]
 pub(crate) struct TopologyArm {
@@ -28,6 +29,14 @@ pub(crate) struct TopologyArm {
     /// Evidence-chain index -> canonical DCEL boundary index.
     pub chain_to_boundary: Vec<usize>,
     pub dcel_boundary_sha256: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct TopologyArmSet {
+    pub proposal: vice_topology::Proposal,
+    pub arms: Vec<TopologyArm>,
+    pub traces: Vec<TopologyArmTrace>,
+    pub refusals: Vec<TopologyArmRefusal>,
 }
 
 #[derive(Debug, Clone)]
@@ -135,54 +144,116 @@ fn bind_chains_to_dcel(chains: &[BoundaryChain], dcel: &Dcel) -> Result<Vec<usiz
     }
 }
 
-pub(crate) fn topology_arms(
-    evidence: &Flat2Evidence,
-    chains: &[BoundaryChain],
-) -> Result<Vec<TopologyArm>, String> {
-    let labelling = Labelling::new(
-        evidence.width_px() as usize,
-        evidence.height_px() as usize,
-        evidence
-            .alpha_field()
-            .iter()
-            .map(|value| *value >= 0.5)
-            .collect(),
+pub(crate) fn topology_arms(evidence: &Flat2Evidence, chains: &[BoundaryChain]) -> TopologyArmSet {
+    let proposal = vice_topology::propose(
+        &[vice_topology::CoverageObservation {
+            palette_id: evidence.hypothesis.id.clone(),
+            formation_id: vice_evidence::formation_id(&evidence.formation),
+            filter: evidence.formation.pixel_filter,
+            filter_identifiable: vice_evidence::filter_is_identifiable(evidence.alpha_field()),
+            alpha: evidence.alpha_field(),
+            width_px: evidence.width_px() as usize,
+            height_px: evidence.height_px() as usize,
+        }],
+        &vice_topology::TOPOLOGY_CONFIG_V1,
     );
     let mut arms = Vec::new();
-    for connectivity in vice_ir::ComplementaryConnectivity::arms() {
-        let sig = signature(&labelling, connectivity);
-        let dcel = Dcel::assemble(labelling.clone(), connectivity);
-        audit(&dcel).map_err(|error| error.to_string())?;
+    let mut traces = Vec::new();
+    let mut refusals = Vec::new();
+    for hypothesis in &proposal.envelope.hypotheses {
+        let connectivity = vice_ir::ComplementaryConnectivity::new(
+            if hypothesis.signature.foreground_connectivity == "4" {
+                vice_ir::PixelConnectivity::Four
+            } else {
+                vice_ir::PixelConnectivity::Eight
+            },
+        );
+        let refusal = |detail: String| TopologyArmRefusal {
+            signature_sha256: hypothesis.signature.digest.clone(),
+            foreground_connectivity: hypothesis.signature.foreground_connectivity.to_string(),
+            field: hypothesis.provenance.field,
+            saddle: hypothesis.provenance.saddle,
+            extraction_level: hypothesis.provenance.level,
+            detail,
+        };
+        let dcel = Dcel::assemble(hypothesis.labelling.clone(), connectivity);
+        if let Err(error) = audit(&dcel) {
+            refusals.push(refusal(error.to_string()));
+            continue;
+        }
         if dcel
             .boundaries()
             .iter()
             .any(|boundary| boundary.start != boundary.end)
             || dcel.vertices().len() != dcel.boundaries().len()
         {
+            refusals.push(refusal(
+                "selective Flat2 core currently requires audited closed self-loop boundaries"
+                    .into(),
+            ));
             continue;
         }
-        let chain_to_boundary = bind_chains_to_dcel(chains, &dcel)?;
-        let dcel_boundary_sha256 = dcel
+        let chain_to_boundary = match bind_chains_to_dcel(chains, &dcel) {
+            Ok(binding) => binding,
+            Err(error) => {
+                refusals.push(refusal(error));
+                continue;
+            }
+        };
+        let dcel_boundary_sha256 = match dcel
             .boundaries()
             .iter()
             .map(digest)
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(digests) => digests,
+            Err(error) => {
+                refusals.push(refusal(error));
+                continue;
+            }
+        };
+        let class = format!(
+            "fg{}-bg{}:{}",
+            hypothesis.signature.foreground_connectivity,
+            hypothesis.signature.background_connectivity,
+            hypothesis.signature.digest
+        );
+        traces.push(TopologyArmTrace {
+            class: class.clone(),
+            signature_sha256: hypothesis.signature.digest.clone(),
+            components: hypothesis.signature.components,
+            holes: hypothesis.signature.holes,
+            foreground_connectivity: hypothesis.signature.foreground_connectivity.to_string(),
+            field: hypothesis.provenance.field,
+            saddle: hypothesis.provenance.saddle,
+            extraction_level: hypothesis.provenance.level,
+            observed_chains: chains.len(),
+        });
         arms.push(TopologyArm {
-            class: format!(
-                "fg{}-bg{}:{}",
-                sig.foreground_connectivity, sig.background_connectivity, sig.digest
-            ),
+            class,
             dcel,
             chain_to_boundary,
             dcel_boundary_sha256,
         });
     }
-    arms.sort_by(|left, right| left.class.cmp(&right.class));
-    arms.dedup_by(|left, right| left.class == right.class);
-    if arms.is_empty() {
-        Err("no audited closed-boundary DCEL arm matched every observed chain".into())
-    } else {
-        Ok(arms)
+    let mut order: Vec<usize> = (0..arms.len()).collect();
+    order.sort_by(|&left, &right| arms[left].class.cmp(&arms[right].class));
+    let mut sorted_arms = Vec::with_capacity(arms.len());
+    let mut sorted_traces = Vec::with_capacity(traces.len());
+    let mut previous = None;
+    for index in order {
+        if previous.as_ref() == Some(&arms[index].class) {
+            continue;
+        }
+        previous = Some(arms[index].class.clone());
+        sorted_arms.push(arms[index].clone());
+        sorted_traces.push(traces[index].clone());
+    }
+    TopologyArmSet {
+        proposal,
+        arms: sorted_arms,
+        traces: sorted_traces,
+        refusals,
     }
 }
 

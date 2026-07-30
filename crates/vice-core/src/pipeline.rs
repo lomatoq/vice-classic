@@ -17,8 +17,8 @@ use crate::config::CoreConfig;
 use crate::scene::topology_arms;
 use crate::types::{
     CandidateRefusal, CandidateSummary, DecisionStatus, FailureReason, RuntimeSummary,
-    SuccessArtifacts, TransactionInventory, TransactionInventoryRow, VectorizeOutcome,
-    VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    SuccessArtifacts, TopologyEnvelopeTrace, TransactionInventory, TransactionInventoryRow,
+    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 use crate::VectorizeRequest;
 
@@ -27,6 +27,7 @@ const TRANSACTION_DIVERSITY_SEED_CLASSES: usize = 2;
 #[derive(Debug, Default)]
 struct ReportParts {
     evidence: Option<vice_evidence::Flat2Analysis>,
+    topology: Option<TopologyEnvelopeTrace>,
     fits: Vec<vice_fit::ModelRun>,
     beam: Option<vice_opt::BudgetLedger>,
     search_mass: Option<vice_opt::SearchMassCertificate>,
@@ -65,6 +66,7 @@ fn make_report(
         identity: config.identity(),
         calibration: config.confidence.clone(),
         evidence: parts.evidence,
+        topology: parts.topology,
         fits: parts.fits,
         beam: parts.beam,
         search_mass: parts.search_mass,
@@ -842,21 +844,29 @@ pub fn vectorize_with_config(
         );
     }
     let chains = boundary_observation.chains.clone();
-    let arms = match topology_arms(&evidence, &chains) {
-        Ok(arms) => arms,
-        Err(detail) => {
-            return refuse(
-                DecisionStatus::Unsupported,
-                FailureReason::Topology { detail },
-                request,
-                config,
-                source_sha256,
-                production,
-                parts,
-                started,
-            )
-        }
-    };
+    let topology = topology_arms(&evidence, &chains);
+    parts.topology = Some(TopologyEnvelopeTrace {
+        proposal: topology.proposal,
+        materialized_arms: topology.traces,
+        materialization_refusals: topology.refusals,
+    });
+    let arms = topology.arms;
+    if arms.is_empty() {
+        return refuse(
+            DecisionStatus::Unsupported,
+            FailureReason::Topology {
+                detail: "no M4.5 envelope hypothesis produced an audited closed-boundary DCEL \
+                         that bound every observed chain"
+                    .into(),
+            },
+            request,
+            config,
+            source_sha256,
+            production,
+            parts,
+            started,
+        );
+    }
     let mut fits = Vec::with_capacity(chains.len());
     for (chain_index, chain) in chains.iter().enumerate() {
         let fit = match vice_fit::k_best_boundary_models(

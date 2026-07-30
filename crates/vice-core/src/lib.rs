@@ -21,7 +21,8 @@ pub use config::{
 pub use pipeline::{vectorize, vectorize_with_config};
 pub use types::{
     CandidateFailureStage, CandidateRefusal, DecisionStatus, FailureReason, SuccessArtifacts,
-    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    TopologyArmRefusal, TopologyArmTrace, TopologyEnvelopeTrace, VectorizeOutcome, VectorizeReport,
+    VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 
 #[cfg(test)]
@@ -218,6 +219,19 @@ mod tests {
             VectorizeOutcome::Success(_) | VectorizeOutcome::Failed(_)
         ));
         assert!(outcome.report().evidence.is_some());
+        let topology = outcome
+            .report()
+            .topology
+            .as_ref()
+            .expect("a supported evidence run publishes its M4.5 envelope");
+        assert!(topology.proposal.fields_built >= 4);
+        assert!(topology.proposal.events_seen > 0);
+        assert!(topology.proposal.event_driven_levels > 0);
+        assert!(!topology.materialized_arms.is_empty());
+        assert!(outcome.report().candidates.iter().all(|candidate| topology
+            .materialized_arms
+            .iter()
+            .any(|arm| arm.class == candidate.topology_class)));
         let inventory = outcome
             .report()
             .transaction_inventory

@@ -87,6 +87,36 @@ pub struct TransactionInventory {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TopologyArmTrace {
+    pub class: String,
+    pub signature_sha256: String,
+    pub components: u32,
+    pub holes: u32,
+    pub foreground_connectivity: String,
+    pub field: vice_topology::FieldKind,
+    pub saddle: vice_topology::SaddleResolution,
+    pub extraction_level: f64,
+    pub observed_chains: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TopologyArmRefusal {
+    pub signature_sha256: String,
+    pub foreground_connectivity: String,
+    pub field: vice_topology::FieldKind,
+    pub saddle: vice_topology::SaddleResolution,
+    pub extraction_level: f64,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TopologyEnvelopeTrace {
+    pub proposal: vice_topology::Proposal,
+    pub materialized_arms: Vec<TopologyArmTrace>,
+    pub materialization_refusals: Vec<TopologyArmRefusal>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct VectorizeReport {
     pub schema: &'static str,
     pub status: DecisionStatus,
@@ -100,6 +130,7 @@ pub struct VectorizeReport {
     pub identity: vice_opt::ModelIdentity,
     pub calibration: Option<crate::ConfidenceCalibration>,
     pub evidence: Option<vice_evidence::Flat2Analysis>,
+    pub topology: Option<TopologyEnvelopeTrace>,
     pub fits: Vec<vice_fit::ModelRun>,
     pub beam: Option<vice_opt::BudgetLedger>,
     pub search_mass: Option<vice_opt::SearchMassCertificate>,
