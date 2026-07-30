@@ -26,6 +26,7 @@
 //! §28 M7 owns the trust-region optimiser and the exact posterior. What this
 //! owes M7 is a chain whose G1 is not M7's problem.
 
+use std::collections::BTreeSet;
 use vice_evidence::BoundarySample;
 use vice_geom::{ChordTolerancePx, Pt};
 
@@ -86,6 +87,13 @@ fn tolerance() -> ChordTolerancePx {
 
 /// Flatten a whole lowered chain into one polyline.
 pub fn flatten_chain(chain: &RefitChain) -> Result<Vec<Pt>, RefitRefusal> {
+    flatten_chain_at_tolerance(chain, tolerance())
+}
+
+pub(crate) fn flatten_chain_at_tolerance(
+    chain: &RefitChain,
+    tolerance: ChordTolerancePx,
+) -> Result<Vec<Pt>, RefitRefusal> {
     let lowered = chain.lower()?;
     let pts = lowered.node_positions(chain.start(), chain.end());
     let mut out: Vec<Pt> = Vec::new();
@@ -94,10 +102,10 @@ pub fn flatten_chain(chain: &RefitChain) -> Result<Vec<Pt>, RefitRefusal> {
         let piece: Vec<Pt> = match *seg {
             vice_ir::Segment::Line => vec![p0, p1],
             vice_ir::Segment::Quad { ctrl } => {
-                vice_geom::flatten::flatten_quad(p0, ctrl, p1, tolerance()).points
+                vice_geom::flatten::flatten_quad(p0, ctrl, p1, tolerance).points
             }
             vice_ir::Segment::Cubic { ctrl1, ctrl2 } => {
-                vice_geom::flatten::flatten_cubic(p0, ctrl1, ctrl2, p1, tolerance()).points
+                vice_geom::flatten::flatten_cubic(p0, ctrl1, ctrl2, p1, tolerance).points
             }
             vice_ir::Segment::CircularArc {
                 radius_px,
@@ -105,12 +113,7 @@ pub fn flatten_chain(chain: &RefitChain) -> Result<Vec<Pt>, RefitRefusal> {
                 ccw,
             } => {
                 vice_geom::flatten::flatten_circular_arc(
-                    p0,
-                    p1,
-                    radius_px,
-                    large_arc,
-                    ccw,
-                    tolerance(),
+                    p0, p1, radius_px, large_arc, ccw, tolerance,
                 )
                 .map_err(|_| RefitRefusal::ArcIsALine { segment: k })?
                 .points
@@ -305,6 +308,64 @@ pub fn joint_constrained_refit(
     init: &RefitChain,
     samples: &[BoundarySample],
 ) -> Result<RefitOutcome, RefitRefusal> {
+    joint_constrained_refit_impl(init, samples, samples)
+}
+
+/// Solve against a deterministic representative subset, then rank every
+/// iterate and certify the winner against the complete observation chain.
+///
+/// `mandatory` contains observation indices that define the discrete path
+/// (endpoints and breakpoints). They are never removed from the solve. This is
+/// a resource envelope on the continuous Jacobian only: the physical residual
+/// reported below and both corridor directions still use `samples`.
+pub(crate) fn joint_constrained_refit_bounded(
+    init: &RefitChain,
+    samples: &[BoundarySample],
+    sample_cap: usize,
+    mandatory: &[usize],
+) -> Result<(RefitOutcome, usize), RefitRefusal> {
+    crate::validate_samples(samples).map_err(|refusal| RefitRefusal::Input { refusal })?;
+    let solve_samples = representative_solve_samples(samples, sample_cap, mandatory);
+    let count = solve_samples.len();
+    joint_constrained_refit_impl(init, samples, &solve_samples).map(|out| (out, count))
+}
+
+pub(crate) fn representative_solve_samples(
+    samples: &[BoundarySample],
+    sample_cap: usize,
+    mandatory: &[usize],
+) -> Vec<BoundarySample> {
+    let n = samples.len();
+    let cap = sample_cap.max(crate::MIN_SUPPORT_SAMPLES).min(n);
+    if cap == n {
+        return samples.to_vec();
+    }
+    let mut selected = BTreeSet::from([0usize, n - 1]);
+    selected.extend(mandatory.iter().copied().filter(|index| *index < n));
+    // A path with more mandatory anchors than the nominal cap is rare and
+    // must not lose its own nodes. The actual count is published by ModelRun.
+    let target = cap.max(selected.len()).min(n);
+    while selected.len() < target {
+        let next = (0..n)
+            .filter(|index| !selected.contains(index))
+            .max_by_key(|index| {
+                selected
+                    .iter()
+                    .map(|present| index.abs_diff(*present))
+                    .min()
+                    .unwrap_or(n)
+            })
+            .expect("target is below the observation count");
+        selected.insert(next);
+    }
+    selected.into_iter().map(|index| samples[index]).collect()
+}
+
+fn joint_constrained_refit_impl(
+    init: &RefitChain,
+    samples: &[BoundarySample],
+    solve_samples: &[BoundarySample],
+) -> Result<RefitOutcome, RefitRefusal> {
     crate::validate_samples(samples).map_err(|refusal| RefitRefusal::Input { refusal })?;
     // A lowering failure of the INPUT is a refusal about the input.
     let _ = init.lower()?;
@@ -326,8 +387,8 @@ pub fn joint_constrained_refit(
         let mut x = pack(&cur);
         let mut lambda = 1e-3f64;
         for pass in 1..=JOINT_REFIT_PASSES {
-            let n = samples.len();
-            let base = residual_vector(&cur, samples);
+            let n = solve_samples.len();
+            let base = residual_vector(&cur, solve_samples);
             let Some(base) = base else { break };
             // Forward-difference Jacobian. The step is relative to the
             // parameter's own magnitude, because a node coordinate and a
@@ -340,7 +401,7 @@ pub fn joint_constrained_refit(
                 xp[j] += h;
                 let mut probe = cur.clone();
                 unpack(&mut probe, &xp);
-                let Some(rp) = residual_vector(&probe, samples) else {
+                let Some(rp) = residual_vector(&probe, solve_samples) else {
                     ok = false;
                     break;
                 };
@@ -382,13 +443,14 @@ pub fn joint_constrained_refit(
             }
             let mut trial = cur.clone();
             unpack(&mut trial, &trial_x);
-            let r = residual(&trial, samples);
-            if r < best_r {
-                best_r = r;
+            let solve_r = residual(&trial, solve_samples);
+            let full_r = residual(&trial, samples);
+            if full_r < best_r {
+                best_r = full_r;
                 best = trial.clone();
                 pass_kept = pass;
             }
-            if r.is_finite() && r < residual(&cur, samples) {
+            if solve_r.is_finite() && solve_r < residual(&cur, solve_samples) {
                 cur = trial;
                 x = trial_x;
                 lambda = (lambda * 0.3).max(1e-9);
@@ -555,6 +617,48 @@ mod tests {
             }
             other => panic!("expected OutsideCorridor, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn bounded_jacobian_does_not_bound_the_final_corridor_certificate() {
+        let points = (0..17)
+            .map(|index| {
+                if index == 6 {
+                    Pt::new(index as f64, 8.0)
+                } else {
+                    Pt::new(index as f64, 0.0)
+                }
+            })
+            .collect::<Vec<_>>();
+        let samples = samples_from(&points);
+        assert!(
+            representative_solve_samples(&samples, 4, &[0, 16])
+                .iter()
+                .all(|sample| sample.p.y == 0.0),
+            "the positive control must place the defect outside the Jacobian subset"
+        );
+        let init = RefitChain {
+            nodes: vec![
+                RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                RefitNode {
+                    pos: Pt::new(16.0, 0.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line],
+        };
+        let refusal = joint_constrained_refit_bounded(&init, &samples, 4, &[0, 16])
+            .expect_err("the unsampled spike must still fail full certification");
+        assert!(matches!(
+            refusal,
+            RefitRefusal::OutsideCorridor {
+                worst_deviation_px,
+                allowed_px
+            } if worst_deviation_px > allowed_px
+        ));
     }
 
     #[test]

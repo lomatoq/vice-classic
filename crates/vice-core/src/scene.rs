@@ -162,6 +162,16 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> TopologyArmSet {
     let mut arms = Vec::new();
     let mut traces = Vec::new();
     let mut refusals = Vec::new();
+    let canonical_observation = vice_evidence::observe_boundaries(
+        evidence,
+        vice_evidence::ANALYSIS_CONFIG_V1.coverage_level,
+        &vice_evidence::BOUNDARY_CONFIG_V1,
+        &vice_evidence::CORRIDOR_CONFIG_V1,
+    )
+    .ok()
+    .filter(|observation| {
+        !observation.chains.is_empty() && observation.chains.iter().all(|chain| chain.closed)
+    });
     for hypothesis in &proposal.envelope.hypotheses {
         let connectivity = vice_ir::ComplementaryConnectivity::new(
             if hypothesis.signature.foreground_connectivity == "4" {
@@ -199,7 +209,7 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> TopologyArmSet {
             ));
             continue;
         }
-        let chains = observation.chains;
+        let event_chains = observation.chains;
         let dcel = Dcel::assemble(hypothesis.labelling.clone(), connectivity);
         if let Err(error) = audit(&dcel) {
             refusals.push(refusal(error.to_string()));
@@ -217,13 +227,24 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> TopologyArmSet {
             ));
             continue;
         }
-        let chain_to_boundary = match bind_chains_to_dcel(&chains, &dcel) {
-            Ok(binding) => binding,
-            Err(error) => {
-                refusals.push(refusal(error));
-                continue;
-            }
-        };
+        let canonical_binding = canonical_observation.as_ref().and_then(|canonical| {
+            bind_chains_to_dcel(&canonical.chains, &dcel)
+                .ok()
+                .map(|binding| (canonical.chains.clone(), binding))
+        });
+        let (chains, chain_to_boundary, fit_observation_level) =
+            if let Some((chains, binding)) = canonical_binding {
+                (chains, binding, vice_evidence::BOUNDARY_CONFIG_V1.level)
+            } else {
+                let binding = match bind_chains_to_dcel(&event_chains, &dcel) {
+                    Ok(binding) => binding,
+                    Err(error) => {
+                        refusals.push(refusal(error));
+                        continue;
+                    }
+                };
+                (event_chains, binding, hypothesis.provenance.level)
+            };
         let dcel_boundary_sha256 = match dcel
             .boundaries()
             .iter()
@@ -251,6 +272,7 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> TopologyArmSet {
             field: hypothesis.provenance.field,
             saddle: hypothesis.provenance.saddle,
             extraction_level: hypothesis.provenance.level,
+            fit_observation_level,
             observed_chains: chains.len(),
             fit_models_per_chain: Vec::new(),
         };
@@ -428,7 +450,14 @@ fn observed_binding(
         .samples
         .iter()
         .map(|sample| sample.halfwidth)
-        .fold(0.0f64, f64::max);
+        .fold(0.0f64, f64::max)
+        + 0.5
+            * chain
+                .samples
+                .iter()
+                .map(|sample| sample.weight_ds)
+                .fold(0.0f64, f64::max)
+        + vice_fit::BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1;
     BoundaryBinding::new_observed(
         digest(chain)?,
         dcel_boundary_sha256,
@@ -773,15 +802,10 @@ pub(crate) fn optimize_paint(
             scope: ScoreScope::FULL,
         });
     }
-    let starts = [-1.0, 0.0, 1.0]
-        .into_iter()
-        .map(|direction| {
-            initial
-                .iter()
-                .map(|value| (value + direction / 255.0).clamp(0.0, 1.0))
-                .collect()
-        })
-        .collect();
+    // The evidence solve is already the deterministic least-squares paint
+    // initializer. Pixel-code nudges around it tripled serialized SVG courts
+    // without adding a distinct basin for this convex paint-only block.
+    let starts = vec![initial];
     let result = optimize_best_deterministic(&problem, starts, &blocks, config.trust_region)
         .map_err(|error| error.to_string())?;
     let optimized = problem.materialize(&result.parameters)?;

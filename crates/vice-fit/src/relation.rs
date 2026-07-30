@@ -4,10 +4,10 @@
 //! codes, earns only determined scalars, and must both save bits and remain in
 //! the evidence corridor. A prior therefore cannot hide topology or residual.
 //!
-//! Parameters are projected without a constrained re-solve, which belongs to
-//! M7. Acceptance is sound and rejection conservative: re-solving may recover
-//! a rejection by lowering residual, but cannot undo an accepted saving.
-//! Limitation 66.
+//! M7 re-solves the remaining projected coordinates on a bounded,
+//! mandatory-breakpoint-preserving observation set. The resulting sibling is
+//! still recoded and checked in both corridor directions on every observation;
+//! the bounded Jacobian is declared by `SupportedModelUniverseV1`.
 //!
 use serde::Serialize;
 use vice_evidence::BoundarySample;
@@ -159,6 +159,11 @@ pub struct RelationHypothesis {
     /// imposed. Every row is judged on the normal-direction residual used by
     /// Stage G; accepted steps never depend on an unrelated Euclidean proxy.
     pub solve_trace: Vec<RelationSolveTraceRow>,
+    /// Observations used to form this relation sibling's numerical solve.
+    /// Residual coding and both corridor certificates still use all physical
+    /// observations, so this is explicit resource truncation rather than an
+    /// evidence claim.
+    pub continuous_solve_samples: usize,
     pub accepted: bool,
 }
 
@@ -184,6 +189,35 @@ pub fn relation_hypotheses(
     canvas_dim_px: f64,
     closed: bool,
 ) -> Vec<RelationHypothesis> {
+    relation_hypotheses_impl(model, samples, table, canvas_dim_px, closed, None)
+}
+
+pub(crate) fn relation_hypotheses_bounded(
+    model: &BoundaryModel,
+    samples: &[BoundarySample],
+    table: &GeometryCodeTable,
+    canvas_dim_px: f64,
+    closed: bool,
+    continuous_sample_cap: usize,
+) -> Vec<RelationHypothesis> {
+    relation_hypotheses_impl(
+        model,
+        samples,
+        table,
+        canvas_dim_px,
+        closed,
+        Some(continuous_sample_cap),
+    )
+}
+
+fn relation_hypotheses_impl(
+    model: &BoundaryModel,
+    samples: &[BoundarySample],
+    table: &GeometryCodeTable,
+    canvas_dim_px: f64,
+    closed: bool,
+    continuous_sample_cap: Option<usize>,
+) -> Vec<RelationHypothesis> {
     let Some(free_chain) = model.geometry.typed_chain() else {
         return Vec::new();
     };
@@ -198,6 +232,13 @@ pub fn relation_hypotheses(
         0.0
     };
     let base_residual = residual_code(free_chain, samples, table);
+    let mut mandatory = Vec::with_capacity(model.breakpoints.len() + 2);
+    mandatory.push(0);
+    mandatory.extend_from_slice(&model.breakpoints);
+    mandatory.push(samples.len().saturating_sub(1));
+    let bounded_samples = continuous_sample_cap
+        .map(|cap| crate::solve::representative_solve_samples(samples, cap, &mandatory));
+    let solve_samples = bounded_samples.as_deref().unwrap_or(samples);
 
     let mut out = Vec::new();
     for (i, a) in free_chain.segments.iter().enumerate() {
@@ -220,6 +261,7 @@ pub fn relation_hypotheses(
                             model.code.topology_bits,
                             base_residual,
                             samples,
+                            solve_samples,
                             table,
                         ));
                     }
@@ -255,6 +297,7 @@ pub fn relation_hypotheses(
                             model.code.topology_bits,
                             base_residual,
                             samples,
+                            solve_samples,
                             table,
                         ));
                     }
@@ -277,6 +320,7 @@ pub fn relation_hypotheses(
                 model.code.topology_bits,
                 base_residual,
                 samples,
+                solve_samples,
                 table,
             ));
         }
@@ -296,9 +340,11 @@ fn evaluate(
     available_topology_bits: f64,
     base_residual: f64,
     samples: &[BoundarySample],
+    solve_samples: &[BoundarySample],
     table: &GeometryCodeTable,
 ) -> RelationHypothesis {
-    let (constrained, solve_trace) = resolve_constrained(kind, &segments, constrained, samples);
+    let (constrained, solve_trace) =
+        resolve_constrained(kind, &segments, constrained, solve_samples);
     let saving_bits = scalars_determined as f64 * coordinate_bits;
     let (geometry_saving_bits, topology_saving_bits) = match kind.saving_component() {
         "geometry" => (saving_bits, 0.0),
@@ -334,6 +380,7 @@ fn evaluate(
         worst_model_to_evidence_px: reverse.deviation_px,
         allowed_px: forward.allowed_px,
         solve_trace,
+        continuous_solve_samples: solve_samples.len(),
         // §15's two conditions, both required: a net saving in bits AND a chain
         // the evidence still supports. A relation that pays for itself by
         // moving the boundary out of its corridor is the "relation prior

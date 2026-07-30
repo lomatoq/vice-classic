@@ -36,6 +36,7 @@
 //! the spread it measures is published rather than asserted to be zero.
 
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 use serde::Serialize;
 use vice_evidence::{BoundaryChain, BoundarySample};
@@ -47,7 +48,7 @@ use crate::grammar::{
 };
 use crate::refit::{closure_g1_spread_rad, g1_readings, RefitChain, RefitRefusal};
 use crate::schedule::{FitBudget, Support};
-use crate::solve::joint_constrained_refit;
+use crate::solve::{joint_constrained_refit, joint_constrained_refit_bounded};
 use crate::span::{NoFit, SpanCandidate, SpanFamily};
 use crate::{span_candidates, FitRefusal};
 
@@ -148,6 +149,27 @@ pub struct BoundaryModel {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ModelRun {
     pub models: Vec<BoundaryModel>,
+    /// Physical observations available to the final constrained solve.
+    pub observed_samples: usize,
+    /// Observations used only to propose discrete family/breakpoint paths.
+    /// A smaller value is explicit search truncation, never a claim that the
+    /// omitted observations vanished from the likelihood.
+    pub discrete_search_samples: usize,
+    /// Deterministic observation counts at which discrete paths were proposed.
+    /// More than one level is a finite hierarchical search, not repeated
+    /// evidence.
+    pub discrete_search_levels: Vec<usize>,
+    /// Observations used to form the numerical Jacobian for the continuous
+    /// parameter solve. The physical code and final corridor certification are
+    /// not truncated with this count.
+    pub continuous_solve_samples: usize,
+    /// Whether the continuous Jacobian itself used every observation.
+    pub full_resolution_refit: bool,
+    /// Every published model was physically coded, Stage-H compared and
+    /// checked in both corridor directions against all `observed_samples`.
+    pub full_resolution_certified: bool,
+    /// Opening chosen by canonical-cut search, in the observation order.
+    pub selected_cut: usize,
     /// Canonical openings actually evaluated (one for an open or forced path).
     pub cuts_evaluated: usize,
     /// Candidates generated across every evaluated cut, bounded per physical
@@ -169,6 +191,74 @@ pub struct ModelRun {
     pub relations_accepted: usize,
     pub primitives_considered: usize,
     pub primitives_accepted: usize,
+    /// Discrete proposal paths that could not survive the full-resolution
+    /// forced-path construction, physical code and corridor certification.
+    /// Non-zero is observable unexplored search mass.
+    pub full_certification_refusals: usize,
+    /// Proposal paths not certified after the first bounded level produced the
+    /// maximum retained models for this physical chain.
+    pub resource_pruned_proposals: usize,
+    /// Finer deterministic proposal levels not opened after a coarser level
+    /// produced a fully certified model.
+    pub proposal_levels_skipped_after_certification: usize,
+}
+
+/// Frozen M7 maximum level for discrete path proposal.
+///
+/// The complete adaptive level schedule is recorded in `ModelRun`. Every
+/// retained path is recoded and certified on the complete observation chain.
+pub const DISCRETE_PROPOSAL_SAMPLE_CAP_V1: usize = 128;
+
+/// Frozen M7 resource envelope for the numerical Jacobian.
+///
+/// The path, code, Stage-H siblings and two-sided corridor certificate still
+/// use every observation. Only the repeated finite-difference solve is bounded.
+pub const CONTINUOUS_REFIT_SAMPLE_CAP_V1: usize = 128;
+
+/// Frozen Jacobian cap for each Stage-H relation sibling. Final residual,
+/// physical code and both corridor directions remain full-resolution.
+pub const RELATION_REFIT_SAMPLE_CAP_V1: usize = 16;
+
+/// Jacobian cap while a decimated chain is used only to propose a discrete
+/// path. The proposal's corridor is still certified on every decimated sample.
+pub const PROPOSAL_CONTINUOUS_REFIT_SAMPLE_CAP_V1: usize = 64;
+
+/// Maximum fully certified path siblings retained for one physical chain in
+/// the bounded M7 search. The grammar still enumerates frozen `k`; omitted
+/// paths are published as search truncation.
+pub const MAX_CERTIFIED_MODELS_PER_CHAIN_V1: usize = 2;
+
+/// Per-level certification work before the next deterministic proposal
+/// resolution is opened.
+pub const MAX_CERTIFICATION_ATTEMPTS_PER_LEVEL_V1: usize = 3;
+
+/// The production verifier's frozen boundary tessellation error. Bounded fit
+/// uses the same value to reject paths that cannot enter the observed binding
+/// tube before expensive Stage-H sibling formation.
+pub const BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1: f64 = 1.0 / 64.0;
+
+/// Stage-H may rescue a free chain only within one frozen fitter chord bound.
+/// Larger misses open the next discrete proposal level instead of spending
+/// relation solves on a path already outside the binding neighbourhood.
+pub const BINDING_RELATION_RESCUE_MARGIN_PX_V1: f64 = crate::solve::REFIT_CHORD_TOLERANCE_PX;
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "bounded_fit_refusal", rename_all = "snake_case")]
+pub enum BoundedFitRefusal {
+    Proposal {
+        refusal: FitRefusal,
+    },
+    NoProposalModels {
+        levels: Vec<usize>,
+        candidates: usize,
+        discrete_paths: usize,
+        refused: Vec<(&'static str, usize)>,
+        not_representable: usize,
+    },
+    AllFullResolutionCertificationsRefused {
+        proposals: usize,
+        refusals: Vec<ForcedFitRefusal>,
+    },
 }
 
 /// Judge the primitive and relation constrained siblings against the same free
@@ -181,9 +271,19 @@ fn apply_stage_h(
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     closed: bool,
+    continuous_sample_cap: Option<usize>,
 ) {
-    let relations =
-        crate::relation::relation_hypotheses(model, samples, table, canvas_dim_px, closed);
+    let relations = match continuous_sample_cap {
+        Some(cap) => crate::relation::relation_hypotheses_bounded(
+            model,
+            samples,
+            table,
+            canvas_dim_px,
+            closed,
+            cap.min(RELATION_REFIT_SAMPLE_CAP_V1),
+        ),
+        None => crate::relation::relation_hypotheses(model, samples, table, canvas_dim_px, closed),
+    };
     let primitives =
         crate::primitive::loop_primitive_hypotheses(model, samples, table, canvas_dim_px, closed);
 
@@ -248,11 +348,81 @@ pub enum ForcedFitRefusal {
         family: SpanFamily,
     },
     NoPath,
+    BindingIsotopy {
+        displacement_px: f64,
+        allowed_px: f64,
+    },
     NoAcceptedModel {
         paths: usize,
         not_representable: usize,
         refused: Vec<(&'static str, usize)>,
     },
+}
+
+fn point_segment_distance(point: vice_geom::Pt, a: vice_geom::Pt, b: vice_geom::Pt) -> f64 {
+    let direction = b - a;
+    let length_sq = direction.length_sq();
+    let t = if length_sq > 0.0 && length_sq.is_finite() {
+        ((point - a).dot(direction) / length_sq).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    (point - (a + direction * t)).length()
+}
+
+fn directed_polyline_distance(points: &[vice_geom::Pt], target: &[vice_geom::Pt]) -> f64 {
+    points
+        .iter()
+        .map(|point| {
+            target
+                .windows(2)
+                .map(|segment| point_segment_distance(*point, segment[0], segment[1]))
+                .fold(f64::INFINITY, f64::min)
+        })
+        .fold(0.0, f64::max)
+}
+
+fn observed_support_polyline(samples: &[BoundarySample]) -> Vec<vice_geom::Pt> {
+    // Preserve the exact support representation later stored in
+    // `BoundaryBinding`; neither fitter nor verifier may invent an extra seam
+    // segment when the sampled chain does not repeat its first point.
+    samples.iter().map(|sample| sample.p).collect()
+}
+
+fn observed_binding_isotopy(
+    geometry: &SelectedBoundaryGeometry,
+    samples: &[BoundarySample],
+) -> Option<(f64, f64)> {
+    let fitted = match geometry {
+        SelectedBoundaryGeometry::TypedChain { chain } => crate::solve::flatten_chain_at_tolerance(
+            chain,
+            vice_geom::ChordTolerancePx::new(BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1)?,
+        )
+        .ok()?,
+        SelectedBoundaryGeometry::LoopPrimitive {
+            verification_polyline,
+            ..
+        } => verification_polyline.clone(),
+    };
+    let support = observed_support_polyline(samples);
+    if fitted.len() < 2 || support.len() < 2 {
+        return None;
+    }
+    let displacement_px = directed_polyline_distance(&fitted, &support)
+        .max(directed_polyline_distance(&support, &fitted))
+        + BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1;
+    let allowed_px = samples
+        .iter()
+        .map(|sample| sample.halfwidth)
+        .fold(0.0f64, f64::max)
+        + 0.5
+            * samples
+                .iter()
+                .map(|sample| sample.weight_ds)
+                .fold(0.0f64, f64::max);
+    let allowed_px = allowed_px + BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1;
+    (displacement_px.is_finite() && allowed_px.is_finite() && allowed_px > 0.0)
+        .then_some((displacement_px, allowed_px))
 }
 
 fn refusal_name(r: &RefitRefusal) -> &'static str {
@@ -288,7 +458,293 @@ pub fn k_best_boundary_models(
         &crate::GEOMETRY_CODE_TABLE_V1,
         canvas_dim_px,
         k,
+        true,
     )
+}
+
+/// Bounded hierarchical proposal followed by full-observation certification.
+///
+/// Dense physical resampling is evidence, not a mandate to repeat the same
+/// family/breakpoint search at every subpixel. The proposal chain preserves a
+/// uniform spine, the strongest persistent corners, and the total physical
+/// observation weight. Levels 32/64/96/128 open deterministically until one
+/// produces a binding-certifiable model; every skipped level and path remains
+/// explicit search truncation. Retained paths are forced onto the original
+/// chain. Only their finite-difference Jacobians are bounded: final residual
+/// code, Stage-H comparison, binding isotopy and both corridor directions use
+/// every observation.
+pub fn k_best_boundary_models_bounded(
+    chain: &BoundaryChain,
+    budget: &FitBudget,
+    canvas_dim_px: f64,
+    k: usize,
+    proposal_sample_cap: usize,
+) -> Result<ModelRun, BoundedFitRefusal> {
+    let base = dedup_coincident(chain);
+    if base.samples.len() <= proposal_sample_cap {
+        return k_best_boundary_models(&base, budget, canvas_dim_px, k)
+            .map_err(|refusal| BoundedFitRefusal::Proposal { refusal });
+    }
+    let mut level_caps = vec![proposal_sample_cap];
+    for level in [32, 64, 96] {
+        if proposal_sample_cap > level {
+            level_caps.push(level);
+        }
+    }
+    level_caps.sort_unstable();
+    level_caps.dedup();
+    let level_count = level_caps.len();
+    let mut aggregate_run: Option<ModelRun> = None;
+    let mut evaluated_levels = Vec::with_capacity(level_count);
+    let mut models = Vec::<(usize, BoundaryModel)>::new();
+    let mut refusals = Vec::new();
+    let mut continuous_solve_samples = 0usize;
+    let mut proposal_count = 0usize;
+    let mut resource_pruned_proposals = 0usize;
+    let mut proposal_levels_skipped_after_certification = 0usize;
+    for (level_index, cap) in level_caps.into_iter().enumerate() {
+        let (proposal, original_indices) = discrete_proposal_chain(&base, cap);
+        let proposal_run = k_best_boundary_models_with_table(
+            &proposal,
+            budget,
+            &crate::GEOMETRY_CODE_TABLE_V1,
+            canvas_dim_px,
+            k,
+            false,
+        )
+        .map_err(|refusal| BoundedFitRefusal::Proposal { refusal })?;
+        evaluated_levels.push(proposal.samples.len());
+        let run = aggregate_run.get_or_insert_with(|| {
+            let mut aggregate = proposal_run.clone();
+            aggregate.models.clear();
+            aggregate.candidates = 0;
+            aggregate.edges = 0;
+            aggregate.discrete_paths = 0;
+            aggregate.cuts_evaluated = 0;
+            aggregate.refused.clear();
+            aggregate.not_representable = 0;
+            aggregate
+        });
+        run.candidates = run.candidates.saturating_add(proposal_run.candidates);
+        run.edges = run.edges.saturating_add(proposal_run.edges);
+        run.discrete_paths = run
+            .discrete_paths
+            .saturating_add(proposal_run.discrete_paths);
+        run.cuts_evaluated = run
+            .cuts_evaluated
+            .saturating_add(proposal_run.cuts_evaluated);
+        run.not_representable = run
+            .not_representable
+            .saturating_add(proposal_run.not_representable);
+        for &(name, count) in &proposal_run.refused {
+            match run.refused.iter_mut().find(|entry| entry.0 == name) {
+                Some(entry) => entry.1 = entry.1.saturating_add(count),
+                None => run.refused.push((name, count)),
+            }
+        }
+        proposal_count = proposal_count.saturating_add(proposal_run.models.len());
+        let proposal_cut = proposal_run.selected_cut;
+        let full_cut = original_indices[proposal_cut];
+        let full_chain = rotate_unopened(&base, full_cut);
+        let mut certified_at_level = 0usize;
+        for (proposal_index, proposal_model) in proposal_run.models.iter().enumerate() {
+            if certified_at_level >= MAX_CERTIFIED_MODELS_PER_CHAIN_V1
+                || proposal_index >= MAX_CERTIFICATION_ATTEMPTS_PER_LEVEL_V1
+            {
+                resource_pruned_proposals = resource_pruned_proposals
+                    .saturating_add(proposal_run.models.len() - proposal_index);
+                break;
+            }
+            let breakpoints = proposal_model
+                .breakpoints
+                .iter()
+                .map(|breakpoint| {
+                    let original =
+                        original_indices[(proposal_cut + breakpoint) % original_indices.len()];
+                    (original + base.samples.len() - full_cut) % base.samples.len()
+                })
+                .collect::<Vec<_>>();
+            match fit_forced_boundary_models_impl(
+                &full_chain,
+                &proposal_model.families,
+                &breakpoints,
+                canvas_dim_px,
+                1,
+                Some(CONTINUOUS_REFIT_SAMPLE_CAP_V1),
+            ) {
+                Ok(forced) => {
+                    continuous_solve_samples =
+                        continuous_solve_samples.max(forced.continuous_solve_samples);
+                    certified_at_level = certified_at_level.saturating_add(forced.models.len());
+                    models.extend(forced.models.into_iter().map(|model| (full_cut, model)));
+                }
+                Err(refusal) => refusals.push(refusal),
+            }
+        }
+        if certified_at_level > 0 {
+            proposal_levels_skipped_after_certification =
+                level_count.saturating_sub(level_index + 1);
+            break;
+        }
+    }
+    let mut run = aggregate_run.expect("at least one proposal level");
+    if proposal_count == 0 {
+        return Err(BoundedFitRefusal::NoProposalModels {
+            levels: evaluated_levels,
+            candidates: run.candidates,
+            discrete_paths: run.discrete_paths,
+            refused: run.refused,
+            not_representable: run.not_representable,
+        });
+    }
+    if models.is_empty() {
+        return Err(BoundedFitRefusal::AllFullResolutionCertificationsRefused {
+            proposals: proposal_count,
+            refusals,
+        });
+    }
+    models.sort_by(|left, right| compare_model_rank(&left.1, &right.1));
+    models.dedup_by(|left, right| left.1 == right.1);
+    models.truncate(k);
+    run.selected_cut = models[0].0;
+    run.models = models.into_iter().map(|(_, model)| model).collect();
+    run.observed_samples = base.samples.len();
+    run.discrete_search_samples = evaluated_levels.iter().copied().max().unwrap_or(0);
+    run.discrete_search_levels = evaluated_levels;
+    run.continuous_solve_samples = continuous_solve_samples;
+    run.full_resolution_refit = continuous_solve_samples >= base.samples.len();
+    run.full_resolution_certified = true;
+    run.full_certification_refusals = refusals.len();
+    run.resource_pruned_proposals = resource_pruned_proposals;
+    run.proposal_levels_skipped_after_certification = proposal_levels_skipped_after_certification;
+    run.relations_considered = run.models.iter().map(|model| model.relations.len()).sum();
+    run.relations_accepted = run.models.iter().map(|model| model.relations_kept).sum();
+    run.primitives_considered = run.models.iter().map(|model| model.primitives.len()).sum();
+    run.primitives_accepted = run
+        .models
+        .iter()
+        .filter(|model| model.primitive_kept.is_some())
+        .count();
+    Ok(run)
+}
+
+fn discrete_proposal_chain(chain: &BoundaryChain, cap: usize) -> (BoundaryChain, Vec<usize>) {
+    let n = chain.samples.len();
+    let cap = cap.max(crate::MIN_SUPPORT_SAMPLES).min(n);
+    if cap == n {
+        return (chain.clone(), (0..n).collect());
+    }
+
+    let mut selected = BTreeSet::new();
+    if !chain.closed {
+        selected.extend([0, n - 1]);
+    }
+
+    let mut corners = if chain.closed {
+        crate::corner::cyclic_corner_proposals(&chain.samples)
+    } else {
+        crate::corner::corner_proposals(&chain.samples)
+    };
+    corners.retain(|proposal| proposal.saliency.is_finite() && proposal.saliency > 0.0);
+    corners.sort_by(|left, right| {
+        right
+            .saliency
+            .total_cmp(&left.saliency)
+            .then_with(|| left.sample.cmp(&right.sample))
+    });
+    let minimum_corner_separation = (n / cap).max(1) / 2;
+    for corner in corners {
+        if selected.len() >= cap / 2 {
+            break;
+        }
+        let separated = selected.iter().all(|present| {
+            let direct = corner.sample.abs_diff(*present);
+            let distance = if chain.closed {
+                direct.min(n - direct)
+            } else {
+                direct
+            };
+            distance >= minimum_corner_separation
+        });
+        if separated {
+            selected.insert(corner.sample);
+        }
+    }
+
+    // Complete the spine by repeatedly splitting its largest remaining gap.
+    // Starting from separated corner evidence prevents a uniform sample and a
+    // corner sample from forming a spurious subpixel micro-span.
+    while selected.len() < cap {
+        let next = (0..n)
+            .filter(|index| !selected.contains(index))
+            .max_by_key(|index| {
+                selected
+                    .iter()
+                    .map(|present| {
+                        let direct = index.abs_diff(*present);
+                        if chain.closed {
+                            direct.min(n - direct)
+                        } else {
+                            direct
+                        }
+                    })
+                    .min()
+                    .unwrap_or(n)
+            })
+            .expect("cap is below sample count, so an index remains");
+        selected.insert(next);
+    }
+    let indices = selected.into_iter().collect::<Vec<_>>();
+
+    // Preserve the physical evidence mass in the proposal ranking. Each full
+    // observation contributes to its nearest retained representative.
+    let mut weights = vec![0.0; indices.len()];
+    for (source, sample) in chain.samples.iter().enumerate() {
+        let representative = indices
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, retained)| {
+                let direct = source.abs_diff(**retained);
+                if chain.closed {
+                    direct.min(n - direct)
+                } else {
+                    direct
+                }
+            })
+            .map(|(index, _)| index)
+            .expect("proposal has at least the minimum support");
+        weights[representative] += sample.weight_ds;
+    }
+    let samples = indices
+        .iter()
+        .enumerate()
+        .map(|(index, source)| {
+            let mut sample = chain.samples[*source];
+            sample.weight_ds = weights[index];
+            sample
+        })
+        .collect::<Vec<_>>();
+    (
+        BoundaryChain {
+            samples,
+            vertices: indices.len() as u64,
+            ..chain.clone()
+        },
+        indices,
+    )
+}
+
+fn rotate_unopened(chain: &BoundaryChain, cut: usize) -> BoundaryChain {
+    if cut == 0 || !chain.closed {
+        return chain.clone();
+    }
+    let n = chain.samples.len();
+    BoundaryChain {
+        samples: (0..n)
+            .map(|index| chain.samples[(cut + index) % n])
+            .collect(),
+        ..chain.clone()
+    }
 }
 
 /// Fit models while forcing the GT-equivalent family sequence and breakpoints.
@@ -310,11 +766,23 @@ pub fn fit_forced_boundary_models(
     canvas_dim_px: f64,
     k: usize,
 ) -> Result<ModelRun, ForcedFitRefusal> {
+    fit_forced_boundary_models_impl(chain, families, breakpoints, canvas_dim_px, k, None)
+}
+
+fn fit_forced_boundary_models_impl(
+    chain: &BoundaryChain,
+    families: &[SpanFamily],
+    breakpoints: &[usize],
+    canvas_dim_px: f64,
+    k: usize,
+    continuous_sample_cap: Option<usize>,
+) -> Result<ModelRun, ForcedFitRefusal> {
     crate::validate_chain(chain).map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
     crate::validate_canvas_dimension(canvas_dim_px)
         .map_err(|refusal| ForcedFitRefusal::Input { refusal })?;
     let closed = chain.closed;
     let base_chain = dedup_coincident(chain);
+    let observed_samples = base_chain.samples.len();
     // The forced breakpoints are expressed from GT's canonical start. Open
     // that same physical loop exactly once; unlike G00 there is no cut search
     // to perform, but Stage H and the seam still need to know it is a loop.
@@ -401,6 +869,12 @@ pub fn fit_forced_boundary_models(
     let mut models = Vec::new();
     let mut refused = Vec::new();
     let mut not_representable = 0usize;
+    let mut binding_isotopy_refusals = Vec::new();
+    let mut continuous_solve_samples = 0usize;
+    let mut mandatory_solve_samples = Vec::with_capacity(breakpoints.len() + 2);
+    mandatory_solve_samples.push(0);
+    mandatory_solve_samples.extend_from_slice(breakpoints);
+    mandatory_solve_samples.push(last);
     for path in &paths {
         let closure_smooth = path.closure_smooth;
         if !path_is_representable(path, families) {
@@ -412,8 +886,15 @@ pub fn fit_forced_boundary_models(
             continue;
         };
         let closure_is_represented = init.has_closed_tangent_alias();
-        match joint_constrained_refit(&init, samples) {
-            Ok(out) => {
+        let solved = match continuous_sample_cap {
+            Some(cap) => {
+                joint_constrained_refit_bounded(&init, samples, cap, &mandatory_solve_samples)
+            }
+            None => joint_constrained_refit(&init, samples).map(|out| (out, samples.len())),
+        };
+        match solved {
+            Ok((out, solve_samples)) => {
+                continuous_solve_samples = continuous_solve_samples.max(solve_samples);
                 let Ok(lowered) = out.chain.lower() else {
                     bump(&mut refused, "malformed");
                     continue;
@@ -466,7 +947,32 @@ pub fn fit_forced_boundary_models(
                     relations_kept: 0,
                     relation_kept_indices: Vec::new(),
                 };
-                apply_stage_h(&mut model, samples, table, canvas_dim_px, closed);
+                if continuous_sample_cap.is_some() {
+                    let (displacement_px, allowed_px) =
+                        observed_binding_isotopy(&model.stage_h_free_geometry, samples)
+                            .unwrap_or((f64::INFINITY, 0.0));
+                    if displacement_px > allowed_px + BINDING_RELATION_RESCUE_MARGIN_PX_V1 {
+                        binding_isotopy_refusals.push((displacement_px, allowed_px));
+                        continue;
+                    }
+                }
+                apply_stage_h(
+                    &mut model,
+                    samples,
+                    table,
+                    canvas_dim_px,
+                    closed,
+                    continuous_sample_cap,
+                );
+                if continuous_sample_cap.is_some() {
+                    let (displacement_px, allowed_px) =
+                        observed_binding_isotopy(&model.geometry, samples)
+                            .unwrap_or((f64::INFINITY, 0.0));
+                    if displacement_px > allowed_px {
+                        binding_isotopy_refusals.push((displacement_px, allowed_px));
+                        continue;
+                    }
+                }
                 if closure_smooth
                     && !closure_is_represented
                     && matches!(model.geometry, SelectedBoundaryGeometry::TypedChain { .. })
@@ -480,6 +986,17 @@ pub fn fit_forced_boundary_models(
         }
     }
     if models.is_empty() {
+        if let Some(&(displacement_px, allowed_px)) =
+            binding_isotopy_refusals.iter().max_by(|left, right| {
+                (left.0 / left.1.max(f64::MIN_POSITIVE))
+                    .total_cmp(&(right.0 / right.1.max(f64::MIN_POSITIVE)))
+            })
+        {
+            return Err(ForcedFitRefusal::BindingIsotopy {
+                displacement_px,
+                allowed_px,
+            });
+        }
         return Err(ForcedFitRefusal::NoAcceptedModel {
             paths: paths.len(),
             not_representable,
@@ -498,12 +1015,22 @@ pub fn fit_forced_boundary_models(
         primitives_considered,
         primitives_accepted,
         models,
+        observed_samples,
+        discrete_search_samples: observed_samples,
+        discrete_search_levels: vec![observed_samples],
+        continuous_solve_samples,
+        full_resolution_refit: continuous_sample_cap.is_none(),
+        full_resolution_certified: true,
+        selected_cut: 0,
         cuts_evaluated: 1,
         candidates: candidates.len(),
         edges: edges.len(),
         discrete_paths: paths.len(),
         refused,
         not_representable,
+        full_certification_refusals: 0,
+        resource_pruned_proposals: 0,
+        proposal_levels_skipped_after_certification: 0,
     })
 }
 
@@ -515,6 +1042,7 @@ fn k_best_boundary_models_with_table(
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
+    stage_h: bool,
 ) -> Result<ModelRun, FitRefusal> {
     // M6B-N3: an empty CLOSED chain reached `rotate`, which indexes
     // `samples[cut]`, and PANICKED — while every other degenerate input is
@@ -536,11 +1064,12 @@ fn k_best_boundary_models_with_table(
         vec![0usize]
     };
     let mut best: Option<ModelRun> = None;
+    let mut best_cut = 0usize;
     let mut candidates_across_cuts = 0usize;
     let mut cuts_evaluated = 0usize;
     for cut in cuts {
         let rotated = rotate(chain, cut);
-        let run = models_for_open_chain(&rotated, budget, table, canvas_dim_px, k)?;
+        let run = models_for_open_chain(&rotated, budget, table, canvas_dim_px, k, stage_h)?;
         cuts_evaluated += 1;
         candidates_across_cuts = candidates_across_cuts.saturating_add(run.candidates);
         if candidates_across_cuts > budget.cap() {
@@ -560,6 +1089,7 @@ fn k_best_boundary_models_with_table(
         };
         if better {
             best = Some(run);
+            best_cut = cut;
         }
     }
     let mut best = best.ok_or(FitRefusal::ChainTooShort {
@@ -568,6 +1098,10 @@ fn k_best_boundary_models_with_table(
     })?;
     best.cuts_evaluated = cuts_evaluated;
     best.candidates = candidates_across_cuts;
+    best.selected_cut = best_cut;
+    best.observed_samples = chain.samples.len();
+    best.discrete_search_samples = chain.samples.len();
+    best.discrete_search_levels = vec![chain.samples.len()];
     Ok(best)
 }
 
@@ -600,6 +1134,7 @@ pub fn models_at_cut(
         &crate::GEOMETRY_CODE_TABLE_V1,
         canvas_dim_px,
         k,
+        true,
     )
 }
 
@@ -609,6 +1144,7 @@ fn models_for_open_chain(
     table: &GeometryCodeTable,
     canvas_dim_px: f64,
     k: usize,
+    stage_h: bool,
 ) -> Result<ModelRun, FitRefusal> {
     let cands = span_candidates(chain, budget)?;
     let samples = &chain.samples;
@@ -618,6 +1154,7 @@ fn models_for_open_chain(
     let mut models = Vec::new();
     let mut refused: Vec<(&'static str, usize)> = Vec::new();
     let mut not_representable = 0usize;
+    let mut continuous_solve_samples = 0usize;
 
     for path in &paths {
         let closure_smooth = path.closure_smooth;
@@ -635,8 +1172,23 @@ fn models_for_open_chain(
             continue;
         };
         let closure_is_represented = init.has_closed_tangent_alias();
-        match joint_constrained_refit(&init, samples) {
-            Ok(out) => {
+        let solved = if stage_h {
+            joint_constrained_refit(&init, samples).map(|out| (out, samples.len()))
+        } else {
+            let mut mandatory = Vec::with_capacity(path.breakpoints.len() + 2);
+            mandatory.push(0);
+            mandatory.extend_from_slice(&path.breakpoints);
+            mandatory.push(samples.len() - 1);
+            joint_constrained_refit_bounded(
+                &init,
+                samples,
+                PROPOSAL_CONTINUOUS_REFIT_SAMPLE_CAP_V1,
+                &mandatory,
+            )
+        };
+        match solved {
+            Ok((out, solve_samples)) => {
+                continuous_solve_samples = continuous_solve_samples.max(solve_samples);
                 let Ok(lowered) = out.chain.lower() else {
                     bump(&mut refused, "malformed");
                     continue;
@@ -689,7 +1241,9 @@ fn models_for_open_chain(
                     relations_kept: 0,
                     relation_kept_indices: Vec::new(),
                 };
-                apply_stage_h(&mut m, samples, table, canvas_dim_px, chain.closed);
+                if stage_h {
+                    apply_stage_h(&mut m, samples, table, canvas_dim_px, chain.closed, None);
+                }
                 if closure_smooth
                     && !closure_is_represented
                     && matches!(m.geometry, SelectedBoundaryGeometry::TypedChain { .. })
@@ -702,7 +1256,6 @@ fn models_for_open_chain(
             Err(why) => bump(&mut refused, refusal_name(&why)),
         }
     }
-
     // §24's `rank_by_proposal_integral_and_code_length`: code length first
     // because it is the physical-bit score §14.5 names as the selector, the
     // §14.4 integral as the tie-break, because §14.4 says it ORDERS candidates
@@ -720,12 +1273,22 @@ fn models_for_open_chain(
         primitives_considered,
         primitives_accepted,
         models,
+        observed_samples: chain.samples.len(),
+        discrete_search_samples: chain.samples.len(),
+        discrete_search_levels: vec![chain.samples.len()],
+        continuous_solve_samples,
+        full_resolution_refit: continuous_solve_samples >= chain.samples.len(),
+        full_resolution_certified: true,
+        selected_cut: 0,
         cuts_evaluated: 1,
         candidates: cands.candidates.len(),
         edges: edges.len(),
         discrete_paths: paths.len(),
         refused,
         not_representable,
+        full_certification_refusals: 0,
+        resource_pruned_proposals: 0,
+        proposal_levels_skipped_after_certification: 0,
     })
 }
 
@@ -780,5 +1343,7 @@ pub fn path_families(
         .collect()
 }
 
+#[cfg(test)]
+mod bounded_tests;
 #[cfg(test)]
 mod ranking_tests;

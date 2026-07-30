@@ -96,6 +96,10 @@ pub struct TopologyArmTrace {
     pub field: vice_topology::FieldKind,
     pub saddle: vice_topology::SaddleResolution,
     pub extraction_level: f64,
+    /// Boundary level used by the typed geometry fit. Event levels propose
+    /// topology; the canonical 0.5 contour owns geometry whenever it binds to
+    /// that topology.
+    pub fit_observation_level: f64,
     pub observed_chains: usize,
     pub fit_models_per_chain: Vec<usize>,
 }

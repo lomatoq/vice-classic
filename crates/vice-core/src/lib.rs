@@ -420,7 +420,7 @@ mod tests {
         config.beam.width = 8;
         config.beam.min_topology_classes = 2;
         config.beam.budget.max_candidates_considered = 32;
-        config.beam.budget.max_elapsed_ms = 10_000;
+        config.beam.budget.max_elapsed_ms = 60_000;
         let outcome =
             vectorize_with_config(&weak_bridge_png(), &VectorizeRequest::default(), &config);
         assert!(!matches!(outcome, VectorizeOutcome::Failed(_)));

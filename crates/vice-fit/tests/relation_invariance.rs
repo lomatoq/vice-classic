@@ -213,6 +213,7 @@ fn closed_wrap_relations_cannot_open_the_canonical_seam() {
         worst_model_to_evidence_px: 0.0,
         allowed_px: 1.0,
         solve_trace: Vec::new(),
+        continuous_solve_samples: 0,
         accepted: true,
     };
     assert_eq!(apply_accepted(&mut model, &[injected], true), 0);
@@ -238,6 +239,7 @@ fn public_relation_application_rejects_unphysical_or_overflowing_codes() {
         worst_model_to_evidence_px: 0.0,
         allowed_px: 1.0,
         solve_trace: Vec::new(),
+        continuous_solve_samples: 0,
         accepted: true,
     };
 
