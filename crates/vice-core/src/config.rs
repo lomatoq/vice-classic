@@ -269,7 +269,7 @@ impl CoreConfig {
     }
 
     pub fn identity(&self) -> ModelIdentity {
-        let universe = SupportedModelUniverseV1::v1();
+        let universe = SupportedModelUniverseV1::m7();
         universe.check_finite().expect("frozen universe is finite");
         let universe_sha256 = model_universe_hash(&universe);
         let pricing_sha256 = hex::encode(Sha256::digest(vice_fit::pricing_surface_v1()));

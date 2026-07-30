@@ -18,6 +18,31 @@ fn v1_is_finite_and_versioned() {
 }
 
 #[test]
+fn m7_is_a_distinct_finite_r1_model_version() {
+    let m6 = SupportedModelUniverseV1::v1();
+    let m7 = SupportedModelUniverseV1::m7();
+    m7.check_finite().expect("M7 must be a finite universe");
+    assert_eq!(m7.schema, MODEL_UNIVERSE_SCHEMA);
+    assert_eq!(m7.version, "m7-v1");
+    assert_ne!(model_universe_hash(&m7), model_universe_hash(&m6));
+    assert_eq!(
+        m7.search.unexplored_mass_bound,
+        BoundStatus::EmpiricallyCalibrated
+    );
+    assert_eq!(
+        m7.search.retained_mass_bound,
+        BoundStatus::EmpiricallyCalibrated
+    );
+    assert!(m7.search.reliability_tier.starts_with("R1 "));
+    assert!(
+        m7.search
+            .reliability_tier
+            .contains("no search-certified R2"),
+        "the empirical tier must not imply certified completeness"
+    );
+}
+
+#[test]
 fn the_finiteness_check_is_not_vacuous() {
     // Every clause is exercised by a universe that violates exactly it,
     // so "check_finite passed" means something (meta-rule M-2: a green
@@ -213,6 +238,51 @@ fn model_universe_hash_is_frozen() {
 /// That is the whole of the obligation and it is stated here so M7 does not
 /// have to reconstruct it.
 const FROZEN_V1_HASH: &str = "47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097";
+
+/// M7 is a separate model version. This hash may change only with a new
+/// calibration artifact and a new version string.
+const FROZEN_M7_HASH: &str = "2a21573508444557715cb14448f8590d4a06472843e737521f9e07a39b69eb71";
+
+#[test]
+fn m7_model_universe_hash_is_frozen() {
+    let h = model_universe_hash(&SupportedModelUniverseV1::m7());
+    println!("M7_MODEL_UNIVERSE_SHA256={h}");
+    assert_eq!(
+        h, FROZEN_M7_HASH,
+        "the M7 universe changed; mint a new model version and recalibrate"
+    );
+}
+
+#[test]
+fn m7_topology_operators_match_executable_transaction_kinds() {
+    use vice_opt::TransactionKind;
+
+    let u = SupportedModelUniverseV1::m7();
+    let declared = SupportedModelUniverseV1::admissible_names(&u.topology.operators);
+    let executable = [
+        TransactionKind::TopologyMerge,
+        TransactionKind::TopologySplit,
+        TransactionKind::TopologyBridge,
+        TransactionKind::TopologyHole,
+    ]
+    .map(TransactionKind::universe_name)
+    .to_vec();
+    assert_eq!(declared, executable);
+}
+
+#[test]
+fn every_m7_transaction_kind_has_a_stable_unique_universe_name() {
+    use std::collections::BTreeSet;
+    use vice_opt::TransactionKind;
+
+    let names: BTreeSet<_> = TransactionKind::ALL
+        .iter()
+        .copied()
+        .map(TransactionKind::universe_name)
+        .collect();
+    assert_eq!(names.len(), TransactionKind::ALL.len());
+    assert!(names.iter().all(|name| !name.is_empty()));
+}
 
 /// **The default is "an admissible relation family has a hypothesis
 /// generator"**, the same inverted default

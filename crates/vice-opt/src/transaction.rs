@@ -54,6 +54,34 @@ impl TransactionKind {
         TransactionKind::FormationChange,
         TransactionKind::JointEscape,
     ];
+
+    /// Stable name used by the versioned M7 supported-model universe.
+    ///
+    /// This exhaustive match makes a new transaction kind a model-version
+    /// event instead of silently widening production search.
+    pub const fn universe_name(self) -> &'static str {
+        match self {
+            TransactionKind::AnchorInsert => "anchor_insert",
+            TransactionKind::AnchorRemove => "anchor_remove",
+            TransactionKind::SpanSplitJointRefit => "span_split_joint_refit",
+            TransactionKind::SpanMergeJointRefit => "span_merge_joint_refit",
+            TransactionKind::FamilyChange => "family_change",
+            TransactionKind::CornerActivate => "corner_activate",
+            TransactionKind::CornerDeactivate => "corner_deactivate",
+            TransactionKind::PrimitivePromote => "primitive_promote",
+            TransactionKind::PrimitiveDemote => "primitive_demote",
+            TransactionKind::RelationPromote => "relation_promote",
+            TransactionKind::RelationDemote => "relation_demote",
+            TransactionKind::TopologyMerge => "topology_merge",
+            TransactionKind::TopologySplit => "topology_split",
+            TransactionKind::TopologyBridge => "topology_bridge",
+            TransactionKind::TopologyHole => "topology_hole",
+            TransactionKind::PaintChange => "paint_change",
+            TransactionKind::ExteriorChange => "exterior_change",
+            TransactionKind::FormationChange => "formation_change",
+            TransactionKind::JointEscape => "joint_escape",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

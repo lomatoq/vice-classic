@@ -410,6 +410,71 @@ impl SupportedModelUniverseV1 {
         }
     }
 
+    /// The M7 production universe.
+    ///
+    /// This is derived from, but does not mutate, the frozen M6 `v1()`
+    /// declaration. M7 changes executable topology operators, scene-level
+    /// relation generators, and search-bound claims; spec 1.5 requires a new
+    /// content hash and full recalibration for those changes.
+    pub fn m7() -> SupportedModelUniverseV1 {
+        let mut universe = Self::v1();
+        universe.version = "m7-v1";
+        universe.topology.operators = vec![
+            Family::admissible(
+                "topology_merge",
+                "atomically replace a complete refit by a lower-component topology arm",
+            ),
+            Family::admissible(
+                "topology_split",
+                "atomically replace a complete refit by a higher-component topology arm",
+            ),
+            Family::admissible(
+                "topology_bridge",
+                "atomically choose the connected arm of a critical bridge envelope",
+            ),
+            Family::admissible(
+                "topology_hole",
+                "atomically insert or remove a hole through a complete topology refit",
+            ),
+        ];
+        universe.relations.families = vec![
+            Family::admissible("equal_radius", "two arcs share one radius parameter"),
+            Family::admissible("concentric", "two arcs share one centre parameter"),
+            Family::admissible(
+                "parallel_perpendicular",
+                "two line directions are equal or differ by one quarter turn",
+            ),
+            Family::admissible(
+                "shared_baseline",
+                "two lines lie on the same infinite supporting line",
+            ),
+            Family::admissible(
+                "mirror_symmetry",
+                "independently segmented closed components share one bilateral axis and bidirectional correspondence corridor",
+            ),
+            Family::admissible(
+                "repeated_transforms",
+                "independently segmented closed components share one exact translation transform",
+            ),
+        ];
+        universe.search = SearchUniverse {
+            truncation_rules: vec![
+                "typed geometry retains at most k=8 deterministic complete discrete paths per observed chain (Fast: k=1)",
+                "elliptic-arc fitting is omitted and charged to empirical unexplored search mass",
+                "M4.5 supplies a finite critical-connectivity envelope; arms pruned by the prefit budget are reported as unexplored",
+                "the deterministic diverse beam is capped by candidate, memory, and elapsed-time budgets with topology and formation seed quotas",
+                "only hypotheses with equal canonical delivery bytes collapse into one posterior delivery-equivalence class",
+                "topology and geometry complexity caps bound every materialized scene",
+                "geometry outside the numeric domain is refused before scoring",
+            ],
+            unexplored_mass_bound: BoundStatus::EmpiricallyCalibrated,
+            retained_mass_bound: BoundStatus::EmpiricallyCalibrated,
+            reliability_tier:
+                "R1 empirical selective reliability; no search-certified R2 completeness claim",
+        };
+        universe
+    }
+
     /// Canonical JSON: struct declaration order, compact, no map iteration.
     ///
     /// "Canonical" here means DETERMINISTIC FOR A FIXED DECLARATION, not
