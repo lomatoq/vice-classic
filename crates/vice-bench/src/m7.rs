@@ -269,6 +269,36 @@ pub struct MeasurementRow {
     pub measurement_refusal: Option<String>,
 }
 
+/// Conservative population tails over accepted render summaries.
+///
+/// Each render already contains boundary-sample p95/p99/max values. The M7
+/// population court applies q95 to render p95s, q99 to render p99s, and an
+/// absolute maximum to render maxima. Missing summaries invalidate the tail.
+pub(crate) fn boundary_population_tail(rows: &[&MeasurementRow]) -> Option<(f64, f64, f64)> {
+    fn field_quantile(
+        rows: &[&MeasurementRow],
+        value: impl Fn(&BoundaryTail) -> f64,
+        q: f64,
+    ) -> Option<f64> {
+        let mut values = rows
+            .iter()
+            .filter_map(|row| row.boundary.as_ref().map(&value))
+            .collect::<Vec<_>>();
+        if values.len() != rows.len() || values.is_empty() {
+            return None;
+        }
+        values.sort_by(f64::total_cmp);
+        let index = ((values.len() - 1) as f64 * q).ceil() as usize;
+        Some(values[index.min(values.len() - 1)])
+    }
+
+    Some((
+        field_quantile(rows, |tail| tail.p95_px, 0.95)?,
+        field_quantile(rows, |tail| tail.p99_px, 0.99)?,
+        field_quantile(rows, |tail| tail.max_px, 1.0)?,
+    ))
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeasurementReport {
     pub schema: String,

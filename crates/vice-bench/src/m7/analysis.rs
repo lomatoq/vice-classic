@@ -19,7 +19,7 @@ pub use delivery::DeliveryCalibration;
 use delivery::{calibrate_delivery_seal, delivery_diagnostics_permit};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v10";
+    "vice-classic/m7-confidence-calibration-analysis/v11";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
@@ -43,9 +43,9 @@ pub struct ThresholdEvaluation {
     pub minimum_render_coverage: f64,
     pub source_coverage_met: bool,
     pub render_coverage_met: bool,
-    pub accepted_boundary_p95_worst_px: Option<f64>,
-    pub accepted_boundary_p99_worst_px: Option<f64>,
-    pub accepted_boundary_max_worst_px: Option<f64>,
+    pub accepted_boundary_p95_px: Option<f64>,
+    pub accepted_boundary_p99_px: Option<f64>,
+    pub accepted_boundary_max_px: Option<f64>,
     pub boundary_p95_met: bool,
     pub boundary_p99_met: bool,
     pub boundary_max_met: bool,
@@ -209,8 +209,9 @@ pub fn analyze_calibration(
             prereg.risk_target,
             Some((ResidualModel::Block, true)),
         );
-        let accepted_boundary_p95_worst_px = target_rows
+        let accepted_rows = target_rows
             .iter()
+            .copied()
             .filter(|row| {
                 row.candidate_available
                     && diagnostics_permit(
@@ -223,48 +224,24 @@ pub fn analyze_calibration(
                     && effective_lower_bound(row, empirical_upper)
                         .is_some_and(|score| score >= threshold)
             })
-            .filter_map(|row| row.boundary.as_ref().map(|tail| tail.p95_px))
-            .max_by(f64::total_cmp);
-        let accepted_boundary_p99_worst_px = target_rows
-            .iter()
-            .filter(|row| {
-                row.candidate_available
-                    && diagnostics_permit(
-                        row,
-                        empirical_upper,
-                        delivery_seal,
-                        maximum_predictive_bits_per_block,
-                        maximum_support_displacement_px,
-                    )
-                    && effective_lower_bound(row, empirical_upper)
-                        .is_some_and(|score| score >= threshold)
-            })
-            .filter_map(|row| row.boundary.as_ref().map(|tail| tail.p99_px))
-            .max_by(f64::total_cmp);
-        let accepted_boundary_max_worst_px = target_rows
-            .iter()
-            .filter(|row| {
-                row.candidate_available
-                    && diagnostics_permit(
-                        row,
-                        empirical_upper,
-                        delivery_seal,
-                        maximum_predictive_bits_per_block,
-                        maximum_support_displacement_px,
-                    )
-                    && effective_lower_bound(row, empirical_upper)
-                        .is_some_and(|score| score >= threshold)
-            })
-            .filter_map(|row| row.boundary.as_ref().map(|tail| tail.max_px))
-            .max_by(f64::total_cmp);
+            .collect::<Vec<_>>();
+        // A boundary p95/p99 is a population tail statistic, not a demand
+        // that every render's own tail summary stay below the population
+        // gate. The paired baseline court uses the same conservative
+        // quantile-of-render-summaries definition.
+        let (accepted_boundary_p95_px, accepted_boundary_p99_px, accepted_boundary_max_px) =
+            super::boundary_population_tail(&accepted_rows)
+                .map_or((None, None, None), |(p95, p99, max)| {
+                    (Some(p95), Some(p99), Some(max))
+                });
         let source_coverage_met = reliability.coverage_per_source >= bucket.min_coverage_per_source;
         let render_coverage_met = reliability.coverage_per_render >= bucket.min_coverage_per_render;
         let boundary_p95_met =
-            accepted_boundary_p95_worst_px.is_some_and(|worst| worst <= PROPOSED_BOUNDARY_P95_PX);
+            accepted_boundary_p95_px.is_some_and(|value| value <= PROPOSED_BOUNDARY_P95_PX);
         let boundary_p99_met =
-            accepted_boundary_p99_worst_px.is_some_and(|worst| worst <= PROPOSED_BOUNDARY_P99_PX);
+            accepted_boundary_p99_px.is_some_and(|value| value <= PROPOSED_BOUNDARY_P99_PX);
         let boundary_max_met =
-            accepted_boundary_max_worst_px.is_some_and(|worst| worst <= PROPOSED_BOUNDARY_MAX_PX);
+            accepted_boundary_max_px.is_some_and(|value| value <= PROPOSED_BOUNDARY_MAX_PX);
         let zero_catastrophic_required_by_core = reliability.groups_catastrophic == 0;
         let eligible = reliability.contract_met
             && source_coverage_met
@@ -282,9 +259,9 @@ pub fn analyze_calibration(
             minimum_render_coverage: bucket.min_coverage_per_render,
             source_coverage_met,
             render_coverage_met,
-            accepted_boundary_p95_worst_px,
-            accepted_boundary_p99_worst_px,
-            accepted_boundary_max_worst_px,
+            accepted_boundary_p95_px,
+            accepted_boundary_p99_px,
+            accepted_boundary_max_px,
             boundary_p95_met,
             boundary_p99_met,
             boundary_max_met,
@@ -351,7 +328,7 @@ pub fn analyze_calibration(
     if observable_policy.is_none() {
         refusals.push(
             "no observable predictive/support policy meets source/render coverage and \
-             p95/p99/max zero-catastrophic gates before posterior thresholding"
+             zero-catastrophic gates before posterior thresholding"
                 .into(),
         );
     } else if selected.is_none() {
@@ -549,10 +526,6 @@ fn policy_gate_bad(row: &MeasurementRow, delivery_seal: vice_verify::DeliverySea
         PROPOSED_MAX_PALETTE_CODE_DELTA,
     )
     .is_empty()
-        || row
-            .boundary
-            .as_ref()
-            .is_none_or(|tail| tail.p95_px > PROPOSED_BOUNDARY_P95_PX)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -835,8 +808,8 @@ mod tests {
         assert!(selected.boundary_p95_met);
         assert!(selected.boundary_p99_met);
         assert!(selected.boundary_max_met);
-        assert_eq!(selected.accepted_boundary_p99_worst_px, Some(0.3));
-        assert_eq!(selected.accepted_boundary_max_worst_px, Some(0.4));
+        assert_eq!(selected.accepted_boundary_p99_px, Some(0.3));
+        assert_eq!(selected.accepted_boundary_max_px, Some(0.4));
         let calibration = analysis.calibration.expect("calibration");
         assert_eq!(calibration.accepted_source_groups, 459);
         assert_eq!(calibration.catastrophic_source_groups, 0);
@@ -874,6 +847,60 @@ mod tests {
         let calibration = analysis.calibration.expect("calibration");
         assert_eq!(calibration.accepted_source_groups, 459);
         assert_eq!(calibration.catastrophic_source_groups, 0);
+    }
+
+    #[test]
+    fn population_p95_allows_a_sparse_non_catastrophic_render_tail() {
+        let mut report = report(false);
+        report.rows[0].boundary = Some(BoundaryTail {
+            samples: 10,
+            p95_px: 0.50,
+            p99_px: 0.55,
+            max_px: 0.70,
+        });
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(analysis.gate_met);
+        let selected = analysis
+            .threshold_evaluations
+            .iter()
+            .find(|evaluation| evaluation.eligible)
+            .expect("eligible threshold");
+        assert_eq!(selected.accepted_boundary_p95_px, Some(0.2));
+        assert_eq!(selected.accepted_boundary_p99_px, Some(0.3));
+        assert_eq!(selected.accepted_boundary_max_px, Some(0.7));
+    }
+
+    #[test]
+    fn population_p95_rejects_a_material_high_tail_fraction() {
+        let mut report = report(false);
+        for row in report.rows.iter_mut().take(24) {
+            row.boundary = Some(BoundaryTail {
+                samples: 10,
+                p95_px: 0.50,
+                p99_px: 0.55,
+                max_px: 0.70,
+            });
+        }
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(!analysis.gate_met);
+        assert!(analysis.calibration.is_none());
+    }
+
+    #[test]
+    fn population_tail_semantics_do_not_admit_a_gross_single_render_outlier() {
+        let mut report = report(false);
+        report.rows[0].boundary = Some(BoundaryTail {
+            samples: 10,
+            p95_px: 0.50,
+            p99_px: 0.61,
+            max_px: 0.70,
+        });
+        let analysis =
+            analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+        assert!(!analysis.gate_met);
+        assert!(analysis.calibration.is_none());
     }
 
     #[test]

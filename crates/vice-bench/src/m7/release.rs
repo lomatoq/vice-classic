@@ -16,7 +16,7 @@ use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
-pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v4";
+pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v5";
 const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -192,9 +192,9 @@ pub struct PresetReleaseVerdict {
     pub reliability: RiskCoverage,
     pub source_coverage_met: bool,
     pub render_coverage_met: bool,
-    pub accepted_boundary_p95_worst_px: Option<f64>,
-    pub accepted_boundary_p99_worst_px: Option<f64>,
-    pub accepted_boundary_max_worst_px: Option<f64>,
+    pub accepted_boundary_p95_px: Option<f64>,
+    pub accepted_boundary_p99_px: Option<f64>,
+    pub accepted_boundary_max_px: Option<f64>,
     pub boundary_gates_met: bool,
     pub max_palette_code_delta: Option<u8>,
     pub palette_gate_met: bool,
@@ -380,13 +380,14 @@ fn analyze_preset(
         .copied()
         .filter(|row| row.production_accepted && row.production_provenance)
         .collect::<Vec<_>>();
-    let accepted_boundary_p95_worst_px = max_boundary(&accepted, |tail| tail.p95_px);
-    let accepted_boundary_p99_worst_px = max_boundary(&accepted, |tail| tail.p99_px);
-    let accepted_boundary_max_worst_px = max_boundary(&accepted, |tail| tail.max_px);
-    let boundary_gates_met = accepted_boundary_p95_worst_px
+    let (accepted_boundary_p95_px, accepted_boundary_p99_px, accepted_boundary_max_px) =
+        super::boundary_population_tail(&accepted).map_or((None, None, None), |(p95, p99, max)| {
+            (Some(p95), Some(p99), Some(max))
+        });
+    let boundary_gates_met = accepted_boundary_p95_px
         .is_some_and(|value| value <= gates.boundary_p95_px)
-        && accepted_boundary_p99_worst_px.is_some_and(|value| value <= gates.boundary_p99_px)
-        && accepted_boundary_max_worst_px.is_some_and(|value| value <= gates.boundary_max_px);
+        && accepted_boundary_p99_px.is_some_and(|value| value <= gates.boundary_p99_px)
+        && accepted_boundary_max_px.is_some_and(|value| value <= gates.boundary_max_px);
     let max_palette_code_delta = accepted
         .iter()
         .filter_map(|row| row.max_palette_code_delta)
@@ -453,9 +454,9 @@ fn analyze_preset(
         reliability,
         source_coverage_met,
         render_coverage_met,
-        accepted_boundary_p95_worst_px,
-        accepted_boundary_p99_worst_px,
-        accepted_boundary_max_worst_px,
+        accepted_boundary_p95_px,
+        accepted_boundary_p99_px,
+        accepted_boundary_max_px,
         boundary_gates_met,
         max_palette_code_delta,
         palette_gate_met,
@@ -542,15 +543,6 @@ fn delivery_within_gates(row: &MeasurementRow, gates: M7ReleaseGates) -> bool {
         && row
             .internal_to_seam_mean_channel_delta
             .is_some_and(|value| value <= gates.max_internal_mean_channel_delta)
-}
-
-fn max_boundary(
-    rows: &[&MeasurementRow],
-    value: impl Fn(&super::BoundaryTail) -> f64,
-) -> Option<f64> {
-    rows.iter()
-        .filter_map(|row| row.boundary.as_ref().map(&value))
-        .max_by(f64::total_cmp)
 }
 
 fn quantile(values: &[u64], q: f64) -> u64 {
