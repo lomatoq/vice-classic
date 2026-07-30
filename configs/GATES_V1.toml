@@ -106,6 +106,7 @@ posterior_lower_bound_threshold = 0.0
 empirical_unexplored_relative_mass_upper_bound = 0.0
 gate_min_top2_class_margin_bits = 0.0
 gate_max_posterior_predictive_bits_per_block = 0.10
+gate_max_support_isotopy_displacement_px = 0.0
 gate_max_abs_residual_lag1 = 0.90
 gate_max_topology_entropy_bits = 1.0
 gate_max_formation_entropy_bits = 1.0
