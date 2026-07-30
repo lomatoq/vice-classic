@@ -28,9 +28,9 @@ fn safe_application(
     free_chain: &RefitChain,
     hypothesis: &RelationHypothesis,
     closed: bool,
+    require_shorter: bool,
 ) -> Option<(f64, crate::ChainCode)> {
-    if !hypothesis.accepted
-        || !closure_matches(&hypothesis.constrained_chain, closed)
+    if !closure_matches(&hypothesis.constrained_chain, closed)
         || free_chain.lower().is_err()
         || hypothesis.constrained_chain.lower().is_err()
         || free_chain.nodes.len() != hypothesis.constrained_chain.nodes.len()
@@ -79,8 +79,9 @@ fn safe_application(
         || !net.is_finite()
         || saving != hypothesis.saving_bits
         || net != hypothesis.net_bits
-        || net <= 0.0
+        || (require_shorter && (!hypothesis.accepted || net <= 0.0))
         || hypothesis.worst_normal_deviation_px > hypothesis.allowed_px
+        || hypothesis.worst_model_to_evidence_px > hypothesis.allowed_px
     {
         return None;
     }
@@ -123,7 +124,7 @@ pub fn apply_accepted(
         .iter()
         .enumerate()
         .filter_map(|(index, hypothesis)| {
-            safe_application(model, free_chain, hypothesis, closed)
+            safe_application(model, free_chain, hypothesis, closed, true)
                 .map(|(net_bits, code)| (index, net_bits, code))
         })
         .max_by(|a, b| a.1.total_cmp(&b.1));
@@ -132,12 +133,42 @@ pub fn apply_accepted(
         return 0;
     };
     let hypothesis = &hypotheses[index];
+    apply_accepted_relation_with_code(model, hypothesis, index, code);
+    1
+}
+
+fn apply_accepted_relation_with_code(
+    model: &mut BoundaryModel,
+    hypothesis: &RelationHypothesis,
+    index: usize,
+    code: crate::ChainCode,
+) {
     model.code = code;
     model.geometry = SelectedBoundaryGeometry::TypedChain {
         chain: hypothesis.constrained_chain.clone(),
     };
     model.worst_normal_deviation_px = hypothesis.worst_normal_deviation_px;
     model.worst_model_to_evidence_px = hypothesis.worst_model_to_evidence_px;
+    model.primitive_kept = None;
+    model.relations_kept = 1;
     model.relation_kept_indices = vec![index];
-    1
+}
+
+/// Materialize one accepted constrained relation sibling for M7's final
+/// posterior. The application repeats all finite/code/topology checks used by
+/// M6 and never trusts the public `accepted` flag alone.
+pub fn apply_relation_sibling(
+    model: &mut BoundaryModel,
+    hypothesis: &RelationHypothesis,
+    index: usize,
+    closed: bool,
+) -> bool {
+    let Some(free_chain) = model.geometry.typed_chain() else {
+        return false;
+    };
+    let Some((_, code)) = safe_application(model, free_chain, hypothesis, closed, false) else {
+        return false;
+    };
+    apply_accepted_relation_with_code(model, hypothesis, index, code);
+    true
 }

@@ -47,6 +47,28 @@ pub struct CandidateSummary {
     pub optimizer: vice_opt::OptimizationResult,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateFailureStage {
+    SceneConstruction,
+    Preseal,
+    PaintOptimization,
+    Quantization,
+    ExportPlan,
+    SvgMaterialization,
+    IndependentRender,
+    SerializedLikelihood,
+    DeliverySeal,
+    CanonicalArtifact,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CandidateRefusal {
+    pub hypothesis_id: String,
+    pub stage: CandidateFailureStage,
+    pub detail: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct VectorizeReport {
     pub schema: &'static str,
@@ -65,6 +87,7 @@ pub struct VectorizeReport {
     pub beam: Option<vice_opt::BudgetLedger>,
     pub search_mass: Option<vice_opt::SearchMassCertificate>,
     pub candidates: Vec<CandidateSummary>,
+    pub candidate_refusals: Vec<CandidateRefusal>,
     pub selected_hypothesis_id: Option<String>,
     pub runtime: RuntimeSummary,
 }

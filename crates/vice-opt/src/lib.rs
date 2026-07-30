@@ -17,12 +17,14 @@ pub mod trust_region;
 pub mod universe;
 
 pub use likelihood::{
-    score_full_resolution, BlockLikelihoodConfig, LikelihoodDiagnostics, LikelihoodError,
-    PriorCodeLengths, ResidualModelId, ScoreBreakdown, ScoreOwnership,
+    score_full_resolution, score_serialized_full_resolution, BlockLikelihoodConfig,
+    LikelihoodDiagnostics, LikelihoodError, PredictionSource, PriorCodeLengths, ResidualModelId,
+    ScoreBreakdown, ScoreOwnership,
 };
 pub use posterior::{
-    posterior_with_search_mass, DeliveryPosterior, ModelIdentity, PosteriorError, ScoredHypothesis,
-    SearchMassCertificate, SearchMassInput, UnexploredMassBound,
+    posterior_with_search_mass, BoundValue, DeliveryPosterior, ModelIdentity, PosteriorError,
+    ScoredHypothesis, SearchMassCertificate, SearchMassInput, UnexploredMassBound,
+    UnexploredMassInput,
 };
 pub use search::{
     select_diverse_beam, BeamCandidate, BeamConfig, BeamError, BeamSelection, BudgetLedger,

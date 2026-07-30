@@ -71,7 +71,16 @@ pub struct ConfidenceCalibration {
     pub accepted_source_groups: u64,
     pub catastrophic_source_groups: u64,
     pub posterior_lower_bound_threshold: f64,
+    /// Frozen R1 upper bound on omitted search mass relative to the best
+    /// retained hypothesis. `None` means truncated search remains Unknown.
+    pub empirical_unexplored_relative_mass_upper_bound: Option<f64>,
     pub buckets: Vec<CalibrationBucket>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct IntentPriorPolicy {
+    pub structural_code_scale: f64,
+    pub constrained_promotion_extra_bits: f64,
 }
 
 impl ConfidenceCalibration {
@@ -93,7 +102,7 @@ impl ConfidenceCalibration {
     pub fn permits(
         &self,
         identity: &ModelIdentity,
-        posterior_lower_bound: f64,
+        delivery: &vice_opt::DeliveryPosterior,
     ) -> Result<(), &'static str> {
         if self.schema != "vice-classic/confidence-calibration/v1"
             || self.model_universe_sha256 != identity.universe_sha256
@@ -122,6 +131,11 @@ impl ConfidenceCalibration {
         {
             return Err("calibration_coverage_gate");
         }
+        let posterior_lower_bound = match &delivery.posterior_lower_bound {
+            vice_opt::BoundValue::Certified(value)
+            | vice_opt::BoundValue::EmpiricallyCalibrated(value) => *value,
+            vice_opt::BoundValue::Unknown => return Err("posterior_search_mass_unknown"),
+        };
         if !posterior_lower_bound.is_finite()
             || posterior_lower_bound < self.posterior_lower_bound_threshold
         {
@@ -142,7 +156,13 @@ pub struct CoreConfig {
     pub k_discrete_paths: usize,
     pub export_decimal_places: u32,
     pub apron_width_px: f64,
+    pub exact_prior: IntentPriorPolicy,
+    pub clean_prior: IntentPriorPolicy,
     pub confidence: Option<ConfidenceCalibration>,
+    // Only a verified repository-owned production loader may set this. A
+    // caller cannot turn a development config into a production config by
+    // attaching a lookalike calibration struct.
+    sealed_production: bool,
 }
 
 #[derive(Serialize)]
@@ -157,11 +177,29 @@ struct ConfigIdentity<'a> {
     k_discrete_paths: usize,
     export_decimal_places: u32,
     apron_width_px: f64,
+    exact_prior: IntentPriorPolicy,
+    clean_prior: IntentPriorPolicy,
     confidence_sha256: Option<String>,
+    sealed_production: bool,
     implementation: &'a str,
 }
 
 impl CoreConfig {
+    pub fn development_for(preset: Preset) -> Self {
+        let mut config = Self::development();
+        if preset == Preset::Fast {
+            config.k_discrete_paths = 1;
+            config.beam.width = 4;
+            config.beam.min_topology_classes = 1;
+            config.beam.min_formation_classes = 1;
+            config.beam.budget.max_candidates_considered = 16;
+            config.beam.budget.max_elapsed_ms = 1_000;
+            config.trust_region.max_rounds = 2;
+            config.trust_region.max_backtracks = 4;
+        }
+        config
+    }
+
     pub fn development() -> Self {
         Self {
             likelihood: BlockLikelihoodConfig::new(2, 2.0, [25.57 / 255.0; 4], 4.0)
@@ -171,12 +209,15 @@ impl CoreConfig {
                 max_g1_spread_rad: vice_fit::GATE_MAX_G1_SPREAD_RAD,
                 curve_separation_margin_px: 1e-9,
             },
-            quantization: QuantizationPolicy { decimal_places: 6 },
+            quantization: QuantizationPolicy { decimal_places: 12 },
+            // Measurement ceiling only. `sealed_production == false` makes a
+            // success impossible; the release loader replaces these values
+            // with frozen court gates after corpus calibration.
             seal: DeliverySealConfig {
-                max_profile_channel_delta: 1,
-                max_profile_mean_channel_delta: 0.01,
-                max_internal_channel_delta: 1,
-                max_internal_mean_channel_delta: 0.05,
+                max_profile_channel_delta: 255,
+                max_profile_mean_channel_delta: 255.0,
+                max_internal_channel_delta: 255,
+                max_internal_mean_channel_delta: 255.0,
             },
             beam: BeamConfig {
                 width: 16,
@@ -201,9 +242,29 @@ impl CoreConfig {
                 full_check_every_accepted_blocks: 1,
             },
             k_discrete_paths: 64,
-            export_decimal_places: 6,
-            apron_width_px: 0.5,
+            export_decimal_places: 12,
+            apron_width_px: 0.01,
+            exact_prior: IntentPriorPolicy {
+                structural_code_scale: 0.75,
+                constrained_promotion_extra_bits: 6.0,
+            },
+            clean_prior: IntentPriorPolicy {
+                structural_code_scale: 1.0,
+                constrained_promotion_extra_bits: 0.0,
+            },
             confidence: None,
+            sealed_production: false,
+        }
+    }
+
+    pub fn is_sealed_production(&self) -> bool {
+        self.sealed_production
+    }
+
+    pub fn intent_prior(&self, intent: Intent) -> IntentPriorPolicy {
+        match intent {
+            Intent::Exact => self.exact_prior,
+            Intent::Clean => self.clean_prior,
         }
     }
 
@@ -233,10 +294,13 @@ impl CoreConfig {
             k_discrete_paths: self.k_discrete_paths,
             export_decimal_places: self.export_decimal_places,
             apron_width_px: self.apron_width_px,
+            exact_prior: self.exact_prior,
+            clean_prior: self.clean_prior,
             confidence_sha256: self
                 .confidence
                 .as_ref()
                 .map(ConfidenceCalibration::digest_sha256),
+            sealed_production: self.sealed_production,
             implementation: "vice-core/m7/v1",
         };
         let config_sha256 = hex::encode(Sha256::digest(

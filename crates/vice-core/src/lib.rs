@@ -8,18 +8,20 @@
 
 #![forbid(unsafe_code)]
 
+mod candidate;
 mod config;
 mod pipeline;
 mod scene;
 mod types;
 
 pub use config::{
-    CalibrationBucket, ConfidenceCalibration, CoreConfig, Intent, Preset, VectorizeRequest,
+    CalibrationBucket, ConfidenceCalibration, CoreConfig, Intent, IntentPriorPolicy, Preset,
+    VectorizeRequest,
 };
 pub use pipeline::{vectorize, vectorize_with_config};
 pub use types::{
-    DecisionStatus, FailureReason, SuccessArtifacts, VectorizeOutcome, VectorizeReport,
-    VectorizeSuccess, CORE_REPORT_SCHEMA,
+    CandidateFailureStage, CandidateRefusal, DecisionStatus, FailureReason, SuccessArtifacts,
+    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 
 #[cfg(test)]
@@ -61,6 +63,7 @@ mod tests {
             accepted_source_groups,
             catastrophic_source_groups: 0,
             posterior_lower_bound_threshold: 0.95,
+            empirical_unexplored_relative_mass_upper_bound: Some(0.0),
             buckets: vec![CalibrationBucket {
                 name: "all".into(),
                 accepted_source_groups,
@@ -68,8 +71,14 @@ mod tests {
                 minimum_coverage: 1.0,
             }],
         };
-        assert!(calibration(458).permits(&identity, 1.0).is_err());
-        assert!(calibration(459).permits(&identity, 1.0).is_ok());
+        let delivery = vice_opt::DeliveryPosterior {
+            delivery_digest: "d".into(),
+            explored_mass: 1.0,
+            retained_normalized_mass: 1.0,
+            posterior_lower_bound: vice_opt::BoundValue::Certified(1.0),
+        };
+        assert!(calibration(458).permits(&identity, &delivery).is_err());
+        assert!(calibration(459).permits(&identity, &delivery).is_ok());
     }
 
     #[test]

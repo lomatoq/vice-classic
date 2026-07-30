@@ -369,14 +369,7 @@ fn run() -> i32 {
                 milestone_debug,
                 oracle_override,
             };
-            let mut config = vice_core::CoreConfig::development();
-            if preset == PresetArg::Fast {
-                config.k_discrete_paths = 16;
-                config.beam.width = 8;
-                config.beam.budget.max_candidates_considered = 64;
-                config.beam.budget.max_elapsed_ms = 1_000;
-                config.trust_region.max_rounds = 4;
-            }
+            let config = vice_core::CoreConfig::development_for(request.preset);
             let outcome = vice_core::vectorize_with_config(&bytes, &request, &config);
             let write_result = match &outcome {
                 vice_core::VectorizeOutcome::Success(success) => {

@@ -450,6 +450,34 @@ pub fn apply_best_primitive(
         .enumerate()
         .filter(|(_, h)| h.accepted)
         .max_by(|(_, a), (_, b)| a.net_bits.total_cmp(&b.net_bits))?;
+    apply_primitive_sibling(model, best, index).then_some(index)
+}
+
+/// Materialize one corridor-admissible Stage-H primitive sibling. It may have
+/// lost M6's local code comparison: M7 still retains it so the final
+/// serialized-render posterior, with the selected intent prior, makes the
+/// promotion decision.
+pub fn apply_primitive_sibling(
+    model: &mut BoundaryModel,
+    hypothesis: &LoopPrimitiveHypothesis,
+    index: usize,
+) -> bool {
+    let admissible = [
+        hypothesis.primitive_bits,
+        hypothesis.residual_penalty_bits,
+        hypothesis.worst_normal_deviation_px,
+        hypothesis.worst_model_to_evidence_px,
+        hypothesis.allowed_px,
+    ]
+    .into_iter()
+    .all(f64::is_finite)
+        && hypothesis.primitive_bits >= 0.0
+        && hypothesis.worst_normal_deviation_px <= hypothesis.allowed_px
+        && hypothesis.worst_model_to_evidence_px <= hypothesis.allowed_px;
+    if !admissible {
+        return false;
+    }
+    let best = hypothesis;
     model.code.geometry_bits = best.primitive_bits;
     model.code.topology_bits = 0.0;
     model.code.relation_bits = 0.0;
@@ -461,7 +489,10 @@ pub fn apply_best_primitive(
     };
     model.worst_normal_deviation_px = best.worst_normal_deviation_px;
     model.worst_model_to_evidence_px = best.worst_model_to_evidence_px;
-    Some(index)
+    model.primitive_kept = Some(index);
+    model.relations_kept = 0;
+    model.relation_kept_indices.clear();
+    true
 }
 
 fn unique_loop_points(samples: &[BoundarySample]) -> Vec<Pt> {

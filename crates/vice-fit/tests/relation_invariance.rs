@@ -31,18 +31,22 @@ fn probe_chain(delta: f64, translation: Pt) -> RefitChain {
 }
 
 fn probe_model(chain: RefitChain) -> BoundaryModel {
+    let geometry = SelectedBoundaryGeometry::TypedChain { chain };
+    let code = ChainCode {
+        geometry_bits: 200.0,
+        topology_bits: 10.0,
+        relation_bits: 0.0,
+        residual_bits: 0.0,
+    };
     BoundaryModel {
-        geometry: SelectedBoundaryGeometry::TypedChain { chain },
+        stage_h_free_geometry: geometry.clone(),
+        stage_h_free_code: code,
+        geometry,
         families: vec![SpanFamily::CircularArc; 2],
         breakpoints: vec![1],
         smooth: vec![false],
         closure_smooth: false,
-        code: ChainCode {
-            geometry_bits: 200.0,
-            topology_bits: 10.0,
-            relation_bits: 0.0,
-            residual_bits: 0.0,
-        },
+        code,
         proposal_cost_px: 0.0,
         worst_g1_spread_rad: 0.0,
         worst_normal_deviation_px: 0.0,

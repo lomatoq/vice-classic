@@ -4,37 +4,17 @@ use std::time::Instant;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vice_evidence::{ChainStatus, Flat2Outcome};
-use vice_ir::{Canvas, Paint, PixelFilter};
-use vice_opt::{
-    posterior_with_search_mass, select_diverse_beam, BeamCandidate, PriorCodeLengths,
-    ScoredHypothesis, SearchMassInput,
-};
-use vice_svg::{
-    build_export_plan, canonical_export_plan_bytes, materialize_svg,
-    parse_and_render_independently, SvgProfile,
-};
-use vice_verify::{quantize_and_verify, seal_delivery};
+use vice_ir::{Canvas, PixelFilter};
+use vice_opt::{posterior_with_search_mass, select_diverse_beam, BeamCandidate, SearchMassInput};
 
+use crate::candidate::{materialize_candidate, CandidateCache, CandidateRequest};
 use crate::config::CoreConfig;
-use crate::scene::{build_scene_candidate, optimize_paint, topology_arms};
+use crate::scene::topology_arms;
 use crate::types::{
-    CandidateSummary, DecisionStatus, FailureReason, RuntimeSummary, SuccessArtifacts,
-    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    CandidateRefusal, CandidateSummary, DecisionStatus, FailureReason, RuntimeSummary,
+    SuccessArtifacts, VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 use crate::VectorizeRequest;
-
-#[derive(Debug)]
-struct MaterializedCandidate {
-    summary: CandidateSummary,
-    score: ScoredHypothesis,
-    scene_json: Vec<u8>,
-    plan_json: Vec<u8>,
-    pure_svg: Vec<u8>,
-    seam_svg: Vec<u8>,
-    render_png: Vec<u8>,
-    seal_json: Vec<u8>,
-    estimated_memory_bytes: u64,
-}
 
 #[derive(Debug, Default)]
 struct ReportParts {
@@ -43,6 +23,7 @@ struct ReportParts {
     beam: Option<vice_opt::BudgetLedger>,
     search_mass: Option<vice_opt::SearchMassCertificate>,
     candidates: Vec<CandidateSummary>,
+    candidate_refusals: Vec<CandidateRefusal>,
     selected_hypothesis_id: Option<String>,
     candidate_bytes: u64,
 }
@@ -84,6 +65,7 @@ fn make_report(
             candidate_bytes: parts.candidate_bytes,
         },
         candidates: parts.candidates,
+        candidate_refusals: parts.candidate_refusals,
         selected_hypothesis_id: parts.selected_hypothesis_id,
     }
 }
@@ -160,33 +142,62 @@ fn supported_formations(
     Ok(found)
 }
 
-fn priors(model: &vice_fit::BoundaryModel, opaque_faces: usize) -> PriorCodeLengths {
-    PriorCodeLengths {
-        topology_bits: model.code.topology_bits + 1.0,
-        geometry_bits: model.code.geometry_bits,
-        paint_bits: 24.0 * opaque_faces as f64,
-        relation_bits: model.code.relation_bits,
-        formation_bits: 2.0,
-    }
+#[derive(Debug, Clone)]
+struct FinalModelVariant {
+    path_index: usize,
+    class: String,
+    model: vice_fit::BoundaryModel,
 }
 
-fn candidate_memory(candidate: &MaterializedCandidate) -> u64 {
-    [
-        candidate.scene_json.len(),
-        candidate.plan_json.len(),
-        candidate.pure_svg.len(),
-        candidate.seam_svg.len(),
-        candidate.render_png.len(),
-        candidate.seal_json.len(),
-    ]
-    .into_iter()
-    .map(|value| value as u64)
-    .sum()
+fn final_model_variants(fit: &vice_fit::ModelRun) -> Vec<FinalModelVariant> {
+    let mut variants = Vec::new();
+    for (path_index, selected) in fit.models.iter().enumerate() {
+        let mut free = selected.clone();
+        free.geometry = selected.stage_h_free_geometry.clone();
+        free.code = selected.stage_h_free_code;
+        free.primitive_kept = None;
+        free.relations_kept = 0;
+        free.relation_kept_indices.clear();
+        variants.push(FinalModelVariant {
+            path_index,
+            class: "free".into(),
+            model: free.clone(),
+        });
+        for (index, hypothesis) in selected.relations.iter().enumerate() {
+            let mut sibling = free.clone();
+            if vice_fit::apply_relation_sibling(&mut sibling, hypothesis, index, true) {
+                variants.push(FinalModelVariant {
+                    path_index,
+                    class: format!("relation-{index}-{:?}", hypothesis.kind).to_lowercase(),
+                    model: sibling,
+                });
+            }
+        }
+        for (index, hypothesis) in selected.primitives.iter().enumerate() {
+            let mut sibling = free.clone();
+            if vice_fit::apply_primitive_sibling(&mut sibling, hypothesis, index) {
+                variants.push(FinalModelVariant {
+                    path_index,
+                    class: format!("primitive-{index}-{:?}", hypothesis.kind).to_lowercase(),
+                    model: sibling,
+                });
+            }
+        }
+    }
+    variants.sort_by(|left, right| {
+        left.model
+            .code
+            .total_bits()
+            .total_cmp(&right.model.code.total_bits())
+            .then_with(|| left.path_index.cmp(&right.path_index))
+            .then_with(|| left.class.cmp(&right.class))
+    });
+    variants
 }
 
 /// Standard M7 entry point using the repository's installed configuration.
 pub fn vectorize(bytes: &[u8], request: &VectorizeRequest) -> VectorizeOutcome {
-    vectorize_with_config(bytes, request, &CoreConfig::development())
+    vectorize_with_config(bytes, request, &CoreConfig::development_for(request.preset))
 }
 
 /// Configurable M7 entry point for sealed calibration and research harnesses.
@@ -201,6 +212,7 @@ pub fn vectorize_with_config(
     let started = Instant::now();
     let source_sha256 = digest(bytes);
     let provenance_production = request.production
+        && config.is_sealed_production()
         && !request.research_override
         && request.milestone_debug.is_none()
         && request.oracle_override.is_none();
@@ -395,14 +407,21 @@ pub fn vectorize_with_config(
             started,
         );
     }
-    if fit.models.len() >= config.k_discrete_paths {
+    let fit_truncated = fit.models.len() >= config.k_discrete_paths;
+    let mut model_variants = final_model_variants(&fit);
+    let combinations_per_variant = arms.len().saturating_mul(formations.len());
+    let max_variants = config
+        .beam
+        .budget
+        .max_candidates_considered
+        .checked_div(combinations_per_variant)
+        .unwrap_or(0);
+    if max_variants == 0 {
         return refuse(
             DecisionStatus::Ambiguous,
             FailureReason::SearchTruncated {
-                detail: format!(
-                    "k-best frontier reached k={}; unexplored geometry mass has no bound",
-                    config.k_discrete_paths
-                ),
+                detail: "candidate budget cannot score one complete model/topology/formation cross-product"
+                    .into(),
             },
             request,
             config,
@@ -412,150 +431,44 @@ pub fn vectorize_with_config(
             started,
         );
     }
-    let supported_count = fit
-        .models
-        .len()
-        .saturating_mul(arms.len())
-        .saturating_mul(formations.len());
-    if supported_count > config.beam.budget.max_candidates_considered {
-        return refuse(
-            DecisionStatus::Ambiguous,
-            FailureReason::SearchTruncated {
-                detail: format!(
-                    "{supported_count} supported hypotheses exceed the declared candidate budget {}",
-                    config.beam.budget.max_candidates_considered
-                ),
-            },
-            request,
-            config,
-            source_sha256,
-            production,
-            parts,
-            started,
-        );
-    }
-
+    let variants_before_budget = model_variants.len();
+    model_variants.truncate(max_variants);
+    let variant_truncated = model_variants.len() < variants_before_budget;
     let canvas = Canvas {
         width_px: image.width_px(),
         height_px: image.height_px(),
     };
     let mut candidates = Vec::new();
-    let mut candidate_failures = Vec::new();
-    for (model_index, model) in fit.models.iter().enumerate() {
+    let mut candidate_refusals = Vec::new();
+    let mut candidate_cache = CandidateCache::default();
+    for variant in &model_variants {
+        let model = &variant.model;
         for (topology_index, arm) in arms.iter().enumerate() {
             for formation in &formations {
                 let formation_class = vice_evidence::formation_id(formation);
-                let hypothesis_id = format!("m{model_index}/t{topology_index}/{formation_class}");
-                let built = (|| -> Result<MaterializedCandidate, String> {
-                    let candidate =
-                        build_scene_candidate(canvas, &evidence, &chain, model, arm, *formation)?;
-                    let opaque_faces = candidate
-                        .scene
-                        .graph
-                        .faces
-                        .iter()
-                        .filter(|face| matches!(face.paint, Paint::OpaqueSolid(_)))
-                        .count();
-                    let prior = priors(model, opaque_faces);
-                    let base = vice_verify::preseal_scene(
-                        &candidate.scene,
-                        &candidate.bindings,
-                        config.verification,
-                    )
-                    .map_err(|error| error.to_string())?;
-                    let (candidate, optimizer) = optimize_paint(
-                        candidate,
-                        &image,
-                        base.render(),
-                        config.likelihood,
-                        prior,
-                        config.trust_region,
-                    )?;
-                    let verified = quantize_and_verify(
-                        &candidate.scene,
-                        &candidate.bindings,
-                        config.verification,
-                        config.quantization,
-                    )
-                    .map_err(|error| error.to_string())?;
-                    let score = vice_opt::score_full_resolution(
-                        verified.scene(),
-                        &image,
-                        verified.render(),
-                        config.likelihood,
-                        prior,
-                    )
-                    .map_err(|error| error.to_string())?;
-                    let plan = build_export_plan(
-                        verified.scene(),
-                        config.export_decimal_places,
-                        config.apron_width_px,
-                    )
-                    .map_err(|error| error.to_string())?;
-                    let plan_json =
-                        canonical_export_plan_bytes(&plan).map_err(|error| error.to_string())?;
-                    let pure_svg = materialize_svg(&plan, SvgProfile::PurePartition)
-                        .map_err(|error| error.to_string())?;
-                    let seam_svg = materialize_svg(&plan, SvgProfile::SeamSafe)
-                        .map_err(|error| error.to_string())?;
-                    let pure_witness = parse_and_render_independently(&pure_svg)
-                        .map_err(|error| error.to_string())?;
-                    let seam_witness = parse_and_render_independently(&seam_svg)
-                        .map_err(|error| error.to_string())?;
-                    let seal =
-                        seal_delivery(&verified, &plan, &pure_witness, &seam_witness, config.seal)
-                            .map_err(|error| error.to_string())?;
-                    let scene_json = vice_ir::canonical_scene_bytes(verified.scene())
-                        .map_err(|error| error.to_string())?;
-                    let scene_digest_sha256 = verified
-                        .post_quantization_certificate()
-                        .post_scene_digest_sha256
-                        .clone();
-                    let delivery_digest = digest(
-                        format!(
-                            "{}|{}",
-                            pure_witness.render_digest_sha256(),
-                            seam_witness.render_digest_sha256()
-                        )
-                        .as_bytes(),
-                    );
-                    let scored = ScoredHypothesis {
+                let hypothesis_id = format!(
+                    "m{}-{}/t{topology_index}/{formation_class}",
+                    variant.path_index, variant.class
+                );
+                let built = materialize_candidate(
+                    CandidateRequest {
+                        canvas,
+                        evidence: &evidence,
+                        chain: &chain,
+                        model,
+                        arm,
+                        formation: *formation,
                         hypothesis_id: hypothesis_id.clone(),
-                        delivery_digest: delivery_digest.clone(),
-                        topology_class: arm.class.clone(),
-                        formation_class: formation_class.clone(),
-                        total_bits: score.total_bits,
-                    };
-                    let summary = CandidateSummary {
-                        hypothesis_id: hypothesis_id.clone(),
-                        topology_class: arm.class.clone(),
                         formation_class,
-                        scene_digest_sha256,
-                        delivery_digest,
-                        score,
-                        pre_quantization: verified.pre_quantization_certificate().clone(),
-                        post_quantization: verified.post_quantization_certificate().clone(),
-                        delivery_seal: seal.clone(),
-                        optimizer,
-                    };
-                    let seal_json = serde_json::to_vec(&seal).map_err(|error| error.to_string())?;
-                    let mut candidate = MaterializedCandidate {
-                        summary,
-                        score: scored,
-                        scene_json,
-                        plan_json,
-                        pure_svg,
-                        seam_svg,
-                        render_png: seam_witness.png_bytes().to_vec(),
-                        seal_json,
-                        estimated_memory_bytes: 0,
-                    };
-                    candidate.estimated_memory_bytes = candidate_memory(&candidate);
-                    Ok(candidate)
-                })();
+                        image: &image,
+                        intent: request.intent,
+                        config,
+                    },
+                    &mut candidate_cache,
+                );
                 match built {
                     Ok(candidate) => candidates.push(candidate),
-                    Err(error) => candidate_failures.push(format!("{hypothesis_id}: {error}")),
+                    Err(error) => candidate_refusals.push(error),
                 }
             }
         }
@@ -579,13 +492,14 @@ pub fn vectorize_with_config(
         .iter()
         .map(|candidate| candidate.summary.clone())
         .collect();
+    parts.candidate_refusals = candidate_refusals.clone();
     if candidates.is_empty() {
-        let detail = if candidate_failures.is_empty() {
+        let detail = if candidate_refusals.is_empty() {
             "no candidate entered the verifier".into()
         } else {
             format!(
-                "all candidates failed verification/delivery; first: {}",
-                candidate_failures[0]
+                "all candidates failed verification/delivery; first: {}: {}",
+                candidate_refusals[0].hypothesis_id, candidate_refusals[0].detail
             )
         };
         return refuse(
@@ -645,10 +559,21 @@ pub fn vectorize_with_config(
     }
     let search_mass = match posterior_with_search_mass(SearchMassInput {
         identity: config.identity(),
-        supported_hypotheses: candidates.len() as u64,
         explored_kept,
         budget_pruned,
-        unexplored_bound: None,
+        unexplored: if fit_truncated || variant_truncated {
+            config
+                .confidence
+                .as_ref()
+                .and_then(|calibration| calibration.empirical_unexplored_relative_mass_upper_bound)
+                .map_or(vice_opt::UnexploredMassInput::Unknown, |upper_bound| {
+                    vice_opt::UnexploredMassInput::EmpiricallyCalibrated {
+                        relative_mass_upper_bound: upper_bound,
+                    }
+                })
+        } else {
+            vice_opt::UnexploredMassInput::Complete
+        },
     }) {
         Ok(certificate) => certificate,
         Err(error) => {
@@ -681,27 +606,13 @@ pub fn vectorize_with_config(
         );
     };
     let best_delivery_digest = best_delivery.delivery_digest.clone();
-    let posterior_lower_bound = best_delivery.posterior_lower_bound;
+    let best_delivery = best_delivery.clone();
     let selected_index = candidates
         .iter()
         .position(|candidate| candidate.score.delivery_digest == best_delivery_digest)
         .expect("posterior delivery is formed from candidates");
     parts.selected_hypothesis_id = Some(candidates[selected_index].score.hypothesis_id.clone());
     parts.search_mass = Some(search_mass.clone());
-    if search_mass.truncated {
-        return refuse(
-            DecisionStatus::Ambiguous,
-            FailureReason::SearchTruncated {
-                detail: "resource-pruned posterior mass prevents a production decision".into(),
-            },
-            request,
-            config,
-            source_sha256,
-            production,
-            parts,
-            started,
-        );
-    }
     if !production {
         return refuse(
             DecisionStatus::Ambiguous,
@@ -731,7 +642,7 @@ pub fn vectorize_with_config(
             started,
         );
     };
-    if let Err(detail) = calibration.permits(&config.identity(), posterior_lower_bound) {
+    if let Err(detail) = calibration.permits(&config.identity(), &best_delivery) {
         return refuse(
             DecisionStatus::Ambiguous,
             FailureReason::Confidence {
@@ -753,7 +664,7 @@ pub fn vectorize_with_config(
             selected_hypothesis_id: &'a str,
             optimizer_trace: &'a [vice_opt::OptimizationTraceRow],
             candidate_summaries: Vec<&'a CandidateSummary>,
-            candidate_failures: &'a [String],
+            candidate_refusals: &'a [CandidateRefusal],
         }
         Some(
             serde_json::to_vec(&Trace {
@@ -764,7 +675,7 @@ pub fn vectorize_with_config(
                     .take(request.dump_candidates)
                     .map(|candidate| &candidate.summary)
                     .collect(),
-                candidate_failures: &candidate_failures,
+                candidate_refusals: &candidate_refusals,
             })
             .expect("trace serializes"),
         )

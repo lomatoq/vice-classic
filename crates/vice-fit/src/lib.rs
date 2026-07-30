@@ -82,15 +82,17 @@ pub use models::{
     DUPLICATE_EPSILON_PX, MAX_CANONICAL_CUTS,
 };
 pub use primitive::{
-    apply_best_primitive, loop_primitive_hypotheses, lower_loop_primitive, LoopPrimitiveGeometry,
-    LoopPrimitiveHypothesis, LoopPrimitiveKind, LoweredLoopPrimitive,
+    apply_best_primitive, apply_primitive_sibling, loop_primitive_hypotheses, lower_loop_primitive,
+    LoopPrimitiveGeometry, LoopPrimitiveHypothesis, LoopPrimitiveKind, LoweredLoopPrimitive,
 };
 pub use refit::{
     canonical_angle, closure_g1_spread_rad, g1_readings, ArcAnchor, G1Reading, Handle,
     LoweredBoundaryGeometry, RefitChain, RefitNode, RefitRefusal, RefitSegment,
     FEASIBLE_HALFWIDTHS,
 };
-pub use relation::{apply_accepted, relation_hypotheses, RelationHypothesis, RelationKind};
+pub use relation::{
+    apply_accepted, apply_relation_sibling, relation_hypotheses, RelationHypothesis, RelationKind,
+};
 pub use schedule::{
     anchored_schedule, anchored_schedule_bound, hierarchical_schedule, FitBudget, Support,
     FIT_BUDGET_V1, MIN_SUPPORT_SAMPLES, SUPPORTS_PER_SAMPLE_BOUND,

@@ -101,6 +101,10 @@ impl SelectedBoundaryGeometry {
 /// solve, with everything a ranking or a gate would need.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct BoundaryModel {
+    /// Unconstrained sibling before Stage H. M7 compares it against every
+    /// admissible constrained delivery under the final serialized likelihood.
+    pub stage_h_free_geometry: SelectedBoundaryGeometry,
+    pub stage_h_free_code: ChainCode,
     pub geometry: SelectedBoundaryGeometry,
     pub families: Vec<SpanFamily>,
     pub breakpoints: Vec<usize>,
@@ -440,8 +444,11 @@ pub fn fit_forced_boundary_models(
                     bump(&mut refused, "non_finite_post_refit_code");
                     continue;
                 }
+                let free_geometry = SelectedBoundaryGeometry::TypedChain { chain: out.chain };
                 let mut model = BoundaryModel {
-                    geometry: SelectedBoundaryGeometry::TypedChain { chain: out.chain },
+                    stage_h_free_geometry: free_geometry.clone(),
+                    stage_h_free_code: code,
+                    geometry: free_geometry,
                     families: families.to_vec(),
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),
@@ -660,8 +667,11 @@ fn models_for_open_chain(
                     bump(&mut refused, "non_finite_post_refit_code");
                     continue;
                 }
+                let free_geometry = SelectedBoundaryGeometry::TypedChain { chain: out.chain };
                 let mut m = BoundaryModel {
-                    geometry: SelectedBoundaryGeometry::TypedChain { chain: out.chain },
+                    stage_h_free_geometry: free_geometry.clone(),
+                    stage_h_free_code: code,
+                    geometry: free_geometry,
                     families,
                     breakpoints: path.breakpoints.clone(),
                     smooth: path.smooth.clone(),

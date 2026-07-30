@@ -19,8 +19,8 @@ use crate::refit::{ArcAnchor, RefitChain, RefitSegment};
 use crate::solve::flatten_chain;
 
 mod topology;
-pub use topology::apply_accepted;
 use topology::closure_matches;
+pub use topology::{apply_accepted, apply_relation_sibling};
 
 /// Relation hypotheses are independently evaluated against one free sibling.
 /// Selecting more than one would require a newly evaluated joint constrained

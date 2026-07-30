@@ -65,10 +65,19 @@ pub enum DeliverySealError {
     SvgBytesMismatch,
     #[error("render buffers have different dimensions")]
     RenderDimensions,
-    #[error("PurePartition and SeamSafe render divergence exceeds the gate")]
-    ProfileDivergence,
-    #[error("serialized render diverges from the certified internal render")]
-    InternalDivergence,
+    #[error(
+        "PurePartition and SeamSafe render divergence exceeds the gate \
+         ({comparison:?})"
+    )]
+    ProfileDivergence { comparison: DeliveryComparison },
+    #[error(
+        "serialized render diverges from the certified internal render \
+         (pure={pure:?}; seam={seam:?})"
+    )]
+    InternalDivergence {
+        pure: DeliveryComparison,
+        seam: DeliveryComparison,
+    },
     #[error("export plan operation failed: {0}")]
     Export(String),
 }
@@ -176,7 +185,9 @@ pub fn seal_delivery(
     if profile.max_channel_delta > cfg.max_profile_channel_delta
         || profile.mean_channel_delta > cfg.max_profile_mean_channel_delta
     {
-        return Err(DeliverySealError::ProfileDivergence);
+        return Err(DeliverySealError::ProfileDivergence {
+            comparison: profile,
+        });
     }
     let internal = internal_premultiplied_srgb8(scene);
     let internal_to_pure = compare(&internal, pure.premultiplied_rgba8())?;
@@ -186,7 +197,10 @@ pub fn seal_delivery(
         || internal_to_seam.max_channel_delta > cfg.max_internal_channel_delta
         || internal_to_seam.mean_channel_delta > cfg.max_internal_mean_channel_delta
     {
-        return Err(DeliverySealError::InternalDivergence);
+        return Err(DeliverySealError::InternalDivergence {
+            pure: internal_to_pure,
+            seam: internal_to_seam,
+        });
     }
     let plan_bytes =
         canonical_export_plan_bytes(plan).map_err(|e| DeliverySealError::Export(e.to_string()))?;

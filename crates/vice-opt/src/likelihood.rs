@@ -3,7 +3,7 @@
 use serde::Serialize;
 use thiserror::Error;
 use vice_image::ObservationTensor;
-use vice_ir::{Paint, QuantizationModel, VectorScene};
+use vice_ir::{BlendSpace, Paint, QuantizationModel, VectorScene};
 use vice_render::PartitionRender;
 
 /// The audited production residual model implemented by this milestone.
@@ -105,9 +105,17 @@ pub enum ScoreOwnership {
     FullResolutionObservationOnly,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PredictionSource {
+    CertifiedInternalPartition,
+    SerializedSvgRender,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LikelihoodDiagnostics {
     pub residual_model_id: ResidualModelId,
+    pub prediction_source: PredictionSource,
     pub source_sha256: String,
     pub calibrated_correlation_support_px: f64,
     pub empirical_correlation_length_px: f64,
@@ -171,6 +179,31 @@ fn predicted_observation(scene: &VectorScene, render: &PartitionRender) -> Vec<[
         }
     }
     predicted
+}
+
+fn serialized_prediction(bytes: &[u8], blend_space: BlendSpace) -> Vec<[f64; 4]> {
+    bytes
+        .chunks_exact(4)
+        .map(|pixel| {
+            let alpha = f64::from(pixel[3]) / 255.0;
+            if blend_space == BlendSpace::EncodedSrgb {
+                [
+                    f64::from(pixel[0]) / 255.0,
+                    f64::from(pixel[1]) / 255.0,
+                    f64::from(pixel[2]) / 255.0,
+                    alpha,
+                ]
+            } else if alpha == 0.0 {
+                [0.0; 4]
+            } else {
+                let linear = |channel: u8| {
+                    let encoded = (f64::from(channel) / 255.0 / alpha).clamp(0.0, 1.0);
+                    vice_ir::color::srgb_encoded_to_linear(encoded) * alpha
+                };
+                [linear(pixel[0]), linear(pixel[1]), linear(pixel[2]), alpha]
+            }
+        })
+        .collect()
 }
 
 fn lag1(residual: &[[f64; 4]], width: usize, height: usize, dx: usize, dy: usize) -> f64 {
@@ -243,8 +276,64 @@ pub fn score_full_resolution(
         return Err(LikelihoodError::FaceCoverageMismatch);
     }
 
+    score_prediction(
+        scene,
+        observed,
+        predicted_observation(scene, render),
+        cfg,
+        priors,
+        PredictionSource::CertifiedInternalPartition,
+    )
+}
+
+/// Score the actual independently rendered serialized SVG bytes. The input is
+/// premultiplied sRGB8 exactly as produced by the delivery renderer; it is
+/// transformed into the selected formation's observation space without
+/// un-premultiplying transparent RGB.
+pub fn score_serialized_full_resolution(
+    scene: &VectorScene,
+    observed: &vice_image::CanonicalImage,
+    premultiplied_srgb8: &[u8],
+    width_px: u32,
+    height_px: u32,
+    cfg: BlockLikelihoodConfig,
+    priors: PriorCodeLengths,
+) -> Result<ScoreBreakdown, LikelihoodError> {
+    cfg.validate()?;
+    priors.validate()?;
+    if !matches!(scene.formation.quantization, QuantizationModel::Uint8) {
+        return Err(LikelihoodError::UnsupportedQuantization);
+    }
+    if scene.canvas.width_px != observed.width_px()
+        || scene.canvas.height_px != observed.height_px()
+        || width_px != observed.width_px()
+        || height_px != observed.height_px()
+        || premultiplied_srgb8.len() != observed.pixel_count() * 4
+    {
+        return Err(LikelihoodError::DimensionMismatch);
+    }
+    score_prediction(
+        scene,
+        observed,
+        serialized_prediction(premultiplied_srgb8, scene.formation.blend_space),
+        cfg,
+        priors,
+        PredictionSource::SerializedSvgRender,
+    )
+}
+
+fn score_prediction(
+    scene: &VectorScene,
+    observed: &vice_image::CanonicalImage,
+    predicted: Vec<[f64; 4]>,
+    cfg: BlockLikelihoodConfig,
+    priors: PriorCodeLengths,
+    prediction_source: PredictionSource,
+) -> Result<ScoreBreakdown, LikelihoodError> {
     let tensor = ObservationTensor::of(observed, scene.formation.blend_space);
-    let predicted = predicted_observation(scene, render);
+    if predicted.len() != tensor.len() {
+        return Err(LikelihoodError::DimensionMismatch);
+    }
     let mut residual = vec![[0.0; 4]; tensor.len()];
     let mut deadzone = 0u64;
     for i in 0..tensor.len() {
@@ -313,6 +402,7 @@ pub fn score_full_resolution(
         total_bits,
         diagnostics: LikelihoodDiagnostics {
             residual_model_id: cfg.residual_model_id,
+            prediction_source,
             source_sha256: observed.source_sha256().to_owned(),
             calibrated_correlation_support_px: cfg.calibrated_correlation_support_px,
             empirical_correlation_length_px: empirical,
@@ -393,6 +483,26 @@ mod tests {
         assert_eq!(got.pixel_bits, 0.0);
         assert_eq!(got.total_bits, 6.5);
         assert_eq!(got.diagnostics.iid_pixel_diagnostic_bits, 0.0);
+    }
+
+    #[test]
+    fn serialized_svg_bytes_are_the_final_likelihood_prediction() {
+        let image = vice_image::CanonicalImage::from_straight_srgb8(
+            2,
+            2,
+            vec![0; 16],
+            true,
+            IccAssumption::SrgbChunkDeclared,
+        )
+        .unwrap();
+        let got =
+            score_serialized_full_resolution(&scene(2, 2), &image, &[0; 16], 2, 2, cfg(), priors())
+                .unwrap();
+        assert_eq!(got.pixel_bits, 0.0);
+        assert_eq!(
+            got.diagnostics.prediction_source,
+            PredictionSource::SerializedSvgRender
+        );
     }
 
     #[test]
