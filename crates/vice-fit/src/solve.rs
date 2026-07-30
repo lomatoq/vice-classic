@@ -425,10 +425,12 @@ fn joint_constrained_refit_impl(
                 }
             }
             for a in 0..p {
-                for b in 0..a {
-                    ata[a][b] = ata[b][a];
+                let (upper_rows, current_and_lower) = ata.split_at_mut(a);
+                let row = &mut current_and_lower[0];
+                for (b, upper) in upper_rows.iter().enumerate() {
+                    row[b] = upper[a];
                 }
-                ata[a][a] *= 1.0 + lambda;
+                row[a] *= 1.0 + lambda;
             }
             let Some(step) = solve_spd(ata, atb) else {
                 break;
