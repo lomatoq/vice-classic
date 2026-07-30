@@ -119,6 +119,53 @@ mod tests {
         bytes
     }
 
+    fn mirrored_components_png() -> Vec<u8> {
+        let (width, height) = (64usize, 40usize);
+        let mut rgba = vec![0u8; width * height * 4];
+        let left = |point: vice_geom::Pt| {
+            let triangle = [
+                vice_geom::Pt::new(8.0, 8.0),
+                vice_geom::Pt::new(21.0, 13.0),
+                vice_geom::Pt::new(11.0, 31.0),
+            ];
+            let side = |a: vice_geom::Pt, b: vice_geom::Pt| (b - a).cross(point - a);
+            let signs = [
+                side(triangle[0], triangle[1]),
+                side(triangle[1], triangle[2]),
+                side(triangle[2], triangle[0]),
+            ];
+            signs.iter().all(|value| *value >= 0.0) || signs.iter().all(|value| *value <= 0.0)
+        };
+        for y in 0..height {
+            for x in 0..width {
+                let mut covered = 0u32;
+                for sy in 0..8 {
+                    for sx in 0..8 {
+                        let px = x as f64 + (f64::from(sx) + 0.5) / 8.0;
+                        let py = y as f64 + (f64::from(sy) + 0.5) / 8.0;
+                        if left(vice_geom::Pt::new(px, py))
+                            || left(vice_geom::Pt::new(width as f64 - px, py))
+                        {
+                            covered += 1;
+                        }
+                    }
+                }
+                let alpha = ((covered * 255 + 32) / 64) as u8;
+                let offset = (y * width + x) * 4;
+                rgba[offset..offset + 4].copy_from_slice(&[30, 100, 230, alpha]);
+            }
+        }
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, width as u32, height as u32);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let mut writer = encoder.write_header().unwrap();
+            writer.write_image_data(&rgba).unwrap();
+        }
+        bytes
+    }
+
     #[test]
     fn exact_zero_failure_bound_needs_at_least_459_independent_groups() {
         let identity = CoreConfig::development().identity();
@@ -256,5 +303,39 @@ mod tests {
         assert_eq!(scene.boundaries, 2);
         assert_eq!(scene.faces, 3);
         assert_eq!(scene.observed_chain_bindings, 2);
+    }
+
+    #[test]
+    fn mirrored_components_enter_a_scene_level_relation_transaction() {
+        let config = CoreConfig::development_for(Preset::Fast);
+        let outcome = vectorize_with_config(
+            &mirrored_components_png(),
+            &VectorizeRequest::default(),
+            &config,
+        );
+        assert!(!matches!(outcome, VectorizeOutcome::Failed(_)));
+        assert_eq!(outcome.report().fits.len(), 2);
+        assert!(
+            outcome.report().candidates.iter().any(|candidate| candidate
+                .hypothesis_id
+                .starts_with("scene-mirror-")
+                && candidate.transactions.iter().any(|transaction| {
+                    transaction.kind == vice_opt::TransactionKind::RelationPromote
+                })),
+            "scene mirror was not atomically searched: candidates={:?}, refusals={:?}, families={:?}",
+            outcome
+                .report()
+                .candidates
+                .iter()
+                .map(|candidate| &candidate.hypothesis_id)
+                .collect::<Vec<_>>(),
+            outcome.report().candidate_refusals,
+            outcome
+                .report()
+                .fits
+                .iter()
+                .map(|fit| &fit.models[0].families)
+                .collect::<Vec<_>>()
+        );
     }
 }
