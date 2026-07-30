@@ -93,6 +93,23 @@ p95_px = 0.35
 p99_px = 0.60
 max_px = 1.50
 
+# --- M7 selective delivery and resource court (§1.5, §27.4, §29) -----------
+#
+# Declaration commit only. The M7 measurement/analysis consumer lands in a
+# later crates-only commit; measured values are frozen in a final gate-only
+# commit. Until then this section is a placeholder and cannot authorize a
+# production success or a promotion verdict.
+[m7_selective]
+status = "placeholder"
+set_by_milestone = "M7"
+posterior_lower_bound_threshold = 0.0
+empirical_unexplored_relative_mass_upper_bound = 0.0
+gate_min_source_coverage_128_512 = 0.80
+gate_max_palette_code_delta = 4
+gate_max_quality_p95_ms = 10000
+gate_max_fast_p95_ms = 1000
+gate_max_peak_memory_bytes = 1073741824
+
 # --- Geometry code table (§14.5; DERIVED in M6) ------------------------------
 # §14.5's minimal explicit code: a prefix code over families and a parameter
 # code `log2(range / calibrated precision)`. Every value below is DERIVED from
