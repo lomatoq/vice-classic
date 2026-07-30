@@ -92,6 +92,7 @@ pub use refit::{
 };
 pub use relation::{
     apply_accepted, apply_relation_sibling, relation_hypotheses, RelationHypothesis, RelationKind,
+    RelationSolveTraceRow,
 };
 pub use schedule::{
     anchored_schedule, anchored_schedule_bound, hierarchical_schedule, FitBudget, Support,

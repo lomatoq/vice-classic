@@ -155,6 +155,20 @@ pub struct RelationHypothesis {
     pub worst_normal_deviation_px: f64,
     pub worst_model_to_evidence_px: f64,
     pub allowed_px: f64,
+    /// Deterministic projected re-solve performed after the relation is
+    /// imposed. Every row is judged on the normal-direction residual used by
+    /// Stage G; accepted steps never depend on an unrelated Euclidean proxy.
+    pub solve_trace: Vec<RelationSolveTraceRow>,
+    pub accepted: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RelationSolveTraceRow {
+    pub pass: usize,
+    pub parameter: usize,
+    pub step_px: f64,
+    pub normal_objective_before: f64,
+    pub normal_objective_after: f64,
     pub accepted: bool,
 }
 
@@ -284,6 +298,7 @@ fn evaluate(
     samples: &[BoundarySample],
     table: &GeometryCodeTable,
 ) -> RelationHypothesis {
+    let (constrained, solve_trace) = resolve_constrained(kind, &segments, constrained, samples);
     let saving_bits = scalars_determined as f64 * coordinate_bits;
     let (geometry_saving_bits, topology_saving_bits) = match kind.saving_component() {
         "geometry" => (saving_bits, 0.0),
@@ -318,6 +333,7 @@ fn evaluate(
         worst_normal_deviation_px: forward.deviation_px,
         worst_model_to_evidence_px: reverse.deviation_px,
         allowed_px: forward.allowed_px,
+        solve_trace,
         // §15's two conditions, both required: a net saving in bits AND a chain
         // the evidence still supports. A relation that pays for itself by
         // moving the boundary out of its corridor is the "relation prior
@@ -329,6 +345,150 @@ fn evaluate(
             && geometry_saving_bits <= available_geometry_bits
             && topology_saving_bits <= available_topology_bits,
     }
+}
+
+fn normal_residuals(chain: &RefitChain, samples: &[BoundarySample]) -> Option<Vec<f64>> {
+    let poly = flatten_chain(chain).ok()?;
+    samples
+        .iter()
+        .map(|sample| {
+            let deviation = crate::cost::normal_deviation(sample.p, sample.normal, &poly)?;
+            let independent =
+                crate::code::independent_observations(sample.weight_ds, sample.corr_length_px)?;
+            (sample.halfwidth.is_finite() && sample.halfwidth > 0.0)
+                .then_some(deviation / sample.halfwidth * independent.sqrt())
+        })
+        .collect()
+}
+
+fn normal_objective(chain: &RefitChain, samples: &[BoundarySample]) -> f64 {
+    normal_residuals(chain, samples)
+        .map(|residuals| residuals.into_iter().map(|value| value * value).sum())
+        .unwrap_or(f64::INFINITY)
+}
+
+fn project_relation(chain: &mut RefitChain, kind: RelationKind, segments: &[usize]) -> bool {
+    let projected = match kind {
+        RelationKind::EqualRadius | RelationKind::Concentric if segments.len() == 2 => {
+            bind_arcs(chain, segments[0], segments[1], kind)
+        }
+        RelationKind::Parallel | RelationKind::Perpendicular | RelationKind::SharedBaseline
+            if segments.len() == 2 =>
+        {
+            bind_lines(chain, segments[0], segments[1], kind)
+        }
+        RelationKind::RepeatedTransform if segments.len() == 2 => {
+            bind_repeated_line(chain, segments[0], segments[1])
+        }
+        RelationKind::MirrorSymmetry => {
+            if let Some((projected, _)) = bind_mirror_loop(chain) {
+                *chain = projected;
+                true
+            } else {
+                false
+            }
+        }
+        _ => false,
+    };
+    if projected
+        && chain.nodes.first().map(|node| node.pos) == chain.nodes.last().map(|node| node.pos)
+    {
+        let first = chain.nodes[0].pos;
+        let last = chain.nodes.len() - 1;
+        chain.nodes[last].pos = first;
+    }
+    projected
+}
+
+fn perturb_projected(
+    parent: &RefitChain,
+    kind: RelationKind,
+    segments: &[usize],
+    parameter: usize,
+    delta: f64,
+) -> Option<RefitChain> {
+    let closed =
+        parent.nodes.first().map(|node| node.pos) == parent.nodes.last().map(|node| node.pos);
+    let unique_nodes = parent.nodes.len().saturating_sub(usize::from(closed));
+    let mut child = parent.clone();
+    if parameter < unique_nodes * 2 {
+        let node = parameter / 2;
+        if parameter.is_multiple_of(2) {
+            child.nodes[node].pos.x += delta;
+        } else {
+            child.nodes[node].pos.y += delta;
+        }
+        if closed && node == 0 {
+            let last = child.nodes.len() - 1;
+            child.nodes[last].pos = child.nodes[0].pos;
+        }
+    } else {
+        let arc_slot = parameter - unique_nodes * 2;
+        let segment = *segments.get(arc_slot)?;
+        let RefitSegment::Arc(crate::refit::ArcAnchor::Radius { radius_px, .. }) =
+            child.segments.get_mut(segment)?
+        else {
+            return None;
+        };
+        *radius_px = (*radius_px + delta).max(1e-9);
+    }
+    project_relation(&mut child, kind, segments).then_some(child)
+}
+
+/// Refit the remaining free coordinates after imposing a relation. The
+/// projected finite-difference direction and every accepted child use the
+/// same normal-direction residual vector, so the Jacobian and objective
+/// cannot silently disagree.
+fn resolve_constrained(
+    kind: RelationKind,
+    segments: &[usize],
+    initial: RefitChain,
+    samples: &[BoundarySample],
+) -> (RefitChain, Vec<RelationSolveTraceRow>) {
+    let closed =
+        initial.nodes.first().map(|node| node.pos) == initial.nodes.last().map(|node| node.pos);
+    let unique_nodes = initial.nodes.len().saturating_sub(usize::from(closed));
+    let arc_parameters = segments
+        .iter()
+        .filter(|&&segment| matches!(initial.segments.get(segment), Some(RefitSegment::Arc(_))))
+        .count();
+    let parameter_count = unique_nodes * 2 + arc_parameters;
+    let mut current = initial;
+    let mut current_objective = normal_objective(&current, samples);
+    let mut trace = Vec::new();
+    for (pass, step) in [0.25, 0.1, 0.04, 0.01].into_iter().enumerate() {
+        for parameter in 0..parameter_count {
+            let plus = perturb_projected(&current, kind, segments, parameter, step);
+            let minus = perturb_projected(&current, kind, segments, parameter, -step);
+            let plus_objective = plus
+                .as_ref()
+                .map(|chain| normal_objective(chain, samples))
+                .unwrap_or(f64::INFINITY);
+            let minus_objective = minus
+                .as_ref()
+                .map(|chain| normal_objective(chain, samples))
+                .unwrap_or(f64::INFINITY);
+            let (candidate, candidate_objective) = if plus_objective <= minus_objective {
+                (plus, plus_objective)
+            } else {
+                (minus, minus_objective)
+            };
+            let accepted = candidate_objective + 1e-12 < current_objective;
+            trace.push(RelationSolveTraceRow {
+                pass,
+                parameter,
+                step_px: step,
+                normal_objective_before: current_objective,
+                normal_objective_after: candidate_objective,
+                accepted,
+            });
+            if accepted {
+                current = candidate.expect("finite candidate objective came from a chain");
+                current_objective = candidate_objective;
+            }
+        }
+    }
+    (current, trace)
 }
 
 /// Make segment `j` the exact translated copy of line segment `i`.
@@ -525,6 +685,7 @@ fn arc_centre_in_frame(chain: &RefitChain, seg: usize, origin: Pt) -> Option<Pt>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vice_evidence::BoundarySample;
 
     #[test]
     fn every_relation_kind_names_a_universe_family() {
@@ -775,5 +936,93 @@ mod tests {
         let b = mirrored.nodes[3].pos - center;
         assert!((a.dot(u) - b.dot(u)).abs() < 1e-12);
         assert!((a.dot(v) + b.dot(v)).abs() < 1e-12);
+    }
+
+    fn sample(p: Pt, normal: Pt) -> BoundarySample {
+        BoundarySample {
+            p,
+            normal,
+            halfwidth: 0.5,
+            confidence: 1.0,
+            weight_ds: 0.5,
+            corr_length_px: 0.5,
+        }
+    }
+
+    #[test]
+    fn projected_relation_resolve_improves_the_normal_objective() {
+        let mut chain = RefitChain {
+            nodes: vec![
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(10.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(11.0, 10.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 10.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line; 4],
+        };
+        assert!(bind_lines(&mut chain, 0, 2, RelationKind::Parallel));
+        let samples = vec![
+            sample(Pt::new(2.0, 0.0), Pt::new(0.0, 1.0)),
+            sample(Pt::new(8.0, 0.0), Pt::new(0.0, 1.0)),
+            sample(Pt::new(2.0, 9.5), Pt::new(0.0, 1.0)),
+            sample(Pt::new(8.0, 9.5), Pt::new(0.0, 1.0)),
+        ];
+        let before = normal_objective(&chain, &samples);
+        let (resolved, trace) =
+            resolve_constrained(RelationKind::Parallel, &[0, 2], chain, &samples);
+        let after = normal_objective(&resolved, &samples);
+        assert!(after < before);
+        assert!(trace.iter().any(|row| row.accepted));
+        let a = resolved.nodes[1].pos - resolved.nodes[0].pos;
+        let b = resolved.nodes[3].pos - resolved.nodes[2].pos;
+        assert!(a.cross(b).abs() < 1e-9, "projection lost parallelism");
+        assert_eq!(resolved.nodes[0].pos, resolved.nodes[4].pos);
+    }
+
+    #[test]
+    fn finite_difference_matches_the_normal_residual_jacobian() {
+        let chain = RefitChain {
+            nodes: vec![
+                crate::refit::RefitNode {
+                    pos: Pt::new(0.0, 0.0),
+                    tangent_rad: None,
+                },
+                crate::refit::RefitNode {
+                    pos: Pt::new(10.0, 0.0),
+                    tangent_rad: None,
+                },
+            ],
+            segments: vec![RefitSegment::Line],
+        };
+        let samples = [sample(Pt::new(5.0, 1.0), Pt::new(0.0, 1.0))];
+        let eps = 1e-5;
+        let shifted = |dy: f64| {
+            let mut candidate = chain.clone();
+            for node in &mut candidate.nodes {
+                node.pos.y += dy;
+            }
+            normal_residuals(&candidate, &samples).unwrap()[0]
+        };
+        let jacobian = (shifted(eps) - shifted(-eps)) / (2.0 * eps);
+        assert!(
+            (jacobian.abs() - 2.0).abs() < 1e-6,
+            "normal residual derivative was {jacobian}"
+        );
     }
 }
