@@ -119,6 +119,21 @@ enum M7ScopeArg {
     Calibration,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+enum M7PresetArg {
+    Fast,
+    Quality,
+}
+
+impl From<M7PresetArg> for vice_core::Preset {
+    fn from(value: M7PresetArg) -> Self {
+        match value {
+            M7PresetArg::Fast => vice_core::Preset::Fast,
+            M7PresetArg::Quality => vice_core::Preset::Quality,
+        }
+    }
+}
+
 impl From<M7ScopeArg> for MeasurementScope {
     fn from(value: M7ScopeArg) -> Self {
         match value {
@@ -259,6 +274,9 @@ enum Cmd {
         out: PathBuf,
         #[arg(long, value_enum, default_value_t = M7ScopeArg::Smoke)]
         scope: M7ScopeArg,
+        /// Override the scope default (Smoke=Fast, calibration=Quality).
+        #[arg(long, value_enum)]
+        preset: Option<M7PresetArg>,
         /// Optional deterministic size shard for smoke/restartable court runs.
         #[arg(long)]
         size: Option<u32>,
@@ -290,6 +308,10 @@ enum Cmd {
         audit_seal: PathBuf,
         #[arg(long)]
         out: PathBuf,
+        /// Write the compact digest-pinnable production config proposal when
+        /// calibration is green.
+        #[arg(long)]
+        production_config_out: Option<PathBuf>,
     },
     /// Deliberately open the untouched sealed-audit generation and bind the
     /// act to the current corpus, preregistration, and frozen gates.
@@ -315,6 +337,8 @@ enum Cmd {
         gates: PathBuf,
         #[arg(long)]
         production_config: PathBuf,
+        #[arg(long, value_enum)]
+        preset: M7PresetArg,
         #[arg(long)]
         out: PathBuf,
         #[arg(long, default_value_t = 1)]
@@ -325,6 +349,22 @@ enum Cmd {
         shard_count: u32,
         #[arg(long)]
         resume: bool,
+    },
+    /// Apply the frozen M7 release gates to complete Fast and Quality
+    /// sealed-audit reports and write the canonical verdict.
+    M7AuditAnalyze {
+        #[arg(long)]
+        audit_seal: PathBuf,
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long)]
+        gates: PathBuf,
+        #[arg(long)]
+        quality_report: PathBuf,
+        #[arg(long)]
+        fast_report: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
     },
     /// Enforce §27.7: an EXISTING gate file and production code may not
     /// change together. Pass `git diff --name-status` lines (status letter
@@ -800,6 +840,7 @@ fn real_main() -> i32 {
         Cmd::M7Measure {
             out,
             scope,
+            preset,
             size,
             workers,
             shard_index,
@@ -807,6 +848,9 @@ fn real_main() -> i32 {
             resume,
         } => {
             let mut request = m7::MeasurementRequest::new(scope.into());
+            if let Some(preset) = preset {
+                request.preset = preset.into();
+            }
             request.size_filter = size;
             request.workers = workers.unwrap_or_else(m7::default_worker_count);
             request.shard_index = shard_index;
@@ -875,6 +919,7 @@ fn real_main() -> i32 {
             report,
             audit_seal,
             out,
+            production_config_out,
         } => {
             let report = match m7::read_report(&report) {
                 Ok(report) => report,
@@ -911,12 +956,36 @@ fn real_main() -> i32 {
                 eprintln!("error: write {}: {error}", out.display());
                 return 2;
             }
+            if let Some(config_out) = production_config_out {
+                let Some(config) = &analysis.production_config else {
+                    eprintln!(
+                        "error: calibration did not produce a release-eligible production config"
+                    );
+                    return 1;
+                };
+                if let Some(parent) = config_out.parent() {
+                    if let Err(error) = std::fs::create_dir_all(parent) {
+                        eprintln!("error: create {}: {error}", parent.display());
+                        return 2;
+                    }
+                }
+                let bytes = serde_json::to_vec(config).expect("production config serializes");
+                if let Err(error) = std::fs::write(&config_out, &bytes) {
+                    eprintln!("error: write {}: {error}", config_out.display());
+                    return 2;
+                }
+                println!("M7 production config proposal: {}", config_out.display());
+                println!(
+                    "M7 production config sha256: {}",
+                    vice_bench::hashing::sha256_hex(&bytes)
+                );
+            }
             println!(
                 "M7 calibration: gate_met={}, threshold={:?}, unexplored_upper={}, runtime_p95={}ms",
                 analysis.gate_met,
                 analysis.selected_threshold,
                 analysis.empirical_unexplored_relative_mass_upper_bound,
-                analysis.quality_runtime_p95_ms
+                analysis.runtime_p95_ms
             );
             for refusal in &analysis.refusals {
                 eprintln!("M7 calibration refusal: {refusal}");
@@ -951,6 +1020,7 @@ fn real_main() -> i32 {
             manifest,
             gates,
             production_config,
+            preset,
             out,
             workers,
             shard_index,
@@ -961,6 +1031,7 @@ fn real_main() -> i32 {
             &manifest,
             &gates,
             &production_config,
+            preset.into(),
             &out,
             workers,
             shard_index,
@@ -982,6 +1053,43 @@ fn real_main() -> i32 {
                 );
                 println!("M7 sealed-audit measurement: {}", out.display());
                 0
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
+        Cmd::M7AuditAnalyze {
+            audit_seal,
+            manifest,
+            gates,
+            quality_report,
+            fast_report,
+            out,
+        } => match m7_cmd::analyze(
+            &audit_seal,
+            &manifest,
+            &gates,
+            &quality_report,
+            &fast_report,
+            &out,
+        ) {
+            Ok(verdict) => {
+                println!(
+                    "M7 sealed verdict: gate_met={}, Quality coverage={:.3}/{:.3}, Fast \
+                     coverage={:.3}/{:.3}",
+                    verdict.gate_met,
+                    verdict.quality.reliability.coverage_per_source,
+                    verdict.quality.reliability.coverage_per_render,
+                    verdict.fast.reliability.coverage_per_source,
+                    verdict.fast.reliability.coverage_per_render,
+                );
+                println!("M7 release verdict: {}", out.display());
+                if verdict.gate_met {
+                    0
+                } else {
+                    1
+                }
             }
             Err(error) => {
                 eprintln!("error: {error}");

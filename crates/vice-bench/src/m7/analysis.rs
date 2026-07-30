@@ -16,12 +16,17 @@ use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v4";
+    "vice-classic/m7-confidence-calibration-analysis/v5";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
 pub const PROPOSED_MAX_PALETTE_CODE_DELTA: u8 = 4;
+pub const PROPOSED_MAX_PROFILE_CHANNEL_DELTA: u8 = 0;
+pub const PROPOSED_MAX_PROFILE_MEAN_CHANNEL_DELTA: f64 = 0.0;
+pub const PROPOSED_MAX_INTERNAL_CHANNEL_DELTA: u8 = 64;
+pub const PROPOSED_MAX_INTERNAL_MEAN_CHANNEL_DELTA: f64 = 0.25;
 pub const PROPOSED_MAX_QUALITY_P95_MS: u64 = 10_000;
+pub const PROPOSED_MAX_FAST_P95_MS: u64 = 1_000;
 pub const PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS: f64 = 0.0;
 pub const PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK: f64 = 0.10;
 pub const PROPOSED_MAX_ABS_RESIDUAL_LAG1: f64 = 0.90;
@@ -54,14 +59,27 @@ pub struct CalibrationAnalysis {
     pub raw_rows: u64,
     pub target_rows: u64,
     pub empirical_unexplored_relative_mass_upper_bound: f64,
-    pub quality_runtime_p95_ms: u64,
-    pub quality_runtime_isolated: bool,
-    pub quality_runtime_met: Option<bool>,
+    pub runtime_preset: vice_core::Preset,
+    pub runtime_p95_ms: u64,
+    pub runtime_limit_ms: u64,
+    pub runtime_isolated: bool,
+    pub runtime_met: Option<bool>,
     pub threshold_evaluations: Vec<ThresholdEvaluation>,
     pub selected_threshold: Option<f64>,
+    pub delivery_seal: vice_verify::DeliverySealConfig,
     pub calibration: Option<vice_core::ConfidenceCalibration>,
+    pub production_config: Option<ProductionConfigProposal>,
     pub gate_met: bool,
     pub refusals: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProductionConfigProposal {
+    pub schema: &'static str,
+    pub preset: vice_core::Preset,
+    pub delivery_seal: vice_verify::DeliverySealConfig,
+    pub calibration: vice_core::ConfidenceCalibration,
+    pub identity: vice_opt::ModelIdentity,
 }
 
 pub fn analyze_calibration(
@@ -182,16 +200,19 @@ pub fn analyze_calibration(
         .iter()
         .find(|evaluation| evaluation.eligible);
     let selected_threshold = selected.map(|evaluation| evaluation.posterior_lower_bound_threshold);
-    let quality_runtime_p95_ms = runtime_quantile(
+    let runtime_p95_ms = runtime_quantile(
         &target_rows
             .iter()
             .map(|row| row.core_runtime_ms)
             .collect::<Vec<_>>(),
         0.95,
     );
-    let quality_runtime_isolated = report.max_workers_per_shard == 1 && report.shard_count == 1;
-    let quality_runtime_met =
-        quality_runtime_isolated.then_some(quality_runtime_p95_ms <= PROPOSED_MAX_QUALITY_P95_MS);
+    let runtime_limit_ms = match report.preset {
+        vice_core::Preset::Fast => PROPOSED_MAX_FAST_P95_MS,
+        vice_core::Preset::Quality => PROPOSED_MAX_QUALITY_P95_MS,
+    };
+    let runtime_isolated = report.max_workers_per_shard == 1 && report.shard_count == 1;
+    let runtime_met = runtime_isolated.then_some(runtime_p95_ms <= runtime_limit_ms);
     let audit_untouched = audit.status == SealStatus::Sealed;
     let measurement_sha256 = calibration_measurement_digest(report);
     let calibration = selected.map(|evaluation| vice_core::ConfidenceCalibration {
@@ -231,10 +252,10 @@ pub fn analyze_calibration(
                 .into(),
         );
     }
-    if quality_runtime_met == Some(false) {
+    if runtime_met == Some(false) {
         refusals.push(format!(
-            "Quality runtime p95 {quality_runtime_p95_ms} ms exceeds \
-             {PROPOSED_MAX_QUALITY_P95_MS} ms"
+            "{:?} runtime p95 {runtime_p95_ms} ms exceeds {runtime_limit_ms} ms",
+            report.preset
         ));
     }
     if !audit_untouched {
@@ -246,6 +267,13 @@ pub fn analyze_calibration(
         }
     }
     let gate_met = refusals.is_empty() && calibration.is_some();
+    let production_config = (gate_met && calibration.is_some()).then(|| ProductionConfigProposal {
+        schema: "vice-classic/m7-production-config/v1",
+        preset: report.preset,
+        delivery_seal: proposed_delivery_seal(),
+        calibration: calibration.clone().expect("checked above"),
+        identity: report.identity.clone(),
+    });
     Ok(CalibrationAnalysis {
         schema: M7_CALIBRATION_ANALYSIS_SCHEMA,
         measurement_schema: report.schema.clone(),
@@ -257,12 +285,16 @@ pub fn analyze_calibration(
         raw_rows: report.rows.len().try_into().unwrap_or(u64::MAX),
         target_rows: target_rows.len().try_into().unwrap_or(u64::MAX),
         empirical_unexplored_relative_mass_upper_bound: empirical_upper,
-        quality_runtime_p95_ms,
-        quality_runtime_isolated,
-        quality_runtime_met,
+        runtime_preset: report.preset,
+        runtime_p95_ms,
+        runtime_limit_ms,
+        runtime_isolated,
+        runtime_met,
         threshold_evaluations,
         selected_threshold,
+        delivery_seal: proposed_delivery_seal(),
         calibration,
+        production_config,
         gate_met,
         refusals,
     })
@@ -277,7 +309,10 @@ pub fn catastrophic_kinds(row: &MeasurementRow) -> Vec<&'static str> {
         kinds.push("wrong_visible_topology");
     }
     if !row.verifier_clean {
-        kinds.push("verification_or_serialized_mismatch");
+        kinds.push("verification_failure");
+    }
+    if !delivery_diagnostics_permit(row) {
+        kinds.push("serialized_mismatch");
     }
     if !row
         .boundary
@@ -355,6 +390,36 @@ fn diagnostics_permit(row: &MeasurementRow, empirical_upper: f64) -> bool {
         && row
             .perturbation_stability
             .is_some_and(|stability| stability >= PROPOSED_MIN_PERTURBATION_STABILITY)
+        && delivery_diagnostics_permit(row)
+}
+
+pub fn proposed_delivery_seal() -> vice_verify::DeliverySealConfig {
+    vice_verify::DeliverySealConfig {
+        max_profile_channel_delta: PROPOSED_MAX_PROFILE_CHANNEL_DELTA,
+        max_profile_mean_channel_delta: PROPOSED_MAX_PROFILE_MEAN_CHANNEL_DELTA,
+        max_internal_channel_delta: PROPOSED_MAX_INTERNAL_CHANNEL_DELTA,
+        max_internal_mean_channel_delta: PROPOSED_MAX_INTERNAL_MEAN_CHANNEL_DELTA,
+    }
+}
+
+fn delivery_diagnostics_permit(row: &MeasurementRow) -> bool {
+    row.profile_max_channel_delta
+        .is_some_and(|value| value <= PROPOSED_MAX_PROFILE_CHANNEL_DELTA)
+        && row
+            .profile_mean_channel_delta
+            .is_some_and(|value| value <= PROPOSED_MAX_PROFILE_MEAN_CHANNEL_DELTA)
+        && row
+            .internal_to_pure_max_channel_delta
+            .is_some_and(|value| value <= PROPOSED_MAX_INTERNAL_CHANNEL_DELTA)
+        && row
+            .internal_to_pure_mean_channel_delta
+            .is_some_and(|value| value <= PROPOSED_MAX_INTERNAL_MEAN_CHANNEL_DELTA)
+        && row
+            .internal_to_seam_max_channel_delta
+            .is_some_and(|value| value <= PROPOSED_MAX_INTERNAL_CHANNEL_DELTA)
+        && row
+            .internal_to_seam_mean_channel_delta
+            .is_some_and(|value| value <= PROPOSED_MAX_INTERNAL_MEAN_CHANNEL_DELTA)
 }
 
 fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
@@ -452,6 +517,12 @@ mod tests {
                 max_px: 0.4,
             }),
             max_palette_code_delta: Some(1),
+            profile_max_channel_delta: Some(0),
+            profile_mean_channel_delta: Some(0.0),
+            internal_to_pure_max_channel_delta: Some(0),
+            internal_to_pure_mean_channel_delta: Some(0.0),
+            internal_to_seam_max_channel_delta: Some(0),
+            internal_to_seam_mean_channel_delta: Some(0.0),
             verifier_clean: true,
             measurement_refusal: None,
         }
@@ -465,6 +536,7 @@ mod tests {
             schema: M7_MEASUREMENT_SCHEMA.into(),
             scope: "calibration".into(),
             split: "calibration".into(),
+            preset: vice_core::Preset::Quality,
             procedural_variants_per_family: 200,
             mandatory_sizes_px: vec![128, 256, 512],
             rasterizers: vec!["tiny-skia".into()],
@@ -475,6 +547,7 @@ mod tests {
                 "3".repeat(64),
             )
             .unwrap(),
+            delivery_policy_sha256: "4".repeat(64),
             included_shards: vec![0],
             shard_count: 1,
             max_workers_per_shard: 2,
@@ -488,6 +561,7 @@ mod tests {
             truncated_renders: rows.len() as u64,
             rows,
             elapsed_ms: 1,
+            peak_working_set_bytes: 1024,
         }
     }
 
@@ -501,8 +575,8 @@ mod tests {
         let analysis =
             analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
         assert!(analysis.gate_met);
-        assert!(!analysis.quality_runtime_isolated);
-        assert_eq!(analysis.quality_runtime_met, None);
+        assert!(!analysis.runtime_isolated);
+        assert_eq!(analysis.runtime_met, None);
         let calibration = analysis.calibration.expect("calibration");
         assert_eq!(calibration.accepted_source_groups, 459);
         assert_eq!(calibration.catastrophic_source_groups, 0);

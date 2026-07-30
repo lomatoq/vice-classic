@@ -68,6 +68,7 @@ fn make_report(
         toolchain: option_env!("VICE_RUSTC_VERSION").unwrap_or("unrecorded"),
         environment: std::env::consts::OS,
         identity: config.identity(),
+        delivery_policy_sha256: config.delivery_policy_sha256(),
         calibration: config.confidence.clone(),
         evidence: parts.evidence,
         topology: parts.topology,

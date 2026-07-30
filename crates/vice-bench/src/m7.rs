@@ -7,6 +7,7 @@
 //! calibration rows before the sealed-audit split is opened.
 
 pub mod analysis;
+pub mod release;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{File, OpenOptions};
@@ -14,6 +15,8 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
+use std::sync::{atomic::AtomicBool, atomic::AtomicU64, Arc};
+use std::thread::JoinHandle;
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
@@ -32,7 +35,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v7";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v8";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
@@ -173,6 +176,12 @@ pub struct MeasurementRow {
     pub topology: Option<TopologyComparison>,
     pub boundary: Option<BoundaryTail>,
     pub max_palette_code_delta: Option<u8>,
+    pub profile_max_channel_delta: Option<u8>,
+    pub profile_mean_channel_delta: Option<f64>,
+    pub internal_to_pure_max_channel_delta: Option<u8>,
+    pub internal_to_pure_mean_channel_delta: Option<f64>,
+    pub internal_to_seam_max_channel_delta: Option<u8>,
+    pub internal_to_seam_mean_channel_delta: Option<f64>,
     pub verifier_clean: bool,
     pub measurement_refusal: Option<String>,
 }
@@ -182,10 +191,12 @@ pub struct MeasurementReport {
     pub schema: String,
     pub scope: String,
     pub split: String,
+    pub preset: Preset,
     pub procedural_variants_per_family: usize,
     pub mandatory_sizes_px: Vec<u32>,
     pub rasterizers: Vec<String>,
     pub identity: vice_opt::ModelIdentity,
+    pub delivery_policy_sha256: String,
     /// Source-group shards included in this report. Sharding never splits a
     /// source group, so correlated renders cannot become independent trials.
     pub included_shards: Vec<u32>,
@@ -201,11 +212,15 @@ pub struct MeasurementReport {
     pub candidates_available: u64,
     pub truncated_renders: u64,
     pub elapsed_ms: u64,
+    /// Aggregate process peak; multi-worker runs are not misreported as
+    /// independent per-row memory observations.
+    pub peak_working_set_bytes: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MeasurementRequest {
     pub scope: MeasurementScope,
+    pub preset: Preset,
     pub size_filter: Option<u32>,
     pub workers: usize,
     pub shard_index: u32,
@@ -216,6 +231,7 @@ impl MeasurementRequest {
     pub fn new(scope: MeasurementScope) -> Self {
         Self {
             scope,
+            preset: preset_for_scope(scope),
             size_filter: None,
             workers: default_worker_count(),
             shard_index: 0,
@@ -258,10 +274,12 @@ struct MeasurementJournalHeader {
     schema: String,
     scope: String,
     split: String,
+    preset: Preset,
     procedural_variants_per_family: usize,
     mandatory_sizes_px: Vec<u32>,
     rasterizers: Vec<String>,
     identity: vice_opt::ModelIdentity,
+    delivery_policy_sha256: String,
     shard_index: u32,
     shard_count: u32,
 }
@@ -278,7 +296,7 @@ enum MeasurementJournalRecord {
 }
 
 pub fn measure(request: MeasurementRequest) -> Result<MeasurementReport, String> {
-    let config = CoreConfig::development_for(preset_for_scope(request.scope));
+    let config = CoreConfig::development_for(request.preset);
     measure_with_config(request, &config)
 }
 
@@ -286,7 +304,7 @@ pub fn measure_with_config(
     request: MeasurementRequest,
     config: &CoreConfig,
 ) -> Result<MeasurementReport, String> {
-    measure_resuming(request, config, Vec::new(), 0, 0, 0, |_| Ok(()))
+    measure_resuming(request, config, Vec::new(), 0, 0, 0, 0, |_| Ok(()))
 }
 
 pub fn measure_to_path(
@@ -294,7 +312,7 @@ pub fn measure_to_path(
     out: &Path,
     resume: bool,
 ) -> Result<MeasurementReport, String> {
-    let config = CoreConfig::development_for(preset_for_scope(request.scope));
+    let config = CoreConfig::development_for(request.preset);
     measure_to_path_with_config(request, &config, out, resume)
 }
 
@@ -318,12 +336,14 @@ pub fn measure_to_path_with_config(
     let mut previous_elapsed_ms = 0;
     let mut previous_runs = 0;
     let mut previous_max_workers = 0;
+    let mut previous_peak_working_set_bytes = 0;
     if resume && out.exists() {
         let previous = read_report(out)?;
         validate_report_header(&previous, request, &expected_header)?;
         previous_elapsed_ms = previous.elapsed_ms;
         previous_runs = previous.runs;
         previous_max_workers = previous.max_workers_per_shard;
+        previous_peak_working_set_bytes = previous.peak_working_set_bytes;
         rows.extend(previous.rows);
     }
     if resume && journal.exists() {
@@ -363,6 +383,7 @@ pub fn measure_to_path_with_config(
         previous_elapsed_ms,
         previous_runs,
         previous_max_workers,
+        previous_peak_working_set_bytes,
         |row| {
             write_journal_record(
                 &mut writer,
@@ -386,10 +407,12 @@ fn measure_resuming(
     previous_elapsed_ms: u64,
     previous_runs: u32,
     previous_max_workers: u32,
+    previous_peak_working_set_bytes: u64,
     mut checkpoint: impl FnMut(&MeasurementRow) -> Result<(), String>,
 ) -> Result<MeasurementReport, String> {
     let request = request.validate()?;
     let started = Instant::now();
+    let peak_memory = PeakWorkingSetMonitor::start()?;
     let scope = request.scope;
     if (scope == MeasurementScope::SealedAudit) != config.is_sealed_production() {
         return Err(
@@ -408,7 +431,7 @@ fn measure_resuming(
         return Err("M7 measurement selected no degradation cells".into());
     }
     let split = scope.split();
-    let preset = preset_for_scope(scope);
+    let preset = request.preset;
     let identity = config.identity();
     let mut jobs = Vec::new();
     let mut source_groups = BTreeSet::new();
@@ -539,10 +562,12 @@ fn measure_resuming(
         .iter()
         .filter(|row| row.search_truncated == Some(true))
         .count() as u64;
+    let peak_working_set_bytes = previous_peak_working_set_bytes.max(peak_memory.finish());
     Ok(MeasurementReport {
         schema: M7_MEASUREMENT_SCHEMA.to_string(),
         scope: scope.as_str().to_string(),
         split: split.as_str().to_string(),
+        preset,
         procedural_variants_per_family: scope.variants(),
         mandatory_sizes_px: {
             let mut sizes = cells.iter().map(|cell| cell.size_px).collect::<Vec<_>>();
@@ -560,6 +585,7 @@ fn measure_resuming(
             rasterizers
         },
         identity,
+        delivery_policy_sha256: config.delivery_policy_sha256(),
         included_shards: vec![request.shard_index],
         shard_count: request.shard_count,
         max_workers_per_shard: previous_max_workers
@@ -575,7 +601,60 @@ fn measure_resuming(
         truncated_renders,
         elapsed_ms: previous_elapsed_ms
             .saturating_add(started.elapsed().as_millis().try_into().unwrap_or(u64::MAX)),
+        peak_working_set_bytes,
     })
+}
+
+struct PeakWorkingSetMonitor {
+    stop: Arc<AtomicBool>,
+    peak: Arc<AtomicU64>,
+    worker: Option<JoinHandle<()>>,
+}
+
+impl PeakWorkingSetMonitor {
+    fn start() -> Result<Self, String> {
+        let pid = sysinfo::get_current_pid().map_err(|error| error.to_string())?;
+        let stop = Arc::new(AtomicBool::new(false));
+        let peak = Arc::new(AtomicU64::new(0));
+        let worker_stop = Arc::clone(&stop);
+        let worker_peak = Arc::clone(&peak);
+        let worker = std::thread::spawn(move || {
+            let mut system = sysinfo::System::new();
+            while !worker_stop.load(Ordering::Relaxed) {
+                system.refresh_processes_specifics(
+                    sysinfo::ProcessesToUpdate::Some(&[pid]),
+                    true,
+                    sysinfo::ProcessRefreshKind::nothing().with_memory(),
+                );
+                if let Some(process) = system.process(pid) {
+                    worker_peak.fetch_max(process.memory(), Ordering::Relaxed);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        });
+        Ok(Self {
+            stop,
+            peak,
+            worker: Some(worker),
+        })
+    }
+
+    fn finish(mut self) -> u64 {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+        self.peak.load(Ordering::Relaxed)
+    }
+}
+
+impl Drop for PeakWorkingSetMonitor {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
 }
 
 fn row_key(row: &MeasurementRow) -> String {
@@ -632,10 +711,12 @@ fn journal_header(
         schema: M7_MEASUREMENT_SCHEMA.to_string(),
         scope: request.scope.as_str().to_string(),
         split: request.scope.split().as_str().to_string(),
+        preset: request.preset,
         procedural_variants_per_family: request.scope.variants(),
         mandatory_sizes_px: sizes,
         rasterizers,
         identity: config.identity(),
+        delivery_policy_sha256: config.delivery_policy_sha256(),
         shard_index: request.shard_index,
         shard_count: request.shard_count,
     })
@@ -649,10 +730,12 @@ fn validate_report_header(
     let matches = report.schema == expected.schema
         && report.scope == expected.scope
         && report.split == expected.split
+        && report.preset == expected.preset
         && report.procedural_variants_per_family == expected.procedural_variants_per_family
         && report.mandatory_sizes_px == expected.mandatory_sizes_px
         && report.rasterizers == expected.rasterizers
         && report.identity == expected.identity
+        && report.delivery_policy_sha256 == expected.delivery_policy_sha256
         && report.included_shards == [request.shard_index]
         && report.shard_count == request.shard_count;
     if matches {
@@ -724,10 +807,12 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
         report.schema == first.schema
             && report.scope == first.scope
             && report.split == first.split
+            && report.preset == first.preset
             && report.procedural_variants_per_family == first.procedural_variants_per_family
             && report.mandatory_sizes_px == first.mandatory_sizes_px
             && report.rasterizers == first.rasterizers
             && report.identity == first.identity
+            && report.delivery_policy_sha256 == first.delivery_policy_sha256
             && report.shard_count == first.shard_count
     };
     if reports.iter().any(|report| !compatible(report)) {
@@ -745,6 +830,7 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
     let mut runs = 0u32;
     let mut max_workers = 0u32;
     let mut elapsed_ms = 0u64;
+    let mut peak_working_set_bytes = 0u64;
     let mut inputs_complete = true;
     for report in reports {
         for shard in report.included_shards {
@@ -768,6 +854,7 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
         runs = runs.saturating_add(report.runs);
         max_workers = max_workers.max(report.max_workers_per_shard);
         elapsed_ms = elapsed_ms.saturating_add(report.elapsed_ms);
+        peak_working_set_bytes = peak_working_set_bytes.max(report.peak_working_set_bytes);
         inputs_complete &= report.complete;
     }
     let rows = rows.into_values().collect::<Vec<_>>();
@@ -782,10 +869,12 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
         schema: first.schema.clone(),
         scope: first.scope.clone(),
         split: first.split.clone(),
+        preset: first.preset,
         procedural_variants_per_family: first.procedural_variants_per_family,
         mandatory_sizes_px: first.mandatory_sizes_px.clone(),
         rasterizers: first.rasterizers.clone(),
         identity: first.identity.clone(),
+        delivery_policy_sha256: first.delivery_policy_sha256.clone(),
         included_shards: included_shards.into_iter().collect(),
         shard_count: first.shard_count,
         max_workers_per_shard: max_workers,
@@ -799,6 +888,7 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
         candidates_available,
         truncated_renders,
         elapsed_ms,
+        peak_working_set_bytes,
     })
 }
 
@@ -920,6 +1010,12 @@ fn measure_one(
         topology: None,
         boundary: None,
         max_palette_code_delta: None,
+        profile_max_channel_delta: None,
+        profile_mean_channel_delta: None,
+        internal_to_pure_max_channel_delta: None,
+        internal_to_pure_mean_channel_delta: None,
+        internal_to_seam_max_channel_delta: None,
+        internal_to_seam_mean_channel_delta: None,
         verifier_clean: false,
         measurement_refusal: None,
     };
@@ -987,6 +1083,17 @@ fn measure_one(
             row.boundary = Some(boundary);
             row.max_palette_code_delta = Some(paint_delta);
             let candidate = &witness.candidate;
+            let seal = &candidate.delivery_seal;
+            row.profile_max_channel_delta = Some(seal.profile_comparison.max_channel_delta);
+            row.profile_mean_channel_delta = Some(seal.profile_comparison.mean_channel_delta);
+            row.internal_to_pure_max_channel_delta =
+                Some(seal.internal_to_pure_comparison.max_channel_delta);
+            row.internal_to_pure_mean_channel_delta =
+                Some(seal.internal_to_pure_comparison.mean_channel_delta);
+            row.internal_to_seam_max_channel_delta =
+                Some(seal.internal_to_seam_comparison.max_channel_delta);
+            row.internal_to_seam_mean_channel_delta =
+                Some(seal.internal_to_seam_comparison.mean_channel_delta);
             let diagnostics = &candidate.score.diagnostics;
             row.serialized_pixel_bits = Some(candidate.score.pixel_bits);
             row.serialized_pixel_bits_per_block = (diagnostics.blocks > 0)
@@ -994,19 +1101,7 @@ fn measure_one(
             row.empirical_correlation_length_px = Some(diagnostics.empirical_correlation_length_px);
             row.max_abs_lag1 = Some(diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs()));
             row.verifier_clean = candidate.pre_quantization.worst_g1_spread_rad
-                <= config.verification.max_g1_spread_rad
-                && candidate.delivery_seal.profile_comparison.max_channel_delta
-                    <= config.seal.max_profile_channel_delta
-                && candidate
-                    .delivery_seal
-                    .internal_to_pure_comparison
-                    .max_channel_delta
-                    <= config.seal.max_internal_channel_delta
-                && candidate
-                    .delivery_seal
-                    .internal_to_seam_comparison
-                    .max_channel_delta
-                    <= config.seal.max_internal_channel_delta;
+                <= config.verification.max_g1_spread_rad;
         }
         Err(error) => row.measurement_refusal = Some(error),
     }
@@ -1110,6 +1205,12 @@ fn refusal_row(
         topology: None,
         boundary: None,
         max_palette_code_delta: None,
+        profile_max_channel_delta: None,
+        profile_mean_channel_delta: None,
+        internal_to_pure_max_channel_delta: None,
+        internal_to_pure_mean_channel_delta: None,
+        internal_to_seam_max_channel_delta: None,
+        internal_to_seam_mean_channel_delta: None,
         verifier_clean: false,
         measurement_refusal: Some(format!("{stage}: {detail}")),
     }
@@ -1461,6 +1562,12 @@ mod tests {
             topology: None,
             boundary: None,
             max_palette_code_delta: None,
+            profile_max_channel_delta: None,
+            profile_mean_channel_delta: None,
+            internal_to_pure_max_channel_delta: None,
+            internal_to_pure_mean_channel_delta: None,
+            internal_to_seam_max_channel_delta: None,
+            internal_to_seam_mean_channel_delta: None,
             verifier_clean: false,
             measurement_refusal: Some("synthetic".into()),
         }
@@ -1472,6 +1579,7 @@ mod tests {
             schema: M7_MEASUREMENT_SCHEMA.into(),
             scope: "calibration".into(),
             split: "calibration".into(),
+            preset: Preset::Quality,
             procedural_variants_per_family: M7_RELEASE_PROCEDURAL_VARIANTS,
             mandatory_sizes_px: M7_MANDATORY_SIZES.to_vec(),
             rasterizers: vec!["tiny-skia".into()],
@@ -1481,6 +1589,7 @@ mod tests {
                 backend_sha256: "b".into(),
                 config_sha256: "c".into(),
             },
+            delivery_policy_sha256: "d".into(),
             included_shards: vec![shard],
             shard_count,
             max_workers_per_shard: 2,
@@ -1494,6 +1603,7 @@ mod tests {
             candidates_available: 0,
             truncated_renders: 0,
             elapsed_ms: 2,
+            peak_working_set_bytes: 1024,
         }
     }
 

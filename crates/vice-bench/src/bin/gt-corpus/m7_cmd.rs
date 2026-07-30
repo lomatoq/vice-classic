@@ -57,6 +57,7 @@ pub fn measure(
     manifest: &Path,
     gates: &Path,
     production_config: &Path,
+    preset: Preset,
     out: &Path,
     workers: usize,
     shard_index: u32,
@@ -67,13 +68,41 @@ pub fn measure(
     let (corpus_hash, prereg_hash, gates_hash) = release_hashes(manifest, gates)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
-    let config = CoreConfig::load_production_for(Preset::Quality, production_config)
+    let config = CoreConfig::load_production_for(preset, production_config)
         .map_err(|error| format!("production config refused: {error}"))?;
     let mut request = MeasurementRequest::new(MeasurementScope::SealedAudit);
+    request.preset = preset;
     request.workers = workers;
     request.shard_index = shard_index;
     request.shard_count = shard_count;
     m7::measure_to_path_with_config(request, &config, out, resume)
+}
+
+pub fn analyze(
+    seal_path: &Path,
+    manifest: &Path,
+    gates_path: &Path,
+    quality_report: &Path,
+    fast_report: &Path,
+    out: &Path,
+) -> Result<m7::release::ReleaseVerdict, String> {
+    let seal = read_seal(seal_path)?;
+    let (corpus_hash, prereg_hash, gates_hash) = release_hashes(manifest, gates_path)?;
+    seal.check(&corpus_hash, &prereg_hash, &gates_hash)
+        .map_err(|error| error.to_string())?;
+    let gates =
+        GatesFile::load_for_a_gate_decision(gates_path).map_err(|error| error.to_string())?;
+    let quality = m7::read_report(quality_report)?;
+    let fast = m7::read_report(fast_report)?;
+    let verdict = m7::release::analyze_release(&quality, &fast, &seal, &gates)?;
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    }
+    let text = serde_json::to_string_pretty(&verdict).map_err(|error| error.to_string())?;
+    std::fs::write(out, format!("{text}\n"))
+        .map_err(|error| format!("write {}: {error}", out.display()))?;
+    Ok(verdict)
 }
 
 #[cfg(test)]

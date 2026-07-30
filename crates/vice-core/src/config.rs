@@ -307,7 +307,6 @@ struct ConfigIdentity<'a> {
     max_g1_spread_rad: f64,
     curve_separation_margin_px: f64,
     quantization: QuantizationPolicy,
-    seal: DeliverySealConfig,
     beam: BeamConfig,
     trust_region: TrustRegionConfig,
     k_discrete_paths: usize,
@@ -518,6 +517,16 @@ impl CoreConfig {
         self.sealed_production
     }
 
+    /// Identity of the delivery acceptance policy. It is deliberately
+    /// separate from the posterior config identity: calibration measures raw
+    /// delivery deltas and freezes this policy afterwards, while the
+    /// likelihood/search identity must remain the one measured by calibration.
+    pub fn delivery_policy_sha256(&self) -> String {
+        hex::encode(Sha256::digest(
+            serde_json::to_vec(&self.seal).expect("delivery policy serializes"),
+        ))
+    }
+
     pub fn intent_prior(&self, intent: Intent) -> IntentPriorPolicy {
         match intent {
             Intent::Exact => self.exact_prior,
@@ -545,7 +554,6 @@ impl CoreConfig {
             max_g1_spread_rad: self.verification.max_g1_spread_rad,
             curve_separation_margin_px: self.verification.curve_separation_margin_px,
             quantization: self.quantization,
-            seal: self.seal,
             beam: self.beam,
             trust_region: self.trust_region,
             k_discrete_paths: self.k_discrete_paths,
@@ -553,7 +561,7 @@ impl CoreConfig {
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            implementation: "vice-core/m7/v5",
+            implementation: "vice-core/m7/v6",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),
@@ -682,5 +690,20 @@ mod tests {
         config.confidence = Some(calibration);
         config.sealed_production = true;
         assert_eq!(config.identity(), before);
+    }
+
+    #[test]
+    fn freezing_delivery_thresholds_does_not_rekey_the_calibrated_posterior() {
+        let mut config = CoreConfig::development_for(Preset::Quality);
+        let posterior = config.identity();
+        let delivery = config.delivery_policy_sha256();
+        config.seal = DeliverySealConfig {
+            max_profile_channel_delta: 0,
+            max_profile_mean_channel_delta: 0.0,
+            max_internal_channel_delta: 64,
+            max_internal_mean_channel_delta: 0.25,
+        };
+        assert_eq!(config.identity(), posterior);
+        assert_ne!(config.delivery_policy_sha256(), delivery);
     }
 }

@@ -15,6 +15,7 @@ png = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 thiserror = "2"
 toml = "0.8"
 # M3: the GT corpus, the supported-universe declaration and the scorecard
@@ -36,6 +37,7 @@ vice-render = { path = "../vice-render" }
 # M4.5: the topology envelope whose candidate recall this crate measures.
 vice-topology = { path = "../vice-topology" }
 vice-core = { path = "../vice-core" }
+vice-verify = { path = "../vice-verify" }
 
 [dev-dependencies]
 tempfile = "3"
