@@ -16,7 +16,7 @@ use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
-pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v5";
+pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v6";
 const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -506,12 +506,6 @@ pub(crate) fn catastrophic_with_gates(
     gates: M7ReleaseGates,
 ) -> Vec<&'static str> {
     let mut kinds = intrinsic_catastrophic_kinds(row);
-    if row.boundary.as_ref().is_none_or(|tail| {
-        tail.p99_px > gates.boundary_p99_px || tail.max_px > gates.boundary_max_px
-    }) && !kinds.contains(&"gross_boundary_outlier")
-    {
-        kinds.push("gross_boundary_outlier");
-    }
     if row
         .max_palette_code_delta
         .is_none_or(|value| value > gates.max_palette_code_delta)

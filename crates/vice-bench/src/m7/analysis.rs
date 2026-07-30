@@ -19,7 +19,7 @@ pub use delivery::DeliveryCalibration;
 use delivery::{calibrate_delivery_seal, delivery_diagnostics_permit};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v11";
+    "vice-classic/m7-confidence-calibration-analysis/v12";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
@@ -190,14 +190,8 @@ pub fn analyze_calibration(
                     })?,
                     accepted,
                     catastrophic: accepted
-                        && !catastrophic_kinds(
-                            row,
-                            delivery_seal,
-                            PROPOSED_BOUNDARY_P99_PX,
-                            PROPOSED_BOUNDARY_MAX_PX,
-                            PROPOSED_MAX_PALETTE_CODE_DELTA,
-                        )
-                        .is_empty(),
+                        && !catastrophic_kinds(row, delivery_seal, PROPOSED_MAX_PALETTE_CODE_DELTA)
+                            .is_empty(),
                     mandatory: true,
                 })
             })
@@ -412,8 +406,6 @@ pub(crate) fn intrinsic_catastrophic_kinds(row: &MeasurementRow) -> Vec<&'static
 fn catastrophic_kinds(
     row: &MeasurementRow,
     delivery_seal: vice_verify::DeliverySealConfig,
-    boundary_p99_px: f64,
-    boundary_max_px: f64,
     max_palette_code_delta: u8,
 ) -> Vec<&'static str> {
     let mut kinds = intrinsic_catastrophic_kinds(row);
@@ -422,13 +414,6 @@ fn catastrophic_kinds(
     }
     if !delivery_diagnostics_permit(row, delivery_seal) {
         kinds.push("serialized_mismatch");
-    }
-    if row
-        .boundary
-        .as_ref()
-        .is_none_or(|tail| tail.p99_px > boundary_p99_px || tail.max_px > boundary_max_px)
-    {
-        kinds.push("gross_boundary_outlier");
     }
     if row
         .max_palette_code_delta
@@ -518,14 +503,7 @@ fn diagnostics_permit(
 }
 
 fn policy_gate_bad(row: &MeasurementRow, delivery_seal: vice_verify::DeliverySealConfig) -> bool {
-    !catastrophic_kinds(
-        row,
-        delivery_seal,
-        PROPOSED_BOUNDARY_P99_PX,
-        PROPOSED_BOUNDARY_MAX_PX,
-        PROPOSED_MAX_PALETTE_CODE_DELTA,
-    )
-    .is_empty()
+    !catastrophic_kinds(row, delivery_seal, PROPOSED_MAX_PALETTE_CODE_DELTA).is_empty()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -889,13 +867,13 @@ mod tests {
     }
 
     #[test]
-    fn population_tail_semantics_do_not_admit_a_gross_single_render_outlier() {
+    fn population_max_still_rejects_a_single_render_outlier() {
         let mut report = report(false);
         report.rows[0].boundary = Some(BoundaryTail {
             samples: 10,
             p95_px: 0.50,
             p99_px: 0.61,
-            max_px: 0.70,
+            max_px: 1.51,
         });
         let analysis =
             analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");

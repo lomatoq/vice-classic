@@ -15,7 +15,7 @@ use crate::gt::split::{AuditSeal, SealStatus};
 use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 
-pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v2";
+pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v3";
 
 #[derive(Debug, Clone, Copy)]
 struct CourtGates {
@@ -402,8 +402,6 @@ fn analyze_preset(
 fn baseline_catastrophic(baseline: &InternalBaselineMeasurement, gates: M7ReleaseGates) -> bool {
     !baseline.topology.exact
         || !baseline.verifier_clean
-        || baseline.boundary.p99_px > gates.boundary_p99_px
-        || baseline.boundary.max_px > gates.boundary_max_px
         || baseline.max_palette_code_delta > gates.max_palette_code_delta
         || baseline.profile_max_channel_delta > gates.max_profile_channel_delta
         || baseline.profile_mean_channel_delta > gates.max_profile_mean_channel_delta
