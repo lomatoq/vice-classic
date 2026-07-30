@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/vice-bench",
     "crates/vice-cli",
+    "crates/vice-core",
     "crates/vice-evidence",
     "crates/vice-fit",
     "crates/vice-geom",
@@ -53,6 +54,10 @@ exclude = ["runs", "baselines-work"]
 # certification, and final delivery sealing. They are created together because
 # the verifier's first real seal consumes the SVG crate's opaque parsed-render
 # witness rather than trusting a report field.
+# M7: vice-core — the first complete selective Flat2 executable pipeline. It
+# owns the end-to-end outcome/report/artifact contract and is the only shipped
+# caller allowed to compose evidence, DCEL, fitting, posterior, verification,
+# and delivery.
 
 [workspace.package]
 edition = "2021"

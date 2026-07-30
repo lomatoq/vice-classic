@@ -9,7 +9,10 @@ description = "vice-classic M7: correlation-aware posterior, supported-search ac
 workspace = true
 
 [dependencies]
+hex = "0.4"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
 thiserror = "2"
 vice-image = { path = "../vice-image" }
 vice-ir = { path = "../vice-ir" }

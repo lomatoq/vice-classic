@@ -1,0 +1,111 @@
+use serde::Serialize;
+
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v1";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionStatus {
+    Success,
+    Ambiguous,
+    Unsupported,
+    Failed,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "reason", rename_all = "snake_case")]
+pub enum FailureReason {
+    Evidence { detail: String },
+    FormationOutsideUniverse { detail: String },
+    BoundaryOutsideSelectiveCore { detail: String },
+    Topology { detail: String },
+    Fitting { detail: String },
+    SearchTruncated { detail: String },
+    NoVerifiedCandidate { detail: String },
+    Confidence { detail: String },
+    Decode { detail: String },
+    Internal { detail: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RuntimeSummary {
+    pub elapsed_ms: u64,
+    pub candidates_scored: u64,
+    pub candidate_bytes: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CandidateSummary {
+    pub hypothesis_id: String,
+    pub topology_class: String,
+    pub formation_class: String,
+    pub scene_digest_sha256: String,
+    pub delivery_digest: String,
+    pub score: vice_opt::ScoreBreakdown,
+    pub pre_quantization: vice_verify::PresealCertificate,
+    pub post_quantization: vice_verify::PostQuantizationCertificate,
+    pub delivery_seal: vice_verify::DeliverySeal,
+    pub optimizer: vice_opt::OptimizationResult,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct VectorizeReport {
+    pub schema: &'static str,
+    pub status: DecisionStatus,
+    pub reason: Option<FailureReason>,
+    pub request: crate::VectorizeRequest,
+    pub production: bool,
+    pub source_sha256: Option<String>,
+    pub binary_version: &'static str,
+    pub toolchain: &'static str,
+    pub environment: &'static str,
+    pub identity: vice_opt::ModelIdentity,
+    pub calibration: Option<crate::ConfidenceCalibration>,
+    pub evidence: Option<vice_evidence::Flat2Analysis>,
+    pub fit: Option<vice_fit::ModelRun>,
+    pub beam: Option<vice_opt::BudgetLedger>,
+    pub search_mass: Option<vice_opt::SearchMassCertificate>,
+    pub candidates: Vec<CandidateSummary>,
+    pub selected_hypothesis_id: Option<String>,
+    pub runtime: RuntimeSummary,
+}
+
+impl VectorizeReport {
+    pub fn canonical_json(&self) -> String {
+        serde_json::to_string(self).expect("report serializes")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SuccessArtifacts {
+    pub result_svg: Vec<u8>,
+    pub pure_partition_svg: Vec<u8>,
+    pub scene_json: Vec<u8>,
+    pub export_plan_json: Vec<u8>,
+    pub report_json: Vec<u8>,
+    pub render_png: Vec<u8>,
+    pub seal_json: Vec<u8>,
+    pub trace_json: Option<Vec<u8>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VectorizeSuccess {
+    pub report: VectorizeReport,
+    pub artifacts: SuccessArtifacts,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VectorizeOutcome {
+    Success(VectorizeSuccess),
+    Ambiguous(VectorizeReport),
+    Unsupported(VectorizeReport),
+    Failed(VectorizeReport),
+}
+
+impl VectorizeOutcome {
+    pub fn report(&self) -> &VectorizeReport {
+        match self {
+            Self::Success(value) => &value.report,
+            Self::Ambiguous(value) | Self::Unsupported(value) | Self::Failed(value) => value,
+        }
+    }
+}

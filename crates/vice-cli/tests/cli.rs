@@ -1,4 +1,4 @@
-//! The M4 executable path, exercised as a binary.
+//! The evidence and M7 vectorization executable paths, exercised as a binary.
 //!
 //! §4.1: a milestone ends in a working CLI path, not in types. What these
 //! tests check is that the path RUNS on a committed fixture and that the two
@@ -111,4 +111,49 @@ fn a_broken_input_is_a_failure_not_an_unsupported_verdict() {
         .expect("vicec runs");
     assert_eq!(out.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&out.stderr).contains("decode"));
+}
+
+#[test]
+fn vectorize_failure_writes_only_the_typed_report_and_no_svg() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("not-a.png");
+    let output = dir.path().join("result");
+    std::fs::write(&input, b"this is not a png").unwrap();
+    let run = vicec()
+        .arg("vectorize")
+        .arg(&input)
+        .args(["--mode", "flat2", "--intent", "clean", "--preset", "fast"])
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(run.status.code(), Some(2));
+    let files: Vec<_> = std::fs::read_dir(&output)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect();
+    assert_eq!(files, [std::ffi::OsString::from("result.report.json")]);
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.join("result.report.json")).unwrap()).unwrap();
+    assert_eq!(report["status"], "failed");
+    assert_eq!(report["reason"]["reason"], "decode");
+}
+
+#[test]
+fn vectorize_refuses_to_mix_a_new_verdict_with_stale_output() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("result");
+    std::fs::create_dir(&output).unwrap();
+    std::fs::write(output.join("result.svg"), b"stale").unwrap();
+    let run = vicec()
+        .arg("vectorize")
+        .arg(repo_root().join("tests/fixtures/smoke/circle_64.png"))
+        .args(["--mode", "flat2", "--preset", "fast"])
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(run.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&run.stderr).contains("not empty"));
+    assert_eq!(std::fs::read(output.join("result.svg")).unwrap(), b"stale");
 }

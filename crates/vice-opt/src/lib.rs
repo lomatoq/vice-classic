@@ -14,6 +14,7 @@ pub mod posterior;
 pub mod search;
 pub mod transaction;
 pub mod trust_region;
+pub mod universe;
 
 pub use likelihood::{
     score_full_resolution, BlockLikelihoodConfig, LikelihoodDiagnostics, LikelihoodError,
@@ -35,4 +36,8 @@ pub use trust_region::{
     optimize_best_deterministic, optimize_trust_region, BlockSpec, EvaluationToken,
     OptimizationResult, OptimizationTraceRow, Rect, ScoreScope, TrustRegionConfig,
     TrustRegionError, TrustRegionProblem,
+};
+pub use universe::{
+    model_universe_hash, Admissibility, BoundStatus, SupportedModelUniverseV1,
+    MODEL_UNIVERSE_SCHEMA,
 };

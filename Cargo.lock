@@ -1139,6 +1139,7 @@ dependencies = [
  "vice-geom",
  "vice-image",
  "vice-ir",
+ "vice-opt",
  "vice-render",
  "vice-topology",
 ]
@@ -1150,9 +1151,32 @@ dependencies = [
  "clap",
  "serde_json",
  "tempfile",
+ "vice-core",
  "vice-evidence",
  "vice-image",
  "vice-ir",
+]
+
+[[package]]
+name = "vice-core"
+version = "0.0.1"
+dependencies = [
+ "hex",
+ "png",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "vice-evidence",
+ "vice-fit",
+ "vice-geom",
+ "vice-image",
+ "vice-ir",
+ "vice-opt",
+ "vice-render",
+ "vice-svg",
+ "vice-topology",
+ "vice-verify",
 ]
 
 [[package]]
@@ -1219,7 +1243,10 @@ dependencies = [
 name = "vice-opt"
 version = "0.0.1"
 dependencies = [
+ "hex",
  "serde",
+ "serde_json",
+ "sha2",
  "thiserror",
  "vice-image",
  "vice-ir",

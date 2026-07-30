@@ -3,7 +3,7 @@ name = "vice-cli"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-description = "vice-classic M4: the evidence command-line path (vicec)"
+description = "vice-classic M7: selective Flat2 vectorization and evidence CLI (vicec)"
 
 [lints]
 workspace = true
@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
+vice-core = { path = "../vice-core" }
 vice-evidence = { path = "../vice-evidence" }
 vice-image = { path = "../vice-image" }
 vice-ir = { path = "../vice-ir" }

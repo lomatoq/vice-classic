@@ -5,6 +5,9 @@
 //! SCHEMA and its hash on one side, the judges on the other.
 
 use super::*;
+use vice_ir::{
+    BlendSpace, ExteriorModel, JoinKind, Paint, PixelFilter, QuantizationModel, Segment,
+};
 
 #[test]
 fn v1_is_finite_and_versioned() {

@@ -1,17 +1,14 @@
-//! `vicec` — the command-line path of vice-classic (M4 scope).
+//! `vicec` — the command-line path of vice-classic.
 //!
-//! §4.1 requires every milestone to end in a working CLI path rather than in
-//! types, and §30 fixes the shape of the eventual command. M4 owns exactly
-//! one stage of §7 — canonical decode, palette/exterior hypotheses, the
-//! minimal global formation family, premultiplied mixture evidence, boundary
-//! observations and their corridor — so `vicec evidence` is what exists, and
-//! `vicec vectorize` is NOT declared: there is no topology, no fitter and no
-//! selective delivery behind it, and a subcommand that would have to say
-//! "not implemented" is the placeholder §32 rule 7 forbids.
+//! M7 adds the §30 `vectorize` executable path while retaining M4's
+//! `evidence` diagnostic path. Vectorization is selective: non-success writes
+//! a typed canonical report and never publishes SVG bytes.
 //!
 //! ```text
 //! vicec evidence input.png --out out/sample
 //!       [--fg R,G,B] [--bg R,G,B] [--exterior transparent|opaque]
+//! vicec vectorize input.png --mode flat2 --intent clean --preset quality
+//!       --out out/sample
 //! ```
 //!
 //! Exit codes are the §1.4 outcomes, kept apart rather than collapsed into
@@ -43,7 +40,7 @@ use vice_ir::LinearRgb;
 #[command(
     name = "vicec",
     version,
-    about = "vice-classic: Flat2 evidence for a raster image (M4 scope)"
+    about = "vice-classic: selective classical Flat2 vectorization"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -54,6 +51,23 @@ struct Cli {
 enum ExteriorArg {
     Transparent,
     Opaque,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+enum ModeArg {
+    Flat2,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+enum IntentArg {
+    Exact,
+    Clean,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+enum PresetArg {
+    Fast,
+    Quality,
 }
 
 #[derive(Subcommand)]
@@ -67,6 +81,37 @@ enum Cmd {
         out: Option<PathBuf>,
         /// ORACLE override: foreground colour as three sRGB codes `R,G,B`.
         /// Marks the run non-production (§30).
+        #[arg(long)]
+        fg: Option<String>,
+        /// ORACLE override: background colour as three sRGB codes.
+        #[arg(long)]
+        bg: Option<String>,
+        /// ORACLE override: which exterior model to assume.
+        #[arg(long, value_enum)]
+        exterior: Option<ExteriorArg>,
+    },
+    /// Selectively reconstruct and seal a Flat2 scene.
+    Vectorize {
+        input: PathBuf,
+        #[arg(long, value_enum)]
+        mode: ModeArg,
+        #[arg(long, value_enum, default_value = "clean")]
+        intent: IntentArg,
+        #[arg(long, value_enum, default_value = "quality")]
+        preset: PresetArg,
+        /// New or empty output directory.
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long)]
+        trace: bool,
+        #[arg(long, default_value_t = 0)]
+        dump_candidates: usize,
+        #[arg(long)]
+        strict: bool,
+        /// Diagnostic feature switch; marks the run non-production.
+        #[arg(long)]
+        milestone_debug: Option<String>,
+        /// ORACLE override: foreground colour as three sRGB codes `R,G,B`.
         #[arg(long)]
         fg: Option<String>,
         /// ORACLE override: background colour as three sRGB codes.
@@ -95,6 +140,52 @@ fn parse_rgb(s: &str) -> Result<LinearRgb, String> {
         v[i] = srgb_encoded_to_linear(f64::from(n) / 255.0);
     }
     Ok(LinearRgb::new(v[0], v[1], v[2]))
+}
+
+fn parse_oracle(
+    fg: Option<String>,
+    bg: Option<String>,
+    exterior: Option<ExteriorArg>,
+) -> Result<Option<vice_evidence::Flat2Hypothesis>, String> {
+    match (fg, bg, exterior) {
+        (None, None, None) => Ok(None),
+        (Some(foreground), background, exterior) => {
+            let foreground = parse_rgb(&foreground).map_err(|error| format!("--fg: {error}"))?;
+            let background = match (background, exterior) {
+                (Some(background), _) => {
+                    Some(parse_rgb(&background).map_err(|error| format!("--bg: {error}"))?)
+                }
+                (None, Some(ExteriorArg::Transparent)) | (None, None) => None,
+                (None, Some(ExteriorArg::Opaque)) => {
+                    return Err("--exterior opaque needs the background colour: pass --bg".into())
+                }
+            };
+            Ok(Some(oracle_override(foreground, background)))
+        }
+        _ => Err("--bg/--exterior are overrides of a foreground: pass --fg".into()),
+    }
+}
+
+fn prepare_output_dir(path: &std::path::Path) -> Result<(), String> {
+    if path.exists() {
+        let mut entries =
+            std::fs::read_dir(path).map_err(|error| format!("read {}: {error}", path.display()))?;
+        if entries.next().is_some() {
+            return Err(format!(
+                "output directory {} is not empty; refusing to mix a new verdict with stale artifacts",
+                path.display()
+            ));
+        }
+    } else {
+        std::fs::create_dir_all(path)
+            .map_err(|error| format!("create {}: {error}", path.display()))?;
+    }
+    Ok(())
+}
+
+fn write_artifact(directory: &std::path::Path, name: &str, bytes: &[u8]) -> Result<(), String> {
+    let path = directory.join(name);
+    std::fs::write(&path, bytes).map_err(|error| format!("write {}: {error}", path.display()))
 }
 
 fn main() {
@@ -129,36 +220,10 @@ fn run() -> i32 {
             // The override is all-or-nothing: a foreground without an
             // exterior decision would be half a hypothesis, and guessing the
             // other half is what §9.2 forbids.
-            let over = match (fg, bg, exterior) {
-                (None, None, None) => None,
-                (Some(f), b, ext) => {
-                    let f = match parse_rgb(&f) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            eprintln!("error: --fg: {e}");
-                            return 2;
-                        }
-                    };
-                    let background = match (b, ext) {
-                        (Some(b), _) => match parse_rgb(&b) {
-                            Ok(v) => Some(v),
-                            Err(e) => {
-                                eprintln!("error: --bg: {e}");
-                                return 2;
-                            }
-                        },
-                        (None, Some(ExteriorArg::Transparent)) | (None, None) => None,
-                        (None, Some(ExteriorArg::Opaque)) => {
-                            eprintln!(
-                                "error: --exterior opaque needs the background colour: pass --bg"
-                            );
-                            return 2;
-                        }
-                    };
-                    Some(oracle_override(f, background))
-                }
-                _ => {
-                    eprintln!("error: --bg/--exterior are overrides of a foreground: pass --fg");
+            let over = match parse_oracle(fg, bg, exterior) {
+                Ok(value) => value,
+                Err(error) => {
+                    eprintln!("error: {error}");
                     return 2;
                 }
             };
@@ -253,6 +318,135 @@ fn run() -> i32 {
                     );
                     4
                 }
+            }
+        }
+        Cmd::Vectorize {
+            input,
+            mode: ModeArg::Flat2,
+            intent,
+            preset,
+            out,
+            trace,
+            dump_candidates,
+            strict,
+            milestone_debug,
+            fg,
+            bg,
+            exterior,
+        } => {
+            let bytes = match std::fs::read(&input) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    eprintln!("error: read {}: {error}", input.display());
+                    return 2;
+                }
+            };
+            let oracle_override = match parse_oracle(fg, bg, exterior) {
+                Ok(value) => value,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 2;
+                }
+            };
+            if let Err(error) = prepare_output_dir(&out) {
+                eprintln!("error: {error}");
+                return 2;
+            }
+            let request = vice_core::VectorizeRequest {
+                intent: match intent {
+                    IntentArg::Exact => vice_core::Intent::Exact,
+                    IntentArg::Clean => vice_core::Intent::Clean,
+                },
+                preset: match preset {
+                    PresetArg::Fast => vice_core::Preset::Fast,
+                    PresetArg::Quality => vice_core::Preset::Quality,
+                },
+                trace,
+                dump_candidates,
+                strict,
+                production: true,
+                research_override: false,
+                milestone_debug,
+                oracle_override,
+            };
+            let mut config = vice_core::CoreConfig::development();
+            if preset == PresetArg::Fast {
+                config.k_discrete_paths = 16;
+                config.beam.width = 8;
+                config.beam.budget.max_candidates_considered = 64;
+                config.beam.budget.max_elapsed_ms = 1_000;
+                config.trust_region.max_rounds = 4;
+            }
+            let outcome = vice_core::vectorize_with_config(&bytes, &request, &config);
+            let write_result = match &outcome {
+                vice_core::VectorizeOutcome::Success(success) => {
+                    let artifacts = &success.artifacts;
+                    write_artifact(&out, "result.svg", &artifacts.result_svg)
+                        .and_then(|_| {
+                            write_artifact(
+                                &out,
+                                "result.pure-partition.svg",
+                                &artifacts.pure_partition_svg,
+                            )
+                        })
+                        .and_then(|_| {
+                            write_artifact(&out, "result.scene.json", &artifacts.scene_json)
+                        })
+                        .and_then(|_| {
+                            write_artifact(
+                                &out,
+                                "result.export-plan.json",
+                                &artifacts.export_plan_json,
+                            )
+                        })
+                        .and_then(|_| {
+                            write_artifact(&out, "result.report.json", &artifacts.report_json)
+                        })
+                        .and_then(|_| {
+                            write_artifact(&out, "result.render.png", &artifacts.render_png)
+                        })
+                        .and_then(|_| {
+                            write_artifact(&out, "result.seal.json", &artifacts.seal_json)
+                        })
+                        .and_then(|_| {
+                            if let Some(trace_json) = &artifacts.trace_json {
+                                let trace_dir = out.join("trace");
+                                std::fs::create_dir(&trace_dir).map_err(|error| {
+                                    format!("create {}: {error}", trace_dir.display())
+                                })?;
+                                write_artifact(&trace_dir, "trace.json", trace_json)
+                            } else {
+                                Ok(())
+                            }
+                        })
+                }
+                _ => write_artifact(
+                    &out,
+                    "result.report.json",
+                    outcome.report().canonical_json().as_bytes(),
+                ),
+            };
+            if let Err(error) = write_result {
+                eprintln!("error: {error}");
+                return 2;
+            }
+            let report = outcome.report();
+            println!(
+                "outcome: {:?}; report: {}",
+                report.status,
+                out.join("result.report.json").display()
+            );
+            if let Some(reason) = &report.reason {
+                println!(
+                    "reason: {}",
+                    serde_json::to_string(reason).unwrap_or_default()
+                );
+            }
+            match outcome {
+                vice_core::VectorizeOutcome::Success(_) => 0,
+                vice_core::VectorizeOutcome::Ambiguous(_) => 3,
+                vice_core::VectorizeOutcome::Unsupported(_) => 4,
+                vice_core::VectorizeOutcome::Failed(_) => 2,
             }
         }
     }

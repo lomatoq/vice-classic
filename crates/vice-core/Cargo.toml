@@ -1,0 +1,29 @@
+[package]
+name = "vice-core"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "vice-classic M7: selective Flat2 vectorization pipeline and sealed delivery"
+
+[lints]
+workspace = true
+
+[dependencies]
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+vice-evidence = { path = "../vice-evidence" }
+vice-fit = { path = "../vice-fit" }
+vice-geom = { path = "../vice-geom" }
+vice-image = { path = "../vice-image" }
+vice-ir = { path = "../vice-ir" }
+vice-opt = { path = "../vice-opt" }
+vice-render = { path = "../vice-render" }
+vice-svg = { path = "../vice-svg" }
+vice-topology = { path = "../vice-topology" }
+vice-verify = { path = "../vice-verify" }
+
+[dev-dependencies]
+png = "0.17"
