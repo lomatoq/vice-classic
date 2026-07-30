@@ -11,7 +11,7 @@
 //! `#[ignore]`d because the run walks the corpus and takes minutes; CI runs
 //! them in release beside the other corpus-wide measurements.
 
-use vice_bench::dcel::{self, ProxyKnockout, RoiKnockout, RunKnockouts, PRODUCTION};
+use vice_bench::dcel::{self, ProxyKnockout, RoiKnockout, RunKnockouts, ShapeKnockout, PRODUCTION};
 use vice_bench::topology::TopologyScope;
 
 fn run(k: RunKnockouts) -> dcel::report::DcelReport {
@@ -192,6 +192,26 @@ fn every_gate_clause_has_a_knockout_that_reddens_it() {
             "the knockout for {clause:?} left its own row MET; a clause whose knockout does not              redden it has no world in which it is false (F-0035)"
         );
     }
+}
+
+#[test]
+fn the_compound_control_removes_a_real_measured_shape() {
+    let clean = run_at(TopologyScope::Test, PRODUCTION);
+    let knocked = run_at(
+        TopologyScope::Test,
+        RunKnockouts {
+            shape: ShapeKnockout::DropRing,
+            ..PRODUCTION
+        },
+    );
+    assert!(
+        clean.transactions_attempted > knocked.transactions_attempted,
+        "dropping the ring must remove real transaction attempts, not mutate a report"
+    );
+    assert!(
+        clean.transactions_compound > knocked.transactions_compound,
+        "the removed shape must carry the compound subclass it guards"
+    );
 }
 
 /// **REVIEW_M5_A D1-N1 / REDTEAM_M5 RT5-A9, at gate level.**

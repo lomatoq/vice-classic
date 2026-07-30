@@ -92,6 +92,17 @@ pub enum RegisterKnockout {
     DropLongLoops,
 }
 
+/// Remove one real transaction shape at the point where arms are measured.
+///
+/// This is STATUS_M6 limitation 54's control: the old compound knockout
+/// mutated aggregate report counts after measurement and therefore could not
+/// detect deletion of the ring shape itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShapeKnockout {
+    Off,
+    DropRing,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RunKnockouts {
     pub proxy: ProxyKnockout,
@@ -99,6 +110,7 @@ pub struct RunKnockouts {
     pub class: ClassKnockout,
     pub face_map: FaceMapKnockout,
     pub register: RegisterKnockout,
+    pub shape: ShapeKnockout,
 }
 
 impl RunKnockouts {
@@ -116,6 +128,7 @@ impl RunKnockouts {
             class: _,
             face_map: _,
             register: _,
+            shape: _,
         } = PRODUCTION;
         vec![
             (
@@ -135,7 +148,7 @@ impl RunKnockouts {
             (
                 "no unrelated graph mutation",
                 RunKnockouts {
-                    roi: RoiKnockout::Reach,
+                    shape: ShapeKnockout::DropRing,
                     ..PRODUCTION
                 },
             ),
@@ -156,4 +169,5 @@ pub const PRODUCTION: RunKnockouts = RunKnockouts {
     class: ClassKnockout::Off,
     face_map: FaceMapKnockout::Off,
     register: RegisterKnockout::Off,
+    shape: ShapeKnockout::Off,
 };

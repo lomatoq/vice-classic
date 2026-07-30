@@ -51,7 +51,7 @@ use shapes::{hole_fill_transaction_for, ring_transaction_for, transaction_for};
 
 pub use knockouts::{
     ClassKnockout, FaceMapKnockout, ProxyKnockout, RegisterKnockout, RoiKnockout, RunKnockouts,
-    PRODUCTION,
+    ShapeKnockout, PRODUCTION,
 };
 use vice_ir::ComplementaryConnectivity;
 use vice_topology::dcel::{audit, is_the_assembly_of_its_own_labelling};
@@ -546,7 +546,9 @@ fn arm_from_labelling(
     let (longest_loop, _total_half_edges, long_loops) =
         vice_topology::dcel::loop_length_profile(&d);
     let transaction = transaction_for(&d, t, k.roi);
-    let transaction_ring = ring_transaction_for(&d, t, k.roi);
+    let transaction_ring = (k.shape != ShapeKnockout::DropRing)
+        .then(|| ring_transaction_for(&d, t, k.roi))
+        .flatten();
     let transaction_hole_fill = hole_fill_transaction_for(&d, t, k.roi);
 
     // Probed on a stride. `arms_seen` counts every arm and the probe fires on
