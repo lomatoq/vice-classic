@@ -289,7 +289,11 @@ struct TopologyIdentity {
 }
 
 pub fn topology_signature_sha256(scene: &VectorScene) -> Result<String, VerificationError> {
-    let graph = &scene.graph;
+    // Bindings and report artifacts survive canonical scene serialization.
+    // The raw construction indices are not topology; hashing them before
+    // canonical relabeling made an otherwise valid roundtrip stale.
+    let canonical_graph = vice_ir::canonicalize_graph(&scene.graph);
+    let graph = &canonical_graph;
     let identity = TopologyIdentity {
         exterior: graph.exterior.0,
         boundaries: graph
@@ -632,6 +636,57 @@ fn verify_bindings(
         }
     }
     Ok(())
+}
+
+/// Remap observed/DCEL binding identities onto a canonically relabelled scene.
+///
+/// Canonical scene bytes deliberately reorder vertices and boundaries by
+/// content. A raw `BoundaryId` therefore cannot survive serialization by
+/// itself. The physical support polyline is the independent identity witness:
+/// every old binding must match exactly one new boundary inside its frozen
+/// isotopy tube, and the resulting assignment must be bijective.
+pub fn rebind_scene_bindings(
+    scene: &VectorScene,
+    bindings: &[BoundaryBinding],
+    cfg: VerificationConfig,
+) -> Result<Vec<BoundaryBinding>, VerificationError> {
+    cfg.validate()?;
+    if bindings.len() != scene.graph.boundaries.len() {
+        return Err(VerificationError::BoundaryBinding);
+    }
+    let validated = ValidatedScene::new(scene.clone())?;
+    let topology = topology_signature_sha256(scene)?;
+    let mesh = CertifiedMesh::from_scene(&validated, cfg.render_options)?;
+    let mut rebound = Vec::with_capacity(bindings.len());
+    let mut used = BTreeSet::new();
+    for binding in bindings {
+        let mut matches = Vec::new();
+        for (index, fitted) in mesh.mesh().boundary_polylines.iter().enumerate() {
+            let mut candidate = binding.clone();
+            candidate.boundary = BoundaryId(index as u32);
+            candidate.topology_signature_sha256 = topology.clone();
+            if matches!(
+                &candidate.origin,
+                BoundaryBindingOrigin::CanvasClosure { .. }
+            ) && !is_exact_canvas_closure(scene, &candidate)
+            {
+                continue;
+            }
+            let displacement =
+                directed_polyline_distance(&fitted.points, &candidate.support_polyline).max(
+                    directed_polyline_distance(&candidate.support_polyline, &fitted.points),
+                ) + fitted.max_deviation_px;
+            if displacement <= candidate.isotopy_tube_px {
+                matches.push(candidate);
+            }
+        }
+        if matches.len() != 1 || !used.insert(matches[0].boundary) {
+            return Err(VerificationError::BoundaryBinding);
+        }
+        rebound.push(matches.pop().expect("one canonical binding match"));
+    }
+    verify_bindings(scene, &rebound, &topology)?;
+    Ok(rebound)
 }
 
 pub fn preseal_scene(

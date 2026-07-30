@@ -21,8 +21,8 @@ pub use quantize::{
     QuantizedVerifiedScene,
 };
 pub use scene::{
-    canvas_closure_sha256, preseal_scene, topology_signature_sha256, BoundaryBinding,
-    BoundaryBindingOrigin, PresealCertificate, PresealedScene, VerificationConfig,
+    canvas_closure_sha256, preseal_scene, rebind_scene_bindings, topology_signature_sha256,
+    BoundaryBinding, BoundaryBindingOrigin, PresealCertificate, PresealedScene, VerificationConfig,
     VerificationError,
 };
 

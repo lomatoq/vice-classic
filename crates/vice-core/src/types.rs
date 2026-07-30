@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v3";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v5";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -36,6 +36,7 @@ pub struct RuntimeSummary {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CandidateSummary {
     pub hypothesis_id: String,
+    pub topology_arm: String,
     pub topology_class: String,
     pub formation_class: String,
     pub scene_digest_sha256: String,
@@ -107,6 +108,7 @@ pub struct TopologyArmTrace {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TopologyArmRefusal {
+    pub topology_class: String,
     pub signature_sha256: String,
     pub foreground_connectivity: String,
     pub field: vice_topology::FieldKind,
@@ -146,6 +148,7 @@ pub struct VectorizeReport {
     pub candidate_refusals: Vec<CandidateRefusal>,
     pub transaction_inventory: Option<TransactionInventory>,
     pub selected_hypothesis_id: Option<String>,
+    pub selected_boundary_bindings: Vec<vice_verify::BoundaryBinding>,
     pub runtime: RuntimeSummary,
 }
 

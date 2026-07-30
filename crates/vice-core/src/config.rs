@@ -83,6 +83,7 @@ pub struct ConfidenceCalibration {
     pub maximum_abs_residual_lag1: f64,
     pub maximum_topology_entropy_bits: f64,
     pub maximum_formation_entropy_bits: f64,
+    pub minimum_perturbation_stability: f64,
     /// Frozen R1 upper bound on omitted search mass relative to the best
     /// retained hypothesis. `None` means truncated search remains Unknown.
     pub empirical_unexplored_relative_mass_upper_bound: Option<f64>,
@@ -96,6 +97,38 @@ pub struct ConfidenceMetrics {
     pub max_abs_residual_lag1: f64,
     pub topology_entropy_upper_bound: vice_opt::BoundValue<f64>,
     pub formation_entropy_upper_bound: vice_opt::BoundValue<f64>,
+    pub perturbation_stability: PerturbationStability,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PerturbationStability {
+    pub phase_envelope_stable: bool,
+    pub sample_step_certificate_stable: bool,
+    pub render_tolerance_certificate_stable: bool,
+    pub render_tolerance_refusal: Option<String>,
+    pub solver_certificate_stable: bool,
+    pub passed_legs: u8,
+    pub total_legs: u8,
+    pub score: f64,
+}
+
+impl PerturbationStability {
+    pub fn from_legs(phase: bool, sample_step: bool, render_tolerance: bool, solver: bool) -> Self {
+        let passed_legs = [phase, sample_step, render_tolerance, solver]
+            .into_iter()
+            .filter(|passed| *passed)
+            .count() as u8;
+        Self {
+            phase_envelope_stable: phase,
+            sample_step_certificate_stable: sample_step,
+            render_tolerance_certificate_stable: render_tolerance,
+            render_tolerance_refusal: None,
+            solver_certificate_stable: solver,
+            passed_legs,
+            total_legs: 4,
+            score: f64::from(passed_legs) / 4.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -168,6 +201,15 @@ impl ConfidenceCalibration {
         {
             return Err("formation_entropy_above_calibrated_threshold");
         }
+        if !metrics.perturbation_stability.score.is_finite()
+            || metrics.perturbation_stability.total_legs != 4
+            || metrics.perturbation_stability.passed_legs > 4
+            || metrics.perturbation_stability.score
+                != f64::from(metrics.perturbation_stability.passed_legs) / 4.0
+            || metrics.perturbation_stability.score < self.minimum_perturbation_stability
+        {
+            return Err("perturbation_stability_below_calibrated_threshold");
+        }
         Ok(())
     }
 
@@ -205,6 +247,8 @@ impl ConfidenceCalibration {
             || self.maximum_topology_entropy_bits < 0.0
             || !self.maximum_formation_entropy_bits.is_finite()
             || self.maximum_formation_entropy_bits < 0.0
+            || !self.minimum_perturbation_stability.is_finite()
+            || !(0.0..=1.0).contains(&self.minimum_perturbation_stability)
             || self
                 .empirical_unexplored_relative_mass_upper_bound
                 .is_none_or(|bound| !bound.is_finite() || bound < 0.0)
@@ -502,7 +546,7 @@ impl CoreConfig {
             apron_width_px: self.apron_width_px,
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
-            implementation: "vice-core/m7/v3",
+            implementation: "vice-core/m7/v5",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),
@@ -552,6 +596,7 @@ mod tests {
             "maximum_abs_residual_lag1": 0.9,
             "maximum_topology_entropy_bits": 1.0,
             "maximum_formation_entropy_bits": 1.0,
+            "minimum_perturbation_stability": 0.95,
             "empirical_unexplored_relative_mass_upper_bound": 0.25,
             "buckets": [{
                 "name": "all",

@@ -16,7 +16,7 @@ mod types;
 
 pub use config::{
     CalibrationBucket, ConfidenceCalibration, ConfidenceMetrics, CoreConfig, Intent,
-    IntentPriorPolicy, Preset, ProductionConfigError, VectorizeRequest,
+    IntentPriorPolicy, PerturbationStability, Preset, ProductionConfigError, VectorizeRequest,
     M7_PRODUCTION_CONFIG_SHA256,
 };
 pub use pipeline::{vectorize, vectorize_for_calibration, vectorize_with_config};
@@ -225,6 +225,7 @@ mod tests {
             maximum_abs_residual_lag1: 0.9,
             maximum_topology_entropy_bits: 1.0,
             maximum_formation_entropy_bits: 1.0,
+            minimum_perturbation_stability: 0.95,
             empirical_unexplored_relative_mass_upper_bound: Some(0.0),
             buckets: vec![CalibrationBucket {
                 name: "all".into(),
@@ -245,6 +246,7 @@ mod tests {
             max_abs_residual_lag1: 0.1,
             topology_entropy_upper_bound: vice_opt::BoundValue::Certified(0.0),
             formation_entropy_upper_bound: vice_opt::BoundValue::Certified(0.0),
+            perturbation_stability: PerturbationStability::from_legs(true, true, true, true),
         };
         assert!(calibration(458)
             .permits(&identity, &delivery, &metrics)
@@ -275,6 +277,12 @@ mod tests {
         assert_eq!(
             calibration(459).permits(&identity, &delivery, &excessive_entropy),
             Err("formation_entropy_above_calibrated_threshold")
+        );
+        let mut unstable = metrics.clone();
+        unstable.perturbation_stability = PerturbationStability::from_legs(true, true, true, false);
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &unstable),
+            Err("perturbation_stability_below_calibrated_threshold")
         );
 
         for field in ["universe", "pricing", "backend", "config"] {
@@ -314,6 +322,9 @@ mod tests {
             run.outcome.report().confidence_metrics.is_some(),
             witness_expected
         );
+        if witness_expected {
+            assert!(!run.outcome.report().selected_boundary_bindings.is_empty());
+        }
         let outcome = run.outcome;
         assert!(!matches!(
             outcome,

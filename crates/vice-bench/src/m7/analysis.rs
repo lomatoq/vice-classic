@@ -16,7 +16,7 @@ use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v3";
+    "vice-classic/m7-confidence-calibration-analysis/v4";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = 0.35;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = 0.60;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = 1.50;
@@ -27,6 +27,7 @@ pub const PROPOSED_MAX_POSTERIOR_PREDICTIVE_BITS_PER_BLOCK: f64 = 0.10;
 pub const PROPOSED_MAX_ABS_RESIDUAL_LAG1: f64 = 0.90;
 pub const PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS: f64 = 1.0;
 pub const PROPOSED_MAX_FORMATION_ENTROPY_BITS: f64 = 1.0;
+pub const PROPOSED_MIN_PERTURBATION_STABILITY: f64 = 0.95;
 pub const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -213,6 +214,7 @@ pub fn analyze_calibration(
         maximum_abs_residual_lag1: PROPOSED_MAX_ABS_RESIDUAL_LAG1,
         maximum_topology_entropy_bits: PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS,
         maximum_formation_entropy_bits: PROPOSED_MAX_FORMATION_ENTROPY_BITS,
+        minimum_perturbation_stability: PROPOSED_MIN_PERTURBATION_STABILITY,
         empirical_unexplored_relative_mass_upper_bound: Some(empirical_upper),
         buckets: vec![vice_core::CalibrationBucket {
             name: TARGET_BUCKET.into(),
@@ -350,6 +352,9 @@ fn diagnostics_permit(row: &MeasurementRow, empirical_upper: f64) -> bool {
             .is_some_and(|bits| bits <= PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS)
         && calibrated_entropy_upper_bound(row, empirical_upper, false)
             .is_some_and(|bits| bits <= PROPOSED_MAX_FORMATION_ENTROPY_BITS)
+        && row
+            .perturbation_stability
+            .is_some_and(|stability| stability >= PROPOSED_MIN_PERTURBATION_STABILITY)
 }
 
 fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
@@ -420,6 +425,12 @@ mod tests {
             topology_entropy_bound_status: "empirically_calibrated".into(),
             formation_entropy_upper_bound: Some(0.0),
             formation_entropy_bound_status: "empirically_calibrated".into(),
+            perturbation_stability: Some(1.0),
+            phase_envelope_stable: Some(true),
+            sample_step_certificate_stable: Some(true),
+            render_tolerance_certificate_stable: Some(true),
+            render_tolerance_refusal: None,
+            solver_certificate_stable: Some(true),
             topology: Some(TopologyComparison {
                 truth_visible_faces: 2,
                 selected_visible_faces: if catastrophic { 1 } else { 2 },

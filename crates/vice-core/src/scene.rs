@@ -185,6 +185,10 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> TopologyArmSet {
             },
         );
         let refusal = |detail: String| TopologyArmRefusal {
+            topology_class: format!(
+                "flat2-components{}-holes{}",
+                hypothesis.signature.components, hypothesis.signature.holes
+            ),
             signature_sha256: hypothesis.signature.digest.clone(),
             foreground_connectivity: hypothesis.signature.foreground_connectivity.to_string(),
             field: hypothesis.provenance.field,

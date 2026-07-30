@@ -8,9 +8,10 @@ use vice_ir::{
 use vice_svg::{build_export_plan, materialize_svg, parse_and_render_independently, SvgProfile};
 
 use crate::{
-    canvas_closure_sha256, preseal_scene, quantize_and_verify, seal_delivery,
-    topology_signature_sha256, BoundaryBinding, BoundaryBindingOrigin, DeliverySealConfig,
-    DeliverySealError, QuantizationPolicy, VerificationConfig, VerificationError,
+    canvas_closure_sha256, preseal_scene, quantize_and_verify, rebind_scene_bindings,
+    seal_delivery, topology_signature_sha256, BoundaryBinding, BoundaryBindingOrigin,
+    DeliverySealConfig, DeliverySealError, QuantizationPolicy, VerificationConfig,
+    VerificationError,
 };
 
 fn square_scene() -> VectorScene {
@@ -123,6 +124,18 @@ fn config() -> VerificationConfig {
         max_g1_spread_rad: 1e-9,
         curve_separation_margin_px: 1e-9,
     }
+}
+
+#[test]
+fn topology_signature_survives_canonical_scene_relabeling() {
+    let scene = square_scene();
+    let original_bindings = bindings(&scene);
+    let before = topology_signature_sha256(&scene).unwrap();
+    let bytes = vice_ir::canonical_scene_bytes(&scene).unwrap();
+    let roundtrip = vice_ir::parse_scene(&bytes).unwrap();
+    assert_eq!(topology_signature_sha256(&roundtrip).unwrap(), before);
+    let rebound = rebind_scene_bindings(&roundtrip, &original_bindings, config()).unwrap();
+    preseal_scene(&roundtrip, &rebound, config()).unwrap();
 }
 
 fn bindings(scene: &VectorScene) -> Vec<BoundaryBinding> {

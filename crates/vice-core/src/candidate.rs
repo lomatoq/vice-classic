@@ -23,6 +23,8 @@ use crate::Intent;
 pub(crate) struct MaterializedCandidate {
     pub summary: CandidateSummary,
     pub score: ScoredHypothesis,
+    pub bindings: Vec<vice_verify::BoundaryBinding>,
+    pub bindings_bytes: u64,
     pub scene_json: Vec<u8>,
     pub plan_json: Vec<u8>,
     pub pure_svg: Vec<u8>,
@@ -169,7 +171,8 @@ fn memory_bytes(candidate: &MaterializedCandidate) -> u64 {
     ]
     .into_iter()
     .map(|value| value as u64)
-    .sum()
+    .sum::<u64>()
+        + candidate.bindings_bytes
 }
 
 fn apply_expected_transition(
@@ -541,6 +544,7 @@ pub(crate) fn materialize_candidate(
     };
     let summary = CandidateSummary {
         hypothesis_id: request.hypothesis_id,
+        topology_arm: request.arm.class.clone(),
         topology_class: request.arm.topology_class.clone(),
         formation_class: request.formation_class,
         scene_digest_sha256,
@@ -559,9 +563,21 @@ pub(crate) fn materialize_candidate(
             error,
         )
     })?;
+    let bindings = verified.bindings().to_vec();
+    let bindings_bytes = serde_json::to_vec(&bindings)
+        .map_err(|error| {
+            refusal(
+                &hypothesis_id,
+                CandidateFailureStage::CanonicalArtifact,
+                error,
+            )
+        })?
+        .len() as u64;
     let mut candidate = MaterializedCandidate {
         summary,
         score: scored,
+        bindings,
+        bindings_bytes,
         scene_json,
         plan_json: delivery.plan_json,
         pure_svg: delivery.pure_svg,

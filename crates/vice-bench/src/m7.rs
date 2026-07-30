@@ -32,7 +32,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v4";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v6";
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
@@ -161,6 +161,12 @@ pub struct MeasurementRow {
     pub topology_entropy_bound_status: String,
     pub formation_entropy_upper_bound: Option<f64>,
     pub formation_entropy_bound_status: String,
+    pub perturbation_stability: Option<f64>,
+    pub phase_envelope_stable: Option<bool>,
+    pub sample_step_certificate_stable: Option<bool>,
+    pub render_tolerance_certificate_stable: Option<bool>,
+    pub render_tolerance_refusal: Option<String>,
+    pub solver_certificate_stable: Option<bool>,
     pub topology: Option<TopologyComparison>,
     pub boundary: Option<BoundaryTail>,
     pub max_palette_code_delta: Option<u8>,
@@ -871,6 +877,12 @@ fn measure_one(
         topology_entropy_bound_status: "absent".into(),
         formation_entropy_upper_bound: None,
         formation_entropy_bound_status: "absent".into(),
+        perturbation_stability: None,
+        phase_envelope_stable: None,
+        sample_step_certificate_stable: None,
+        render_tolerance_certificate_stable: None,
+        render_tolerance_refusal: None,
+        solver_certificate_stable: None,
         topology: None,
         boundary: None,
         max_palette_code_delta: None,
@@ -886,6 +898,24 @@ fn measure_one(
             row.formation_entropy_upper_bound,
             row.formation_entropy_bound_status,
         ) = measured_bound(&metrics.formation_entropy_upper_bound);
+        row.perturbation_stability = Some(metrics.perturbation_stability.score);
+        row.phase_envelope_stable = Some(metrics.perturbation_stability.phase_envelope_stable);
+        row.sample_step_certificate_stable = Some(
+            metrics
+                .perturbation_stability
+                .sample_step_certificate_stable,
+        );
+        row.render_tolerance_certificate_stable = Some(
+            metrics
+                .perturbation_stability
+                .render_tolerance_certificate_stable,
+        );
+        row.render_tolerance_refusal = metrics
+            .perturbation_stability
+            .render_tolerance_refusal
+            .clone();
+        row.solver_certificate_stable =
+            Some(metrics.perturbation_stability.solver_certificate_stable);
     }
     if let Some(best) = report
         .search_mass
@@ -1034,6 +1064,12 @@ fn refusal_row(
         topology_entropy_bound_status: "absent".into(),
         formation_entropy_upper_bound: None,
         formation_entropy_bound_status: "absent".into(),
+        perturbation_stability: None,
+        phase_envelope_stable: None,
+        sample_step_certificate_stable: None,
+        render_tolerance_certificate_stable: None,
+        render_tolerance_refusal: None,
+        solver_certificate_stable: None,
         topology: None,
         boundary: None,
         max_palette_code_delta: None,
@@ -1376,6 +1412,12 @@ mod tests {
             topology_entropy_bound_status: "absent".into(),
             formation_entropy_upper_bound: None,
             formation_entropy_bound_status: "absent".into(),
+            perturbation_stability: None,
+            phase_envelope_stable: None,
+            sample_step_certificate_stable: None,
+            render_tolerance_certificate_stable: None,
+            render_tolerance_refusal: None,
+            solver_certificate_stable: None,
             topology: None,
             boundary: None,
             max_palette_code_delta: None,

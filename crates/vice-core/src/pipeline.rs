@@ -13,7 +13,7 @@ use vice_opt::{
 use crate::candidate::{
     materialize_candidate, CandidateCache, CandidateModelTransaction, CandidateRequest,
 };
-use crate::config::{ConfidenceMetrics, CoreConfig};
+use crate::config::{ConfidenceMetrics, CoreConfig, PerturbationStability};
 use crate::scene::{topology_arms, TopologyArm};
 use crate::types::{
     CalibrationRun, CalibrationWitness, CandidateRefusal, CandidateSummary, DecisionStatus,
@@ -38,6 +38,7 @@ struct ReportParts {
     candidate_refusals: Vec<CandidateRefusal>,
     transaction_inventory: Option<TransactionInventory>,
     selected_hypothesis_id: Option<String>,
+    selected_boundary_bindings: Vec<vice_verify::BoundaryBinding>,
     candidate_bytes: u64,
 }
 
@@ -83,6 +84,7 @@ fn make_report(
         candidate_refusals: parts.candidate_refusals,
         transaction_inventory: parts.transaction_inventory,
         selected_hypothesis_id: parts.selected_hypothesis_id,
+        selected_boundary_bindings: parts.selected_boundary_bindings,
     }
 }
 
@@ -1032,6 +1034,7 @@ fn vectorize_impl(
         }
         if let Some(detail) = fit_refusal {
             topology_refusals.push(TopologyArmRefusal {
+                topology_class: arm.topology_class.clone(),
                 signature_sha256: arm.trace.signature_sha256.clone(),
                 foreground_connectivity: arm.trace.foreground_connectivity.clone(),
                 field: arm.trace.field,
@@ -1440,6 +1443,115 @@ fn vectorize_impl(
         selected.summary.score.pixel_bits / diagnostics.blocks as f64
     };
     let max_abs_residual_lag1 = diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs());
+    let phase_envelope_stable = parts.topology.as_ref().is_some_and(|topology| {
+        let same = |class: &str| class == selected.score.topology_class;
+        !topology.materialized_arms.is_empty()
+            && topology
+                .materialized_arms
+                .iter()
+                .all(|arm| same(&arm.topology_class))
+            && topology
+                .prefit_budget_pruned_arms
+                .iter()
+                .all(|arm| same(&arm.topology_class))
+            && topology
+                .materialization_refusals
+                .iter()
+                .all(|arm| same(&arm.topology_class))
+    });
+    let sample_step_certificate_stable = fitted_arms
+        .iter()
+        .find(|bundle| bundle.arm.class == selected.summary.topology_arm)
+        .is_some_and(|bundle| {
+            !bundle.fits.is_empty()
+                && bundle.fits.iter().all(|fit| {
+                    fit.full_resolution_certified
+                        && fit.observed_samples > 0
+                        && fit.discrete_search_samples > 0
+                        && fit.continuous_solve_samples > 0
+                        && !fit.discrete_search_levels.is_empty()
+                        && !fit.models.is_empty()
+                })
+        });
+    let canonical_binding_check = (|| {
+        let scene = vice_ir::parse_scene(&selected.scene_json)
+            .map_err(|error| format!("parse selected scene: {error}"))?;
+        let scene = vice_ir::ValidatedScene::new(scene)
+            .map_err(|error| format!("validate selected scene: {error}"))?;
+        let roundtrip_topology = vice_verify::topology_signature_sha256(scene.scene())
+            .map_err(|error| format!("roundtrip topology: {error}"))?;
+        if roundtrip_topology != selected.summary.post_quantization.topology_signature_sha256 {
+            return Err(format!(
+                "canonical scene roundtrip changed topology: report={} roundtrip={}",
+                selected.summary.post_quantization.topology_signature_sha256, roundtrip_topology
+            ));
+        }
+        if scene.scene().graph.boundaries.len() != selected.bindings.len() {
+            return Err(format!(
+                "canonical scene roundtrip changed boundary count: scene={} bindings={}",
+                scene.scene().graph.boundaries.len(),
+                selected.bindings.len()
+            ));
+        }
+        let bindings = vice_verify::rebind_scene_bindings(
+            scene.scene(),
+            &selected.bindings,
+            config.verification,
+        )
+        .map_err(|error| format!("canonical binding remap: {error}"))?;
+        Ok((scene, bindings))
+    })();
+    if let Ok((_, bindings)) = &canonical_binding_check {
+        parts.selected_boundary_bindings = bindings.clone();
+    }
+    let tighter_tolerance = config
+        .verification
+        .render_options
+        .budget
+        .chord_tolerance
+        .px()
+        / 2.0;
+    let tighter_render_check = canonical_binding_check
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|(scene, bindings)| {
+            let budget =
+                vice_render::TessellationBudget::with_chord_tolerance_px(tighter_tolerance)
+                    .ok_or_else(|| "invalid tighter tessellation budget".to_string())?;
+            let mut verification = config.verification;
+            verification.render_options = verification.render_options.with_budget(budget);
+            vice_verify::preseal_scene(scene.scene(), bindings, verification)
+                .map(|_| ())
+                .map_err(|error| error.to_string())
+        });
+    let render_tolerance_certificate_stable = tighter_render_check.is_ok();
+    let accepted_local = selected
+        .summary
+        .optimizer
+        .trace
+        .iter()
+        .filter(|row| row.accepted && !row.full_check)
+        .count();
+    let full_checks = selected
+        .summary
+        .optimizer
+        .trace
+        .iter()
+        .filter(|row| row.full_check)
+        .count();
+    let solver_certificate_stable = full_checks >= accepted_local
+        && selected.summary.optimizer.trace.iter().all(|row| {
+            row.child_bits.is_finite()
+                && row.parent_bits.is_finite()
+                && (!row.full_check || (row.accepted && !row.rolled_back_to_verified))
+        });
+    let mut perturbation_stability = PerturbationStability::from_legs(
+        phase_envelope_stable,
+        sample_step_certificate_stable,
+        render_tolerance_certificate_stable,
+        solver_certificate_stable,
+    );
+    perturbation_stability.render_tolerance_refusal = tighter_render_check.err();
     let confidence_metrics = ConfidenceMetrics {
         top2_class_margin_bits,
         posterior_predictive_bits_per_block: if predictive_bits_per_block.is_finite() {
@@ -1454,6 +1566,7 @@ fn vectorize_impl(
         },
         topology_entropy_upper_bound: search_mass.topology_entropy_upper_bound.clone(),
         formation_entropy_upper_bound: search_mass.formation_entropy_upper_bound.clone(),
+        perturbation_stability,
     };
     parts.confidence_metrics = Some(confidence_metrics.clone());
     if let Some(observer) = calibration_observer.as_mut() {
