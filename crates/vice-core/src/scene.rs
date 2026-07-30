@@ -26,6 +26,8 @@ use crate::types::{TopologyArmRefusal, TopologyArmTrace};
 pub(crate) struct TopologyArm {
     pub class: String,
     pub dcel: Dcel,
+    pub chains: Vec<BoundaryChain>,
+    pub trace: TopologyArmTrace,
     /// Evidence-chain index -> canonical DCEL boundary index.
     pub chain_to_boundary: Vec<usize>,
     pub dcel_boundary_sha256: Vec<String>,
@@ -144,7 +146,7 @@ fn bind_chains_to_dcel(chains: &[BoundaryChain], dcel: &Dcel) -> Result<Vec<usiz
     }
 }
 
-pub(crate) fn topology_arms(evidence: &Flat2Evidence, chains: &[BoundaryChain]) -> TopologyArmSet {
+pub(crate) fn topology_arms(evidence: &Flat2Evidence) -> TopologyArmSet {
     let proposal = vice_topology::propose(
         &[vice_topology::CoverageObservation {
             palette_id: evidence.hypothesis.id.clone(),
@@ -176,6 +178,28 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence, chains: &[BoundaryChain]) 
             extraction_level: hypothesis.provenance.level,
             detail,
         };
+        let observation = match vice_evidence::observe_boundaries(
+            evidence,
+            vice_evidence::ANALYSIS_CONFIG_V1.coverage_level,
+            &vice_evidence::BoundaryConfig {
+                level: hypothesis.provenance.level,
+                ..vice_evidence::BOUNDARY_CONFIG_V1
+            },
+            &vice_evidence::CORRIDOR_CONFIG_V1,
+        ) {
+            Ok(observation) => observation,
+            Err(error) => {
+                refusals.push(refusal(format!("boundary observation refused: {error}")));
+                continue;
+            }
+        };
+        if observation.chains.is_empty() || observation.chains.iter().any(|chain| !chain.closed) {
+            refusals.push(refusal(
+                "topology hypothesis did not produce one or more closed observed chains".into(),
+            ));
+            continue;
+        }
+        let chains = observation.chains;
         let dcel = Dcel::assemble(hypothesis.labelling.clone(), connectivity);
         if let Err(error) = audit(&dcel) {
             refusals.push(refusal(error.to_string()));
@@ -193,7 +217,7 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence, chains: &[BoundaryChain]) 
             ));
             continue;
         }
-        let chain_to_boundary = match bind_chains_to_dcel(chains, &dcel) {
+        let chain_to_boundary = match bind_chains_to_dcel(&chains, &dcel) {
             Ok(binding) => binding,
             Err(error) => {
                 refusals.push(refusal(error));
@@ -218,7 +242,7 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence, chains: &[BoundaryChain]) 
             hypothesis.signature.background_connectivity,
             hypothesis.signature.digest
         );
-        traces.push(TopologyArmTrace {
+        let trace = TopologyArmTrace {
             class: class.clone(),
             signature_sha256: hypothesis.signature.digest.clone(),
             components: hypothesis.signature.components,
@@ -228,24 +252,25 @@ pub(crate) fn topology_arms(evidence: &Flat2Evidence, chains: &[BoundaryChain]) 
             saddle: hypothesis.provenance.saddle,
             extraction_level: hypothesis.provenance.level,
             observed_chains: chains.len(),
-        });
+            fit_models_per_chain: Vec::new(),
+        };
+        traces.push(trace.clone());
         arms.push(TopologyArm {
             class,
             dcel,
+            chains,
+            trace,
             chain_to_boundary,
             dcel_boundary_sha256,
         });
     }
-    let mut order: Vec<usize> = (0..arms.len()).collect();
-    order.sort_by(|&left, &right| arms[left].class.cmp(&arms[right].class));
     let mut sorted_arms = Vec::with_capacity(arms.len());
     let mut sorted_traces = Vec::with_capacity(traces.len());
-    let mut previous = None;
-    for index in order {
-        if previous.as_ref() == Some(&arms[index].class) {
+    let mut seen = std::collections::BTreeSet::new();
+    for index in 0..arms.len() {
+        if !seen.insert(arms[index].class.clone()) {
             continue;
         }
-        previous = Some(arms[index].class.clone());
         sorted_arms.push(arms[index].clone());
         sorted_traces.push(traces[index].clone());
     }

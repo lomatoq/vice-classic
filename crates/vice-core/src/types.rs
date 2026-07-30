@@ -97,6 +97,7 @@ pub struct TopologyArmTrace {
     pub saddle: vice_topology::SaddleResolution,
     pub extraction_level: f64,
     pub observed_chains: usize,
+    pub fit_models_per_chain: Vec<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -114,6 +115,7 @@ pub struct TopologyEnvelopeTrace {
     pub proposal: vice_topology::Proposal,
     pub materialized_arms: Vec<TopologyArmTrace>,
     pub materialization_refusals: Vec<TopologyArmRefusal>,
+    pub prefit_budget_pruned_arms: Vec<TopologyArmTrace>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

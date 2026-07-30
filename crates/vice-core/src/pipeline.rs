@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use vice_evidence::{ChainStatus, Flat2Outcome};
+use vice_evidence::Flat2Outcome;
 use vice_ir::{Canvas, PixelFilter};
 use vice_opt::{
     posterior_with_search_mass, select_diverse_beam, BeamCandidate, SearchMassInput,
@@ -14,11 +14,12 @@ use crate::candidate::{
     materialize_candidate, CandidateCache, CandidateModelTransaction, CandidateRequest,
 };
 use crate::config::CoreConfig;
-use crate::scene::topology_arms;
+use crate::scene::{topology_arms, TopologyArm};
 use crate::types::{
     CandidateRefusal, CandidateSummary, DecisionStatus, FailureReason, RuntimeSummary,
-    SuccessArtifacts, TopologyEnvelopeTrace, TransactionInventory, TransactionInventoryRow,
-    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    SuccessArtifacts, TopologyArmRefusal, TopologyEnvelopeTrace, TransactionInventory,
+    TransactionInventoryRow, VectorizeOutcome, VectorizeReport, VectorizeSuccess,
+    CORE_REPORT_SCHEMA,
 };
 use crate::VectorizeRequest;
 
@@ -159,6 +160,14 @@ struct FinalSceneVariant {
     class: String,
     models: Vec<vice_fit::BoundaryModel>,
     model_transactions: Vec<CandidateModelTransaction>,
+}
+
+#[derive(Debug, Clone)]
+struct FittedTopologyArm {
+    arm: TopologyArm,
+    fits: Vec<vice_fit::ModelRun>,
+    baseline_models: Vec<vice_fit::BoundaryModel>,
+    variants: Vec<FinalSceneVariant>,
 }
 
 fn free_model(selected: &vice_fit::BoundaryModel) -> vice_fit::BoundaryModel {
@@ -822,8 +831,7 @@ pub fn vectorize_with_config(
             started,
         );
     };
-    if !matches!(boundary_observation.status, ChainStatus::WellFormed)
-        || boundary_observation.chains.is_empty()
+    if boundary_observation.chains.is_empty()
         || boundary_observation
             .chains
             .iter()
@@ -832,7 +840,8 @@ pub fn vectorize_with_config(
         return refuse(
             DecisionStatus::Ambiguous,
             FailureReason::BoundaryOutsideSelectiveCore {
-                detail: "M7 selective core requires one or more unambiguous closed boundaries"
+                detail: "M7 selective core requires one or more closed boundaries; critical \
+                         saddle readings remain explicit M4.5 topology hypotheses"
                     .into(),
             },
             request,
@@ -843,15 +852,18 @@ pub fn vectorize_with_config(
             started,
         );
     }
-    let chains = boundary_observation.chains.clone();
-    let topology = topology_arms(&evidence, &chains);
-    parts.topology = Some(TopologyEnvelopeTrace {
-        proposal: topology.proposal,
-        materialized_arms: topology.traces,
-        materialization_refusals: topology.refusals,
-    });
+    let topology = topology_arms(&evidence);
+    let proposal = topology.proposal;
+    let mut topology_traces = topology.traces;
+    let mut topology_refusals = topology.refusals;
     let arms = topology.arms;
     if arms.is_empty() {
+        parts.topology = Some(TopologyEnvelopeTrace {
+            proposal,
+            materialized_arms: topology_traces,
+            materialization_refusals: topology_refusals,
+            prefit_budget_pruned_arms: Vec::new(),
+        });
         return refuse(
             DecisionStatus::Unsupported,
             FailureReason::Topology {
@@ -867,69 +879,127 @@ pub fn vectorize_with_config(
             started,
         );
     }
-    let mut fits = Vec::with_capacity(chains.len());
-    for (chain_index, chain) in chains.iter().enumerate() {
-        let fit = match vice_fit::k_best_boundary_models(
-            chain,
-            &vice_fit::FIT_BUDGET_V1,
-            f64::from(image.width_px().max(image.height_px())),
-            config.k_discrete_paths,
-        ) {
-            Ok(fit) => fit,
-            Err(error) => {
-                return refuse(
-                    DecisionStatus::Unsupported,
-                    FailureReason::Fitting {
-                        detail: format!("chain {chain_index}: {error:?}"),
-                    },
-                    request,
-                    config,
-                    source_sha256,
-                    production,
-                    parts,
-                    started,
-                )
-            }
-        };
-        if fit.models.is_empty() {
-            return refuse(
-                DecisionStatus::Unsupported,
-                FailureReason::Fitting {
-                    detail: format!(
-                        "typed fitter produced no admissible model for chain {chain_index}"
-                    ),
-                },
-                request,
-                config,
-                source_sha256,
-                production,
-                parts,
-                started,
-            );
-        }
-        fits.push(fit);
-    }
-    parts.fits = fits.clone();
-    let fit_truncated = fits
-        .iter()
-        .any(|fit| fit.models.len() >= config.k_discrete_paths);
-    let mut model_variants = final_scene_variants(
-        &fits,
-        &chains,
-        f64::from(image.width_px().max(image.height_px())),
-    );
-    let combinations_per_variant = arms.len().saturating_mul(formations.len());
-    let max_variants = config
+    let max_topology_arms = config
         .beam
         .budget
         .max_candidates_considered
-        .checked_div(combinations_per_variant)
-        .unwrap_or(0);
-    if max_variants == 0 {
+        .checked_div(formations.len())
+        .unwrap_or(0)
+        .min(config.beam.width);
+    if max_topology_arms == 0 {
+        parts.topology = Some(TopologyEnvelopeTrace {
+            proposal,
+            materialized_arms: topology_traces,
+            materialization_refusals: topology_refusals,
+            prefit_budget_pruned_arms: Vec::new(),
+        });
         return refuse(
             DecisionStatus::Ambiguous,
             FailureReason::SearchTruncated {
-                detail: "candidate budget cannot score one complete model/topology/formation cross-product"
+                detail: "candidate budget cannot fit and score one topology/formation seed".into(),
+            },
+            request,
+            config,
+            source_sha256,
+            production,
+            parts,
+            started,
+        );
+    }
+    let topology_budget_truncated = arms.len() > max_topology_arms;
+    let topology_budget_pruned_arms = arms
+        .iter()
+        .skip(max_topology_arms)
+        .map(|arm| arm.trace.clone())
+        .collect::<Vec<_>>();
+    let canvas_dim_px = f64::from(image.width_px().max(image.height_px()));
+    let mut fitted_arms = Vec::new();
+    let mut fit_cache = std::collections::BTreeMap::<String, Vec<vice_fit::ModelRun>>::new();
+    for mut arm in arms.into_iter().take(max_topology_arms) {
+        let fit_key = match serde_json::to_vec(&arm.chains) {
+            Ok(bytes) => digest(bytes),
+            Err(error) => {
+                topology_refusals.push(TopologyArmRefusal {
+                    signature_sha256: arm.trace.signature_sha256.clone(),
+                    foreground_connectivity: arm.trace.foreground_connectivity.clone(),
+                    field: arm.trace.field,
+                    saddle: arm.trace.saddle,
+                    extraction_level: arm.trace.extraction_level,
+                    detail: format!("boundary identity serialization refused: {error}"),
+                });
+                continue;
+            }
+        };
+        let fits = if let Some(cached) = fit_cache.get(&fit_key) {
+            cached.clone()
+        } else {
+            let mut fits = Vec::with_capacity(arm.chains.len());
+            let mut fit_refusal = None;
+            for (chain_index, chain) in arm.chains.iter().enumerate() {
+                match vice_fit::k_best_boundary_models(
+                    chain,
+                    &vice_fit::FIT_BUDGET_V1,
+                    canvas_dim_px,
+                    config.k_discrete_paths,
+                ) {
+                    Ok(fit) if !fit.models.is_empty() => fits.push(fit),
+                    Ok(_) => {
+                        fit_refusal = Some(format!(
+                            "typed fitter produced no admissible model for chain {chain_index}"
+                        ));
+                        break;
+                    }
+                    Err(error) => {
+                        fit_refusal = Some(format!("chain {chain_index}: {error:?}"));
+                        break;
+                    }
+                }
+            }
+            if let Some(detail) = fit_refusal {
+                topology_refusals.push(TopologyArmRefusal {
+                    signature_sha256: arm.trace.signature_sha256.clone(),
+                    foreground_connectivity: arm.trace.foreground_connectivity.clone(),
+                    field: arm.trace.field,
+                    saddle: arm.trace.saddle,
+                    extraction_level: arm.trace.extraction_level,
+                    detail: format!("complete topology refit refused: {detail}"),
+                });
+                continue;
+            }
+            fit_cache.insert(fit_key, fits.clone());
+            fits
+        };
+        arm.trace.fit_models_per_chain =
+            fits.iter().map(|fit| fit.models.len()).collect::<Vec<_>>();
+        if let Some(trace) = topology_traces
+            .iter_mut()
+            .find(|trace| trace.class == arm.class)
+        {
+            *trace = arm.trace.clone();
+        }
+        let baseline_models = fits.iter().map(|fit| free_model(&fit.models[0])).collect();
+        let variants = final_scene_variants(&fits, &arm.chains, canvas_dim_px);
+        let variant_count = variants.len();
+        let variants = retain_variant_diversity(variants, variant_count);
+        fitted_arms.push(FittedTopologyArm {
+            arm,
+            fits,
+            baseline_models,
+            variants,
+        });
+    }
+    parts.topology = Some(TopologyEnvelopeTrace {
+        proposal,
+        materialized_arms: topology_traces,
+        materialization_refusals: topology_refusals,
+        prefit_budget_pruned_arms: topology_budget_pruned_arms,
+    });
+    if fitted_arms.is_empty() {
+        return refuse(
+            DecisionStatus::Unsupported,
+            FailureReason::Fitting {
+                detail: "every materializable topology envelope arm refused its complete typed \
+                         boundary refit"
                     .into(),
             },
             request,
@@ -940,9 +1010,13 @@ pub fn vectorize_with_config(
             started,
         );
     }
-    let variants_before_budget = model_variants.len();
-    model_variants = retain_variant_diversity(model_variants, max_variants);
-    let variant_truncated = model_variants.len() < variants_before_budget;
+    parts.fits = fitted_arms[0].fits.clone();
+    let fit_truncated = fitted_arms.iter().any(|bundle| {
+        bundle
+            .fits
+            .iter()
+            .any(|fit| fit.models.len() >= config.k_discrete_paths)
+    });
     let canvas = Canvas {
         width_px: image.width_px(),
         height_px: image.height_px(),
@@ -951,39 +1025,59 @@ pub fn vectorize_with_config(
     let mut candidate_refusals = Vec::new();
     let mut candidate_cache = CandidateCache::default();
     let mut proposed_transactions = std::collections::BTreeMap::<TransactionKind, u64>::new();
-    let planned_materializations = model_variants
-        .len()
-        .saturating_mul(arms.len())
-        .saturating_mul(formations.len());
-    let mandatory_diversity_materializations = model_variants
-        .len()
-        .min(config.beam.width)
-        .min(TRANSACTION_DIVERSITY_SEED_CLASSES);
+    let planned_materializations = fitted_arms
+        .iter()
+        .map(|bundle| bundle.variants.len().saturating_mul(formations.len()))
+        .sum::<usize>();
     let mut scheduled = BTreeSet::new();
     let mut materialization_order = Vec::with_capacity(planned_materializations);
-    for variant_index in 0..mandatory_diversity_materializations {
-        let topology_index = variant_index % arms.len();
-        let formation_index = (variant_index / arms.len()) % formations.len();
-        let task = (variant_index, topology_index, formation_index);
-        scheduled.insert(task);
-        materialization_order.push(task);
+    for topology_index in 0..fitted_arms.len().min(config.beam.min_topology_classes) {
+        let task = (topology_index, 0, 0);
+        if scheduled.insert(task) {
+            materialization_order.push(task);
+        }
     }
-    for variant_index in 0..model_variants.len() {
-        for topology_index in 0..arms.len() {
+    for formation_index in 0..formations.len().min(config.beam.min_formation_classes) {
+        let task = (0, 0, formation_index);
+        if scheduled.insert(task) {
+            materialization_order.push(task);
+        }
+    }
+    for variant_index in 0..fitted_arms[0]
+        .variants
+        .len()
+        .min(TRANSACTION_DIVERSITY_SEED_CLASSES)
+    {
+        let task = (0, variant_index, 0);
+        if scheduled.insert(task) {
+            materialization_order.push(task);
+        }
+    }
+    let diversity_seed_materializations = materialization_order.len();
+    for (topology_index, bundle) in fitted_arms.iter().enumerate() {
+        for variant_index in 0..bundle.variants.len() {
             for formation_index in 0..formations.len() {
-                let task = (variant_index, topology_index, formation_index);
+                let task = (topology_index, variant_index, formation_index);
                 if scheduled.insert(task) {
                     materialization_order.push(task);
                 }
             }
         }
     }
+    let evaluation_truncated =
+        materialization_order.len() > config.beam.budget.max_candidates_considered;
+    materialization_order.truncate(config.beam.budget.max_candidates_considered);
+    let scheduled_materializations = materialization_order.len();
+    let mandatory_diversity_materializations = diversity_seed_materializations
+        .min(scheduled_materializations)
+        .min(config.beam.width);
     let mut attempted_materializations = 0usize;
     let mut time_truncated = false;
-    'materialization: for (variant_index, topology_index, formation_index) in materialization_order
+    'materialization: for (topology_index, variant_index, formation_index) in materialization_order
     {
-        let variant = &model_variants[variant_index];
-        let arm = &arms[topology_index];
+        let bundle = &fitted_arms[topology_index];
+        let variant = &bundle.variants[variant_index];
+        let arm = &bundle.arm;
         let formation = &formations[formation_index];
         if attempted_materializations >= mandatory_diversity_materializations
             && started.elapsed().as_millis() >= u128::from(config.beam.budget.max_elapsed_ms)
@@ -995,14 +1089,14 @@ pub fn vectorize_with_config(
         for transaction in &variant.model_transactions {
             *proposed_transactions.entry(transaction.kind).or_default() += 1;
         }
-        if arm.class != arms[0].class {
-            let kind = if arm.dcel.holes() != arms[0].dcel.holes() {
+        if arm.class != fitted_arms[0].arm.class {
+            let kind = if arm.dcel.holes() != fitted_arms[0].arm.dcel.holes() {
                 TransactionKind::TopologyHole
-            } else if arm.dcel.foreground_faces() < arms[0].dcel.foreground_faces() {
+            } else if arm.dcel.foreground_faces() < fitted_arms[0].arm.dcel.foreground_faces() {
                 TransactionKind::TopologyBridge
-            } else if arm.dcel.foreground_faces() > arms[0].dcel.foreground_faces() {
+            } else if arm.dcel.foreground_faces() > fitted_arms[0].arm.dcel.foreground_faces() {
                 TransactionKind::TopologySplit
-            } else if arm.dcel.boundaries().len() < arms[0].dcel.boundaries().len() {
+            } else if arm.dcel.boundaries().len() < fitted_arms[0].arm.dcel.boundaries().len() {
                 TransactionKind::TopologyMerge
             } else {
                 TransactionKind::TopologySplit
@@ -1026,12 +1120,14 @@ pub fn vectorize_with_config(
             CandidateRequest {
                 canvas,
                 evidence: &evidence,
-                chains: &chains,
+                chains: &arm.chains,
                 models: &variant.models,
                 arm,
                 formation: *formation,
                 model_transactions: &variant.model_transactions,
-                transaction_base_arm: &arms[0],
+                transaction_base_arm: &fitted_arms[0].arm,
+                transaction_base_chains: &fitted_arms[0].arm.chains,
+                transaction_base_models: &fitted_arms[0].baseline_models,
                 transaction_base_formation: formations[0],
                 hypothesis_id: hypothesis_id.clone(),
                 formation_class,
@@ -1145,10 +1241,14 @@ pub fn vectorize_with_config(
         }
     };
     selection.ledger.time_budget_exhausted |= time_truncated;
-    selection.ledger.unmaterialized_by_time_budget = planned_materializations
-        .saturating_sub(attempted_materializations)
-        .try_into()
-        .unwrap_or(u64::MAX);
+    selection.ledger.unmaterialized_by_time_budget = if time_truncated {
+        scheduled_materializations
+            .saturating_sub(attempted_materializations)
+            .try_into()
+            .unwrap_or(u64::MAX)
+    } else {
+        0
+    };
     parts.beam = Some(selection.ledger.clone());
     let budget_ids: BTreeSet<_> = selection
         .budget_pruned
@@ -1168,7 +1268,11 @@ pub fn vectorize_with_config(
         identity: config.identity(),
         explored_kept,
         budget_pruned,
-        unexplored: if fit_truncated || variant_truncated || time_truncated {
+        unexplored: if topology_budget_truncated
+            || fit_truncated
+            || evaluation_truncated
+            || time_truncated
+        {
             config
                 .confidence
                 .as_ref()

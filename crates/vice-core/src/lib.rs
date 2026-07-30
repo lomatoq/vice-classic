@@ -167,6 +167,41 @@ mod tests {
         bytes
     }
 
+    fn weak_bridge_png() -> Vec<u8> {
+        let (width, height) = (48usize, 32usize);
+        let mut rgba = vec![0u8; width * height * 4];
+        for y in 0..height {
+            for x in 0..width {
+                let mut covered = 0u32;
+                for sy in 0..8 {
+                    for sx in 0..8 {
+                        let px = x as f64 + (f64::from(sx) + 0.5) / 8.0;
+                        let py = y as f64 + (f64::from(sy) + 0.5) / 8.0;
+                        let disc = [(14.0, 16.0), (34.0, 16.0)].iter().any(|&(cx, cy)| {
+                            (px - cx).powi(2) + (py - cy).powi(2) <= 7.0f64.powi(2)
+                        });
+                        let bridge = (20.0..28.0).contains(&px) && (15.75..16.25).contains(&py);
+                        if disc || bridge {
+                            covered += 1;
+                        }
+                    }
+                }
+                let alpha = ((covered * 255 + 32) / 64) as u8;
+                let offset = (y * width + x) * 4;
+                rgba[offset..offset + 4].copy_from_slice(&[30, 100, 230, alpha]);
+            }
+        }
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, width as u32, height as u32);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let mut writer = encoder.write_header().unwrap();
+            writer.write_image_data(&rgba).unwrap();
+        }
+        bytes
+    }
+
     #[test]
     fn exact_zero_failure_bound_needs_at_least_459_independent_groups() {
         let identity = CoreConfig::development().identity();
@@ -350,6 +385,55 @@ mod tests {
                 .iter()
                 .map(|fit| &fit.models[0].families)
                 .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn event_topology_arms_receive_complete_refits_and_atomic_graph_transactions() {
+        let mut config = CoreConfig::development_for(Preset::Fast);
+        config.beam.width = 8;
+        config.beam.min_topology_classes = 2;
+        config.beam.budget.max_candidates_considered = 32;
+        config.beam.budget.max_elapsed_ms = 10_000;
+        let outcome =
+            vectorize_with_config(&weak_bridge_png(), &VectorizeRequest::default(), &config);
+        assert!(!matches!(outcome, VectorizeOutcome::Failed(_)));
+        let topology = outcome
+            .report()
+            .topology
+            .as_ref()
+            .expect("topology envelope trace");
+        let signatures = topology
+            .materialized_arms
+            .iter()
+            .filter(|arm| !arm.fit_models_per_chain.is_empty())
+            .map(|arm| (arm.components, arm.holes))
+            .collect::<std::collections::BTreeSet<_>>();
+        assert!(
+            signatures.contains(&(1, 0)) && signatures.contains(&(2, 0)),
+            "weak bridge did not retain both complete refits: {signatures:?}"
+        );
+        assert!(
+            outcome
+                .report()
+                .candidates
+                .iter()
+                .any(
+                    |candidate| candidate.transactions.iter().any(|transaction| matches!(
+                        transaction.kind,
+                        vice_opt::TransactionKind::TopologyBridge
+                            | vice_opt::TransactionKind::TopologySplit
+                            | vice_opt::TransactionKind::TopologyMerge
+                    ))
+                ),
+            "no changed-topology candidate survived exact scoring: candidates={:?}, refusals={:?}",
+            outcome
+                .report()
+                .candidates
+                .iter()
+                .map(|candidate| &candidate.hypothesis_id)
+                .collect::<Vec<_>>(),
+            outcome.report().candidate_refusals
         );
     }
 }

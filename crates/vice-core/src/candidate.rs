@@ -69,6 +69,8 @@ pub(crate) struct CandidateRequest<'a> {
     pub formation: GlobalFormationHypothesis,
     pub model_transactions: &'a [CandidateModelTransaction],
     pub transaction_base_arm: &'a TopologyArm,
+    pub transaction_base_chains: &'a [BoundaryChain],
+    pub transaction_base_models: &'a [BoundaryModel],
     pub transaction_base_formation: GlobalFormationHypothesis,
     pub hypothesis_id: String,
     pub formation_class: String,
@@ -282,13 +284,39 @@ fn build_transactional_candidate(
     let base_target = build_scene_candidate(
         request.canvas,
         request.evidence,
-        request.chains,
-        request.models,
+        request.transaction_base_chains,
+        request.transaction_base_models,
         request.transaction_base_arm,
         request.transaction_base_formation,
     )?;
     let mut current = base_target.scene;
     let mut applications = Vec::new();
+
+    let target_parent_models = request
+        .model_transactions
+        .first()
+        .map_or(request.models, |transaction| {
+            transaction.parent_models.as_slice()
+        });
+    if request.arm.class != request.transaction_base_arm.class {
+        let rebuilt = build_scene_candidate(
+            request.canvas,
+            request.evidence,
+            request.chains,
+            target_parent_models,
+            request.arm,
+            request.transaction_base_formation,
+        )?;
+        let kind = topology_transaction_kind(request.transaction_base_arm, request.arm);
+        let (child, application) = apply_expected_transition(
+            &current,
+            &rebuilt.scene,
+            kind,
+            vec![SceneMutation::ReplaceGraph(rebuilt.scene.graph.clone())],
+        )?;
+        current = child;
+        applications.push(application);
+    }
 
     for transaction in request.model_transactions {
         let parent = build_scene_candidate(
@@ -296,17 +324,10 @@ fn build_transactional_candidate(
             request.evidence,
             request.chains,
             &transaction.parent_models,
-            request.transaction_base_arm,
+            request.arm,
             request.transaction_base_formation,
         )?;
-        let mutations = geometry_mutations(&parent.scene, &current)?;
-        let (_child, application) =
-            apply_expected_transition(&parent.scene, &current, transaction.kind, mutations)?;
-        applications.push(application);
-    }
-
-    if request.arm.class != request.transaction_base_arm.class {
-        let rebuilt = build_scene_candidate(
+        let expected = build_scene_candidate(
             request.canvas,
             request.evidence,
             request.chains,
@@ -314,17 +335,18 @@ fn build_transactional_candidate(
             request.arm,
             request.transaction_base_formation,
         )?;
-        if current != rebuilt.scene {
-            let kind = topology_transaction_kind(request.transaction_base_arm, request.arm);
-            let (child, application) = apply_expected_transition(
-                &current,
-                &rebuilt.scene,
-                kind,
-                vec![SceneMutation::ReplaceGraph(rebuilt.scene.graph.clone())],
-            )?;
+        let mutations = geometry_mutations(&parent.scene, &expected.scene)?;
+        let (child, application) =
+            apply_expected_transition(&parent.scene, &expected.scene, transaction.kind, mutations)?;
+        if current == parent.scene {
             current = child;
-            applications.push(application);
+        } else if current != expected.scene {
+            return Err(format!(
+                "{:?} parent is not the current completely refitted topology",
+                transaction.kind
+            ));
         }
+        applications.push(application);
     }
 
     if current != final_candidate.scene {
