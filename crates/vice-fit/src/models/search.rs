@@ -340,10 +340,9 @@ pub(super) fn fit_forced_boundary_models_impl(
                     continuous_sample_cap,
                 );
                 if continuous_sample_cap.is_some() {
-                    let (displacement_px, allowed_px) =
-                        observed_binding_isotopy(&model.geometry, samples, closed)
-                            .unwrap_or((f64::INFINITY, 0.0));
-                    if displacement_px > allowed_px {
+                    if let Err((displacement_px, allowed_px)) =
+                        retain_binding_certified_stage_h(&mut model, samples, closed)
+                    {
                         binding_isotopy_refusals.push((displacement_px, allowed_px));
                         continue;
                     }

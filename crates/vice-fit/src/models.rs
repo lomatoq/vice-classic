@@ -255,9 +255,9 @@ pub const MAX_CERTIFICATION_ATTEMPTS_PER_LEVEL_V1: usize = 3;
 /// tube before expensive Stage-H sibling formation.
 pub const BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1: f64 = 1.0 / 64.0;
 
-/// Stage-H may rescue a free chain only within one frozen fitter chord bound.
-/// Larger misses open the next discrete proposal level instead of spending
-/// relation solves on a path already outside the binding neighbourhood.
+/// One frozen fitter chord certificate around the observed binding tube.
+/// It covers the bounded-refit tessellation comparison and is carried into
+/// the verifier binding; larger misses open the next discrete proposal level.
 pub const BINDING_RELATION_RESCUE_MARGIN_PX_V1: f64 = crate::solve::REFIT_CHORD_TOLERANCE_PX;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -473,6 +473,44 @@ fn observed_binding_isotopy(
     let allowed_px = allowed_px + BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1;
     (displacement_px.is_finite() && allowed_px.is_finite() && allowed_px > 0.0)
         .then_some((displacement_px, allowed_px))
+}
+
+fn retain_binding_certified_stage_h(
+    model: &mut BoundaryModel,
+    samples: &[BoundarySample],
+    closed: bool,
+) -> Result<(), (f64, f64)> {
+    let selected =
+        observed_binding_isotopy(&model.geometry, samples, closed).unwrap_or((f64::INFINITY, 0.0));
+    if selected.0 <= selected.1 + BINDING_RELATION_RESCUE_MARGIN_PX_V1 {
+        return Ok(());
+    }
+    let free = observed_binding_isotopy(&model.stage_h_free_geometry, samples, closed)
+        .unwrap_or((f64::INFINITY, 0.0));
+    if free.0 > free.1 + BINDING_RELATION_RESCUE_MARGIN_PX_V1 {
+        return Err(
+            if free.0 / free.1.max(f64::MIN_POSITIVE)
+                > selected.0 / selected.1.max(f64::MIN_POSITIVE)
+            {
+                free
+            } else {
+                selected
+            },
+        );
+    }
+
+    // Stage-H primitives and relations are optional MDL siblings of the
+    // already certified free chain. A shorter sibling that leaves the
+    // observed binding tube is inadmissible; it must not discard the valid
+    // free reconstruction along with itself.
+    model.geometry = model.stage_h_free_geometry.clone();
+    model.code = model.stage_h_free_code;
+    model.primitive_kept = None;
+    model.relations_kept = 0;
+    model.relation_kept_indices.clear();
+    model.worst_g1_spread_rad =
+        selected_worst_g1_spread(&model.geometry, model.closure_smooth).unwrap_or(f64::INFINITY);
+    Ok(())
 }
 
 fn refusal_name(r: &RefitRefusal) -> &'static str {

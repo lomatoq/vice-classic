@@ -342,11 +342,18 @@ pub fn analyze_full_for_filters(
             .enumerate()
             .filter(|(_, (_, s))| s.mixture_class == class)
             .min_by(|a, b| {
-                a.1 .1
-                    .score
-                    .partial_cmp(&b.1 .1.score)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then(a.1 .1.id.cmp(&b.1 .1.id))
+                let score_order = if class.starts_with("opaque:")
+                    && (a.1 .1.score - b.1 .1.score).abs() <= 1e-9
+                {
+                    // Label-swapped opaque readings predict the same bytes.
+                    // Their independently evaluated floating-point surrogates
+                    // may differ below numerical resolution; do not let that
+                    // noise defeat the canonical H2 border-supported order.
+                    std::cmp::Ordering::Equal
+                } else {
+                    a.1 .1.score.total_cmp(&b.1 .1.score)
+                };
+                score_order.then(a.1 .1.id.cmp(&b.1 .1.id))
             })
             .map(|(i, _)| i)
     };
@@ -717,6 +724,28 @@ mod tests {
                 .formation
                 .pixel_filter,
             PixelFilter::Box
+        );
+    }
+
+    #[test]
+    fn an_opaque_two_face_tie_keeps_the_border_supported_canonical_reading() {
+        let img = image(48, |x, y| {
+            if (10..38).contains(&x) && (12..36).contains(&y) {
+                [30, 90, 180, 255]
+            } else {
+                [235, 232, 220, 255]
+            }
+        });
+        let output = analyze_full_for_filters(&img, &ANALYSIS_CONFIG_V1, None, &[PixelFilter::Box]);
+        assert!(output.report.is_supported(), "{:?}", output.report.outcome);
+        assert!(
+            output
+                .chosen
+                .expect("supported opaque evidence")
+                .hypothesis
+                .id
+                .starts_with("H2/border-supported-background"),
+            "a numerical near-tie must not turn the full canvas into foreground"
         );
     }
 

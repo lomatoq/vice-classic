@@ -1,7 +1,10 @@
 use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_geom::Pt;
 
-use super::{discrete_proposal_chain, k_best_boundary_models_bounded, observed_support_polyline};
+use super::{
+    discrete_proposal_chain, k_best_boundary_models_bounded, observed_support_polyline,
+    retain_binding_certified_stage_h,
+};
 
 fn open_line(samples: usize) -> BoundaryChain {
     let observations = (0..samples)
@@ -117,4 +120,33 @@ fn binding_certificate_closes_only_a_declared_closed_support() {
     let closed = observed_support_polyline(&samples, true);
     assert_eq!(&closed[..closed.len() - 1], points);
     assert_eq!(closed.first(), closed.last());
+}
+
+#[test]
+fn an_unbound_stage_h_sibling_falls_back_to_the_certified_free_chain() {
+    let chain = open_line(257);
+    let run = k_best_boundary_models_bounded(&chain, &crate::FIT_BUDGET_V1, 128.0, 2, 32)
+        .expect("straight free chain");
+    let mut model = run.models[0].clone();
+    let free = model.stage_h_free_geometry.clone();
+    let free_code = model.stage_h_free_code;
+    let typed = model
+        .geometry
+        .typed_chain()
+        .expect("straight selected chain")
+        .clone();
+    let mut displaced = typed;
+    for node in &mut displaced.nodes {
+        node.pos.y += 8.0;
+    }
+    model.geometry = crate::SelectedBoundaryGeometry::TypedChain { chain: displaced };
+    model.relations_kept = 1;
+    model.relation_kept_indices = vec![0];
+
+    retain_binding_certified_stage_h(&mut model, &chain.samples, false)
+        .expect("the valid free sibling must survive an invalid Stage-H sibling");
+    assert_eq!(model.geometry, free);
+    assert_eq!(model.code, free_code);
+    assert_eq!(model.relations_kept, 0);
+    assert!(model.relation_kept_indices.is_empty());
 }

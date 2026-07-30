@@ -92,8 +92,21 @@ fn chain_boundary_distance(chain: &BoundaryChain, boundary: &vice_topology::Boun
 
 fn bind_chains_to_dcel(chains: &[BoundaryChain], dcel: &Dcel) -> Result<Vec<usize>, String> {
     if chains.len() != dcel.boundaries().len() {
+        let boundaries = dcel
+            .boundaries()
+            .iter()
+            .enumerate()
+            .map(|(index, boundary)| {
+                let min_x = boundary.path.iter().map(|point| point.0).min().unwrap_or(0);
+                let max_x = boundary.path.iter().map(|point| point.0).max().unwrap_or(0);
+                let min_y = boundary.path.iter().map(|point| point.1).min().unwrap_or(0);
+                let max_y = boundary.path.iter().map(|point| point.1).max().unwrap_or(0);
+                format!("{index}:[{min_x},{min_y}]..[{max_x},{max_y}]")
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
         return Err(format!(
-            "{} observed chains cannot bind bijectively to {} DCEL boundaries",
+            "{} observed chains cannot bind bijectively to {} DCEL boundaries ({boundaries})",
             chains.len(),
             dcel.boundaries().len()
         ));
@@ -461,7 +474,8 @@ fn observed_binding(
                 .iter()
                 .map(|sample| sample.weight_ds)
                 .fold(0.0f64, f64::max)
-        + vice_fit::BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1;
+        + vice_fit::BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1
+        + vice_fit::BINDING_RELATION_RESCUE_MARGIN_PX_V1;
     BoundaryBinding::new_observed(
         digest(chain)?,
         dcel_boundary_sha256,

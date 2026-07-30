@@ -418,10 +418,11 @@ impl SupportedModelUniverseV1 {
     /// content hash and full recalibration for those changes.
     pub fn m7() -> SupportedModelUniverseV1 {
         let mut universe = Self::v1();
-        // v4 adds the bounded Fast recovery path, production continuous
-        // geometry refinement, and the declared closure edge in closed-chain
-        // binding certification. Its confidence is calibrated from scratch.
-        universe.version = "m7-v4";
+        // v5 adds the bounded Fast recovery path, production continuous
+        // geometry refinement, canonical opaque-label near-ties, and the
+        // declared numerical certificate around closed-chain bindings. Its
+        // confidence is calibrated from scratch.
+        universe.version = "m7-v5";
         universe.topology.operators = vec![
             Family::admissible(
                 "topology_merge",
@@ -462,15 +463,16 @@ impl SupportedModelUniverseV1 {
         ];
         universe.search = SearchUniverse {
             truncation_rules: vec![
-                "dense chains propose k=8 paths at deterministic 32/64/96/128-sample levels (Fast: k=1, with one bounded k=4 recovery only when the primary envelope certifies no model), stop after the first level with a certified model, attempt at most 3 paths per level, and retain at most 2 certified models per physical chain; every skipped level/path is reported as unexplored mass",
+                "dense chains propose Quality k=16 or Fast k=4 paths at deterministic 32/64/96/128-sample levels; a certified Fast miss opens one bounded k=16 recovery, search stops after the first level with a certified model, attempts at most 3 paths per level, and retains at most 2 certified models per physical chain; every skipped level/path is reported as unexplored mass",
                 "proposal-path Jacobians use at most 64 mandatory-breakpoint-preserving samples and final continuous refits use at most 128; every retained model is physically recoded, Stage-H compared, binding-isotopy checked, and certified in both corridor directions on all observations",
                 "Stage-H relation Jacobians use at most 16 mandatory-breakpoint-preserving samples while relation residual code and both corridor checks use all observations",
-                "observed binding tubes include the maximum evidence halfwidth, half a physical sample interval, and the frozen 1/64 px verifier tessellation certificate; Stage-H rescue is opened only within one 0.05 px fitter chord bound",
+                "observed binding tubes include the maximum evidence halfwidth, half a physical sample interval, the frozen 1/64 px verifier tessellation certificate, and one 0.05 px fitter chord certificate; an optional Stage-H sibling outside that tube falls back to its certified free-chain sibling",
+                "opaque label-swapped mixture surrogates within 1e-9 canonicalize to the border-supported H2 reading while all palette hypotheses remain published",
                 "event-level M4.5 contours own topology while the canonical coverage-0.5 contour owns fit geometry whenever it binds bijectively to that topology",
                 "elliptic-arc fitting is omitted and charged to empirical unexplored search mass",
                 "M4.5 supplies a finite critical-connectivity envelope; arms pruned by the prefit budget are reported as unexplored",
                 "the deterministic diverse beam is capped by candidate, memory, and elapsed-time budgets (Quality 8500 ms, Fast 1000 ms) with topology and formation seed quotas",
-                "continuous scene optimization uses one deterministic evidence-solved start, relation-preserving geometry similarity blocks plus paint blocks, quantized serialized exact acceptance, and at most 2 trust-region rounds with 4 backtracks per block; unreached materializations and optimizer alternatives remain explicit unexplored mass",
+                "continuous scene optimization uses one deterministic evidence-solved start, relation-preserving geometry similarity blocks plus paint blocks, and quantized serialized exact acceptance; Quality uses at most 4 trust-region rounds with 4 backtracks per block and Fast uses at most 2 rounds with 4 backtracks; unreached materializations and optimizer alternatives remain explicit unexplored mass",
                 "only hypotheses with equal canonical delivery bytes collapse into one posterior delivery-equivalence class",
                 "topology and geometry complexity caps bound every materialized scene",
                 "geometry outside the numeric domain is refused before scoring",

@@ -23,7 +23,7 @@ fn m7_is_a_distinct_finite_r1_model_version() {
     let m7 = SupportedModelUniverseV1::m7();
     m7.check_finite().expect("M7 must be a finite universe");
     assert_eq!(m7.schema, MODEL_UNIVERSE_SCHEMA);
-    assert_eq!(m7.version, "m7-v4");
+    assert_eq!(m7.version, "m7-v5");
     assert_ne!(model_universe_hash(&m7), model_universe_hash(&m6));
     assert_eq!(
         m7.search.unexplored_mass_bound,
@@ -239,10 +239,11 @@ fn model_universe_hash_is_frozen() {
 /// have to reconstruct it.
 const FROZEN_V1_HASH: &str = "47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097";
 
-/// M7 is a separate model version. `m7-v4` also binds the declared closure
-/// edge in closed-chain isotopy certification. It is frozen before its first
-/// calibration; no confidence value from an earlier M7 version is carried.
-const FROZEN_M7_HASH: &str = "4b16559803e03689be485ad0269738b82b5897f8d42ed528ebcbeb3bb5efc914";
+/// M7 is a separate model version. `m7-v5` also binds canonical opaque-label
+/// near-ties and the declared numerical chord certificate around closed-chain
+/// isotopy. It is frozen before its first calibration; no confidence value
+/// from an earlier M7 version is carried.
+const FROZEN_M7_HASH: &str = "07d8ecae743231ad11a6dcb94b1d635d681f2c6d6973dd2a7a74747031296072";
 
 #[test]
 fn m7_model_universe_hash_is_frozen() {

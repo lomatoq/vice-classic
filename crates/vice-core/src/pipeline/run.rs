@@ -46,6 +46,21 @@ pub(super) fn vectorize_impl(
     let mut topology_refusals = topology.refusals;
     let arms = topology.arms;
     if arms.is_empty() {
+        let detail = topology_refusals.last().map_or_else(
+            || {
+                "no M4.5 envelope hypothesis produced an audited closed-boundary DCEL \
+                 that bound every observed chain; the envelope published no more specific \
+                 materialization refusal"
+                    .to_string()
+            },
+            |refusal| {
+                format!(
+                    "evidence {}: no M4.5 envelope hypothesis produced an audited \
+                     closed-boundary DCEL that bound every observed chain; last: {}",
+                    evidence.hypothesis.id, refusal.detail
+                )
+            },
+        );
         parts.topology = Some(TopologyEnvelopeTrace {
             proposal,
             materialized_arms: topology_traces,
@@ -54,11 +69,7 @@ pub(super) fn vectorize_impl(
         });
         return refuse(
             DecisionStatus::Unsupported,
-            FailureReason::Topology {
-                detail: "no M4.5 envelope hypothesis produced an audited closed-boundary DCEL \
-                         that bound every observed chain"
-                    .into(),
-            },
+            FailureReason::Topology { detail },
             request,
             config,
             source_sha256,
