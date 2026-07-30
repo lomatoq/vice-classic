@@ -18,11 +18,11 @@ pub use config::{
     CalibrationBucket, ConfidenceCalibration, CoreConfig, Intent, IntentPriorPolicy, Preset,
     ProductionConfigError, VectorizeRequest, M7_PRODUCTION_CONFIG_SHA256,
 };
-pub use pipeline::{vectorize, vectorize_with_config};
+pub use pipeline::{vectorize, vectorize_for_calibration, vectorize_with_config};
 pub use types::{
-    CandidateFailureStage, CandidateRefusal, DecisionStatus, FailureReason, SuccessArtifacts,
-    TopologyArmRefusal, TopologyArmTrace, TopologyEnvelopeTrace, VectorizeOutcome, VectorizeReport,
-    VectorizeSuccess, CORE_REPORT_SCHEMA,
+    CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal, DecisionStatus,
+    FailureReason, SuccessArtifacts, TopologyArmRefusal, TopologyArmTrace, TopologyEnvelopeTrace,
+    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 
 #[cfg(test)]
@@ -266,7 +266,10 @@ mod tests {
     fn a_flat2_png_enters_the_selective_pipeline_without_false_success() {
         let mut config = CoreConfig::development();
         config.k_discrete_paths = 1;
-        let outcome = vectorize_with_config(&square_png(), &VectorizeRequest::default(), &config);
+        let run = vectorize_for_calibration(&square_png(), &VectorizeRequest::default(), &config);
+        let witness_expected = run.outcome.report().selected_hypothesis_id.is_some();
+        assert_eq!(run.selected.is_some(), witness_expected);
+        let outcome = run.outcome;
         assert!(!matches!(
             outcome,
             VectorizeOutcome::Success(_) | VectorizeOutcome::Failed(_)
@@ -310,8 +313,13 @@ mod tests {
     fn disconnected_flat2_components_share_one_scene_and_palette() {
         let mut config = CoreConfig::development_for(Preset::Fast);
         config.k_discrete_paths = 1;
-        let outcome =
-            vectorize_with_config(&two_component_png(), &VectorizeRequest::default(), &config);
+        let run =
+            vectorize_for_calibration(&two_component_png(), &VectorizeRequest::default(), &config);
+        assert!(
+            run.selected.is_some(),
+            "a selected multi-component candidate needs a calibration witness"
+        );
+        let outcome = run.outcome;
         assert!(!matches!(outcome, VectorizeOutcome::Failed(_)));
         assert_eq!(outcome.report().fits.len(), 2);
         assert!(

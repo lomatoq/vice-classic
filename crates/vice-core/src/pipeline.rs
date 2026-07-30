@@ -16,10 +16,10 @@ use crate::candidate::{
 use crate::config::CoreConfig;
 use crate::scene::{topology_arms, TopologyArm};
 use crate::types::{
-    CandidateRefusal, CandidateSummary, DecisionStatus, FailureReason, RuntimeSummary,
-    SuccessArtifacts, TopologyArmRefusal, TopologyEnvelopeTrace, TransactionInventory,
-    TransactionInventoryRow, VectorizeOutcome, VectorizeReport, VectorizeSuccess,
-    CORE_REPORT_SCHEMA,
+    CalibrationRun, CalibrationWitness, CandidateRefusal, CandidateSummary, DecisionStatus,
+    FailureReason, RuntimeSummary, SuccessArtifacts, TopologyArmRefusal, TopologyEnvelopeTrace,
+    TransactionInventory, TransactionInventoryRow, VectorizeOutcome, VectorizeReport,
+    VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 use crate::VectorizeRequest;
 
@@ -703,6 +703,39 @@ pub fn vectorize_with_config(
     request: &VectorizeRequest,
     config: &CoreConfig,
 ) -> VectorizeOutcome {
+    vectorize_impl(bytes, request, config, None)
+}
+
+/// Run the exact production candidate path but retain the selected canonical
+/// witness for the held-out GT court. The outcome remains non-success under
+/// a development config; this API cannot set the private production seal.
+pub fn vectorize_for_calibration(
+    bytes: &[u8],
+    request: &VectorizeRequest,
+    config: &CoreConfig,
+) -> CalibrationRun {
+    let mut selected = None;
+    let mut capture = |candidate: &crate::candidate::MaterializedCandidate| {
+        selected = Some(CalibrationWitness {
+            candidate: candidate.summary.clone(),
+            scene_json: candidate.scene_json.clone(),
+            export_plan_json: candidate.plan_json.clone(),
+            pure_partition_svg: candidate.pure_svg.clone(),
+            seam_safe_svg: candidate.seam_svg.clone(),
+            rendered_png: candidate.render_png.clone(),
+            seal_json: candidate.seal_json.clone(),
+        });
+    };
+    let outcome = vectorize_impl(bytes, request, config, Some(&mut capture));
+    CalibrationRun { outcome, selected }
+}
+
+fn vectorize_impl(
+    bytes: &[u8],
+    request: &VectorizeRequest,
+    config: &CoreConfig,
+    mut calibration_observer: Option<&mut dyn FnMut(&crate::candidate::MaterializedCandidate)>,
+) -> VectorizeOutcome {
     let started = Instant::now();
     let source_sha256 = digest(bytes);
     let provenance_production = request.production
@@ -1324,6 +1357,9 @@ pub fn vectorize_with_config(
         .expect("posterior delivery is formed from candidates");
     parts.selected_hypothesis_id = Some(candidates[selected_index].score.hypothesis_id.clone());
     parts.search_mass = Some(search_mass.clone());
+    if let Some(observer) = calibration_observer.as_mut() {
+        observer(&candidates[selected_index]);
+    }
     if !production {
         return refuse(
             DecisionStatus::Ambiguous,

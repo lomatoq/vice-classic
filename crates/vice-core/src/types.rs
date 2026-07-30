@@ -167,6 +167,29 @@ pub struct VectorizeSuccess {
     pub artifacts: SuccessArtifacts,
 }
 
+/// Non-production witness for the held-out calibration court.
+///
+/// This is deliberately not a `SuccessArtifacts`: the accompanying outcome
+/// remains non-success until a trusted production calibration is installed.
+/// It lets `vice-bench` judge the selected canonical scene rather than infer
+/// correctness from the candidate's own score.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalibrationWitness {
+    pub candidate: CandidateSummary,
+    pub scene_json: Vec<u8>,
+    pub export_plan_json: Vec<u8>,
+    pub pure_partition_svg: Vec<u8>,
+    pub seam_safe_svg: Vec<u8>,
+    pub rendered_png: Vec<u8>,
+    pub seal_json: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalibrationRun {
+    pub outcome: VectorizeOutcome,
+    pub selected: Option<CalibrationWitness>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum VectorizeOutcome {
     Success(VectorizeSuccess),
