@@ -15,9 +15,11 @@
 use serde::Serialize;
 use vice_evidence::BoundarySample;
 use vice_geom::Pt;
+use vice_ir::{ChainNode, CurveChain, JoinKind, Segment};
 
 use crate::code::{independent_observations, residual_bits, GeometryCodeTable};
 use crate::models::BoundaryModel;
+use crate::LoweredBoundaryGeometry;
 
 /// The finite whole-loop primitive universe named by §15.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -127,6 +129,214 @@ pub struct LoopPrimitiveGeometry {
     pub half_height_px: f64,
     pub corner_radius_px: f64,
     pub sides: Option<u8>,
+}
+
+/// Native canonical IR for a whole-loop primitive. The start point is the
+/// single graph vertex of the self-loop; the repeated endpoint is not stored
+/// inside the curve.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LoweredLoopPrimitive {
+    pub start: Pt,
+    pub boundary: LoweredBoundaryGeometry,
+}
+
+fn smooth(angle: f64) -> JoinKind {
+    JoinKind::SmoothG1 {
+        tangent_angle_rad: crate::canonical_angle(angle),
+    }
+}
+
+fn axis_rotation(angle: f64) -> f64 {
+    angle.rem_euclid(std::f64::consts::PI)
+}
+
+fn native_chain(
+    points: Vec<Pt>,
+    joins: Vec<JoinKind>,
+    segments: Vec<Segment>,
+) -> Option<LoweredLoopPrimitive> {
+    if points.len() != segments.len() + 1
+        || joins.len() != points.len()
+        || points.first() != points.last()
+    {
+        return None;
+    }
+    let start = points[0];
+    let closure_join = joins[0];
+    let interior_nodes = points[1..points.len() - 1]
+        .iter()
+        .copied()
+        .zip(joins[1..joins.len() - 1].iter().copied())
+        .map(|(pos, join)| ChainNode { pos, join })
+        .collect();
+    Some(LoweredLoopPrimitive {
+        start,
+        boundary: LoweredBoundaryGeometry {
+            curve: CurveChain {
+                interior_nodes,
+                segments,
+            },
+            closure_join: Some(closure_join),
+        },
+    })
+}
+
+/// Lower a constrained whole-loop winner to native line/arc IR. Export never
+/// traces the verification polyline: the same canonical primitive parameters
+/// that won Stage H determine the delivered curve.
+pub fn lower_loop_primitive(
+    kind: LoopPrimitiveKind,
+    g: LoopPrimitiveGeometry,
+) -> Option<LoweredLoopPrimitive> {
+    let values = [
+        g.center.x,
+        g.center.y,
+        g.axis_angle_rad,
+        g.half_width_px,
+        g.half_height_px,
+        g.corner_radius_px,
+    ];
+    if values.iter().any(|value| !value.is_finite())
+        || g.half_width_px <= 0.0
+        || g.half_height_px <= 0.0
+    {
+        return None;
+    }
+    match kind {
+        LoopPrimitiveKind::Circle | LoopPrimitiveKind::Ellipse => {
+            if kind == LoopPrimitiveKind::Circle && g.half_width_px != g.half_height_px {
+                return None;
+            }
+            let local = [
+                Pt::new(g.half_width_px, 0.0),
+                Pt::new(0.0, g.half_height_px),
+                Pt::new(-g.half_width_px, 0.0),
+                Pt::new(0.0, -g.half_height_px),
+                Pt::new(g.half_width_px, 0.0),
+            ];
+            let points = local
+                .into_iter()
+                .map(|point| local_to_world(g, point))
+                .collect();
+            let joins = (0..=4)
+                .map(|index| {
+                    smooth(g.axis_angle_rad + std::f64::consts::FRAC_PI_2 * (index + 1) as f64)
+                })
+                .collect();
+            let segments = if kind == LoopPrimitiveKind::Circle {
+                vec![
+                    Segment::CircularArc {
+                        radius_px: g.half_width_px,
+                        large_arc: false,
+                        ccw: true,
+                    };
+                    4
+                ]
+            } else {
+                vec![
+                    Segment::EllipticArc {
+                        rx_px: g.half_width_px,
+                        ry_px: g.half_height_px,
+                        x_axis_rotation_rad: axis_rotation(g.axis_angle_rad),
+                        large_arc: false,
+                        ccw: true,
+                    };
+                    4
+                ]
+            };
+            native_chain(points, joins, segments)
+        }
+        LoopPrimitiveKind::Rect | LoopPrimitiveKind::RotatedRect => {
+            let mut points = vec![
+                Pt::new(g.half_width_px, g.half_height_px),
+                Pt::new(-g.half_width_px, g.half_height_px),
+                Pt::new(-g.half_width_px, -g.half_height_px),
+                Pt::new(g.half_width_px, -g.half_height_px),
+            ];
+            points.push(points[0]);
+            let points = points
+                .into_iter()
+                .map(|point| local_to_world(g, point))
+                .collect();
+            native_chain(points, vec![JoinKind::Corner; 5], vec![Segment::Line; 4])
+        }
+        LoopPrimitiveKind::RoundedRect | LoopPrimitiveKind::Capsule => {
+            let r = g
+                .corner_radius_px
+                .min(g.half_width_px)
+                .min(g.half_height_px);
+            if r <= 0.0 {
+                return None;
+            }
+            let local = [
+                Pt::new(-g.half_width_px + r, -g.half_height_px),
+                Pt::new(g.half_width_px - r, -g.half_height_px),
+                Pt::new(g.half_width_px, -g.half_height_px + r),
+                Pt::new(g.half_width_px, g.half_height_px - r),
+                Pt::new(g.half_width_px - r, g.half_height_px),
+                Pt::new(-g.half_width_px + r, g.half_height_px),
+                Pt::new(-g.half_width_px, g.half_height_px - r),
+                Pt::new(-g.half_width_px, -g.half_height_px + r),
+                Pt::new(-g.half_width_px + r, -g.half_height_px),
+            ];
+            let points = local
+                .into_iter()
+                .map(|point| local_to_world(g, point))
+                .collect();
+            let joins = [
+                0.0,
+                0.0,
+                std::f64::consts::FRAC_PI_2,
+                std::f64::consts::FRAC_PI_2,
+                std::f64::consts::PI,
+                std::f64::consts::PI,
+                -std::f64::consts::FRAC_PI_2,
+                -std::f64::consts::FRAC_PI_2,
+                0.0,
+            ]
+            .into_iter()
+            .map(|angle| smooth(g.axis_angle_rad + angle))
+            .collect();
+            let arc = Segment::CircularArc {
+                radius_px: r,
+                large_arc: false,
+                ccw: true,
+            };
+            native_chain(
+                points,
+                joins,
+                vec![
+                    Segment::Line,
+                    arc.clone(),
+                    Segment::Line,
+                    arc.clone(),
+                    Segment::Line,
+                    arc.clone(),
+                    Segment::Line,
+                    arc,
+                ],
+            )
+        }
+        LoopPrimitiveKind::RegularPolygon => {
+            let sides = usize::from(g.sides?);
+            if !(3..=12).contains(&sides) {
+                return None;
+            }
+            let mut points: Vec<_> = (0..sides)
+                .map(|index| {
+                    let angle =
+                        g.axis_angle_rad + std::f64::consts::TAU * index as f64 / sides as f64;
+                    g.center + Pt::new(g.half_width_px * angle.cos(), g.half_width_px * angle.sin())
+                })
+                .collect();
+            points.push(points[0]);
+            native_chain(
+                points,
+                vec![JoinKind::Corner; sides + 1],
+                vec![Segment::Line; sides],
+            )
+        }
+    }
 }
 
 /// One constrained whole-loop sibling and its complete comparison with the
@@ -598,5 +808,64 @@ mod tests {
             crate::GEOMETRY_CODE_TABLE_V1.coordinate_precision_px()
         )
         .is_some());
+    }
+
+    #[test]
+    fn every_whole_loop_family_lowers_to_native_closed_ir() {
+        for kind in LoopPrimitiveKind::ALL {
+            let mut geometry = LoopPrimitiveGeometry {
+                center: Pt::new(20.0, 30.0),
+                axis_angle_rad: 0.3,
+                half_width_px: 9.0,
+                half_height_px: 5.0,
+                corner_radius_px: 2.0,
+                sides: (kind == LoopPrimitiveKind::RegularPolygon).then_some(6),
+            };
+            if kind == LoopPrimitiveKind::Circle {
+                geometry.half_height_px = geometry.half_width_px;
+            }
+            let lowered = lower_loop_primitive(kind, geometry).expect("native primitive");
+            assert!(!lowered.boundary.curve.segments.is_empty());
+            assert_eq!(
+                lowered.boundary.curve.interior_nodes.len() + 1,
+                lowered.boundary.curve.segments.len()
+            );
+            if matches!(
+                kind,
+                LoopPrimitiveKind::Circle
+                    | LoopPrimitiveKind::Ellipse
+                    | LoopPrimitiveKind::RoundedRect
+                    | LoopPrimitiveKind::Capsule
+            ) {
+                assert!(matches!(
+                    lowered.boundary.closure_join,
+                    Some(JoinKind::SmoothG1 { .. })
+                ));
+                let readings =
+                    crate::g1_readings(&lowered.boundary.curve, lowered.start, lowered.start);
+                assert!(
+                    readings
+                        .iter()
+                        .all(|reading| reading.spread_rad <= crate::GATE_MAX_G1_SPREAD_RAD),
+                    "{kind:?}: {readings:?}"
+                );
+                let Some(JoinKind::SmoothG1 { tangent_angle_rad }) = lowered.boundary.closure_join
+                else {
+                    unreachable!()
+                };
+                if kind != LoopPrimitiveKind::Ellipse {
+                    assert!(
+                        crate::closure_g1_spread_rad(
+                            &lowered.boundary.curve,
+                            lowered.start,
+                            lowered.start,
+                            tangent_angle_rad,
+                        )
+                        .expect("closure tangent")
+                            <= crate::GATE_MAX_G1_SPREAD_RAD
+                    );
+                }
+            }
+        }
     }
 }

@@ -82,8 +82,8 @@ pub use models::{
     DUPLICATE_EPSILON_PX, MAX_CANONICAL_CUTS,
 };
 pub use primitive::{
-    apply_best_primitive, loop_primitive_hypotheses, LoopPrimitiveGeometry,
-    LoopPrimitiveHypothesis, LoopPrimitiveKind,
+    apply_best_primitive, loop_primitive_hypotheses, lower_loop_primitive, LoopPrimitiveGeometry,
+    LoopPrimitiveHypothesis, LoopPrimitiveKind, LoweredLoopPrimitive,
 };
 pub use refit::{
     canonical_angle, closure_g1_spread_rad, g1_readings, ArcAnchor, G1Reading, Handle,

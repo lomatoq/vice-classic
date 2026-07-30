@@ -3,8 +3,8 @@
 use serde::Serialize;
 use thiserror::Error;
 use vice_ir::{
-    scene_digest_sha256, BoundaryId, CurveChain, FaceId, GlobalFormationHypothesis, Paint,
-    PlanarGraph, SceneError, VectorScene,
+    scene_digest_sha256, BoundaryId, CurveChain, FaceId, GlobalFormationHypothesis, JoinKind,
+    Paint, PlanarGraph, SceneError, VectorScene,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -33,9 +33,12 @@ pub enum TransactionKind {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SceneMutation {
-    ReplaceBoundaryCurve {
+    ReplaceBoundaryGeometry {
         boundary: BoundaryId,
         curve: CurveChain,
+        /// The closure join is part of self-loop geometry and must change in
+        /// the same transaction as its segments/nodes.
+        closure_join: Option<JoinKind>,
     },
     ReplaceFacePaint {
         face: FaceId,
@@ -104,18 +107,23 @@ pub fn apply_compound_transaction(
             | TransactionKind::PrimitiveDemote
             | TransactionKind::RelationPromote
             | TransactionKind::RelationDemote => {
-                matches!(mutation, SceneMutation::ReplaceBoundaryCurve { .. })
+                matches!(mutation, SceneMutation::ReplaceBoundaryGeometry { .. })
             }
         };
         if !allowed {
             return Err(TransactionError::KindPayloadMismatch);
         }
         match mutation {
-            SceneMutation::ReplaceBoundaryCurve { boundary, curve } => {
+            SceneMutation::ReplaceBoundaryGeometry {
+                boundary,
+                curve,
+                closure_join,
+            } => {
                 let Some(slot) = child.graph.boundaries.get_mut(boundary.index()) else {
                     return Err(TransactionError::MissingEntity);
                 };
                 slot.curve = curve.clone();
+                slot.closure_join = *closure_join;
             }
             SceneMutation::ReplaceFacePaint { face, paint } => {
                 let Some(slot) = child.graph.faces.get_mut(face.index()) else {
