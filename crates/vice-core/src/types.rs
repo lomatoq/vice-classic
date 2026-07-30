@@ -45,6 +45,7 @@ pub struct CandidateSummary {
     pub post_quantization: vice_verify::PostQuantizationCertificate,
     pub delivery_seal: vice_verify::DeliverySeal,
     pub optimizer: vice_opt::OptimizationResult,
+    pub transactions: Vec<vice_opt::TransactionApplication>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -70,6 +71,22 @@ pub struct CandidateRefusal {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TransactionInventoryRow {
+    pub kind: vice_opt::TransactionKind,
+    pub proposed: u64,
+    pub atomic_applied: u64,
+    pub verified_and_exact_scored: u64,
+    pub refused_before_score: u64,
+    pub not_applicable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TransactionInventory {
+    pub complete_kind_enumeration: bool,
+    pub rows: Vec<TransactionInventoryRow>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct VectorizeReport {
     pub schema: &'static str,
     pub status: DecisionStatus,
@@ -88,6 +105,7 @@ pub struct VectorizeReport {
     pub search_mass: Option<vice_opt::SearchMassCertificate>,
     pub candidates: Vec<CandidateSummary>,
     pub candidate_refusals: Vec<CandidateRefusal>,
+    pub transaction_inventory: Option<TransactionInventory>,
     pub selected_hypothesis_id: Option<String>,
     pub runtime: RuntimeSummary,
 }

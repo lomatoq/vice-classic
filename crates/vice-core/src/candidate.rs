@@ -3,8 +3,11 @@ use std::collections::BTreeMap;
 use sha2::{Digest, Sha256};
 use vice_evidence::{BoundaryChain, Flat2Evidence};
 use vice_fit::BoundaryModel;
-use vice_ir::{Canvas, GlobalFormationHypothesis};
-use vice_opt::{OptimizationResult, PriorCodeLengths, ScoredHypothesis};
+use vice_ir::{scene_digest_sha256, Canvas, GlobalFormationHypothesis};
+use vice_opt::{
+    apply_compound_transaction_traced, CompoundTransaction, OptimizationResult, PriorCodeLengths,
+    SceneMutation, ScoredHypothesis, TransactionApplication, TransactionKind,
+};
 use vice_svg::{
     build_export_plan, canonical_export_plan_bytes, materialize_svg,
     parse_and_render_independently, IndependentlyRenderedSvg, SvgProfile,
@@ -12,7 +15,7 @@ use vice_svg::{
 use vice_verify::{quantize_and_verify, seal_delivery};
 
 use crate::config::CoreConfig;
-use crate::scene::{build_scene_candidate, optimize_paint, TopologyArm};
+use crate::scene::{build_scene_candidate, optimize_paint, SceneCandidate, TopologyArm};
 use crate::types::{CandidateFailureStage, CandidateRefusal, CandidateSummary};
 use crate::Intent;
 
@@ -42,12 +45,19 @@ struct SerializedDelivery {
 struct OptimizedScene {
     scene: vice_ir::VectorScene,
     optimizer: OptimizationResult,
+    transaction: TransactionApplication,
 }
 
 #[derive(Debug, Default)]
 pub(crate) struct CandidateCache {
     optimized_by_scene_and_prior: BTreeMap<String, OptimizedScene>,
     serialized_by_scene: BTreeMap<String, SerializedDelivery>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CandidateModelTransaction {
+    pub kind: TransactionKind,
+    pub parent_models: Vec<BoundaryModel>,
 }
 
 pub(crate) struct CandidateRequest<'a> {
@@ -57,6 +67,9 @@ pub(crate) struct CandidateRequest<'a> {
     pub models: &'a [BoundaryModel],
     pub arm: &'a TopologyArm,
     pub formation: GlobalFormationHypothesis,
+    pub model_transactions: &'a [CandidateModelTransaction],
+    pub transaction_base_arm: &'a TopologyArm,
+    pub transaction_base_formation: GlobalFormationHypothesis,
     pub hypothesis_id: String,
     pub formation_class: String,
     pub image: &'a vice_image::CanonicalImage,
@@ -157,26 +170,214 @@ fn memory_bytes(candidate: &MaterializedCandidate) -> u64 {
     .sum()
 }
 
-pub(crate) fn materialize_candidate(
-    request: CandidateRequest<'_>,
-    cache: &mut CandidateCache,
-) -> Result<MaterializedCandidate, CandidateRefusal> {
-    let hypothesis_id = request.hypothesis_id.clone();
-    let mut candidate = build_scene_candidate(
+fn apply_expected_transition(
+    current: &vice_ir::VectorScene,
+    expected: &vice_ir::VectorScene,
+    kind: TransactionKind,
+    mutations: Vec<SceneMutation>,
+) -> Result<(vice_ir::VectorScene, TransactionApplication), String> {
+    if mutations.is_empty() {
+        return Err(format!("{kind:?} proposal changes no scene state"));
+    }
+    let (child, application) = apply_compound_transaction_traced(
+        current,
+        &CompoundTransaction {
+            kind,
+            expected_parent_digest: scene_digest_sha256(current)
+                .map_err(|error| error.to_string())?,
+            mutations,
+        },
+    )
+    .map_err(|error| error.to_string())?;
+    let expected_digest = scene_digest_sha256(expected).map_err(|error| error.to_string())?;
+    if application.child_digest != expected_digest || child != *expected {
+        return Err(format!(
+            "{kind:?} atomic result differs from its completely refitted target"
+        ));
+    }
+    Ok((child, application))
+}
+
+fn geometry_mutations(
+    current: &vice_ir::VectorScene,
+    expected: &vice_ir::VectorScene,
+) -> Result<Vec<SceneMutation>, String> {
+    if current.canvas != expected.canvas
+        || current.formation != expected.formation
+        || current.graph.vertices.len() != expected.graph.vertices.len()
+        || current.graph.boundaries.len() != expected.graph.boundaries.len()
+        || current.graph.half_edges != expected.graph.half_edges
+        || current.graph.faces != expected.graph.faces
+        || current.graph.exterior != expected.graph.exterior
+    {
+        return Err("geometry transaction changed non-geometry scene structure".into());
+    }
+    let mut mutations = Vec::new();
+    for (index, (before, after)) in current
+        .graph
+        .vertices
+        .iter()
+        .zip(&expected.graph.vertices)
+        .enumerate()
+    {
+        if before != after {
+            mutations.push(SceneMutation::ReplaceVertexPosition {
+                vertex: vice_ir::VertexId(index as u32),
+                position: after.pos,
+            });
+        }
+    }
+    for (index, (before, after)) in current
+        .graph
+        .boundaries
+        .iter()
+        .zip(&expected.graph.boundaries)
+        .enumerate()
+    {
+        if before.left_face != after.left_face
+            || before.right_face != after.right_face
+            || before.start_vertex != after.start_vertex
+            || before.end_vertex != after.end_vertex
+        {
+            return Err("geometry transaction changed boundary ownership or incidence".into());
+        }
+        if before.curve != after.curve || before.closure_join != after.closure_join {
+            mutations.push(SceneMutation::ReplaceBoundaryGeometry {
+                boundary: vice_ir::BoundaryId(index as u32),
+                curve: after.curve.clone(),
+                closure_join: after.closure_join,
+            });
+        }
+    }
+    Ok(mutations)
+}
+
+fn topology_transaction_kind(base: &TopologyArm, target: &TopologyArm) -> TransactionKind {
+    let base_components = base.dcel.foreground_faces();
+    let target_components = target.dcel.foreground_faces();
+    if target.dcel.holes() != base.dcel.holes() {
+        TransactionKind::TopologyHole
+    } else if target_components < base_components {
+        TransactionKind::TopologyBridge
+    } else if target_components > base_components {
+        TransactionKind::TopologySplit
+    } else if target.dcel.boundaries().len() < base.dcel.boundaries().len() {
+        TransactionKind::TopologyMerge
+    } else {
+        TransactionKind::TopologySplit
+    }
+}
+
+fn build_transactional_candidate(
+    request: &CandidateRequest<'_>,
+) -> Result<(SceneCandidate, Vec<TransactionApplication>), String> {
+    let final_candidate = build_scene_candidate(
         request.canvas,
         request.evidence,
         request.chains,
         request.models,
         request.arm,
         request.formation,
-    )
-    .map_err(|error| {
-        refusal(
-            &hypothesis_id,
-            CandidateFailureStage::SceneConstruction,
-            error,
-        )
-    })?;
+    )?;
+    let base_target = build_scene_candidate(
+        request.canvas,
+        request.evidence,
+        request.chains,
+        request.models,
+        request.transaction_base_arm,
+        request.transaction_base_formation,
+    )?;
+    let mut current = base_target.scene;
+    let mut applications = Vec::new();
+
+    for transaction in request.model_transactions {
+        let parent = build_scene_candidate(
+            request.canvas,
+            request.evidence,
+            request.chains,
+            &transaction.parent_models,
+            request.transaction_base_arm,
+            request.transaction_base_formation,
+        )?;
+        let mutations = geometry_mutations(&parent.scene, &current)?;
+        let (_child, application) =
+            apply_expected_transition(&parent.scene, &current, transaction.kind, mutations)?;
+        applications.push(application);
+    }
+
+    if request.arm.class != request.transaction_base_arm.class {
+        let rebuilt = build_scene_candidate(
+            request.canvas,
+            request.evidence,
+            request.chains,
+            request.models,
+            request.arm,
+            request.transaction_base_formation,
+        )?;
+        if current != rebuilt.scene {
+            let kind = topology_transaction_kind(request.transaction_base_arm, request.arm);
+            let (child, application) = apply_expected_transition(
+                &current,
+                &rebuilt.scene,
+                kind,
+                vec![SceneMutation::ReplaceGraph(rebuilt.scene.graph.clone())],
+            )?;
+            current = child;
+            applications.push(application);
+        }
+    }
+
+    if current != final_candidate.scene {
+        let exterior_changed =
+            current.formation.exterior != final_candidate.scene.formation.exterior;
+        let kind = if exterior_changed {
+            TransactionKind::ExteriorChange
+        } else {
+            TransactionKind::FormationChange
+        };
+        let mut mutations = Vec::new();
+        if current.graph != final_candidate.scene.graph {
+            mutations.push(SceneMutation::ReplaceGraph(
+                final_candidate.scene.graph.clone(),
+            ));
+        }
+        if current.formation != final_candidate.scene.formation {
+            mutations.push(SceneMutation::ReplaceFormation(
+                final_candidate.scene.formation,
+            ));
+        }
+        let (child, application) =
+            apply_expected_transition(&current, &final_candidate.scene, kind, mutations)?;
+        current = child;
+        applications.push(application);
+    }
+
+    if current != final_candidate.scene {
+        return Err("compound transaction lineage did not reach the requested scene".into());
+    }
+    Ok((
+        SceneCandidate {
+            scene: current,
+            bindings: final_candidate.bindings,
+            paint_layout: final_candidate.paint_layout,
+        },
+        applications,
+    ))
+}
+
+pub(crate) fn materialize_candidate(
+    request: CandidateRequest<'_>,
+    cache: &mut CandidateCache,
+) -> Result<MaterializedCandidate, CandidateRefusal> {
+    let hypothesis_id = request.hypothesis_id.clone();
+    let (mut candidate, mut transactions) =
+        build_transactional_candidate(&request).map_err(|error| {
+            refusal(
+                &hypothesis_id,
+                CandidateFailureStage::SceneConstruction,
+                error,
+            )
+        })?;
     let opaque_paints = 1 + usize::from(!candidate.paint_layout.background.is_empty());
     let prior = priors(
         request.models,
@@ -204,6 +405,7 @@ pub(crate) fn materialize_candidate(
     let optimizer = if let Some(cached) = cache.optimized_by_scene_and_prior.get(&optimization_key)
     {
         candidate.scene = cached.scene.clone();
+        transactions.push(cached.transaction.clone());
         cached.optimizer.clone()
     } else {
         let base = vice_verify::preseal_scene(
@@ -212,7 +414,11 @@ pub(crate) fn materialize_candidate(
             request.config.verification,
         )
         .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::Preseal, error))?;
-        let (optimized, optimizer): (_, OptimizationResult) = optimize_paint(
+        let (optimized, optimizer, paint_transaction): (
+            _,
+            OptimizationResult,
+            TransactionApplication,
+        ) = optimize_paint(
             candidate,
             request.image,
             base.render(),
@@ -227,11 +433,13 @@ pub(crate) fn materialize_candidate(
             )
         })?;
         candidate = optimized;
+        transactions.push(paint_transaction.clone());
         cache.optimized_by_scene_and_prior.insert(
             optimization_key,
             OptimizedScene {
                 scene: candidate.scene.clone(),
                 optimizer: optimizer.clone(),
+                transaction: paint_transaction,
             },
         );
         optimizer
@@ -320,6 +528,7 @@ pub(crate) fn materialize_candidate(
         post_quantization: verified.post_quantization_certificate().clone(),
         delivery_seal: seal.clone(),
         optimizer,
+        transactions,
     };
     let seal_json = serde_json::to_vec(&seal).map_err(|error| {
         refusal(

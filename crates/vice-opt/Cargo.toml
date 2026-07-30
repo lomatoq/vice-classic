@@ -15,5 +15,6 @@ serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
 vice-image = { path = "../vice-image" }
+vice-geom = { path = "../vice-geom" }
 vice-ir = { path = "../vice-ir" }
 vice-render = { path = "../vice-render" }

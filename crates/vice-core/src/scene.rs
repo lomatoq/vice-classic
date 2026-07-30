@@ -11,9 +11,9 @@ use vice_ir::{
     HalfEdgeId, JoinKind, LinearRgb, Paint, PlanarGraph, Segment, VectorScene, VertexId,
 };
 use vice_opt::{
-    apply_compound_transaction, optimize_best_deterministic, BlockSpec, CompoundTransaction,
-    OptimizationResult, PriorCodeLengths, SceneMutation, ScoreScope, TransactionKind,
-    TrustRegionProblem,
+    apply_compound_transaction_traced, optimize_best_deterministic, BlockSpec, CompoundTransaction,
+    OptimizationResult, PriorCodeLengths, SceneMutation, ScoreScope, TransactionApplication,
+    TransactionKind, TrustRegionProblem,
 };
 use vice_render::PartitionRender;
 use vice_topology::{audit, signature, Dcel, Labelling};
@@ -639,7 +639,7 @@ pub(crate) fn optimize_paint(
     fixed_render: &PartitionRender,
     priors: PriorCodeLengths,
     config: &CoreConfig,
-) -> Result<(SceneCandidate, OptimizationResult), String> {
+) -> Result<(SceneCandidate, OptimizationResult, TransactionApplication), String> {
     let foreground_face = *candidate
         .paint_layout
         .foreground
@@ -704,7 +704,7 @@ pub(crate) fn optimize_paint(
             paint: optimized.graph.faces[background.index()].paint,
         });
     }
-    let scene = apply_compound_transaction(
+    let (scene, transaction) = apply_compound_transaction_traced(
         &candidate.scene,
         &CompoundTransaction {
             kind: TransactionKind::PaintChange,
@@ -714,5 +714,5 @@ pub(crate) fn optimize_paint(
         },
     )
     .map_err(|error| error.to_string())?;
-    Ok((SceneCandidate { scene, ..candidate }, result))
+    Ok((SceneCandidate { scene, ..candidate }, result, transaction))
 }

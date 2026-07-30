@@ -2,12 +2,13 @@
 
 use serde::Serialize;
 use thiserror::Error;
+use vice_geom::Pt;
 use vice_ir::{
     scene_digest_sha256, BoundaryId, CurveChain, FaceId, GlobalFormationHypothesis, JoinKind,
-    Paint, PlanarGraph, SceneError, VectorScene,
+    Paint, PlanarGraph, SceneError, VectorScene, VertexId,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionKind {
     AnchorInsert,
@@ -31,6 +32,30 @@ pub enum TransactionKind {
     JointEscape,
 }
 
+impl TransactionKind {
+    pub const ALL: [TransactionKind; 19] = [
+        TransactionKind::AnchorInsert,
+        TransactionKind::AnchorRemove,
+        TransactionKind::SpanSplitJointRefit,
+        TransactionKind::SpanMergeJointRefit,
+        TransactionKind::FamilyChange,
+        TransactionKind::CornerActivate,
+        TransactionKind::CornerDeactivate,
+        TransactionKind::PrimitivePromote,
+        TransactionKind::PrimitiveDemote,
+        TransactionKind::RelationPromote,
+        TransactionKind::RelationDemote,
+        TransactionKind::TopologyMerge,
+        TransactionKind::TopologySplit,
+        TransactionKind::TopologyBridge,
+        TransactionKind::TopologyHole,
+        TransactionKind::PaintChange,
+        TransactionKind::ExteriorChange,
+        TransactionKind::FormationChange,
+        TransactionKind::JointEscape,
+    ];
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum SceneMutation {
     ReplaceBoundaryGeometry {
@@ -39,6 +64,10 @@ pub enum SceneMutation {
         /// The closure join is part of self-loop geometry and must change in
         /// the same transaction as its segments/nodes.
         closure_join: Option<JoinKind>,
+    },
+    ReplaceVertexPosition {
+        vertex: VertexId,
+        position: Pt,
     },
     ReplaceFacePaint {
         face: FaceId,
@@ -56,6 +85,15 @@ pub struct CompoundTransaction {
     /// after the complete logical operation, so an invalid half-operation is
     /// never published or scored.
     pub mutations: Vec<SceneMutation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct TransactionApplication {
+    pub kind: TransactionKind,
+    pub parent_digest: String,
+    pub child_digest: String,
+    pub mutations_applied: usize,
+    pub atomic: bool,
 }
 
 #[derive(Debug, Error)]
@@ -76,7 +114,15 @@ pub fn apply_compound_transaction(
     parent: &VectorScene,
     tx: &CompoundTransaction,
 ) -> Result<VectorScene, TransactionError> {
-    if scene_digest_sha256(parent)? != tx.expected_parent_digest {
+    apply_compound_transaction_traced(parent, tx).map(|(scene, _receipt)| scene)
+}
+
+pub fn apply_compound_transaction_traced(
+    parent: &VectorScene,
+    tx: &CompoundTransaction,
+) -> Result<(VectorScene, TransactionApplication), TransactionError> {
+    let parent_digest = scene_digest_sha256(parent)?;
+    if parent_digest != tx.expected_parent_digest {
         return Err(TransactionError::StaleParent);
     }
     if tx.mutations.is_empty() {
@@ -85,9 +131,15 @@ pub fn apply_compound_transaction(
     let mut child = parent.clone();
     for mutation in &tx.mutations {
         let allowed = match tx.kind {
-            TransactionKind::PaintChange | TransactionKind::ExteriorChange => {
+            TransactionKind::PaintChange => {
                 matches!(mutation, SceneMutation::ReplaceFacePaint { .. })
             }
+            TransactionKind::ExteriorChange => matches!(
+                mutation,
+                SceneMutation::ReplaceFacePaint { .. }
+                    | SceneMutation::ReplaceGraph(_)
+                    | SceneMutation::ReplaceFormation(_)
+            ),
             TransactionKind::FormationChange => {
                 matches!(mutation, SceneMutation::ReplaceFormation(_))
             }
@@ -107,7 +159,11 @@ pub fn apply_compound_transaction(
             | TransactionKind::PrimitiveDemote
             | TransactionKind::RelationPromote
             | TransactionKind::RelationDemote => {
-                matches!(mutation, SceneMutation::ReplaceBoundaryGeometry { .. })
+                matches!(
+                    mutation,
+                    SceneMutation::ReplaceBoundaryGeometry { .. }
+                        | SceneMutation::ReplaceVertexPosition { .. }
+                )
             }
         };
         if !allowed {
@@ -125,6 +181,12 @@ pub fn apply_compound_transaction(
                 slot.curve = curve.clone();
                 slot.closure_join = *closure_join;
             }
+            SceneMutation::ReplaceVertexPosition { vertex, position } => {
+                let Some(slot) = child.graph.vertices.get_mut(vertex.index()) else {
+                    return Err(TransactionError::MissingEntity);
+                };
+                slot.pos = *position;
+            }
             SceneMutation::ReplaceFacePaint { face, paint } => {
                 let Some(slot) = child.graph.faces.get_mut(face.index()) else {
                     return Err(TransactionError::MissingEntity);
@@ -136,7 +198,17 @@ pub fn apply_compound_transaction(
         }
     }
     vice_ir::validate_scene(&child)?;
-    Ok(child)
+    let child_digest = scene_digest_sha256(&child)?;
+    Ok((
+        child,
+        TransactionApplication {
+            kind: tx.kind,
+            parent_digest,
+            child_digest,
+            mutations_applied: tx.mutations.len(),
+            atomic: true,
+        },
+    ))
 }
 
 #[cfg(test)]
@@ -190,5 +262,41 @@ mod tests {
         let child = apply_compound_transaction(&parent, &tx).unwrap();
         assert_eq!(child.formation.blend_space, BlendSpace::EncodedSrgb);
         assert_eq!(parent.formation.blend_space, BlendSpace::LinearLight);
+    }
+
+    #[test]
+    fn a_late_failure_cannot_publish_an_earlier_half_operation() {
+        let parent = scene();
+        let mut formation = parent.formation;
+        formation.blend_space = BlendSpace::EncodedSrgb;
+        let before = scene_digest_sha256(&parent).unwrap();
+        let tx = CompoundTransaction {
+            kind: TransactionKind::JointEscape,
+            expected_parent_digest: before.clone(),
+            mutations: vec![
+                SceneMutation::ReplaceFormation(formation),
+                SceneMutation::ReplaceBoundaryGeometry {
+                    boundary: BoundaryId(0),
+                    curve: CurveChain {
+                        interior_nodes: Vec::new(),
+                        segments: Vec::new(),
+                    },
+                    closure_join: None,
+                },
+            ],
+        };
+        assert!(matches!(
+            apply_compound_transaction(&parent, &tx),
+            Err(TransactionError::MissingEntity)
+        ));
+        assert_eq!(scene_digest_sha256(&parent).unwrap(), before);
+        assert_eq!(parent.formation.blend_space, BlendSpace::LinearLight);
+    }
+
+    #[test]
+    fn the_transaction_inventory_is_total_and_duplicate_free() {
+        let kinds: std::collections::BTreeSet<_> = TransactionKind::ALL.into_iter().collect();
+        assert_eq!(kinds.len(), TransactionKind::ALL.len());
+        assert_eq!(kinds.len(), 19);
     }
 }

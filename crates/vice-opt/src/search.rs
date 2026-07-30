@@ -33,6 +33,8 @@ pub struct BeamCandidate {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct BudgetLedger {
     pub elapsed_ms: u64,
+    pub time_budget_exhausted: bool,
+    pub unmaterialized_by_time_budget: u64,
     pub candidates_presented: u64,
     pub candidates_considered: u64,
     pub memory_bytes_considered: u64,
@@ -57,8 +59,6 @@ pub struct BeamSelection {
 pub enum BeamError {
     #[error("beam configuration is invalid")]
     InvalidConfig,
-    #[error("search time budget exhausted before beam selection")]
-    TimeBudgetExhausted,
     #[error("candidate score is non-finite or identity is empty")]
     InvalidCandidate,
 }
@@ -84,9 +84,6 @@ pub fn select_diverse_beam(
         || cfg.budget.max_elapsed_ms == 0
     {
         return Err(BeamError::InvalidConfig);
-    }
-    if elapsed_ms > cfg.budget.max_elapsed_ms {
-        return Err(BeamError::TimeBudgetExhausted);
     }
     if candidates.iter().any(|c| {
         !c.score.total_bits.is_finite()
@@ -192,6 +189,8 @@ pub fn select_diverse_beam(
         dominated_pruned,
         ledger: BudgetLedger {
             elapsed_ms,
+            time_budget_exhausted: elapsed_ms > cfg.budget.max_elapsed_ms,
+            unmaterialized_by_time_budget: 0,
             candidates_presented: presented,
             candidates_considered: considered.len() as u64,
             memory_bytes_considered: memory,
@@ -268,5 +267,14 @@ mod tests {
         assert_eq!(got.kept.len(), 1);
         assert_eq!(got.budget_pruned.len(), 1);
         assert_eq!(got.ledger.delivery_equivalent_collapses, 1);
+    }
+
+    #[test]
+    fn an_elapsed_budget_keeps_scored_mass_instead_of_discarding_the_beam() {
+        let selection =
+            select_diverse_beam(vec![c("a", "da", "ta", "fa", 1.0)], cfg(), 1_001).unwrap();
+        assert!(selection.ledger.time_budget_exhausted);
+        assert_eq!(selection.kept.len(), 1);
+        assert_eq!(selection.ledger.candidates_presented, 1);
     }
 }

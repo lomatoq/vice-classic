@@ -5,16 +5,24 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vice_evidence::{ChainStatus, Flat2Outcome};
 use vice_ir::{Canvas, PixelFilter};
-use vice_opt::{posterior_with_search_mass, select_diverse_beam, BeamCandidate, SearchMassInput};
+use vice_opt::{
+    posterior_with_search_mass, select_diverse_beam, BeamCandidate, SearchMassInput,
+    TransactionKind,
+};
 
-use crate::candidate::{materialize_candidate, CandidateCache, CandidateRequest};
+use crate::candidate::{
+    materialize_candidate, CandidateCache, CandidateModelTransaction, CandidateRequest,
+};
 use crate::config::CoreConfig;
 use crate::scene::topology_arms;
 use crate::types::{
     CandidateRefusal, CandidateSummary, DecisionStatus, FailureReason, RuntimeSummary,
-    SuccessArtifacts, VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    SuccessArtifacts, TransactionInventory, TransactionInventoryRow, VectorizeOutcome,
+    VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 use crate::VectorizeRequest;
+
+const TRANSACTION_DIVERSITY_SEED_CLASSES: usize = 1;
 
 #[derive(Debug, Default)]
 struct ReportParts {
@@ -24,6 +32,7 @@ struct ReportParts {
     search_mass: Option<vice_opt::SearchMassCertificate>,
     candidates: Vec<CandidateSummary>,
     candidate_refusals: Vec<CandidateRefusal>,
+    transaction_inventory: Option<TransactionInventory>,
     selected_hypothesis_id: Option<String>,
     candidate_bytes: u64,
 }
@@ -66,6 +75,7 @@ fn make_report(
         },
         candidates: parts.candidates,
         candidate_refusals: parts.candidate_refusals,
+        transaction_inventory: parts.transaction_inventory,
         selected_hypothesis_id: parts.selected_hypothesis_id,
     }
 }
@@ -146,6 +156,7 @@ fn supported_formations(
 struct FinalSceneVariant {
     class: String,
     models: Vec<vice_fit::BoundaryModel>,
+    model_transactions: Vec<CandidateModelTransaction>,
 }
 
 fn free_model(selected: &vice_fit::BoundaryModel) -> vice_fit::BoundaryModel {
@@ -156,6 +167,86 @@ fn free_model(selected: &vice_fit::BoundaryModel) -> vice_fit::BoundaryModel {
     free.relations_kept = 0;
     free.relation_kept_indices.clear();
     free
+}
+
+fn path_transaction_kinds(
+    parent: &vice_fit::BoundaryModel,
+    target: &vice_fit::BoundaryModel,
+) -> Vec<TransactionKind> {
+    let (
+        vice_fit::SelectedBoundaryGeometry::TypedChain {
+            chain: parent_chain,
+        },
+        vice_fit::SelectedBoundaryGeometry::TypedChain {
+            chain: target_chain,
+        },
+    ) = (&parent.geometry, &target.geometry)
+    else {
+        return vec![TransactionKind::JointEscape];
+    };
+    let mut kinds = Vec::new();
+    match target_chain
+        .segments
+        .len()
+        .cmp(&parent_chain.segments.len())
+    {
+        std::cmp::Ordering::Greater => {
+            kinds.push(TransactionKind::AnchorInsert);
+            kinds.push(TransactionKind::SpanSplitJointRefit);
+        }
+        std::cmp::Ordering::Less => {
+            kinds.push(TransactionKind::AnchorRemove);
+            kinds.push(TransactionKind::SpanMergeJointRefit);
+        }
+        std::cmp::Ordering::Equal => {}
+    }
+    let parent_families: Vec<_> = parent_chain
+        .segments
+        .iter()
+        .map(std::mem::discriminant)
+        .collect();
+    let target_families: Vec<_> = target_chain
+        .segments
+        .iter()
+        .map(std::mem::discriminant)
+        .collect();
+    if parent_families != target_families {
+        kinds.push(TransactionKind::FamilyChange);
+    }
+    let corners = |chain: &vice_fit::RefitChain| {
+        chain
+            .nodes
+            .iter()
+            .filter(|node| node.tangent_rad.is_none())
+            .count()
+    };
+    match corners(target_chain).cmp(&corners(parent_chain)) {
+        std::cmp::Ordering::Greater => kinds.push(TransactionKind::CornerActivate),
+        std::cmp::Ordering::Less => kinds.push(TransactionKind::CornerDeactivate),
+        std::cmp::Ordering::Equal => {}
+    }
+    if kinds.is_empty() {
+        kinds.push(TransactionKind::JointEscape);
+    }
+    kinds.sort();
+    kinds.dedup();
+    kinds
+}
+
+fn inverse_transaction_kind(kind: TransactionKind) -> TransactionKind {
+    match kind {
+        TransactionKind::AnchorInsert => TransactionKind::AnchorRemove,
+        TransactionKind::AnchorRemove => TransactionKind::AnchorInsert,
+        TransactionKind::SpanSplitJointRefit => TransactionKind::SpanMergeJointRefit,
+        TransactionKind::SpanMergeJointRefit => TransactionKind::SpanSplitJointRefit,
+        TransactionKind::CornerActivate => TransactionKind::CornerDeactivate,
+        TransactionKind::CornerDeactivate => TransactionKind::CornerActivate,
+        TransactionKind::PrimitivePromote => TransactionKind::PrimitiveDemote,
+        TransactionKind::PrimitiveDemote => TransactionKind::PrimitivePromote,
+        TransactionKind::RelationPromote => TransactionKind::RelationDemote,
+        TransactionKind::RelationDemote => TransactionKind::RelationPromote,
+        other => other,
+    }
 }
 
 fn repeated_scene_sibling(
@@ -230,22 +321,38 @@ fn final_scene_variants(
     let mut variants = vec![FinalSceneVariant {
         class: "baseline-free".into(),
         models: baseline.clone(),
+        model_transactions: Vec::new(),
     }];
     for (chain_index, fit) in fits.iter().enumerate() {
         for (path_index, selected) in fit.models.iter().enumerate() {
             let free = free_model(selected);
+            let mut path_models = baseline.clone();
+            path_models[chain_index] = free.clone();
             if path_index != 0 {
-                let mut models = baseline.clone();
-                models[chain_index] = free.clone();
-                variants.push(FinalSceneVariant {
-                    class: format!("c{chain_index}-path{path_index}-free"),
-                    models,
-                });
+                for kind in path_transaction_kinds(&baseline[chain_index], &free) {
+                    variants.push(FinalSceneVariant {
+                        class: format!("c{chain_index}-path{path_index}-{kind:?}").to_lowercase(),
+                        models: path_models.clone(),
+                        model_transactions: vec![CandidateModelTransaction {
+                            kind,
+                            parent_models: baseline.clone(),
+                        }],
+                    });
+                    variants.push(FinalSceneVariant {
+                        class: format!("c{chain_index}-path{path_index}-{kind:?}-reverse")
+                            .to_lowercase(),
+                        models: baseline.clone(),
+                        model_transactions: vec![CandidateModelTransaction {
+                            kind: inverse_transaction_kind(kind),
+                            parent_models: path_models.clone(),
+                        }],
+                    });
+                }
             }
             for (index, hypothesis) in selected.relations.iter().enumerate() {
                 let mut sibling = free.clone();
                 if vice_fit::apply_relation_sibling(&mut sibling, hypothesis, index, true) {
-                    let mut models = baseline.clone();
+                    let mut models = path_models.clone();
                     models[chain_index] = sibling;
                     variants.push(FinalSceneVariant {
                         class: format!(
@@ -253,14 +360,30 @@ fn final_scene_variants(
                             hypothesis.kind
                         )
                         .to_lowercase(),
-                        models,
+                        models: models.clone(),
+                        model_transactions: vec![CandidateModelTransaction {
+                            kind: TransactionKind::RelationPromote,
+                            parent_models: path_models.clone(),
+                        }],
+                    });
+                    variants.push(FinalSceneVariant {
+                        class: format!(
+                            "c{chain_index}-path{path_index}-relation-{index}-{:?}-demote",
+                            hypothesis.kind
+                        )
+                        .to_lowercase(),
+                        models: path_models.clone(),
+                        model_transactions: vec![CandidateModelTransaction {
+                            kind: TransactionKind::RelationDemote,
+                            parent_models: models,
+                        }],
                     });
                 }
             }
             for (index, hypothesis) in selected.primitives.iter().enumerate() {
                 let mut sibling = free.clone();
                 if vice_fit::apply_primitive_sibling(&mut sibling, hypothesis, index) {
-                    let mut models = baseline.clone();
+                    let mut models = path_models.clone();
                     models[chain_index] = sibling;
                     variants.push(FinalSceneVariant {
                         class: format!(
@@ -268,7 +391,23 @@ fn final_scene_variants(
                             hypothesis.kind
                         )
                         .to_lowercase(),
-                        models,
+                        models: models.clone(),
+                        model_transactions: vec![CandidateModelTransaction {
+                            kind: TransactionKind::PrimitivePromote,
+                            parent_models: path_models.clone(),
+                        }],
+                    });
+                    variants.push(FinalSceneVariant {
+                        class: format!(
+                            "c{chain_index}-path{path_index}-primitive-{index}-{:?}-demote",
+                            hypothesis.kind
+                        )
+                        .to_lowercase(),
+                        models: path_models.clone(),
+                        model_transactions: vec![CandidateModelTransaction {
+                            kind: TransactionKind::PrimitiveDemote,
+                            parent_models: models,
+                        }],
                     });
                 }
             }
@@ -287,7 +426,19 @@ fn final_scene_variants(
                 models[right] = sibling;
                 variants.push(FinalSceneVariant {
                     class: format!("scene-repetition-c{left}-c{right}"),
-                    models,
+                    models: models.clone(),
+                    model_transactions: vec![CandidateModelTransaction {
+                        kind: TransactionKind::RelationPromote,
+                        parent_models: baseline.clone(),
+                    }],
+                });
+                variants.push(FinalSceneVariant {
+                    class: format!("scene-repetition-c{left}-c{right}-demote"),
+                    models: baseline.clone(),
+                    model_transactions: vec![CandidateModelTransaction {
+                        kind: TransactionKind::RelationDemote,
+                        parent_models: models,
+                    }],
                 });
             }
         }
@@ -307,8 +458,28 @@ fn final_scene_variants(
             .total_cmp(&right_bits)
             .then_with(|| left.class.cmp(&right.class))
     });
-    variants.dedup_by(|left, right| left.class == right.class && left.models == right.models);
-    variants
+    let mut merged: Vec<FinalSceneVariant> = Vec::new();
+    for mut variant in variants {
+        if let Some(existing) = merged
+            .iter_mut()
+            .find(|existing| existing.models == variant.models)
+        {
+            if variant.class == "baseline-free" {
+                existing.class = variant.class;
+            }
+            for transaction in variant.model_transactions.drain(..) {
+                if !existing.model_transactions.iter().any(|present| {
+                    present.kind == transaction.kind
+                        && present.parent_models == transaction.parent_models
+                }) {
+                    existing.model_transactions.push(transaction);
+                }
+            }
+        } else {
+            merged.push(variant);
+        }
+    }
+    merged
 }
 
 fn retain_variant_diversity(
@@ -321,11 +492,15 @@ fn retain_variant_diversity(
     let mut selected = Vec::with_capacity(limit);
     let mut used = vec![false; variants.len()];
     let predicates: [fn(&str) -> bool; 5] = [
-        |class: &str| class == "baseline-free",
         |class: &str| class.starts_with("scene-repetition-"),
         |class: &str| class.contains("-primitive-"),
         |class: &str| class.contains("-relation-"),
-        |class: &str| class.ends_with("-free") && class != "baseline-free",
+        |class: &str| class == "baseline-free",
+        |class: &str| {
+            class.contains("-path")
+                && !class.contains("-primitive-")
+                && !class.contains("-relation-")
+        },
     ];
     for predicate in predicates {
         if selected.len() == limit {
@@ -613,33 +788,100 @@ pub fn vectorize_with_config(
     let mut candidates = Vec::new();
     let mut candidate_refusals = Vec::new();
     let mut candidate_cache = CandidateCache::default();
-    for variant in &model_variants {
-        for (topology_index, arm) in arms.iter().enumerate() {
-            for formation in &formations {
-                let formation_class = vice_evidence::formation_id(formation);
-                let hypothesis_id =
-                    format!("{}/t{topology_index}/{formation_class}", variant.class);
-                let built = materialize_candidate(
-                    CandidateRequest {
-                        canvas,
-                        evidence: &evidence,
-                        chains: &chains,
-                        models: &variant.models,
-                        arm,
-                        formation: *formation,
-                        hypothesis_id: hypothesis_id.clone(),
-                        formation_class,
-                        image: &image,
-                        intent: request.intent,
-                        config,
-                    },
-                    &mut candidate_cache,
-                );
-                match built {
-                    Ok(candidate) => candidates.push(candidate),
-                    Err(error) => candidate_refusals.push(error),
+    let mut proposed_transactions = std::collections::BTreeMap::<TransactionKind, u64>::new();
+    let planned_materializations = model_variants
+        .len()
+        .saturating_mul(arms.len())
+        .saturating_mul(formations.len());
+    let mandatory_diversity_materializations = model_variants
+        .len()
+        .min(config.beam.width)
+        .min(TRANSACTION_DIVERSITY_SEED_CLASSES);
+    let mut scheduled = BTreeSet::new();
+    let mut materialization_order = Vec::with_capacity(planned_materializations);
+    for variant_index in 0..mandatory_diversity_materializations {
+        let topology_index = variant_index % arms.len();
+        let formation_index = (variant_index / arms.len()) % formations.len();
+        let task = (variant_index, topology_index, formation_index);
+        scheduled.insert(task);
+        materialization_order.push(task);
+    }
+    for variant_index in 0..model_variants.len() {
+        for topology_index in 0..arms.len() {
+            for formation_index in 0..formations.len() {
+                let task = (variant_index, topology_index, formation_index);
+                if scheduled.insert(task) {
+                    materialization_order.push(task);
                 }
             }
+        }
+    }
+    let mut attempted_materializations = 0usize;
+    let mut time_truncated = false;
+    'materialization: for (variant_index, topology_index, formation_index) in materialization_order
+    {
+        let variant = &model_variants[variant_index];
+        let arm = &arms[topology_index];
+        let formation = &formations[formation_index];
+        if attempted_materializations >= mandatory_diversity_materializations
+            && started.elapsed().as_millis() >= u128::from(config.beam.budget.max_elapsed_ms)
+        {
+            time_truncated = true;
+            break 'materialization;
+        }
+        attempted_materializations += 1;
+        for transaction in &variant.model_transactions {
+            *proposed_transactions.entry(transaction.kind).or_default() += 1;
+        }
+        if arm.class != arms[0].class {
+            let kind = if arm.dcel.holes() != arms[0].dcel.holes() {
+                TransactionKind::TopologyHole
+            } else if arm.dcel.foreground_faces() < arms[0].dcel.foreground_faces() {
+                TransactionKind::TopologyBridge
+            } else if arm.dcel.foreground_faces() > arms[0].dcel.foreground_faces() {
+                TransactionKind::TopologySplit
+            } else if arm.dcel.boundaries().len() < arms[0].dcel.boundaries().len() {
+                TransactionKind::TopologyMerge
+            } else {
+                TransactionKind::TopologySplit
+            };
+            *proposed_transactions.entry(kind).or_default() += 1;
+        }
+        if *formation != formations[0] {
+            let kind = if formation.exterior != formations[0].exterior {
+                TransactionKind::ExteriorChange
+            } else {
+                TransactionKind::FormationChange
+            };
+            *proposed_transactions.entry(kind).or_default() += 1;
+        }
+        *proposed_transactions
+            .entry(TransactionKind::PaintChange)
+            .or_default() += 1;
+        let formation_class = vice_evidence::formation_id(formation);
+        let hypothesis_id = format!("{}/t{topology_index}/{formation_class}", variant.class);
+        let built = materialize_candidate(
+            CandidateRequest {
+                canvas,
+                evidence: &evidence,
+                chains: &chains,
+                models: &variant.models,
+                arm,
+                formation: *formation,
+                model_transactions: &variant.model_transactions,
+                transaction_base_arm: &arms[0],
+                transaction_base_formation: formations[0],
+                hypothesis_id: hypothesis_id.clone(),
+                formation_class,
+                image: &image,
+                intent: request.intent,
+                config,
+            },
+            &mut candidate_cache,
+        );
+        match built {
+            Ok(candidate) => candidates.push(candidate),
+            Err(error) => candidate_refusals.push(error),
         }
     }
     candidates.sort_by(|left, right| {
@@ -662,6 +904,35 @@ pub fn vectorize_with_config(
         .map(|candidate| candidate.summary.clone())
         .collect();
     parts.candidate_refusals = candidate_refusals.clone();
+    let mut applied_transactions = std::collections::BTreeMap::<TransactionKind, u64>::new();
+    for candidate in &candidates {
+        for transaction in &candidate.summary.transactions {
+            *applied_transactions.entry(transaction.kind).or_default() += 1;
+        }
+    }
+    let rows = TransactionKind::ALL
+        .into_iter()
+        .map(|kind| {
+            let proposed = proposed_transactions.get(&kind).copied().unwrap_or(0);
+            let atomic_applied = applied_transactions.get(&kind).copied().unwrap_or(0);
+            TransactionInventoryRow {
+                kind,
+                proposed,
+                atomic_applied,
+                verified_and_exact_scored: atomic_applied,
+                refused_before_score: proposed.saturating_sub(atomic_applied),
+                not_applicable: proposed == 0,
+            }
+        })
+        .collect::<Vec<_>>();
+    parts.transaction_inventory = Some(TransactionInventory {
+        complete_kind_enumeration: rows.len() == TransactionKind::ALL.len()
+            && rows
+                .iter()
+                .zip(TransactionKind::ALL)
+                .all(|(row, kind)| row.kind == kind),
+        rows,
+    });
     if candidates.is_empty() {
         let detail = if candidate_refusals.is_empty() {
             "no candidate entered the verifier".into()
@@ -690,7 +961,7 @@ pub fn vectorize_with_config(
             estimated_memory_bytes: candidate.estimated_memory_bytes,
         })
         .collect();
-    let selection = match select_diverse_beam(
+    let mut selection = match select_diverse_beam(
         beam_candidates,
         config.beam,
         started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
@@ -711,6 +982,11 @@ pub fn vectorize_with_config(
             )
         }
     };
+    selection.ledger.time_budget_exhausted |= time_truncated;
+    selection.ledger.unmaterialized_by_time_budget = planned_materializations
+        .saturating_sub(attempted_materializations)
+        .try_into()
+        .unwrap_or(u64::MAX);
     parts.beam = Some(selection.ledger.clone());
     let budget_ids: BTreeSet<_> = selection
         .budget_pruned
@@ -730,7 +1006,7 @@ pub fn vectorize_with_config(
         identity: config.identity(),
         explored_kept,
         budget_pruned,
-        unexplored: if fit_truncated || variant_truncated {
+        unexplored: if fit_truncated || variant_truncated || time_truncated {
             config
                 .confidence
                 .as_ref()

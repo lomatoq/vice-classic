@@ -171,6 +171,25 @@ mod tests {
             VectorizeOutcome::Success(_) | VectorizeOutcome::Failed(_)
         ));
         assert!(outcome.report().evidence.is_some());
+        let inventory = outcome
+            .report()
+            .transaction_inventory
+            .as_ref()
+            .expect("a run that entered search publishes transaction inventory");
+        assert!(inventory.complete_kind_enumeration);
+        assert_eq!(inventory.rows.len(), vice_opt::TransactionKind::ALL.len());
+        let paint = inventory
+            .rows
+            .iter()
+            .find(|row| row.kind == vice_opt::TransactionKind::PaintChange)
+            .unwrap();
+        assert!(paint.proposed > 0);
+        assert!(outcome
+            .report()
+            .candidates
+            .iter()
+            .flat_map(|candidate| &candidate.transactions)
+            .all(|transaction| transaction.atomic));
     }
 
     #[test]
@@ -186,6 +205,16 @@ mod tests {
             "multi-component candidates were refused: {:?}",
             outcome.report().candidate_refusals
         );
+        let paint = outcome
+            .report()
+            .transaction_inventory
+            .as_ref()
+            .unwrap()
+            .rows
+            .iter()
+            .find(|row| row.kind == vice_opt::TransactionKind::PaintChange)
+            .unwrap();
+        assert!(paint.verified_and_exact_scored > 0);
         let scene = &outcome.report().candidates[0].pre_quantization;
         assert_eq!(scene.boundaries, 2);
         assert_eq!(scene.observed_chain_bindings, 2);
@@ -201,6 +230,14 @@ mod tests {
                     .iter()
                     .any(|refusal| refusal.hypothesis_id.starts_with("scene-repetition-")),
             "scene repetition was not searched"
+        );
+        assert!(
+            outcome.report().candidates.iter().any(|candidate| {
+                candidate.transactions.iter().any(|transaction| {
+                    transaction.kind == vice_opt::TransactionKind::RelationPromote
+                })
+            }),
+            "the repeated-scene proposal did not pass through an atomic relation transaction"
         );
     }
 

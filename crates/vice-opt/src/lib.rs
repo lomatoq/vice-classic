@@ -31,8 +31,8 @@ pub use search::{
     SearchBudget,
 };
 pub use transaction::{
-    apply_compound_transaction, CompoundTransaction, SceneMutation, TransactionError,
-    TransactionKind,
+    apply_compound_transaction, apply_compound_transaction_traced, CompoundTransaction,
+    SceneMutation, TransactionApplication, TransactionError, TransactionKind,
 };
 pub use trust_region::{
     optimize_best_deterministic, optimize_trust_region, BlockSpec, EvaluationToken,

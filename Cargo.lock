@@ -1248,6 +1248,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror",
+ "vice-geom",
  "vice-image",
  "vice-ir",
  "vice-render",
