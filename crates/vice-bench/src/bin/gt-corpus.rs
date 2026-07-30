@@ -20,6 +20,7 @@ use vice_bench::corridor::{self, CorridorScope};
 use vice_bench::gates::{same_commit_violation_with_base, ChangedPath, GatesFile};
 use vice_bench::gt::corpus::{build_manifest, fast_cell_filter, test_cell_filter, CorpusManifest};
 use vice_bench::gt::split::{AuditSeal, SPLIT_POLICY_V1};
+use vice_bench::m7::{self, MeasurementScope};
 use vice_bench::oracle::{self, OracleScope};
 use vice_bench::prereg::Preregistration;
 use vice_bench::scorecard;
@@ -106,6 +107,23 @@ enum Scope {
     Fast,
     /// One size. Seconds; what the unit tests use.
     Test,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+enum M7ScopeArg {
+    Smoke,
+    CalibrationSmoke,
+    Calibration,
+}
+
+impl From<M7ScopeArg> for MeasurementScope {
+    fn from(value: M7ScopeArg) -> Self {
+        match value {
+            M7ScopeArg::Smoke => MeasurementScope::Smoke,
+            M7ScopeArg::CalibrationSmoke => MeasurementScope::CalibrationSmoke,
+            M7ScopeArg::Calibration => MeasurementScope::Calibration,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -229,6 +247,36 @@ enum Cmd {
         gates: PathBuf,
         #[arg(long)]
         report: PathBuf,
+    },
+    /// Measure raw M7 selected-scene quality on development smoke or the
+    /// calibration split. The sealed audit has a separate burn-controlled
+    /// release command and cannot be opened here.
+    M7Measure {
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, value_enum, default_value_t = M7ScopeArg::Smoke)]
+        scope: M7ScopeArg,
+        /// Optional deterministic size shard for smoke/restartable court runs.
+        #[arg(long)]
+        size: Option<u32>,
+        /// Parallel Quality runs. Defaults conservatively to at most two.
+        #[arg(long)]
+        workers: Option<usize>,
+        /// Zero-based source-group shard. A source group is never split.
+        #[arg(long, default_value_t = 0)]
+        shard_index: u32,
+        #[arg(long, default_value_t = 1)]
+        shard_count: u32,
+        /// Resume from the digest-bound JSONL checkpoint beside `--out`.
+        #[arg(long)]
+        resume: bool,
+    },
+    /// Merge disjoint completed M7 source-group shard reports.
+    M7Merge {
+        #[arg(long, required = true, num_args = 1..)]
+        inputs: Vec<PathBuf>,
+        #[arg(long)]
+        out: PathBuf,
     },
     /// Enforce §27.7: an EXISTING gate file and production code may not
     /// change together. Pass `git diff --name-status` lines (status letter
@@ -701,6 +749,80 @@ fn real_main() -> i32 {
         Cmd::DcelCheck { report, structural } => dcel_cmd::check(&report, structural),
         Cmd::GeometryM6 { gates, out } => geometry_cmd::run(&gates, &out),
         Cmd::GeometryM6Check { gates, report } => geometry_cmd::check(&gates, &report),
+        Cmd::M7Measure {
+            out,
+            scope,
+            size,
+            workers,
+            shard_index,
+            shard_count,
+            resume,
+        } => {
+            let mut request = m7::MeasurementRequest::new(scope.into());
+            request.size_filter = size;
+            request.workers = workers.unwrap_or_else(m7::default_worker_count);
+            request.shard_index = shard_index;
+            request.shard_count = shard_count;
+            let report = match m7::measure_to_path(request, &out, resume) {
+                Ok(report) => report,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 2;
+                }
+            };
+            println!(
+                "M7 {} shards {:?}/{}: {} groups, {}/{} renders, {} selected candidates, {} \
+                 truncated",
+                report.scope,
+                report.included_shards,
+                report.shard_count,
+                report.source_groups,
+                report.renders,
+                report.expected_renders_included_shards,
+                report.candidates_available,
+                report.truncated_renders
+            );
+            println!("M7 raw measurement: {}", out.display());
+            0
+        }
+        Cmd::M7Merge { inputs, out } => {
+            let mut reports = Vec::with_capacity(inputs.len());
+            for input in &inputs {
+                match m7::read_report(input) {
+                    Ok(report) => reports.push(report),
+                    Err(error) => {
+                        eprintln!("error: {error}");
+                        return 2;
+                    }
+                }
+            }
+            let report = match m7::merge_reports(reports) {
+                Ok(report) => report,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return 2;
+                }
+            };
+            if let Some(parent) = out.parent() {
+                if let Err(error) = std::fs::create_dir_all(parent) {
+                    eprintln!("error: create {}: {error}", parent.display());
+                    return 2;
+                }
+            }
+            if let Err(error) = m7::write_report(&out, &report) {
+                eprintln!("error: {error}");
+                return 2;
+            }
+            println!(
+                "M7 merged shards {:?}/{}: {}/{} renders; complete={}",
+                report.included_shards,
+                report.shard_count,
+                report.renders,
+                report.expected_renders_included_shards,
+                report.complete
+            );
+            0
+        }
         Cmd::OracleCheck { report, structural } => {
             let recorded = match read_manifest(&report) {
                 Ok(v) => v,

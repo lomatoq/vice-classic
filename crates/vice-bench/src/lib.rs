@@ -39,6 +39,7 @@ pub mod geometry;
 pub mod gt;
 pub mod hashing;
 pub mod limits;
+pub mod m7;
 pub mod oracle;
 pub mod prereg;
 pub mod reliability;

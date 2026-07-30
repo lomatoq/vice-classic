@@ -127,7 +127,13 @@ impl CorpusManifest {
 
 /// Every source group of the corpus, in a deterministic order.
 pub(crate) fn all_groups() -> Result<Vec<GtSourceGroup>, String> {
-    let mut groups = procedural_groups(PROCEDURAL_VARIANTS);
+    all_groups_with_variants(PROCEDURAL_VARIANTS)
+}
+
+pub(crate) fn all_groups_with_variants(
+    procedural_variants: usize,
+) -> Result<Vec<GtSourceGroup>, String> {
+    let mut groups = procedural_groups(procedural_variants);
     groups.extend(authored_groups().map_err(|e| e.to_string())?);
     groups.extend(all_adversarial_groups());
     groups.sort_by(|a, b| a.id.cmp(&b.id));
