@@ -180,6 +180,35 @@ fn successor_audit_population_excludes_reused_nonprocedural_sources() {
 }
 
 #[test]
+fn calibration_and_audit_share_the_flat2_supported_model_boundary() {
+    let groups = groups_with_variants_filtered_for_generation(
+        1,
+        M7_PROCEDURAL_GENERATION,
+        |_| true,
+    )
+    .unwrap();
+    let group = |family: &str| {
+        groups
+            .iter()
+            .find(|group| group.shape_family == family)
+            .unwrap_or_else(|| panic!("missing {family}"))
+    };
+
+    assert!(MeasurementScope::Calibration
+        .admits_group(group("annulus"))
+        .unwrap());
+    assert!(!MeasurementScope::Calibration
+        .admits_group(group("shared_edge"))
+        .unwrap());
+    assert!(!MeasurementScope::SealedAudit
+        .admits_group(group("shared_edge"))
+        .unwrap());
+    assert!(MeasurementScope::SealedAudit
+        .admits_group(group("nested_island"))
+        .unwrap());
+}
+
+#[test]
 fn merge_is_complete_only_for_one_copy_of_every_shard() {
     let partial = merge_reports(vec![synthetic_report(1, 2)]).expect("partial merge");
     assert!(!partial.complete);
