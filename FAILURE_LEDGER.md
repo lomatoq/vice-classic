@@ -5231,3 +5231,33 @@ two-state paints while generations 1--3 remain reproducible; `shared_edge`
 remains an M8 fixture. Independently measured partition truth must certify
 every committed and measured successor group as one opaque paint with a
 transparent exterior or two opaque paints with a full-bleed background.
+
+## F-0147 — Calibration still admitted multiregion nonprocedural groups (M7 generation-4 preflight, 2026-07-31)
+
+**Found by.** The consolidated population audit requested before repeating
+Quality. Generation-3 calibration rows showed that `authored/twotone` and
+`adv/near-tangent` were identifiable inputs whose two opaque paints plus a
+transparent exterior were correctly refused as M8 multiregion, yet they were
+still counted by the calibration population policy.
+
+**What happened.** F-0146 corrected the sealed procedural family allowlist,
+but calibration still used the older `all-split-groups/v1` policy. Split and
+origin filters are leakage controls, not a supported-model classifier. The
+first generation-4 calibration attempt was stopped at 168/1815 Quality and
+330/1815 Fast rows, with zero stderr, before either report completed or any
+threshold was proposed. Those partial v20 journals are invalid evidence and
+will not be resumed.
+
+**Class rule.** Calibration and sealed audit must share the same executable
+content-level supported-model predicate. Their leakage/origin policies may
+differ, but neither may put out-of-scope inputs in the risk/coverage
+denominator. A schema and policy-version change must make partial reports from
+the former population impossible to resume or merge.
+
+**Status.** Closed before the generation-4 seal was opened. Measurement schema
+v21 gives calibration its own `calibration-flat2-supported/v2` policy. Both
+calibration and audit now derive Flat2 eligibility from independently measured
+partition palette plus exterior truth; audit additionally applies its frozen
+family allowlist and procedural-only rule. A regression proves a calibration
+annulus and generation-4 nested island are admitted while `shared_edge` is
+rejected by both relevant scopes.

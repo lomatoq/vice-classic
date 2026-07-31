@@ -117,7 +117,7 @@ pub(super) fn synthetic_report(shard: u32, shard_count: u32) -> MeasurementRepor
         split: "calibration".into(),
         preset: Preset::Quality,
         procedural_generation: M7_PROCEDURAL_GENERATION,
-        population_policy: M7_ALL_SPLIT_POPULATION_POLICY.into(),
+        population_policy: M7_CALIBRATION_POPULATION_POLICY.into(),
         procedural_variants_per_family: M7_RELEASE_PROCEDURAL_VARIANTS,
         mandatory_sizes_px: M7_MANDATORY_SIZES.to_vec(),
         rasterizers: vec!["tiny-skia".into()],
@@ -181,12 +181,9 @@ fn successor_audit_population_excludes_reused_nonprocedural_sources() {
 
 #[test]
 fn calibration_and_audit_share_the_flat2_supported_model_boundary() {
-    let groups = groups_with_variants_filtered_for_generation(
-        1,
-        M7_PROCEDURAL_GENERATION,
-        |_| true,
-    )
-    .unwrap();
+    let groups =
+        groups_with_variants_filtered_for_generation(1, M7_PROCEDURAL_GENERATION, |_| true)
+            .unwrap();
     let group = |family: &str| {
         groups
             .iter()

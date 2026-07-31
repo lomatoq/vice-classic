@@ -210,19 +210,8 @@ fn measure_resuming(
     let mut jobs = Vec::new();
     let mut source_groups = BTreeSet::new();
     for (group_index, group) in groups.iter().enumerate() {
-        if SPLIT_POLICY_V1.split_of_group(group) != split
-            || !scope.admits_origin(group.origin)
-            || !scope.admits_shape_family(&group.shape_family)
-        {
+        if SPLIT_POLICY_V1.split_of_group(group) != split || !scope.admits_group(group)? {
             continue;
-        }
-        if scope == MeasurementScope::SealedAudit {
-            certify_m7_flat2_group(group).map_err(|why| {
-                format!(
-                    "sealed M7 group {} violates its Flat2 population: {why}",
-                    group.id
-                )
-            })?;
         }
         source_groups.insert(group.id.as_str());
         for scene_index in 0..group.scenes.len() {

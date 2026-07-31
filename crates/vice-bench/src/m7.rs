@@ -34,8 +34,9 @@ use vice_opt::BoundValue;
 use vice_render::{CertifiedMesh, RenderOptions};
 
 use crate::gt::corpus::{
-    certify_m7_flat2_group, groups_with_variants_filtered_for_generation,
-    is_m7_sealed_flat2_family, M7_SUCCESSOR_POPULATION_POLICY, M7_SUCCESSOR_PROCEDURAL_VARIANTS,
+    certify_flat2_supported_group, certify_m7_flat2_group,
+    groups_with_variants_filtered_for_generation, is_m7_sealed_flat2_family,
+    M7_SUCCESSOR_POPULATION_POLICY, M7_SUCCESSOR_PROCEDURAL_VARIANTS,
 };
 use crate::gt::degradation::{matrix_v1, render_cell, DegradationCell};
 use crate::gt::grammar::{AUTHORING_CANVAS_PX, M7_PROCEDURAL_GENERATION};
@@ -43,8 +44,10 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{FixtureOrigin, GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v20";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v21";
 pub const M7_ALL_SPLIT_POPULATION_POLICY: &str = "vice-classic/m7-population/all-split-groups/v1";
+pub const M7_CALIBRATION_POPULATION_POLICY: &str =
+    "vice-classic/m7-population/calibration-flat2-supported/v2";
 pub const M7_SEALED_POPULATION_POLICY: &str = M7_SUCCESSOR_POPULATION_POLICY;
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = M7_SUCCESSOR_PROCEDURAL_VARIANTS;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
@@ -87,10 +90,10 @@ impl MeasurementScope {
     }
 
     fn population_policy(self) -> &'static str {
-        if self == Self::SealedAudit {
-            M7_SEALED_POPULATION_POLICY
-        } else {
-            M7_ALL_SPLIT_POPULATION_POLICY
+        match self {
+            Self::Smoke => M7_ALL_SPLIT_POPULATION_POLICY,
+            Self::CalibrationSmoke | Self::Calibration => M7_CALIBRATION_POPULATION_POLICY,
+            Self::SealedAudit => M7_SEALED_POPULATION_POLICY,
         }
     }
 
@@ -100,6 +103,19 @@ impl MeasurementScope {
 
     fn admits_shape_family(self, family: &str) -> bool {
         self != Self::SealedAudit || is_m7_sealed_flat2_family(family)
+    }
+
+    fn admits_group(self, group: &crate::gt::GtSourceGroup) -> Result<bool, String> {
+        if !self.admits_origin(group.origin) || !self.admits_shape_family(&group.shape_family) {
+            return Ok(false);
+        }
+        match self {
+            Self::Smoke => Ok(true),
+            Self::CalibrationSmoke | Self::Calibration => {
+                Ok(certify_flat2_supported_group(group).is_ok())
+            }
+            Self::SealedAudit => certify_m7_flat2_group(group).map(|()| true),
+        }
     }
 
     fn cells(self) -> Vec<DegradationCell> {

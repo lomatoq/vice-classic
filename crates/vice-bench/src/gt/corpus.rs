@@ -44,13 +44,7 @@ pub(crate) fn is_m7_sealed_flat2_family(family: &str) -> bool {
 /// Certify the supported-model boundary from independently measured visible
 /// partition truth, never from a recipe label. Transparent Flat2 has one
 /// opaque paint; opaque Flat2 has foreground plus full-bleed background.
-pub(crate) fn certify_m7_flat2_group(group: &GtSourceGroup) -> Result<(), String> {
-    if !is_m7_sealed_flat2_family(&group.shape_family) {
-        return Err(format!(
-            "shape family {:?} is outside the preregistered M7 Flat2 bucket",
-            group.shape_family
-        ));
-    }
+pub(crate) fn certify_flat2_supported_group(group: &GtSourceGroup) -> Result<(), String> {
     for scene in &group.scenes {
         let truth = scene.partition_truth();
         let expected = match truth.exterior_model {
@@ -73,6 +67,16 @@ pub(crate) fn certify_m7_flat2_group(group: &GtSourceGroup) -> Result<(), String
         }
     }
     Ok(())
+}
+
+pub(crate) fn certify_m7_flat2_group(group: &GtSourceGroup) -> Result<(), String> {
+    if !is_m7_sealed_flat2_family(&group.shape_family) {
+        return Err(format!(
+            "shape family {:?} is outside the preregistered M7 Flat2 bucket",
+            group.shape_family
+        ));
+    }
+    certify_flat2_supported_group(group)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
