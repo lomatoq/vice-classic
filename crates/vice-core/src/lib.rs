@@ -511,7 +511,12 @@ mod tests {
 
     #[test]
     fn mirrored_components_enter_a_scene_level_relation_transaction() {
-        let config = CoreConfig::development_for(Preset::Fast);
+        // This test owns the scene-level transaction, not the competition
+        // between per-chain grammar paths. Keep one certified path per chain
+        // so release-mode floating-point optimization cannot make an
+        // unrelated path the stricter global support baseline.
+        let mut config = CoreConfig::development_for(Preset::Fast);
+        config.k_discrete_paths = 1;
         let outcome = vectorize_with_config(&mirrored_components_png(), &fast_request(), &config);
         assert!(!matches!(outcome, VectorizeOutcome::Failed(_)));
         assert_eq!(outcome.report().fits.len(), 2);
