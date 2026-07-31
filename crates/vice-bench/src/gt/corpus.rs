@@ -605,6 +605,56 @@ mod tests {
         assert_ne!(tampered.hash(), manifest.hash());
     }
 
+    #[test]
+    fn the_m7_successor_population_is_exactly_the_supported_flat2_bucket() {
+        assert_eq!(
+            M7_SEALED_FLAT2_FAMILIES,
+            &["nested_island", "arc_disk", "thin_bridge", "dot_cluster"]
+        );
+        assert_eq!(
+            test_manifest().m7_successor_population.source_groups,
+            M7_SEALED_FLAT2_FAMILIES.len() * M7_SUCCESSOR_PROCEDURAL_VARIANTS
+        );
+        assert!(test_manifest().m7_successor_population.source_groups >= 459);
+
+        for family in M7_SEALED_FLAT2_FAMILIES {
+            for variant in 0..M7_SUCCESSOR_PROCEDURAL_VARIANTS {
+                let id = format!("proc/{family}/{variant:03}");
+                let group = crate::gt::recipes::build_variant(
+                    family,
+                    variant,
+                    &id,
+                    M7_PROCEDURAL_GENERATION,
+                )
+                .unwrap_or_else(|why| panic!("{id} does not certify: {why}"));
+                certify_m7_flat2_group(&group)
+                    .unwrap_or_else(|why| panic!("{id} is outside Flat2: {why}"));
+            }
+        }
+
+        for family in ["shared_edge", "two_islands", "triple_junction"] {
+            assert!(!is_m7_sealed_flat2_family(family));
+        }
+    }
+
+    #[test]
+    fn generation_four_repairs_flat2_recipes_without_rewriting_burned_generation_three() {
+        for family in ["nested_island", "dot_cluster"] {
+            let id = format!("proc/{family}/000");
+            let burned = crate::gt::recipes::build_variant(family, 0, &id, 3).unwrap();
+            assert!(certify_m7_flat2_group(&burned).is_err());
+
+            let fresh = crate::gt::recipes::build_variant(
+                family,
+                0,
+                &id,
+                M7_PROCEDURAL_GENERATION,
+            )
+            .unwrap();
+            certify_m7_flat2_group(&fresh).unwrap();
+        }
+    }
+
     /// A partial manifest must be distinguishable from the full one, or a
     /// cheap run could be mistaken for the reproduction.
     #[test]

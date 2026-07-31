@@ -171,6 +171,12 @@ fn successor_audit_population_excludes_reused_nonprocedural_sources() {
         MeasurementScope::SealedAudit.population_policy(),
         M7_SEALED_POPULATION_POLICY
     );
+    for family in ["nested_island", "arc_disk", "thin_bridge", "dot_cluster"] {
+        assert!(MeasurementScope::SealedAudit.admits_shape_family(family));
+    }
+    for family in ["shared_edge", "two_islands", "triple_junction"] {
+        assert!(!MeasurementScope::SealedAudit.admits_shape_family(family));
+    }
 }
 
 #[test]
