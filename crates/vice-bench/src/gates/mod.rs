@@ -314,7 +314,7 @@ mod tests {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../configs/GATES_V1.toml")
     }
 
-    /// Every section is one of the two kinds, and each kind is populated.
+    /// Every section is one of the two kinds.
     ///
     /// Written as a property of the CLASS rather than as a list of section
     /// names: a milestone that MEASURES a placeholder is supposed to freeze
@@ -336,10 +336,6 @@ mod tests {
             "a section is frozen or a placeholder; there is no third state"
         );
         assert!(frozen.len() >= 5, "frozen sections: {frozen:?}");
-        assert!(
-            !placeholders.is_empty(),
-            "the tables no measurement supports yet must be DECLARED, not invented"
-        );
         for p in &placeholders {
             let s = &g.doc.sections[*p];
             assert!(
@@ -368,11 +364,28 @@ mod tests {
     /// which is what stops a later milestone from quietly gating on a zero.
     #[test]
     fn a_placeholder_cannot_be_used_as_a_gate() {
-        let g = GatesFile::load(&gates_path()).unwrap();
-        assert!(g.gate_value("reliability", "confidence").is_ok());
-        match g.gate_value("boundary_accuracy", "p95_px") {
+        let g = GatesFile {
+            doc: GatesDoc {
+                schema: GATES_SCHEMA.into(),
+                version: "test".into(),
+                sections: [(
+                    "future".into(),
+                    GateSection {
+                        status: "placeholder".into(),
+                        set_by_milestone: Some("future-milestone".into()),
+                        values: [("threshold".into(), toml::Value::Float(0.0))]
+                            .into_iter()
+                            .collect(),
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            },
+            sha256: "0".repeat(64),
+        };
+        match g.gate_value("future", "threshold") {
             Err(GateError::PlaceholderUsedAsGate { milestone, .. }) => {
-                assert_eq!(milestone, "M7")
+                assert_eq!(milestone, "future-milestone")
             }
             other => panic!("a placeholder must be refused, got {other:?}"),
         }

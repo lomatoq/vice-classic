@@ -19,6 +19,11 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
     use crate::topology::report as topo;
 
     let prereg = Preregistration::v1();
+    let m7_bucket = prereg
+        .buckets
+        .iter()
+        .find(|bucket| bucket.id == crate::m7::analysis::TARGET_BUCKET)
+        .expect("M7 target bucket is preregistered");
     let admissible: Vec<&str> = ResidualModel::ALL
         .iter()
         .filter(|m| m.admissible_for_confidence())
@@ -494,6 +499,192 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
             "m6_geometry",
             "gate_min_primitive_selected_rows",
             GateExpectation::num(crate::geometry::GATE_MIN_PRIMITIVE_SELECTED_ROWS as f64),
+        ),
+        // --- M7 selective delivery --------------------------------
+        // The preset-dependent values are the complete v15 calibration
+        // outputs from source commit 26077c8. Keeping the preset dimension
+        // here prevents the F-0138 scalar-gate collapse.
+        (
+            "boundary_accuracy",
+            "p95_px",
+            GateExpectation::num(crate::m7::M7_BOUNDARY_P95_GATE_PX),
+        ),
+        (
+            "boundary_accuracy",
+            "p99_px",
+            GateExpectation::num(crate::m7::M7_BOUNDARY_P99_GATE_PX),
+        ),
+        (
+            "boundary_accuracy",
+            "max_px",
+            GateExpectation::num(crate::m7::M7_BOUNDARY_MAX_GATE_PX),
+        ),
+        (
+            "m7_selective",
+            "quality_posterior_lower_bound_threshold",
+            GateExpectation::num(0.000_504_639_945_689_328_7),
+        ),
+        (
+            "m7_selective",
+            "quality_empirical_unexplored_relative_mass_upper_bound",
+            GateExpectation::num(1979.0),
+        ),
+        (
+            "m7_selective",
+            "quality_gate_max_posterior_predictive_bits_per_block",
+            GateExpectation::num(0.222_358_826_306_589_37),
+        ),
+        (
+            "m7_selective",
+            "quality_gate_max_support_isotopy_displacement_px",
+            GateExpectation::num(0.751_756_629_669_810_3),
+        ),
+        (
+            "m7_selective",
+            "fast_posterior_lower_bound_threshold",
+            GateExpectation::num(0.001_112_105_414_679_555),
+        ),
+        (
+            "m7_selective",
+            "fast_empirical_unexplored_relative_mass_upper_bound",
+            GateExpectation::num(897.0),
+        ),
+        (
+            "m7_selective",
+            "fast_gate_max_posterior_predictive_bits_per_block",
+            GateExpectation::num(0.222_358_826_306_589_37),
+        ),
+        (
+            "m7_selective",
+            "fast_gate_max_support_isotopy_displacement_px",
+            GateExpectation::num(0.778_677_386_482_680_7),
+        ),
+        (
+            "m7_selective",
+            "gate_min_top2_class_margin_bits",
+            GateExpectation::num(crate::m7::analysis::PROPOSED_MIN_TOP2_CLASS_MARGIN_BITS),
+        ),
+        (
+            "m7_selective",
+            "gate_max_abs_residual_lag1",
+            GateExpectation::num(crate::m7::analysis::PROPOSED_MAX_ABS_RESIDUAL_LAG1),
+        ),
+        (
+            "m7_selective",
+            "gate_max_topology_entropy_bits",
+            GateExpectation::num(crate::m7::analysis::PROPOSED_MAX_TOPOLOGY_ENTROPY_BITS),
+        ),
+        (
+            "m7_selective",
+            "gate_max_formation_entropy_bits",
+            GateExpectation::num(crate::m7::analysis::PROPOSED_MAX_FORMATION_ENTROPY_BITS),
+        ),
+        (
+            "m7_selective",
+            "gate_min_perturbation_stability",
+            GateExpectation::num(crate::m7::analysis::PROPOSED_MIN_PERTURBATION_STABILITY),
+        ),
+        (
+            "m7_selective",
+            "gate_min_source_coverage_128_512",
+            GateExpectation::num(m7_bucket.min_coverage_per_source),
+        ),
+        (
+            "m7_selective",
+            "gate_min_render_coverage_128_512",
+            GateExpectation::num(m7_bucket.min_coverage_per_render),
+        ),
+        (
+            "m7_selective",
+            "gate_max_palette_code_delta",
+            GateExpectation::num(f64::from(
+                crate::m7::analysis::PROPOSED_MAX_PALETTE_CODE_DELTA,
+            )),
+        ),
+        (
+            "m7_selective",
+            "gate_max_quality_p95_ms",
+            GateExpectation::num(crate::m7::analysis::PROPOSED_MAX_QUALITY_P95_MS as f64),
+        ),
+        (
+            "m7_selective",
+            "gate_max_fast_p95_ms",
+            GateExpectation::num(crate::m7::analysis::PROPOSED_MAX_FAST_P95_MS as f64),
+        ),
+        (
+            "m7_selective",
+            "gate_max_peak_memory_bytes",
+            GateExpectation::num(
+                vice_core::CoreConfig::development_for(vice_core::Preset::Quality)
+                    .beam
+                    .budget
+                    .max_memory_bytes as f64,
+            ),
+        ),
+        (
+            "m7_selective",
+            "gate_max_profile_channel_delta",
+            GateExpectation::num(4.0),
+        ),
+        (
+            "m7_selective",
+            "gate_max_profile_mean_channel_delta",
+            GateExpectation::num(0.0075),
+        ),
+        (
+            "m7_selective",
+            "gate_max_internal_channel_delta",
+            GateExpectation::num(120.0),
+        ),
+        (
+            "m7_selective",
+            "gate_max_internal_mean_channel_delta",
+            GateExpectation::num(1.5),
+        ),
+        (
+            "m7_selective",
+            "gate_max_complexity_growth_ratio",
+            GateExpectation::num(2.0),
+        ),
+        (
+            "m7_selective",
+            "gate_min_blind_source_trials",
+            GateExpectation::num(20.0),
+        ),
+        (
+            "m7_selective",
+            "gate_max_blind_one_sided_p_value",
+            GateExpectation::num(0.05),
+        ),
+        (
+            "m7_selective",
+            "gate_min_blind_preference_rate",
+            GateExpectation::num(0.50),
+        ),
+        (
+            "m7_selective",
+            "gate_min_pf_complete_rows",
+            GateExpectation::num(1.0),
+        ),
+        (
+            "m7_selective",
+            "gate_min_complete_geometry_oracle_rows",
+            GateExpectation::num(1.0),
+        ),
+        (
+            "m7_selective",
+            "gate_min_g20_recovery_rows",
+            GateExpectation::num(1.0),
+        ),
+        (
+            "m7_selective",
+            "gate_min_g30_recovery_rows",
+            GateExpectation::num(1.0),
+        ),
+        (
+            "m7_selective",
+            "gate_min_geometry_recovery_rate",
+            GateExpectation::num(0.80),
         ),
         // --- likelihood --------------------------------------------
         (
