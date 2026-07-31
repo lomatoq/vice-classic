@@ -349,9 +349,9 @@ struct ConfigIdentity<'a> {
 /// pre-freeze file fail closed. Fast and Quality have different search
 /// envelopes and therefore different config identities and calibrations.
 pub const M7_FAST_PRODUCTION_CONFIG_SHA256: &str =
-    "0000000000000000000000000000000000000000000000000000000000000000";
+    "6c394bfdae60c82c0db1468e070a770dcf34031a40253504ac12b11d0c0e0bd9";
 pub const M7_QUALITY_PRODUCTION_CONFIG_SHA256: &str =
-    "0000000000000000000000000000000000000000000000000000000000000000";
+    "d464e2376e713652c7f0da9fda47023d3982cc85e9b167cda1c5906f97704bbe";
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -792,5 +792,19 @@ mod tests {
             quality.beam.budget.max_candidates_considered
                 > fast.beam.budget.max_candidates_considered
         );
+    }
+
+    #[test]
+    fn committed_m7_production_configs_match_the_compiled_trust_anchors() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        for (preset, relative) in [
+            (Preset::Quality, "configs/M7_PRODUCTION_QUALITY.json"),
+            (Preset::Fast, "configs/M7_PRODUCTION_FAST.json"),
+        ] {
+            let config = CoreConfig::load_production_for(preset, &root.join(relative))
+                .unwrap_or_else(|error| panic!("{relative}: {error}"));
+            assert!(config.is_sealed_production());
+            assert_eq!(config.preset(), preset);
+        }
     }
 }
