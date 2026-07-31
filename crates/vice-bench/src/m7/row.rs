@@ -393,6 +393,7 @@ pub(super) fn unexplored_proxy_hypotheses(report: &vice_core::VectorizeReport) -
     });
     let materialization = report.beam.as_ref().map_or(0u64, |beam| {
         beam.unmaterialized_by_candidate_budget
+            .saturating_add(beam.unmaterialized_by_materialization_budget)
             .saturating_add(beam.unmaterialized_by_time_budget)
     });
     Some(topology.saturating_add(fit).saturating_add(materialization))

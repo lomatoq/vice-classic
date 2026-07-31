@@ -6,6 +6,7 @@ use super::*;
 #[allow(clippy::too_many_arguments)]
 pub(super) fn rank_materializations(
     materialization_order: &mut [(usize, usize, usize)],
+    diversity_seed_materializations: usize,
     fitted_arms: &[FittedTopologyArm],
     formations: &[vice_ir::GlobalFormationHypothesis],
     canvas: Canvas,
@@ -14,6 +15,12 @@ pub(super) fn rank_materializations(
     request: &VectorizeRequest,
     config: &CoreConfig,
 ) -> usize {
+    let original_order = materialization_order.to_vec();
+    let diversity_seeds = original_order
+        .iter()
+        .take(diversity_seed_materializations)
+        .copied()
+        .collect::<Vec<_>>();
     let rank_limit = if fitted_arms.iter().any(|bundle| bundle.arm.chains.len() > 1) {
         config.beam.width.max(16)
     } else {
@@ -76,30 +83,38 @@ pub(super) fn rank_materializations(
     });
     let class_of =
         |task: &(usize, usize, usize)| fitted_arms[task.0].variants[task.1].class.as_str();
-    let mut mandatory = usize::from(!ranked.is_empty());
+    let mut priority = Vec::with_capacity(materialization_order.len());
+    let mut prioritized = BTreeSet::new();
+    if let Some((task, _)) = ranked.first() {
+        priority.push(*task);
+        prioritized.insert(*task);
+    }
     for prefix in ["scene-repetition-", "scene-mirror-"] {
-        if ranked
+        if let Some((task, _)) = ranked
             .iter()
-            .take(mandatory)
-            .any(|(task, _)| class_of(task).starts_with(prefix))
+            .find(|(task, _)| class_of(task).starts_with(prefix))
         {
-            continue;
-        }
-        if let Some(index) = ranked
-            .iter()
-            .position(|(task, _)| class_of(task).starts_with(prefix))
-        {
-            let relation = ranked.remove(index);
-            ranked.insert(mandatory, relation);
-            mandatory += 1;
+            if prioritized.insert(*task) {
+                priority.push(*task);
+            }
         }
     }
-    for (slot, (task, _)) in materialization_order
-        .iter_mut()
-        .take(rank_count)
-        .zip(ranked)
-    {
-        *slot = task;
+    for task in diversity_seeds {
+        if prioritized.insert(task) {
+            priority.push(task);
+        }
     }
+    let mandatory = priority.len();
+    for (task, _) in ranked {
+        if prioritized.insert(task) {
+            priority.push(task);
+        }
+    }
+    for task in original_order {
+        if prioritized.insert(task) {
+            priority.push(task);
+        }
+    }
+    materialization_order.copy_from_slice(&priority);
     mandatory
 }

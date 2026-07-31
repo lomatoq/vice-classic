@@ -274,12 +274,12 @@ pub(super) fn vectorize_impl(
     let unmaterialized_by_candidate_budget = materialization_order
         .len()
         .saturating_sub(config.beam.budget.max_candidates_considered);
-    let evaluation_truncated = unmaterialized_by_candidate_budget > 0;
     materialization_order.truncate(config.beam.budget.max_candidates_considered);
     // M6's evidence/description ordering may not monopolize M7's expensive
     // serialized slots, so reorder one bounded prefix by the real likelihood.
     let mandatory_relation_materializations = rank_materializations(
         &mut materialization_order,
+        diversity_seed_materializations,
         &fitted_arms,
         &formations,
         canvas,
@@ -289,28 +289,37 @@ pub(super) fn vectorize_impl(
         config,
     );
     let scheduled_materializations = materialization_order.len();
-    // A time budget cannot be subordinated to a quota: materialize one
-    // deterministic seed so the run has a candidate, then enforce the
-    // deadline before every further topology/formation/transaction seed.
-    // Unreached diversity slots remain explicit unexplored mass.
-    let mandatory_diversity_materializations =
-        usize::from(diversity_seed_materializations > 0 && scheduled_materializations > 0)
-            .max(mandatory_relation_materializations.min(scheduled_materializations));
-    let mut attempted_materializations = 0usize;
-    let mut time_truncated = false;
-    'materialization: for (topology_index, variant_index, formation_index) in materialization_order
-    {
+    if mandatory_relation_materializations > config.beam.budget.max_materializations {
+        return refuse(
+            DecisionStatus::Failed,
+            FailureReason::SearchTruncated {
+                detail: format!(
+                    "deterministic materialization budget {} cannot cover {} mandatory \
+                     topology/formation/transaction/relation seeds",
+                    config.beam.budget.max_materializations, mandatory_relation_materializations
+                ),
+            },
+            request,
+            config,
+            source_sha256,
+            production,
+            parts,
+            started,
+        );
+    }
+    let unmaterialized_by_materialization_budget =
+        scheduled_materializations.saturating_sub(config.beam.budget.max_materializations);
+    materialization_order.truncate(config.beam.budget.max_materializations);
+    let evaluation_truncated =
+        unmaterialized_by_candidate_budget > 0 || unmaterialized_by_materialization_budget > 0;
+    // Candidate membership is a function of content and declared work units,
+    // never scheduler speed. Wall-clock exhaustion is reported after this
+    // deterministic prefix has completed.
+    for (topology_index, variant_index, formation_index) in materialization_order {
         let bundle = &fitted_arms[topology_index];
         let variant = &bundle.variants[variant_index];
         let arm = &bundle.arm;
         let formation = &formations[formation_index];
-        if attempted_materializations >= mandatory_diversity_materializations
-            && started.elapsed().as_millis() >= u128::from(config.beam.budget.max_elapsed_ms)
-        {
-            time_truncated = true;
-            break 'materialization;
-        }
-        attempted_materializations += 1;
         for transaction in &variant.model_transactions {
             *proposed_transactions.entry(transaction.kind).or_default() += 1;
         }
@@ -505,18 +514,14 @@ pub(super) fn vectorize_impl(
             )
         }
     };
-    selection.ledger.time_budget_exhausted |= time_truncated;
     selection.ledger.unmaterialized_by_candidate_budget = unmaterialized_by_candidate_budget
         .try_into()
         .unwrap_or(u64::MAX);
-    selection.ledger.unmaterialized_by_time_budget = if time_truncated {
-        scheduled_materializations
-            .saturating_sub(attempted_materializations)
+    selection.ledger.unmaterialized_by_materialization_budget =
+        unmaterialized_by_materialization_budget
             .try_into()
-            .unwrap_or(u64::MAX)
-    } else {
-        0
-    };
+            .unwrap_or(u64::MAX);
+    selection.ledger.unmaterialized_by_time_budget = 0;
     parts.beam = Some(selection.ledger.clone());
     let budget_ids: BTreeSet<_> = selection
         .budget_pruned
@@ -538,11 +543,7 @@ pub(super) fn vectorize_impl(
         budget_pruned,
         topology_classes_upper_bound,
         formation_classes_upper_bound,
-        unexplored: if topology_budget_truncated
-            || fit_truncated
-            || evaluation_truncated
-            || time_truncated
-        {
+        unexplored: if topology_budget_truncated || fit_truncated || evaluation_truncated {
             config
                 .confidence
                 .as_ref()

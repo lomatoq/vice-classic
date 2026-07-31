@@ -140,6 +140,8 @@ fn m7_presets_share_the_protected_primary_lane_but_quality_keeps_the_wider_court
     assert!(quality.requires_fast_admission_witness());
     assert!(!fast.requires_fast_admission_witness());
     assert!(quality.beam.width > fast.beam.width);
+    assert_eq!(quality.beam.budget.max_materializations, 8);
+    assert_eq!(fast.beam.budget.max_materializations, 5);
     assert!(
         quality.beam.budget.max_candidates_considered > fast.beam.budget.max_candidates_considered
     );

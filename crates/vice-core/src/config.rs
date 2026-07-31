@@ -478,6 +478,7 @@ impl CoreConfig {
             config.beam.width = 4;
             config.beam.min_topology_classes = 1;
             config.beam.min_formation_classes = 1;
+            config.beam.budget.max_materializations = 5;
             config.beam.budget.max_candidates_considered = 16;
             config.beam.budget.max_elapsed_ms = 1_000;
             config.trust_region.max_rounds = 2;
@@ -514,6 +515,10 @@ impl CoreConfig {
                 min_topology_classes: 2,
                 min_formation_classes: 2,
                 budget: SearchBudget {
+                    // One deterministic work unit per serialized scene
+                    // materialization. Wall time is telemetry only and cannot
+                    // decide which candidate becomes a production artifact.
+                    max_materializations: 8,
                     max_candidates_considered: 256,
                     max_memory_bytes: 1 << 30,
                     // Leave serialization/reporting headroom under the
@@ -629,7 +634,7 @@ impl CoreConfig {
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
             quality_fast_admission_witness,
-            implementation: "vice-core/m7/v13",
+            implementation: "vice-core/m7/v14",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),

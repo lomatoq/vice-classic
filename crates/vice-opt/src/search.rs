@@ -9,8 +9,13 @@ use crate::posterior::ScoredHypothesis;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct SearchBudget {
+    /// Deterministic cap on expensive serialized candidate materializations.
+    /// Unlike wall time, this may decide which hypotheses enter the beam.
+    pub max_materializations: usize,
     pub max_candidates_considered: usize,
     pub max_memory_bytes: u64,
+    /// Runtime accounting target. Crossing it is reported, but cannot change
+    /// candidate membership because wall-clock scheduling is not replayable.
     pub max_elapsed_ms: u64,
 }
 
@@ -37,6 +42,12 @@ pub struct BudgetLedger {
     /// Scheduled scene materializations omitted before scoring because the
     /// finite candidate budget cut the deterministic schedule.
     pub unmaterialized_by_candidate_budget: u64,
+    /// Scheduled scene materializations omitted by the explicit deterministic
+    /// work-unit cap.
+    pub unmaterialized_by_materialization_budget: u64,
+    /// Retained as a distinct accounting slot. Deterministic production
+    /// search never lets wall time decide candidate membership, so this is
+    /// always zero.
     pub unmaterialized_by_time_budget: u64,
     pub candidates_presented: u64,
     pub candidates_considered: u64,
@@ -82,6 +93,7 @@ pub fn select_diverse_beam(
     if cfg.width == 0
         || !cfg.within_best_bits.is_finite()
         || cfg.within_best_bits < 0.0
+        || cfg.budget.max_materializations == 0
         || cfg.budget.max_candidates_considered == 0
         || cfg.budget.max_memory_bytes == 0
         || cfg.budget.max_elapsed_ms == 0
@@ -194,6 +206,7 @@ pub fn select_diverse_beam(
             elapsed_ms,
             time_budget_exhausted: elapsed_ms > cfg.budget.max_elapsed_ms,
             unmaterialized_by_candidate_budget: 0,
+            unmaterialized_by_materialization_budget: 0,
             unmaterialized_by_time_budget: 0,
             candidates_presented: presented,
             candidates_considered: considered.len() as u64,
@@ -232,6 +245,7 @@ mod tests {
             min_topology_classes: 2,
             min_formation_classes: 2,
             budget: SearchBudget {
+                max_materializations: 4,
                 max_candidates_considered: 10,
                 max_memory_bytes: 100,
                 max_elapsed_ms: 1000,
@@ -274,11 +288,14 @@ mod tests {
     }
 
     #[test]
-    fn an_elapsed_budget_keeps_scored_mass_instead_of_discarding_the_beam() {
-        let selection =
-            select_diverse_beam(vec![c("a", "da", "ta", "fa", 1.0)], cfg(), 1_001).unwrap();
-        assert!(selection.ledger.time_budget_exhausted);
-        assert_eq!(selection.kept.len(), 1);
-        assert_eq!(selection.ledger.candidates_presented, 1);
+    fn elapsed_time_is_telemetry_and_never_changes_beam_membership() {
+        let candidates = vec![c("a", "da", "ta", "fa", 1.0), c("b", "db", "tb", "fb", 2.0)];
+        let inside = select_diverse_beam(candidates.clone(), cfg(), 999).unwrap();
+        let exhausted = select_diverse_beam(candidates, cfg(), 1_001).unwrap();
+        assert!(!inside.ledger.time_budget_exhausted);
+        assert!(exhausted.ledger.time_budget_exhausted);
+        assert_eq!(inside.kept, exhausted.kept);
+        assert_eq!(inside.budget_pruned, exhausted.budget_pruned);
+        assert_eq!(inside.dominated_pruned, exhausted.dominated_pruned);
     }
 }

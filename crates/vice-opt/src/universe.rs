@@ -472,7 +472,7 @@ impl SupportedModelUniverseV1 {
                 "event-level M4.5 contours own topology while the canonical coverage-0.5 contour owns fit geometry whenever it binds bijectively to that topology",
                 "elliptic-arc fitting is omitted and charged to empirical unexplored search mass",
                 "M4.5 supplies a finite critical-connectivity envelope; arms pruned by the prefit budget are reported as unexplored",
-                "the deterministic diverse beam is capped by candidate, memory, and elapsed-time budgets (Quality 8500 ms, Fast 1000 ms) with topology and formation seed quotas",
+                "the deterministic diverse beam is capped by serialized-materialization work units (Quality 8, Fast 5), candidate and memory budgets; elapsed targets (Quality 8500 ms, Fast 1000 ms) are reported but never decide candidate membership; topology and formation seed quotas are mandatory",
                 "continuous scene optimization uses one deterministic evidence-solved start, relation-preserving geometry similarity blocks plus paint blocks, and quantized serialized exact acceptance; Quality uses at most 4 trust-region rounds with 4 backtracks per block and Fast uses at most 2 rounds with 4 backtracks; unreached materializations and optimizer alternatives remain explicit unexplored mass",
                 "after exact scoring, a topology or formation candidate whose observed-support isotopy displacement is more than one certified fitter chord worse than the best verified canonical-topology baseline receives a typed support-monotonicity refusal and cannot become a delivery",
                 "only hypotheses with equal canonical delivery bytes collapse into one posterior delivery-equivalence class",

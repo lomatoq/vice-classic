@@ -432,6 +432,19 @@ mod tests {
         let mut config = CoreConfig::development_for(Preset::Fast);
         config.k_discrete_paths = 1;
         let run = vectorize_for_calibration(&two_component_png(), &fast_request(), &config);
+        let repeated = vectorize_for_calibration(&two_component_png(), &fast_request(), &config);
+        assert_eq!(
+            run.selected, repeated.selected,
+            "wall-clock variation cannot change the selected canonical artifact"
+        );
+        assert_eq!(
+            run.outcome.report().status,
+            repeated.outcome.report().status
+        );
+        assert_eq!(
+            run.outcome.report().reason,
+            repeated.outcome.report().reason
+        );
         assert!(
             run.selected.is_some(),
             "a selected multi-component candidate needs a calibration witness"
