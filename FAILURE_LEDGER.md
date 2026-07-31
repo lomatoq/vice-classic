@@ -5192,3 +5192,42 @@ and 765 lines respectively. This is a behavior-preserving module split:
 population, solver logic, frozen gates, and seal hashes are unchanged. The
 runner attestation must nevertheless be regenerated at the resulting commit
 before audit execution.
+
+## F-0146 — M7 Flat2 coverage counted M8 multiregion inputs (M7 generation-3 sealed audit, 2026-07-31)
+
+**Found by.** The first complete generation-3 Quality and Fast sealed audit.
+Both reports completed all 3000 rows with zero stderr and zero accepted
+catastrophic defects, but source coverage was only 28.6%/28.7%.
+
+**What happened.** The sealed split contained five procedural families. The
+M7 population commitment and measurement runner admitted all five solely
+because their split was `sealed_audit`; neither enforced the preregistered
+Flat2 supported-model boundary. `shared_edge` authors two differently painted
+interior faces. `nested_island` authors a third core paint. `dot_cluster`
+authors a different paint for every component. Those three families accounted
+for 1800 of 3000 mandatory rows and mostly refused at Flat2 palette evidence,
+exactly as production should. They belong to M8 multiregion (§11.5, §28 M8),
+but were incorrectly included in the denominator for the M7 gate, which the
+spec explicitly defines over an untouched sealed Flat2 bucket (§28 M7) and as
+accepted outputs over supported inputs (§1.5).
+
+The failure was not a Quality boundary-tail defect: accepted Quality rows had
+p95 0.236457 px, p99 0.507191 px, max 0.783758 px and zero catastrophics. It
+was a population-contract defect visible only after opening. Therefore no
+post-hoc filter may rehabilitate generation 3.
+
+**Class rule.** A milestone reliability population must executable-certify
+its supported-model eligibility before commitment and before measurement.
+Split membership controls leakage; it does not prove product-scope support.
+The committed population, measurement job construction, and regression suite
+must share one eligibility definition, and coverage analysis must receive no
+out-of-scope rows to filter after outcomes are known.
+
+**Status.** Generation 3 is burned. The successor is generation 4 with a new
+population-policy/schema domain. Its preregistered sealed Flat2 families are
+`nested_island`, `arc_disk`, `thin_bridge`, and `dot_cluster` (800 independent
+source groups). `nested_island` and `dot_cluster` receive generation-4-only
+two-state paints while generations 1--3 remain reproducible; `shared_edge`
+remains an M8 fixture. Independently measured partition truth must certify
+every committed and measured successor group as one opaque paint with a
+transparent exterior or two opaque paints with a full-bleed background.

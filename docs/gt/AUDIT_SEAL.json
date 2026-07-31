@@ -1,11 +1,11 @@
 {
   "schema": "vice-classic/gt-audit-seal/v1",
   "generation": 3,
-  "status": "opened",
+  "status": "burned",
   "policy_version": "vice-classic/gt-split/v1",
   "corpus_hash": "071e9b8255a4c67356fc4c3c69d89967a122286bbde4912ce4180ece2a148626",
   "prereg_hash": "67223533f3a4ab4d9e413d4b8e32b944523c0fb8111cfdc5201bf17fabce062b",
   "gates_hash": "497e93bb434038482af6205de88345799aed341f71f7730fcbdeebceafd000ae",
   "opened_note": "8ff0d2894edffb7593258734537c3718c399fbd0",
-  "burn_reason": ""
+  "burn_reason": "generation-3 sealed M7 population included multiregion families outside the preregistered Flat2 supported bucket; outcomes were observed before correction (F-0146)"
 }
