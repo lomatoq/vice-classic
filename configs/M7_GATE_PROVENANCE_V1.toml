@@ -1,15 +1,15 @@
 schema = "vice-classic/m7-gate-provenance/v2"
 status = "frozen"
 milestone = "M7"
-source_commit_sha = "d29e033f3348270817bb1fae0331ffa70552a97c"
-quality_calibration_measurement_sha256 = "706f6cd6a94343d100ca7e56e6d20ffa87fe6e451f6f14b6f5ea7c3e288c194b"
-fast_calibration_measurement_sha256 = "7f66db0e66cddbdacfa11eaf3f5f73c56f560b4555a0e1aaaa16672a74f4198d"
+source_commit_sha = "3349c90e27d2aa05b973d13c96bea6f1aa461fd9"
+quality_calibration_measurement_sha256 = "d2864233e2cd6ef97d041e86e97ceb7f6385f6e8d92ff5ae725e43ed4d56408f"
+fast_calibration_measurement_sha256 = "d2fff0bab821aace77e4d2bdbc0ea05760ff3d860925434b13a4f5671a57998b"
 geometry_measurement_sha256 = "019dc6030b146116b2700ead14c309411dec9151b182a721bc3d886f6c01a509"
-quality_production_config_sha256 = "bd68bcf4b0103ff9dae789cfc0bfa5d6947846d5bd6e44bd9d89a78449bdce7c"
-fast_production_config_sha256 = "628f59ea59154924b0156a06b79df875a561d02686877ad90fa7bf331d8bb2eb"
+quality_production_config_sha256 = "7293b4568fbf70e23140839d529e51f7582b5c5756c4fcb42bc08feb9819a510"
+fast_production_config_sha256 = "beb962764eeb849b07cf3ac4ba86e209ae24a0621b2a09d584baf7e1657bee68"
 quality_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset quality --workers 2 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
-fast_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset fast --workers 2 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
-geometry_command = "target/release/gt-corpus.exe m7-oracle-geometry-calibrate --out runs/m7/calibration-generation3-geometry.json"
+fast_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset fast --workers 1 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
+geometry_command = "target/release/gt-corpus.exe m7-oracle-geometry-calibrate --out runs/m7/calibration-generation4-geometry.json"
 asserted_gate_keys = [
   "boundary_accuracy.max_px",
   "boundary_accuracy.p95_px",

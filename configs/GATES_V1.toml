@@ -100,14 +100,14 @@ max_px = 1.50
 # production success or a promotion verdict.
 [m7_selective]
 status = "frozen"
-quality_posterior_lower_bound_threshold = 0.0005137231884231315
-quality_empirical_unexplored_relative_mass_upper_bound = 1944.0
-quality_gate_max_posterior_predictive_bits_per_block = 0.22629899778685858
-quality_gate_max_support_isotopy_displacement_px = 0.7802795686285167
-fast_posterior_lower_bound_threshold = 0.0010411479030334786
-fast_empirical_unexplored_relative_mass_upper_bound = 957.0
-fast_gate_max_posterior_predictive_bits_per_block = 0.22629899778685858
-fast_gate_max_support_isotopy_displacement_px = 0.7802795686285167
+quality_posterior_lower_bound_threshold = 0.0005264760127303305
+quality_empirical_unexplored_relative_mass_upper_bound = 1896.0
+quality_gate_max_posterior_predictive_bits_per_block = 0.24976169583295554
+quality_gate_max_support_isotopy_displacement_px = 0.7768905942156169
+fast_posterior_lower_bound_threshold = 0.0015812365104583008
+fast_empirical_unexplored_relative_mass_upper_bound = 629.0
+fast_gate_max_posterior_predictive_bits_per_block = 0.24251099600415324
+fast_gate_max_support_isotopy_displacement_px = 0.757582927178493
 gate_min_top2_class_margin_bits = 0.0
 gate_max_abs_residual_lag1 = 0.90
 gate_max_topology_entropy_bits = 1.0
