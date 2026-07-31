@@ -5027,3 +5027,42 @@ remains open until the complete calibration is re-frozen and all six reports
 on a fresh sealed generation pass the executable determinism court.
 Generation 1 is a failed opening and must be recorded burned; it cannot be
 reused to tune or substantiate the repaired candidate.
+
+## F-0140 — Generation-2 Quality runtime p95 became mathematically unreachable (M7 sealed audit, 2026-07-31)
+
+**Found by.** The first isolated Quality run on the untouched generation-2
+sealed audit at release-candidate commit
+`507dd3789a6f73360f05d9f2a768ad85c9af50d4`.
+
+**What happened.** The run was stopped after 314 of 3000 rows because the
+frozen 512 px Quality p95 gate had already become impossible to recover. Of
+the first 104 completed 512 px rows, 96 had `row_elapsed_ms > 10000` and 94
+had `core_runtime_ms > 10000`. The complete audit has exactly 1000 rows at
+512 px. A p95 at or below 10000 ms permits at most 50 rows above the limit,
+so even an instantaneous result for every one of the remaining 896 rows
+could not make the gate green. No completed row had a `failed` or
+`unsupported` outcome at the stop point; the blocker is performance, not a
+known correctness corruption.
+
+The resumable journal is
+`runs/m7/generation2-audit-quality-iso-a.json.rows.jsonl`, SHA-256
+`1fee5a552f6d2fe07e7e3d6d382d8397243a4eb370a8d328c4bbdf1166a29f33`.
+It is intentionally ignored raw evidence. The strict impossibility bound,
+rather than a projected runtime or a partial-sample p95, is the reason the
+remaining 2686 Quality rows, the Fast release run, and four determinism
+repeats were not spent.
+
+**Class rule.** A resumable release court may stop early only when a monotone
+count proves that no completion of the preregistered population can satisfy
+the frozen gate. A partial quantile or time extrapolation is not sufficient.
+Performance work after observing such a result is audit-driven tuning, so the
+opened generation must be burned and the next release attempt must use a
+fresh independently rekeyed population.
+
+**Status.** Open blocker. Generation 2 is recorded burned. Before generation
+3 is created, diagnose the full production-observable cost surface on
+development/calibration data, remove the algorithmic source of the 512 px
+tail without weakening correctness, confidence, search-mass, or delivery
+checks, and prove both Quality <= 10 s and Fast <= 1 s on isolated calibration
+courts. Only then may gates and production configs be re-frozen and a fresh
+successor population opened.
