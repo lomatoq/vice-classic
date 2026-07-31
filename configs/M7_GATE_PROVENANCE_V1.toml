@@ -1,15 +1,15 @@
 schema = "vice-classic/m7-gate-provenance/v2"
 status = "frozen"
 milestone = "M7"
-source_commit_sha = "85225b918912257704e3359ecfc080c620943b2b"
-quality_calibration_measurement_sha256 = "fdb83b8cd7dc734643ce0df13d76f090b1f324ca45fb5bbca708bd580f54939b"
-fast_calibration_measurement_sha256 = "d29647342384b2a4a7e276d200ac711faf3d099efdd7e335c4c52e402881860c"
+source_commit_sha = "d29e033f3348270817bb1fae0331ffa70552a97c"
+quality_calibration_measurement_sha256 = "706f6cd6a94343d100ca7e56e6d20ffa87fe6e451f6f14b6f5ea7c3e288c194b"
+fast_calibration_measurement_sha256 = "7f66db0e66cddbdacfa11eaf3f5f73c56f560b4555a0e1aaaa16672a74f4198d"
 geometry_measurement_sha256 = "019dc6030b146116b2700ead14c309411dec9151b182a721bc3d886f6c01a509"
-quality_production_config_sha256 = "58ba94f030eb3cee77550705976a924fa1f58046891a71424482778d259948ed"
-fast_production_config_sha256 = "9ab22068c82adb1c4884bd6a422c54f68e583580b0097ea5963f29864f032d3e"
-quality_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset quality --shard-count 8 for shards 0..7; resume journals while redistributing 16 worker slots; m7-merge all eight complete reports"
-fast_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset fast --shard-count 8 for shards 0..7; resume journals while redistributing 16 worker slots; m7-merge all eight complete reports"
-geometry_command = "target/release/gt-corpus.exe m7-oracle-geometry-calibrate --out runs/m7/calibration-generation2-geometry.json"
+quality_production_config_sha256 = "bd68bcf4b0103ff9dae789cfc0bfa5d6947846d5bd6e44bd9d89a78449bdce7c"
+fast_production_config_sha256 = "628f59ea59154924b0156a06b79df875a561d02686877ad90fa7bf331d8bb2eb"
+quality_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset quality --workers 2 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
+fast_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset fast --workers 2 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
+geometry_command = "target/release/gt-corpus.exe m7-oracle-geometry-calibrate --out runs/m7/calibration-generation3-geometry.json"
 asserted_gate_keys = [
   "boundary_accuracy.max_px",
   "boundary_accuracy.p95_px",
