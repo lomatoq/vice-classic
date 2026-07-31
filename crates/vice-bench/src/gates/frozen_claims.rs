@@ -522,42 +522,42 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         (
             "m7_selective",
             "quality_posterior_lower_bound_threshold",
-            GateExpectation::num(0.000_504_639_945_689_328_7),
+            GateExpectation::num(0.000_417_438_732_873_997_6),
         ),
         (
             "m7_selective",
             "quality_empirical_unexplored_relative_mass_upper_bound",
-            GateExpectation::num(1979.0),
+            GateExpectation::num(2392.0),
         ),
         (
             "m7_selective",
             "quality_gate_max_posterior_predictive_bits_per_block",
-            GateExpectation::num(0.222_358_826_306_589_37),
+            GateExpectation::num(0.239_767_537_222_478_15),
         ),
         (
             "m7_selective",
             "quality_gate_max_support_isotopy_displacement_px",
-            GateExpectation::num(0.751_756_629_669_810_3),
+            GateExpectation::num(0.744_115_820_558_841_8),
         ),
         (
             "m7_selective",
             "fast_posterior_lower_bound_threshold",
-            GateExpectation::num(0.001_112_105_414_679_555),
+            GateExpectation::num(0.001_333_501_614_297_970_7),
         ),
         (
             "m7_selective",
             "fast_empirical_unexplored_relative_mass_upper_bound",
-            GateExpectation::num(897.0),
+            GateExpectation::num(747.0),
         ),
         (
             "m7_selective",
             "fast_gate_max_posterior_predictive_bits_per_block",
-            GateExpectation::num(0.222_358_826_306_589_37),
+            GateExpectation::num(0.233_646_074_637_727_38),
         ),
         (
             "m7_selective",
             "fast_gate_max_support_isotopy_displacement_px",
-            GateExpectation::num(0.778_677_386_482_680_7),
+            GateExpectation::num(0.740_405_673_700_421),
         ),
         (
             "m7_selective",
