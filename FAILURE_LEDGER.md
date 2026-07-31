@@ -5127,3 +5127,68 @@ sample cannot stand in for p95 or p99.
 the expected topology hypothesis, an available candidate, and now the frozen
 1.50 px maximum. Population p95/p99 remain exclusively in calibration and
 release analysis over all eligible rows.
+
+## F-0143 — Frozen M7 code expectations lagged the generation-3 gate freeze (M7 generation-3 pre-audit barrier, 2026-07-31)
+
+**Found by.** The complete locked debug workspace test suite, after the seal
+was opened but before any audit row was produced.
+
+**What happened.** The generation-3 calibration values were frozen in
+`GATES_V1.toml`, while the independent executable consumer check in
+`frozen_claims.rs` still named the generation-2 threshold, unexplored-mass,
+predictive-information, support-displacement, and internal-channel values.
+Earlier targeted governance tests did not execute this workspace-wide
+agreement test.
+
+**Class rule.** A gate freeze is incomplete until every executable consumer
+and independent agreement assertion has been enumerated and run. The complete
+locked workspace barrier must pass before an audit process is allowed to
+start.
+
+**Status.** Closed without observing Quality audit outcomes: both attempted
+audit launches were stopped at zero rows. All nine preset-dependent frozen
+expectations now match the already-frozen generation-3 gate file. This is a
+test-only synchronization; it does not change the population, production
+solver, calibration values, or opened seal hashes.
+
+## F-0144 — Corpus commitment mutation test could perform a no-op (M7 generation-3 pre-audit barrier, 2026-07-31)
+
+**Found by.** The same complete locked debug workspace test suite.
+
+**What happened.** The test tried to tamper with a commitment by replacing
+its first hexadecimal character with `0`. The certified generation-3
+commitment already began with `0`, so the supposed mutation was a no-op and
+the test failed for the wrong reason.
+
+**Class rule.** A mutation test must first prove or construct a value distinct
+from the original. Fixed replacement bytes are invalid when the original
+value can legally contain that byte.
+
+**Status.** Closed. The test now flips the first character between `0` and
+`1`, guaranteeing a distinct valid hexadecimal commitment before checking
+that the manifest hash changes. Production and committed corpus data are
+unchanged.
+
+## F-0145 — Two production modules exceeded the 800-line architecture gate (M7 generation-3 pre-audit barrier, 2026-07-31)
+
+**Found by.** The workspace-wide hygiene integration suite after all unit and
+sealed-corpus governance tests had passed.
+
+**What happened.** The exact spatial boundary index added for M7 left
+`scene.rs` at 881 lines, and the accumulated M7 delivery path left
+`pipeline/run.rs` at 821 lines. Unit and feature-targeted suites did not run
+the repository-wide production-module size gate, so both violations survived
+until the consolidated pre-audit barrier.
+
+**Class rule.** The complete hygiene integration suite is a mandatory
+pre-audit prerequisite. Production architecture gates cannot be inferred
+from functional unit tests or deferred until after Quality scoring.
+
+**Status.** Closed before any Quality audit row was produced. The exact
+polyline spatial index and its brute-force equivalence test now live in a
+198-line `scene/spatial.rs`; final calibrated delivery/refusal construction
+now lives in an 87-line `pipeline/run/output.rs`. The parent modules are 687
+and 765 lines respectively. This is a behavior-preserving module split:
+population, solver logic, frozen gates, and seal hashes are unchanged. The
+runner attestation must nevertheless be regenerated at the resulting commit
+before audit execution.

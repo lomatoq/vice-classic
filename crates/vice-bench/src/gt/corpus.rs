@@ -594,10 +594,14 @@ mod tests {
         );
 
         let mut tampered = manifest.clone();
+        let first = &tampered
+            .m7_successor_population
+            .population_commitment_sha256[..1];
+        let replacement = if first == "0" { "1" } else { "0" };
         tampered
             .m7_successor_population
             .population_commitment_sha256
-            .replace_range(..1, "0");
+            .replace_range(..1, replacement);
         assert_ne!(tampered.hash(), manifest.hash());
     }
 
