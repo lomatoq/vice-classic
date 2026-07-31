@@ -5099,7 +5099,10 @@ proves which recipe was named, not that the named population exists.
 **Status.** Closed before reopening calibration. The recipe now enforces the
 construction inequality `2r + gap/2 < c/2` with a `0.16c` gap ceiling. A
 regression certifies all 200 successor variants of the family, including the
-original variant 35 witness. Manifest construction now materialises all 1000
+original variant 35 witness. The frozen generation-1 branch retains its
+legacy `0.22c` stream, guarded by the exact committed M3 scene digest; the
+safety repair is scoped only to successor audit generations. Manifest
+construction now materialises all 1000
 sealed successor groups, certifies them, and commits scene digest, authored
 truth, salient features, and independently measured partition truth. The
 full preflight passed 1000/1000 in 105.41 seconds in the debug test profile.

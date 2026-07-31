@@ -279,6 +279,18 @@ mod tests {
     }
 
     #[test]
+    fn frozen_generation_one_two_islands_keeps_its_m3_digest() {
+        let id = "proc/two_islands/000";
+        let group = crate::gt::recipes::build_variant("two_islands", 0, id, PROCEDURAL_GENERATION)
+            .expect("the frozen M3 recipe certifies");
+        assert_eq!(
+            vice_ir::scene_digest_sha256(group.scenes[0].scene().scene())
+                .expect("the frozen scene has a canonical digest"),
+            "bcba20581a4cdd5f309ba54b8e89e6c7145b623a1fb4973cec0436558b91652c"
+        );
+    }
+
+    #[test]
     fn filtered_construction_preserves_selected_groups() {
         let eager = procedural_groups(3);
         let filtered = procedural_groups_filtered_for_generation(3, PROCEDURAL_GENERATION, |id| {
