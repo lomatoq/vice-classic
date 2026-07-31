@@ -1,11 +1,11 @@
 {
   "schema": "vice-classic/gt-audit-seal/v1",
   "generation": 4,
-  "status": "sealed",
+  "status": "opened",
   "policy_version": "vice-classic/gt-split/v1",
-  "corpus_hash": "",
-  "prereg_hash": "",
-  "gates_hash": "",
-  "opened_note": "",
+  "corpus_hash": "4f10fb978545dadcf81d200d02454cbca77c3f0d0978663c30892fbfa676e076",
+  "prereg_hash": "67223533f3a4ab4d9e413d4b8e32b944523c0fb8111cfdc5201bf17fabce062b",
+  "gates_hash": "d5ad9f5e9d055da8896b6f3d153cc5d25c968bdf0ffb9cbd6ec0ed4d58f3465f",
+  "opened_note": "6ac26599a0aaca22aae4694d5c416bb2bcb06fb5",
   "burn_reason": ""
 }
