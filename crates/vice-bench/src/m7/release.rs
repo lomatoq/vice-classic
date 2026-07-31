@@ -16,8 +16,16 @@ use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
-pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v7";
+pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v8";
 const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PresetCalibrationGates {
+    pub posterior_lower_bound_threshold: f64,
+    pub empirical_unexplored_relative_mass_upper_bound: f64,
+    pub max_posterior_predictive_bits_per_block: f64,
+    pub max_support_isotopy_displacement_px: f64,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct M7ReleaseGates {
@@ -34,11 +42,9 @@ pub struct M7ReleaseGates {
     pub max_profile_mean_channel_delta: f64,
     pub max_internal_channel_delta: u8,
     pub max_internal_mean_channel_delta: f64,
-    pub posterior_lower_bound_threshold: f64,
-    pub empirical_unexplored_relative_mass_upper_bound: f64,
+    pub quality_calibration: PresetCalibrationGates,
+    pub fast_calibration: PresetCalibrationGates,
     pub min_top2_class_margin_bits: f64,
-    pub max_posterior_predictive_bits_per_block: f64,
-    pub max_support_isotopy_displacement_px: f64,
     pub max_abs_residual_lag1: f64,
     pub max_topology_entropy_bits: f64,
     pub max_formation_entropy_bits: f64,
@@ -91,30 +97,12 @@ impl M7ReleaseGates {
                 "m7_selective",
                 "gate_max_internal_mean_channel_delta",
             )?,
-            posterior_lower_bound_threshold: f64_gate(
-                gates,
-                "m7_selective",
-                "posterior_lower_bound_threshold",
-            )?,
-            empirical_unexplored_relative_mass_upper_bound: f64_gate(
-                gates,
-                "m7_selective",
-                "empirical_unexplored_relative_mass_upper_bound",
-            )?,
+            quality_calibration: preset_calibration_gates(gates, "quality")?,
+            fast_calibration: preset_calibration_gates(gates, "fast")?,
             min_top2_class_margin_bits: f64_gate(
                 gates,
                 "m7_selective",
                 "gate_min_top2_class_margin_bits",
-            )?,
-            max_posterior_predictive_bits_per_block: f64_gate(
-                gates,
-                "m7_selective",
-                "gate_max_posterior_predictive_bits_per_block",
-            )?,
-            max_support_isotopy_displacement_px: f64_gate(
-                gates,
-                "m7_selective",
-                "gate_max_support_isotopy_displacement_px",
             )?,
             max_abs_residual_lag1: f64_gate(gates, "m7_selective", "gate_max_abs_residual_lag1")?,
             max_topology_entropy_bits: f64_gate(
@@ -134,6 +122,34 @@ impl M7ReleaseGates {
             )?,
         })
     }
+}
+
+fn preset_calibration_gates(
+    gates: &GatesFile,
+    preset: &str,
+) -> Result<PresetCalibrationGates, String> {
+    Ok(PresetCalibrationGates {
+        posterior_lower_bound_threshold: f64_gate(
+            gates,
+            "m7_selective",
+            &format!("{preset}_posterior_lower_bound_threshold"),
+        )?,
+        empirical_unexplored_relative_mass_upper_bound: f64_gate(
+            gates,
+            "m7_selective",
+            &format!("{preset}_empirical_unexplored_relative_mass_upper_bound"),
+        )?,
+        max_posterior_predictive_bits_per_block: f64_gate(
+            gates,
+            "m7_selective",
+            &format!("{preset}_gate_max_posterior_predictive_bits_per_block"),
+        )?,
+        max_support_isotopy_displacement_px: f64_gate(
+            gates,
+            "m7_selective",
+            &format!("{preset}_gate_max_support_isotopy_displacement_px"),
+        )?,
+    })
 }
 
 fn f64_gate(gates: &GatesFile, section: &str, key: &str) -> Result<f64, String> {
@@ -496,20 +512,31 @@ fn calibration_matches_gates(report: &MeasurementReport, gates: M7ReleaseGates) 
         .as_ref()
         .is_some_and(|calibration| {
             calibration.validate_for_identity(&report.identity).is_ok()
-                && calibration.posterior_lower_bound_threshold
-                    == gates.posterior_lower_bound_threshold
-                && calibration.empirical_unexplored_relative_mass_upper_bound
-                    == Some(gates.empirical_unexplored_relative_mass_upper_bound)
-                && calibration.minimum_top2_class_margin_bits == gates.min_top2_class_margin_bits
-                && calibration.maximum_posterior_predictive_bits_per_block
-                    == gates.max_posterior_predictive_bits_per_block
-                && calibration.maximum_support_isotopy_displacement_px
-                    == gates.max_support_isotopy_displacement_px
-                && calibration.maximum_abs_residual_lag1 == gates.max_abs_residual_lag1
-                && calibration.maximum_topology_entropy_bits == gates.max_topology_entropy_bits
-                && calibration.maximum_formation_entropy_bits == gates.max_formation_entropy_bits
-                && calibration.minimum_perturbation_stability == gates.min_perturbation_stability
+                && confidence_fields_match(calibration, report.preset, gates)
         })
+}
+
+fn confidence_fields_match(
+    calibration: &vice_core::ConfidenceCalibration,
+    preset: vice_core::Preset,
+    gates: M7ReleaseGates,
+) -> bool {
+    let preset_gates = match preset {
+        vice_core::Preset::Quality => gates.quality_calibration,
+        vice_core::Preset::Fast => gates.fast_calibration,
+    };
+    calibration.posterior_lower_bound_threshold == preset_gates.posterior_lower_bound_threshold
+        && calibration.empirical_unexplored_relative_mass_upper_bound
+            == Some(preset_gates.empirical_unexplored_relative_mass_upper_bound)
+        && calibration.minimum_top2_class_margin_bits == gates.min_top2_class_margin_bits
+        && calibration.maximum_posterior_predictive_bits_per_block
+            == preset_gates.max_posterior_predictive_bits_per_block
+        && calibration.maximum_support_isotopy_displacement_px
+            == preset_gates.max_support_isotopy_displacement_px
+        && calibration.maximum_abs_residual_lag1 == gates.max_abs_residual_lag1
+        && calibration.maximum_topology_entropy_bits == gates.max_topology_entropy_bits
+        && calibration.maximum_formation_entropy_bits == gates.max_formation_entropy_bits
+        && calibration.minimum_perturbation_stability == gates.min_perturbation_stability
 }
 
 pub(crate) fn catastrophic_with_gates(
@@ -701,20 +728,39 @@ mod tests {
                     "gate_max_internal_mean_channel_delta",
                     toml::Value::Float(0.25),
                 ),
-                ("posterior_lower_bound_threshold", toml::Value::Float(0.75)),
                 (
-                    "empirical_unexplored_relative_mass_upper_bound",
+                    "quality_posterior_lower_bound_threshold",
+                    toml::Value::Float(0.75),
+                ),
+                (
+                    "quality_empirical_unexplored_relative_mass_upper_bound",
                     toml::Value::Float(1.0),
                 ),
-                ("gate_min_top2_class_margin_bits", toml::Value::Float(0.0)),
                 (
-                    "gate_max_posterior_predictive_bits_per_block",
+                    "quality_gate_max_posterior_predictive_bits_per_block",
                     toml::Value::Float(0.10),
                 ),
                 (
-                    "gate_max_support_isotopy_displacement_px",
+                    "quality_gate_max_support_isotopy_displacement_px",
                     toml::Value::Float(0.5),
                 ),
+                (
+                    "fast_posterior_lower_bound_threshold",
+                    toml::Value::Float(0.80),
+                ),
+                (
+                    "fast_empirical_unexplored_relative_mass_upper_bound",
+                    toml::Value::Float(0.5),
+                ),
+                (
+                    "fast_gate_max_posterior_predictive_bits_per_block",
+                    toml::Value::Float(0.08),
+                ),
+                (
+                    "fast_gate_max_support_isotopy_displacement_px",
+                    toml::Value::Float(0.4),
+                ),
+                ("gate_min_top2_class_margin_bits", toml::Value::Float(0.0)),
                 ("gate_max_abs_residual_lag1", toml::Value::Float(0.90)),
                 ("gate_max_topology_entropy_bits", toml::Value::Float(1.0)),
                 ("gate_max_formation_entropy_bits", toml::Value::Float(1.0)),
@@ -745,5 +791,66 @@ mod tests {
         let frozen = M7ReleaseGates::from_file(&file("frozen")).expect("frozen values load");
         assert_eq!(frozen.max_internal_channel_delta, 64);
         assert_eq!(frozen.min_render_coverage, 0.8);
+    }
+
+    fn calibration_for(
+        preset: PresetCalibrationGates,
+        gates: M7ReleaseGates,
+    ) -> vice_core::ConfidenceCalibration {
+        vice_core::ConfidenceCalibration {
+            schema: "vice-classic/confidence-calibration/v2".into(),
+            model_universe_sha256: "1".repeat(64),
+            pricing_sha256: "2".repeat(64),
+            backend_sha256: "3".repeat(64),
+            config_sha256: "4".repeat(64),
+            calibration_split_sha256: "5".repeat(64),
+            sealed_audit_generation: "generation-1-sealed".into(),
+            sealed_audit_untouched: true,
+            confidence_level: 0.99,
+            catastrophic_risk_target: 0.01,
+            accepted_source_groups: 459,
+            catastrophic_source_groups: 0,
+            posterior_lower_bound_threshold: preset.posterior_lower_bound_threshold,
+            minimum_top2_class_margin_bits: gates.min_top2_class_margin_bits,
+            maximum_posterior_predictive_bits_per_block: preset
+                .max_posterior_predictive_bits_per_block,
+            maximum_support_isotopy_displacement_px: preset.max_support_isotopy_displacement_px,
+            maximum_abs_residual_lag1: gates.max_abs_residual_lag1,
+            maximum_topology_entropy_bits: gates.max_topology_entropy_bits,
+            maximum_formation_entropy_bits: gates.max_formation_entropy_bits,
+            minimum_perturbation_stability: gates.min_perturbation_stability,
+            empirical_unexplored_relative_mass_upper_bound: Some(
+                preset.empirical_unexplored_relative_mass_upper_bound,
+            ),
+            buckets: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn each_preset_requires_its_own_frozen_calibration_gate() {
+        let gates = M7ReleaseGates::from_file(&file("frozen")).expect("frozen values load");
+        let quality = calibration_for(gates.quality_calibration, gates);
+        let fast = calibration_for(gates.fast_calibration, gates);
+
+        assert!(confidence_fields_match(
+            &quality,
+            vice_core::Preset::Quality,
+            gates
+        ));
+        assert!(!confidence_fields_match(
+            &quality,
+            vice_core::Preset::Fast,
+            gates
+        ));
+        assert!(confidence_fields_match(
+            &fast,
+            vice_core::Preset::Fast,
+            gates
+        ));
+        assert!(!confidence_fields_match(
+            &fast,
+            vice_core::Preset::Quality,
+            gates
+        ));
     }
 }

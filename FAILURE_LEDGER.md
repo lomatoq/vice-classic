@@ -4946,3 +4946,33 @@ commit before a release claim. Targeted v14 diagnostics are under the ignored
 not been opened and no M7 review SHA exists. The next permitted expensive
 step is one complete Fast/Quality calibration on the new identity; this
 paragraph must not be read as that final population proof.
+
+## F-0138 — One scalar gate set could not bind two calibrated preset identities (M7 freeze, 2026-07-31)
+
+**Found by.** The first gate-freeze attempt after both complete v15
+calibrations became green.
+
+**What happened.** Fast and Quality deliberately have different bounded search
+envelopes and therefore measured different posterior thresholds, unexplored
+mass bounds, and support-displacement ceilings. The production configs
+correctly carried those per-preset values, but `GATES_V1.toml` exposed only one
+copy of each key and the release matcher required exact equality to that one
+copy for both presets. No honest freeze could satisfy both
+`unexplored_relative_mass_upper_bound = 897` (Fast) and `1979` (Quality).
+Choosing either value globally would have made one calibration stale or
+understated its omitted search mass.
+
+**Class rule.** Every frozen value that is a function of a declared preset,
+backend, model universe, or other identity dimension must retain that
+dimension in the gate schema and release comparison. A shared scalar is valid
+only for a policy that is normatively common, not merely because two current
+measurements happen to agree.
+
+**Status.** Closed in the code-only preset-gate repair after source commit
+`26077c8211cddd3f100ec733622c781019ad6b66`. The release reader now carries
+separate Fast and Quality calibration-gate records for the four measured
+preset-dependent quantities, while the genuinely common confidence
+invariants remain shared. A direct regression proves a Quality calibration
+cannot match the Fast record and vice versa. The subsequent gate-only freeze
+populates both records; no corpus rerun is required because the production
+candidate path and both measured identities are unchanged.
