@@ -58,9 +58,11 @@ pub fn analyze(inputs: Vec<DeterminismInput>) -> Result<DeterminismVerdict, Stri
             ));
         }
         let key = format!(
-            "{:?}|{}|{}|{}|{}",
+            "{:?}|{}|{}|{}|{}|{}|{}",
             report.preset,
             report.scope,
+            report.procedural_generation,
+            report.population_policy,
             report.identity.universe_sha256,
             report.identity.config_sha256,
             report.delivery_policy_sha256
@@ -167,6 +169,8 @@ pub fn normalized_digest(report: &MeasurementReport) -> String {
         scope: &'a str,
         split: &'a str,
         preset: vice_core::Preset,
+        procedural_generation: u32,
+        population_policy: &'a str,
         identity: &'a vice_opt::ModelIdentity,
         delivery_policy_sha256: &'a str,
         rows: Vec<DecisionAndArtifact<'a>>,
@@ -177,6 +181,8 @@ pub fn normalized_digest(report: &MeasurementReport) -> String {
         scope: &report.scope,
         split: &report.split,
         preset: report.preset,
+        procedural_generation: report.procedural_generation,
+        population_policy: &report.population_policy,
         identity: &report.identity,
         delivery_policy_sha256: &report.delivery_policy_sha256,
         rows: report.rows.iter().map(DecisionAndArtifact::from).collect(),

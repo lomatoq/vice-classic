@@ -33,15 +33,20 @@ use vice_ir::ValidatedScene;
 use vice_opt::BoundValue;
 use vice_render::{CertifiedMesh, RenderOptions};
 
-use crate::gt::corpus::groups_with_variants_filtered;
+use crate::gt::corpus::{
+    groups_with_variants_filtered_for_generation, M7_SUCCESSOR_POPULATION_POLICY,
+    M7_SUCCESSOR_PROCEDURAL_VARIANTS,
+};
 use crate::gt::degradation::{matrix_v1, render_cell, DegradationCell};
-use crate::gt::grammar::AUTHORING_CANVAS_PX;
+use crate::gt::grammar::{AUTHORING_CANVAS_PX, M7_PROCEDURAL_GENERATION};
 use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
-use crate::gt::{GtScene, PartitionTruth};
+use crate::gt::{FixtureOrigin, GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v16";
-pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = 200;
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v17";
+pub const M7_ALL_SPLIT_POPULATION_POLICY: &str = "vice-classic/m7-population/all-split-groups/v1";
+pub const M7_SEALED_POPULATION_POLICY: &str = M7_SUCCESSOR_POPULATION_POLICY;
+pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = M7_SUCCESSOR_PROCEDURAL_VARIANTS;
 pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 pub const M7_BOUNDARY_P95_GATE_PX: f64 = 0.35;
 pub const M7_BOUNDARY_P99_GATE_PX: f64 = 0.60;
@@ -79,6 +84,18 @@ impl MeasurementScope {
             Self::Smoke | Self::CalibrationSmoke => 1,
             Self::Calibration | Self::SealedAudit => M7_RELEASE_PROCEDURAL_VARIANTS,
         }
+    }
+
+    fn population_policy(self) -> &'static str {
+        if self == Self::SealedAudit {
+            M7_SEALED_POPULATION_POLICY
+        } else {
+            M7_ALL_SPLIT_POPULATION_POLICY
+        }
+    }
+
+    fn admits_origin(self, origin: FixtureOrigin) -> bool {
+        self != Self::SealedAudit || origin == FixtureOrigin::Procedural
     }
 
     fn cells(self) -> Vec<DegradationCell> {
@@ -359,6 +376,8 @@ pub struct MeasurementReport {
     pub scope: String,
     pub split: String,
     pub preset: Preset,
+    pub procedural_generation: u32,
+    pub population_policy: String,
     pub procedural_variants_per_family: usize,
     pub mandatory_sizes_px: Vec<u32>,
     pub rasterizers: Vec<String>,

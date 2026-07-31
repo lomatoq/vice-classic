@@ -4,7 +4,9 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use super::{MeasurementReport, PfArmMeasurement, M7_MEASUREMENT_SCHEMA};
+use super::{
+    MeasurementReport, PfArmMeasurement, M7_MEASUREMENT_SCHEMA, M7_SEALED_POPULATION_POLICY,
+};
 use crate::gates::GatesFile;
 use crate::gt::split::{AuditSeal, SealStatus};
 use crate::m7::governance::M7ThresholdSource;
@@ -142,6 +144,10 @@ pub fn run_release(
     if audit.status != SealStatus::Opened
         || audit.gates_hash != gates_file.sha256
         || audit.prereg_hash != Preregistration::v1().hash()
+        || quality.procedural_generation != audit.generation
+        || fast.procedural_generation != audit.generation
+        || quality.population_policy != M7_SEALED_POPULATION_POLICY
+        || fast.population_policy != M7_SEALED_POPULATION_POLICY
     {
         return Err("M7 oracle is not bound to this opened audit and frozen analysis plan".into());
     }

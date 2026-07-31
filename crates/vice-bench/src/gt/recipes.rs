@@ -15,8 +15,13 @@ use super::grammar::{
 };
 use super::{AuthoredTruth, GtSourceGroup, SalientFeature};
 
-pub(super) fn build_variant(family: &str, v: usize, id: &str) -> Result<GtSourceGroup, String> {
-    let mut rng = Rng::from_label(id);
+pub(super) fn build_variant(
+    family: &str,
+    v: usize,
+    id: &str,
+    generation: u32,
+) -> Result<GtSourceGroup, String> {
+    let mut rng = Rng::from_label_generation(id, generation);
     let c = f64::from(AUTHORING_CANVAS_PX);
     let exterior = if v % 3 == 2 {
         ExteriorModel::Opaque
@@ -569,5 +574,5 @@ pub(super) fn build_variant(family: &str, v: usize, id: &str) -> Result<GtSource
         other => return Err(format!("unknown shape family {other:?}")),
     };
 
-    group_of(id, family, scene, truth, salient)
+    group_of(id, family, generation, scene, truth, salient)
 }

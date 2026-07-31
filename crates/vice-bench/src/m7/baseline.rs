@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use super::release::{catastrophic_with_gates, target_rows, M7ReleaseGates};
 use super::{
     InternalBaselineMeasurement, MeasurementReport, MeasurementRow, SceneComplexity,
-    M7_MEASUREMENT_SCHEMA,
+    M7_MEASUREMENT_SCHEMA, M7_SEALED_POPULATION_POLICY,
 };
 use crate::gates::GatesFile;
 use crate::gt::split::{AuditSeal, SealStatus};
@@ -178,6 +178,10 @@ pub fn analyze(
     if audit.status != SealStatus::Opened
         || audit.gates_hash != gates_file.sha256
         || audit.prereg_hash != Preregistration::v1().hash()
+        || quality.procedural_generation != audit.generation
+        || fast.procedural_generation != audit.generation
+        || quality.population_policy != M7_SEALED_POPULATION_POLICY
+        || fast.population_policy != M7_SEALED_POPULATION_POLICY
     {
         return Err(
             "baseline court is not bound to this opened audit, gates, and preregistration".into(),

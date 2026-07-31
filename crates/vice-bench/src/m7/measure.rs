@@ -22,6 +22,8 @@ struct MeasurementJournalHeader {
     scope: String,
     split: String,
     preset: Preset,
+    procedural_generation: u32,
+    population_policy: String,
     procedural_variants_per_family: usize,
     mandatory_sizes_px: Vec<u32>,
     rasterizers: Vec<String>,
@@ -186,10 +188,14 @@ fn measure_resuming(
     // Sharding is a function of the stable group ID, so select the shard
     // before constructing/certifying procedural scenes. This preserves the
     // exact population while bounding each worker to its own groups.
-    let groups = groups_with_variants_filtered(scope.variants(), |group_id| {
-        measurement_shard(group_id, request.shard_count) == request.shard_index
-            && (scope != MeasurementScope::CalibrationSmoke || group_id == "proc/annulus/000")
-    })?;
+    let groups = groups_with_variants_filtered_for_generation(
+        scope.variants(),
+        M7_PROCEDURAL_GENERATION,
+        |group_id| {
+            measurement_shard(group_id, request.shard_count) == request.shard_index
+                && (scope != MeasurementScope::CalibrationSmoke || group_id == "proc/annulus/000")
+        },
+    )?;
     let cells = scope
         .cells()
         .into_iter()
@@ -204,7 +210,7 @@ fn measure_resuming(
     let mut jobs = Vec::new();
     let mut source_groups = BTreeSet::new();
     for (group_index, group) in groups.iter().enumerate() {
-        if SPLIT_POLICY_V1.split_of_group(group) != split {
+        if SPLIT_POLICY_V1.split_of_group(group) != split || !scope.admits_origin(group.origin) {
             continue;
         }
         source_groups.insert(group.id.as_str());
@@ -332,6 +338,8 @@ fn measure_resuming(
         scope: scope.as_str().to_string(),
         split: split.as_str().to_string(),
         preset,
+        procedural_generation: M7_PROCEDURAL_GENERATION,
+        population_policy: scope.population_policy().to_string(),
         procedural_variants_per_family: scope.variants(),
         mandatory_sizes_px: {
             let mut sizes = cells.iter().map(|cell| cell.size_px).collect::<Vec<_>>();
@@ -477,6 +485,8 @@ fn journal_header(
         scope: request.scope.as_str().to_string(),
         split: request.scope.split().as_str().to_string(),
         preset: request.preset,
+        procedural_generation: M7_PROCEDURAL_GENERATION,
+        population_policy: request.scope.population_policy().to_string(),
         procedural_variants_per_family: request.scope.variants(),
         mandatory_sizes_px: sizes,
         rasterizers,
@@ -497,6 +507,8 @@ fn validate_report_header(
         && report.scope == expected.scope
         && report.split == expected.split
         && report.preset == expected.preset
+        && report.procedural_generation == expected.procedural_generation
+        && report.population_policy == expected.population_policy
         && report.procedural_variants_per_family == expected.procedural_variants_per_family
         && report.mandatory_sizes_px == expected.mandatory_sizes_px
         && report.rasterizers == expected.rasterizers
@@ -580,6 +592,8 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
             && report.scope == first.scope
             && report.split == first.split
             && report.preset == first.preset
+            && report.procedural_generation == first.procedural_generation
+            && report.population_policy == first.population_policy
             && report.procedural_variants_per_family == first.procedural_variants_per_family
             && report.mandatory_sizes_px == first.mandatory_sizes_px
             && report.rasterizers == first.rasterizers
@@ -643,6 +657,8 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
         scope: first.scope.clone(),
         split: first.split.clone(),
         preset: first.preset,
+        procedural_generation: first.procedural_generation,
+        population_policy: first.population_policy.clone(),
         procedural_variants_per_family: first.procedural_variants_per_family,
         mandatory_sizes_px: first.mandatory_sizes_px.clone(),
         rasterizers: first.rasterizers.clone(),

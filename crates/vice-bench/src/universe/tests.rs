@@ -23,7 +23,7 @@ fn m7_is_a_distinct_finite_r1_model_version() {
     let m7 = SupportedModelUniverseV1::m7();
     m7.check_finite().expect("M7 must be a finite universe");
     assert_eq!(m7.schema, MODEL_UNIVERSE_SCHEMA);
-    assert_eq!(m7.version, "m7-v6");
+    assert_eq!(m7.version, "m7-v7");
     assert_ne!(model_universe_hash(&m7), model_universe_hash(&m6));
     assert_eq!(
         m7.search.unexplored_mass_bound,
@@ -239,10 +239,10 @@ fn model_universe_hash_is_frozen() {
 /// have to reconstruct it.
 const FROZEN_V1_HASH: &str = "47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d7822e8176990f097";
 
-/// M7 is a separate model version. The v15 Fast/Quality calibration and both
-/// digest-pinned production configs bind this exact finite universe; changing
-/// it requires a new model version and complete recalibration.
-const FROZEN_M7_HASH: &str = "8a4283ba51c51d7518fd0bc34b7a204be55d365a40a80106cefb660d4b2c55da";
+/// M7 is a separate model version. The successor-generation Fast/Quality
+/// calibration and both digest-pinned production configs must bind this exact
+/// finite universe; changing it requires another version and recalibration.
+const FROZEN_M7_HASH: &str = "2ede950dbfe0a74194a1023718518c293e26643722e264d148bc64e9bbb477ab";
 
 #[test]
 fn m7_model_universe_hash_is_frozen() {

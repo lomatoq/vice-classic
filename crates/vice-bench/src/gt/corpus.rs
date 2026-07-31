@@ -15,16 +15,21 @@ use sha2::{Digest, Sha256};
 use super::adversarial::all_adversarial_groups;
 use super::authored::authored_groups;
 use super::degradation::{matrix_v1, render_cell, DegradationCell};
-use super::grammar::{procedural_groups, procedural_groups_filtered};
+use super::grammar::{
+    procedural_groups, M7_PROCEDURAL_GENERATION, PROCEDURAL_GENERATION, SHAPE_FAMILIES,
+};
 use super::split::{summarize, Split, SplitPolicy, SplitSummary, SPLIT_POLICY_V1};
 use super::{GtSourceGroup, PartitionTruth, SalientFeature};
 use crate::hashing::sha256_hex;
 
-pub const CORPUS_SCHEMA: &str = "vice-classic/gt-corpus/v1";
+pub const CORPUS_SCHEMA: &str = "vice-classic/gt-corpus/v2";
 
 /// Structural variants per procedural shape family in the committed
 /// corpus. Part of the manifest, because changing it changes the corpus.
 pub const PROCEDURAL_VARIANTS: usize = 4;
+pub const M7_SUCCESSOR_PROCEDURAL_VARIANTS: usize = 200;
+pub const M7_SUCCESSOR_POPULATION_POLICY: &str =
+    "vice-classic/m7-population/generation-bound-procedural-only/v1";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SceneEntry {
@@ -91,6 +96,8 @@ pub struct CorpusManifest {
     pub schema: &'static str,
     /// The Tier A platform whose libm produced the digests below.
     pub platform: Platform,
+    pub procedural_generation: u32,
+    pub m7_successor_population: M7SuccessorPopulation,
     pub procedural_variants_per_family: usize,
     pub split_policy_version: String,
     pub cells: Vec<String>,
@@ -99,6 +106,61 @@ pub struct CorpusManifest {
     pub split_summary: Vec<SplitSummary>,
     pub identifiability_counts: BTreeMap<String, usize>,
     pub renders_by_profile: BTreeMap<String, usize>,
+}
+
+/// Compact content commitment for the fresh M7 population. The historical
+/// M3 entries stay byte-for-byte on generation 1; this digest commits the
+/// independently rekeyed generation 2 scenes used by calibration and audit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct M7SuccessorPopulation {
+    pub procedural_generation: u32,
+    pub procedural_variants_per_family: usize,
+    pub split: &'static str,
+    pub population_policy: &'static str,
+    pub source_groups: usize,
+    pub scenes: usize,
+    pub generator_source_sha256: String,
+    pub population_commitment_sha256: String,
+}
+
+fn m7_successor_population(policy: &SplitPolicy) -> Result<M7SuccessorPopulation, String> {
+    let mut generator = Sha256::new();
+    generator.update(include_bytes!("grammar.rs"));
+    generator.update(include_bytes!("recipes.rs"));
+    generator.update(include_bytes!("build.rs"));
+    let generator_source_sha256 = hex::encode(generator.finalize());
+
+    let mut hasher = Sha256::new();
+    hasher.update(b"vice-classic/m7-successor-population/v1");
+    hasher.update(M7_PROCEDURAL_GENERATION.to_le_bytes());
+    hasher.update(policy.version.as_bytes());
+    hasher.update(M7_SUCCESSOR_POPULATION_POLICY.as_bytes());
+    hasher.update(generator_source_sha256.as_bytes());
+    let mut source_groups = 0usize;
+    for family in SHAPE_FAMILIES
+        .iter()
+        .copied()
+        .filter(|family| policy.split_of_family(family) == Split::SealedAudit)
+    {
+        for variant in 0..M7_SUCCESSOR_PROCEDURAL_VARIANTS {
+            source_groups += 1;
+            let group_id = format!("proc/{family}/{variant:03}");
+            for value in [group_id.as_str(), family] {
+                hasher.update((value.len() as u64).to_le_bytes());
+                hasher.update(value.as_bytes());
+            }
+        }
+    }
+    Ok(M7SuccessorPopulation {
+        procedural_generation: M7_PROCEDURAL_GENERATION,
+        procedural_variants_per_family: M7_SUCCESSOR_PROCEDURAL_VARIANTS,
+        split: Split::SealedAudit.as_str(),
+        population_policy: M7_SUCCESSOR_POPULATION_POLICY,
+        source_groups,
+        scenes: source_groups,
+        generator_source_sha256,
+        population_commitment_sha256: hex::encode(hasher.finalize()),
+    })
 }
 
 impl CorpusManifest {
@@ -140,14 +202,19 @@ pub(crate) fn all_groups_with_variants(
     Ok(groups)
 }
 
-/// Assemble a stable subset by group ID, avoiding construction of rejected
-/// procedural groups. Authored and adversarial groups are deliberately small
-/// and are filtered after loading.
-pub(crate) fn groups_with_variants_filtered(
+/// Assemble a generation-specific stable subset by group ID, avoiding
+/// construction of rejected procedural groups. Authored and adversarial
+/// groups are deliberately small and are filtered after loading.
+pub(crate) fn groups_with_variants_filtered_for_generation(
     procedural_variants: usize,
+    generation: u32,
     keep: impl Fn(&str) -> bool,
 ) -> Result<Vec<GtSourceGroup>, String> {
-    let mut groups = procedural_groups_filtered(procedural_variants, &keep);
+    let mut groups = super::grammar::procedural_groups_filtered_for_generation(
+        procedural_variants,
+        generation,
+        &keep,
+    );
     groups.extend(
         authored_groups()
             .map_err(|e| e.to_string())?
@@ -243,6 +310,8 @@ pub fn build_manifest(
     Ok(CorpusManifest {
         schema: CORPUS_SCHEMA,
         platform: Platform::current(),
+        procedural_generation: PROCEDURAL_GENERATION,
+        m7_successor_population: m7_successor_population(policy)?,
         procedural_variants_per_family: PROCEDURAL_VARIANTS,
         split_policy_version: policy.version.to_string(),
         cells: cells.iter().map(|c| c.id()).collect(),
@@ -346,6 +415,8 @@ pub fn structural_projection(m: &serde_json::Value) -> serde_json::Value {
         .collect();
     serde_json::json!({
         "schema": m["schema"],
+        "procedural_generation": m["procedural_generation"],
+        "m7_successor_population": m["m7_successor_population"],
         "procedural_variants_per_family": m["procedural_variants_per_family"],
         "split_policy_version": m["split_policy_version"],
         "cells": m["cells"],
@@ -441,6 +512,55 @@ mod tests {
         let mut other = m.clone();
         other.platform.os = format!("{}-elsewhere", m.platform.os);
         assert_ne!(other.hash(), m.hash());
+    }
+
+    #[test]
+    fn the_manifest_keeps_m3_and_commits_the_fresh_m7_population_separately() {
+        let manifest = test_manifest();
+        assert_eq!(manifest.procedural_generation, PROCEDURAL_GENERATION);
+        assert_eq!(
+            manifest.m7_successor_population.procedural_generation,
+            M7_PROCEDURAL_GENERATION
+        );
+        assert_eq!(
+            manifest
+                .m7_successor_population
+                .procedural_variants_per_family,
+            M7_SUCCESSOR_PROCEDURAL_VARIANTS
+        );
+        assert_eq!(
+            manifest.m7_successor_population.population_policy,
+            M7_SUCCESSOR_POPULATION_POLICY
+        );
+        assert!(
+            manifest.m7_successor_population.source_groups >= 459,
+            "successor audit population must independently satisfy the reliability sample size"
+        );
+        assert_eq!(
+            manifest.m7_successor_population.source_groups,
+            manifest.m7_successor_population.scenes
+        );
+        assert_eq!(
+            manifest
+                .m7_successor_population
+                .generator_source_sha256
+                .len(),
+            64
+        );
+        assert_eq!(
+            manifest
+                .m7_successor_population
+                .population_commitment_sha256
+                .len(),
+            64
+        );
+
+        let mut tampered = manifest.clone();
+        tampered
+            .m7_successor_population
+            .population_commitment_sha256
+            .replace_range(..1, "0");
+        assert_ne!(tampered.hash(), manifest.hash());
     }
 
     /// A partial manifest must be distinguishable from the full one, or a

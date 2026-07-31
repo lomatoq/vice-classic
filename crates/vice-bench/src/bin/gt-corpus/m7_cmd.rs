@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use vice_bench::gt::corpus::{M7_SUCCESSOR_POPULATION_POLICY, M7_SUCCESSOR_PROCEDURAL_VARIANTS};
+use vice_bench::gt::grammar::M7_PROCEDURAL_GENERATION;
 use vice_bench::gt::split::{AuditSeal, SealStatus};
 use vice_bench::m7::{
     self,
@@ -36,6 +38,17 @@ fn release_hashes(
     gate_digest: &GateDigestInput,
 ) -> Result<(String, String, String), String> {
     let recorded = super::read_manifest(&manifest.to_path_buf())?;
+    let successor = &recorded["m7_successor_population"];
+    if successor["procedural_generation"].as_u64() != Some(u64::from(M7_PROCEDURAL_GENERATION))
+        || successor["procedural_variants_per_family"].as_u64()
+            != Some(M7_SUCCESSOR_PROCEDURAL_VARIANTS as u64)
+        || successor["population_policy"].as_str() != Some(M7_SUCCESSOR_POPULATION_POLICY)
+    {
+        return Err(format!(
+            "corpus manifest does not commit M7 successor population generation {}",
+            M7_PROCEDURAL_GENERATION
+        ));
+    }
     let corpus_hash = super::rebuild_matching(&recorded)?.hash();
     let gates_hash = gate_digest.sha256.clone();
     Ok((corpus_hash, Preregistration::v1().hash(), gates_hash))
@@ -81,6 +94,12 @@ pub fn open(
             seal.generation, seal.status
         ));
     }
+    if seal.generation != M7_PROCEDURAL_GENERATION {
+        return Err(format!(
+            "audit generation {} cannot open procedural corpus generation {}",
+            seal.generation, M7_PROCEDURAL_GENERATION
+        ));
+    }
     if note.trim() != threshold_source.event_commit_sha {
         return Err("opening note must be exactly the externally anchored release commit".into());
     }
@@ -108,6 +127,12 @@ pub fn measure(
 ) -> Result<m7::MeasurementReport, String> {
     let threshold_source = threshold_source(runner_attestation, gates, gate_provenance)?;
     let seal = read_seal(seal_path)?;
+    if seal.generation != M7_PROCEDURAL_GENERATION {
+        return Err(format!(
+            "audit generation {} cannot measure procedural corpus generation {}",
+            seal.generation, M7_PROCEDURAL_GENERATION
+        ));
+    }
     let (corpus_hash, prereg_hash, gates_hash) =
         release_hashes(manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)

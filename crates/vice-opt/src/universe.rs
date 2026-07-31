@@ -418,12 +418,11 @@ impl SupportedModelUniverseV1 {
     /// content hash and full recalibration for those changes.
     pub fn m7() -> SupportedModelUniverseV1 {
         let mut universe = Self::v1();
-        // v6 adds the bounded Fast recovery path, production continuous
-        // geometry refinement, canonical opaque-label near-ties, and the
-        // declared numerical certificate plus Stage-H no-regression rule
-        // around closed-chain bindings. Its confidence is calibrated from
-        // scratch.
-        universe.version = "m7-v6";
+        // v7 retains the v6 geometry/topology model but replaces
+        // scheduler-dependent elapsed-time admission with deterministic
+        // serialized-materialization work units. Candidate membership,
+        // confidence, and unexplored mass are calibrated from scratch.
+        universe.version = "m7-v7";
         universe.topology.operators = vec![
             Family::admissible(
                 "topology_merge",

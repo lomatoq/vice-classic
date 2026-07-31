@@ -6,7 +6,7 @@ use serde::Serialize;
 
 use super::{
     analysis::intrinsic_catastrophic_kinds, MeasurementReport, MeasurementRow,
-    M7_MEASUREMENT_SCHEMA,
+    M7_MEASUREMENT_SCHEMA, M7_SEALED_POPULATION_POLICY,
 };
 use crate::correlation::ResidualModel;
 use crate::gates::GatesFile;
@@ -269,6 +269,15 @@ pub fn analyze_release(
     validate_report(fast, vice_core::Preset::Fast)?;
     if audit.status != SealStatus::Opened {
         return Err("M7 release analysis requires an opened audit generation".into());
+    }
+    if quality.procedural_generation != audit.generation
+        || fast.procedural_generation != audit.generation
+        || quality.population_policy != M7_SEALED_POPULATION_POLICY
+        || fast.population_policy != M7_SEALED_POPULATION_POLICY
+    {
+        return Err(
+            "M7 release reports are not bound to this fresh procedural audit generation".into(),
+        );
     }
     let prereg = Preregistration::v1();
     prereg

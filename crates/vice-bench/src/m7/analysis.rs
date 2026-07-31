@@ -7,7 +7,9 @@
 
 use serde::Serialize;
 
-use super::{MeasurementReport, MeasurementRow, M7_MEASUREMENT_SCHEMA};
+use super::{
+    MeasurementReport, MeasurementRow, M7_ALL_SPLIT_POPULATION_POLICY, M7_MEASUREMENT_SCHEMA,
+};
 use crate::correlation::ResidualModel;
 use crate::gt::raster::RasterProfile;
 use crate::gt::split::{AuditSeal, SealStatus};
@@ -102,12 +104,16 @@ pub fn analyze_calibration(
     if report.schema != M7_MEASUREMENT_SCHEMA
         || report.scope != "calibration"
         || report.split != "calibration"
+        || report.procedural_generation != audit.generation
+        || report.population_policy != M7_ALL_SPLIT_POPULATION_POLICY
         || !report.complete
         || report.included_shards.len() != report.shard_count as usize
         || report.renders != report.expected_renders_included_shards
     {
         return Err(
-            "M7 calibration analysis requires one complete merged calibration report".into(),
+            "M7 calibration analysis requires one complete merged calibration report bound to \
+             the current procedural/audit generation"
+                .into(),
         );
     }
     let prereg = Preregistration::v1();

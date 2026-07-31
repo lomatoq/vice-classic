@@ -115,6 +115,8 @@ pub(super) fn synthetic_report(shard: u32, shard_count: u32) -> MeasurementRepor
         scope: "calibration".into(),
         split: "calibration".into(),
         preset: Preset::Quality,
+        procedural_generation: M7_PROCEDURAL_GENERATION,
+        population_policy: M7_ALL_SPLIT_POPULATION_POLICY.into(),
         procedural_variants_per_family: M7_RELEASE_PROCEDURAL_VARIANTS,
         mandatory_sizes_px: M7_MANDATORY_SIZES.to_vec(),
         rasterizers: vec!["tiny-skia".into()],
@@ -160,6 +162,17 @@ fn source_group_shards_are_stable_and_never_multi_assign() {
 }
 
 #[test]
+fn successor_audit_population_excludes_reused_nonprocedural_sources() {
+    assert!(MeasurementScope::SealedAudit.admits_origin(FixtureOrigin::Procedural));
+    assert!(!MeasurementScope::SealedAudit.admits_origin(FixtureOrigin::Authored));
+    assert!(!MeasurementScope::SealedAudit.admits_origin(FixtureOrigin::Adversarial));
+    assert_eq!(
+        MeasurementScope::SealedAudit.population_policy(),
+        M7_SEALED_POPULATION_POLICY
+    );
+}
+
+#[test]
 fn merge_is_complete_only_for_one_copy_of_every_shard() {
     let partial = merge_reports(vec![synthetic_report(1, 2)]).expect("partial merge");
     assert!(!partial.complete);
@@ -172,9 +185,21 @@ fn merge_is_complete_only_for_one_copy_of_every_shard() {
 }
 
 #[test]
-fn quality_keeps_the_certified_primary_lane_on_the_annulus_tail_regression() {
+fn merge_refuses_mixed_generations_and_population_policies() {
+    let first = synthetic_report(0, 2);
+    let mut different_generation = synthetic_report(1, 2);
+    different_generation.procedural_generation += 1;
+    assert!(merge_reports(vec![first.clone(), different_generation]).is_err());
+
+    let mut different_population = synthetic_report(1, 2);
+    different_population.population_policy = "vice-classic/m7-population/other/v1".into();
+    assert!(merge_reports(vec![first, different_population]).is_err());
+}
+
+#[test]
+fn quality_keeps_the_certified_primary_lane_on_the_successor_annulus_tail() {
     const SHARDS: u32 = 4096;
-    let group = "proc/annulus/054";
+    let group = "proc/annulus/000";
     let shard = measurement_shard(group, SHARDS);
     let mut request = MeasurementRequest::new(MeasurementScope::Calibration);
     request.preset = Preset::Quality;

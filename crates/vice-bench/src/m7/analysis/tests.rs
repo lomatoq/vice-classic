@@ -1,4 +1,5 @@
 use super::*;
+use crate::gt::grammar::M7_PROCEDURAL_GENERATION;
 use crate::m7::{BoundaryGateCounts, BoundaryTail};
 use crate::m7::{MeasurementReport, TopologyComparison};
 
@@ -112,6 +113,8 @@ fn report_with_groups(group_count: usize, catastrophic: bool) -> MeasurementRepo
         scope: "calibration".into(),
         split: "calibration".into(),
         preset: vice_core::Preset::Quality,
+        procedural_generation: M7_PROCEDURAL_GENERATION,
+        population_policy: M7_ALL_SPLIT_POPULATION_POLICY.into(),
         procedural_variants_per_family: 200,
         mandatory_sizes_px: vec![128, 256, 512],
         rasterizers: vec!["tiny-skia".into()],
@@ -148,7 +151,8 @@ fn report(catastrophic: bool) -> MeasurementReport {
 #[test]
 fn zero_failure_459_group_population_mints_a_core_valid_calibration() {
     let report = report(false);
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(analysis.gate_met);
     assert!(analysis.runtime_isolated);
     assert_eq!(analysis.runtime_met, Some(true));
@@ -179,10 +183,21 @@ fn zero_failure_459_group_population_mints_a_core_valid_calibration() {
 }
 
 #[test]
+fn calibration_refuses_a_report_from_another_audit_generation() {
+    let error = analyze_calibration(
+        &report(false),
+        &AuditSeal::sealed(M7_PROCEDURAL_GENERATION - 1),
+    )
+    .expect_err("a burned generation must not calibrate its successor");
+    assert!(error.contains("current procedural/audit generation"));
+}
+
+#[test]
 fn a_parallel_calibration_mints_confidence_but_not_a_runtime_claim() {
     let mut report = report(false);
     report.max_workers_per_shard = 2;
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(analysis.gate_met);
     assert!(analysis.production_config.is_some());
     assert!(!analysis.runtime_isolated);
@@ -192,8 +207,8 @@ fn a_parallel_calibration_mints_confidence_but_not_a_runtime_claim() {
 
 #[test]
 fn an_indistinguishable_bad_row_prevents_a_zero_failure_calibration() {
-    let analysis =
-        analyze_calibration(&report(true), &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report(true), &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(!analysis.gate_met);
     assert!(analysis.calibration.is_none());
 }
@@ -202,7 +217,8 @@ fn an_indistinguishable_bad_row_prevents_a_zero_failure_calibration() {
 fn predictive_mismatch_abstains_before_reliability_is_minted() {
     let mut report = report_with_groups(460, true);
     report.rows[0].serialized_pixel_bits_per_block = Some(0.11);
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(analysis.gate_met);
     let calibration = analysis.calibration.expect("calibration");
     assert_eq!(calibration.accepted_source_groups, 459);
@@ -213,7 +229,8 @@ fn predictive_mismatch_abstains_before_reliability_is_minted() {
 fn population_p95_allows_a_sparse_non_catastrophic_render_tail() {
     let mut report = report(false);
     report.rows[0].boundary = Some(boundary(100, 0.50, 0.55, 0.70, 95, 100));
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(analysis.gate_met);
     let selected = analysis
         .threshold_evaluations
@@ -231,7 +248,8 @@ fn population_p95_rejects_a_material_high_tail_fraction() {
     for row in report.rows.iter_mut().take(24) {
         row.boundary = Some(boundary(100, 0.50, 0.55, 0.70, 0, 100));
     }
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(!analysis.gate_met);
     assert!(analysis.calibration.is_none());
 }
@@ -245,7 +263,8 @@ fn differently_preregistered_boundary_counts_cannot_enter_calibration() {
         .expect("fixture boundary")
         .gate_counts
         .p95_gate_px = 0.36;
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(!analysis.gate_met);
     assert!(analysis.calibration.is_none());
 }
@@ -254,7 +273,8 @@ fn differently_preregistered_boundary_counts_cannot_enter_calibration() {
 fn population_max_still_rejects_a_single_render_outlier() {
     let mut report = report(false);
     report.rows[0].boundary = Some(boundary(100, 0.50, 0.61, 1.51, 95, 99));
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(!analysis.gate_met);
     assert!(analysis.calibration.is_none());
 }
@@ -263,7 +283,8 @@ fn population_max_still_rejects_a_single_render_outlier() {
 fn observed_support_separates_a_tail_failure_without_reading_ground_truth_in_production() {
     let mut report = report_with_groups(460, true);
     report.rows[0].support_isotopy_displacement_px = Some(0.2);
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(analysis.gate_met);
     let calibration = analysis.calibration.expect("calibration");
     assert_eq!(calibration.accepted_source_groups, 459);
@@ -277,7 +298,8 @@ fn predictive_ceiling_is_measured_instead_of_hard_coded_to_point_one() {
     for row in &mut report.rows {
         row.serialized_pixel_bits_per_block = Some(0.2);
     }
-    let analysis = analyze_calibration(&report, &AuditSeal::sealed(1)).expect("analysis succeeds");
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
     assert!(analysis.gate_met);
     assert_eq!(
         analysis
