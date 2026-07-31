@@ -8,7 +8,7 @@
 use serde::Serialize;
 
 use super::{
-    MeasurementReport, MeasurementRow, M7_ALL_SPLIT_POPULATION_POLICY, M7_MEASUREMENT_SCHEMA,
+    MeasurementReport, MeasurementRow, M7_CALIBRATION_POPULATION_POLICY, M7_MEASUREMENT_SCHEMA,
 };
 use crate::correlation::ResidualModel;
 use crate::gt::raster::RasterProfile;
@@ -21,7 +21,7 @@ pub use delivery::DeliveryCalibration;
 use delivery::{calibrate_delivery_seal, delivery_diagnostics_permit};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v13";
+    "vice-classic/m7-confidence-calibration-analysis/v14";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = super::M7_BOUNDARY_P95_GATE_PX;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = super::M7_BOUNDARY_P99_GATE_PX;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = super::M7_BOUNDARY_MAX_GATE_PX;
@@ -105,7 +105,7 @@ pub fn analyze_calibration(
         || report.scope != "calibration"
         || report.split != "calibration"
         || report.procedural_generation != audit.generation
-        || report.population_policy != M7_ALL_SPLIT_POPULATION_POLICY
+        || report.population_policy != M7_CALIBRATION_POPULATION_POLICY
         || !report.complete
         || report.included_shards.len() != report.shard_count as usize
         || report.renders != report.expected_renders_included_shards

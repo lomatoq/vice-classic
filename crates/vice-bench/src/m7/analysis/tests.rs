@@ -115,7 +115,7 @@ fn report_with_groups(group_count: usize, catastrophic: bool) -> MeasurementRepo
         split: "calibration".into(),
         preset: vice_core::Preset::Quality,
         procedural_generation: M7_PROCEDURAL_GENERATION,
-        population_policy: M7_ALL_SPLIT_POPULATION_POLICY.into(),
+        population_policy: M7_CALIBRATION_POPULATION_POLICY.into(),
         procedural_variants_per_family: 200,
         mandatory_sizes_px: vec![128, 256, 512],
         rasterizers: vec!["tiny-skia".into()],
