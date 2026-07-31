@@ -87,8 +87,7 @@ diagnostic_only_residual_models = ["iid_pixel"]
 # threshold. A placeholder is not a threshold: the scorecard refuses to
 # gate on any entry whose status is "placeholder".
 [boundary_accuracy]
-status = "placeholder"
-set_by_milestone = "M7"
+status = "frozen"
 p95_px = 0.35
 p99_px = 0.60
 max_px = 1.50
@@ -100,13 +99,16 @@ max_px = 1.50
 # commit. Until then this section is a placeholder and cannot authorize a
 # production success or a promotion verdict.
 [m7_selective]
-status = "placeholder"
-set_by_milestone = "M7"
-posterior_lower_bound_threshold = 0.0
-empirical_unexplored_relative_mass_upper_bound = 0.0
+status = "frozen"
+quality_posterior_lower_bound_threshold = 0.0005046399456893287
+quality_empirical_unexplored_relative_mass_upper_bound = 1979.0
+quality_gate_max_posterior_predictive_bits_per_block = 0.22235882630658937
+quality_gate_max_support_isotopy_displacement_px = 0.7517566296698103
+fast_posterior_lower_bound_threshold = 0.001112105414679555
+fast_empirical_unexplored_relative_mass_upper_bound = 897.0
+fast_gate_max_posterior_predictive_bits_per_block = 0.22235882630658937
+fast_gate_max_support_isotopy_displacement_px = 0.7786773864826807
 gate_min_top2_class_margin_bits = 0.0
-gate_max_posterior_predictive_bits_per_block = 0.10
-gate_max_support_isotopy_displacement_px = 0.0
 gate_max_abs_residual_lag1 = 0.90
 gate_max_topology_entropy_bits = 1.0
 gate_max_formation_entropy_bits = 1.0
@@ -117,10 +119,10 @@ gate_max_palette_code_delta = 4
 gate_max_quality_p95_ms = 10000
 gate_max_fast_p95_ms = 1000
 gate_max_peak_memory_bytes = 1073741824
-gate_max_profile_channel_delta = 0
-gate_max_profile_mean_channel_delta = 0.0
-gate_max_internal_channel_delta = 64
-gate_max_internal_mean_channel_delta = 0.25
+gate_max_profile_channel_delta = 4
+gate_max_profile_mean_channel_delta = 0.0075
+gate_max_internal_channel_delta = 120
+gate_max_internal_mean_channel_delta = 1.5
 gate_max_complexity_growth_ratio = 2.0
 gate_min_blind_source_trials = 20
 gate_max_blind_one_sided_p_value = 0.05

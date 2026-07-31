@@ -1,13 +1,49 @@
 schema = "vice-classic/m7-gate-provenance/v2"
-status = "placeholder"
+status = "frozen"
 milestone = "M7"
-source_commit_sha = "0000000000000000000000000000000000000000"
-quality_calibration_measurement_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
-fast_calibration_measurement_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
-geometry_measurement_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
-quality_production_config_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
-fast_production_config_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
-quality_calibration_command = "placeholder"
-fast_calibration_command = "placeholder"
-geometry_command = "placeholder"
-asserted_gate_keys = []
+source_commit_sha = "26077c8211cddd3f100ec733622c781019ad6b66"
+quality_calibration_measurement_sha256 = "4d030b788013608ae617138943c1f504eaf46a42bdca080c433659e7d51525be"
+fast_calibration_measurement_sha256 = "80cc395e71200f24c310c0dfd6f6a8eaef382821a3089c9927379c09e3d8b4c8"
+geometry_measurement_sha256 = "fd763e53feaa5bccae69a651e6b4b3ce447b02bbdcf8b0fcd20f8da3c012c6ba"
+quality_production_config_sha256 = "d464e2376e713652c7f0da9fda47023d3982cc85e9b167cda1c5906f97704bbe"
+fast_production_config_sha256 = "6c394bfdae60c82c0db1468e070a770dcf34031a40253504ac12b11d0c0e0bd9"
+quality_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset quality --workers 1 --shard-count 8 for shards 0..7; resume unfinished journals with --workers 2; m7-merge all eight reports"
+fast_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset fast --workers 1 --shard-count 8 for shards 0..7; m7-merge all eight reports"
+geometry_command = "target/release/gt-corpus.exe m7-oracle-geometry-calibrate --out runs/m7/v15-26077c8-shards/geometry-calibration.json"
+asserted_gate_keys = [
+  "boundary_accuracy.max_px",
+  "boundary_accuracy.p95_px",
+  "boundary_accuracy.p99_px",
+  "m7_selective.fast_empirical_unexplored_relative_mass_upper_bound",
+  "m7_selective.fast_gate_max_posterior_predictive_bits_per_block",
+  "m7_selective.fast_gate_max_support_isotopy_displacement_px",
+  "m7_selective.fast_posterior_lower_bound_threshold",
+  "m7_selective.gate_max_abs_residual_lag1",
+  "m7_selective.gate_max_blind_one_sided_p_value",
+  "m7_selective.gate_max_complexity_growth_ratio",
+  "m7_selective.gate_max_fast_p95_ms",
+  "m7_selective.gate_max_formation_entropy_bits",
+  "m7_selective.gate_max_internal_channel_delta",
+  "m7_selective.gate_max_internal_mean_channel_delta",
+  "m7_selective.gate_max_palette_code_delta",
+  "m7_selective.gate_max_peak_memory_bytes",
+  "m7_selective.gate_max_profile_channel_delta",
+  "m7_selective.gate_max_profile_mean_channel_delta",
+  "m7_selective.gate_max_quality_p95_ms",
+  "m7_selective.gate_max_topology_entropy_bits",
+  "m7_selective.gate_min_blind_preference_rate",
+  "m7_selective.gate_min_blind_source_trials",
+  "m7_selective.gate_min_complete_geometry_oracle_rows",
+  "m7_selective.gate_min_g20_recovery_rows",
+  "m7_selective.gate_min_g30_recovery_rows",
+  "m7_selective.gate_min_geometry_recovery_rate",
+  "m7_selective.gate_min_perturbation_stability",
+  "m7_selective.gate_min_pf_complete_rows",
+  "m7_selective.gate_min_render_coverage_128_512",
+  "m7_selective.gate_min_source_coverage_128_512",
+  "m7_selective.gate_min_top2_class_margin_bits",
+  "m7_selective.quality_empirical_unexplored_relative_mass_upper_bound",
+  "m7_selective.quality_gate_max_posterior_predictive_bits_per_block",
+  "m7_selective.quality_gate_max_support_isotopy_displacement_px",
+  "m7_selective.quality_posterior_lower_bound_threshold",
+]
