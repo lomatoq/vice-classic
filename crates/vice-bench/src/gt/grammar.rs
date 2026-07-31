@@ -266,6 +266,19 @@ mod tests {
     }
 
     #[test]
+    fn successor_two_islands_stays_inside_the_authoring_canvas() {
+        // Generation 3 variant 35 exposed that independently valid island
+        // rings could cross the opaque full-bleed canvas boundary.  Keep the
+        // concrete witness, then cover the complete successor family so the
+        // fix is a construction invariant rather than a seed patch.
+        for v in 0..crate::gt::corpus::M7_SUCCESSOR_PROCEDURAL_VARIANTS {
+            let id = format!("proc/two_islands/{v:03}");
+            crate::gt::recipes::build_variant("two_islands", v, &id, M7_PROCEDURAL_GENERATION)
+                .unwrap_or_else(|why| panic!("successor recipe {id} must certify: {why}"));
+        }
+    }
+
+    #[test]
     fn filtered_construction_preserves_selected_groups() {
         let eager = procedural_groups(3);
         let filtered = procedural_groups_filtered_for_generation(3, PROCEDURAL_GENERATION, |id| {

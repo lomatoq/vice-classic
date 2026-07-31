@@ -181,7 +181,13 @@ pub(super) fn build_variant(
         }
         "two_islands" => {
             let r = c * rng.range(0.12, 0.20);
-            let gap = c * rng.range(0.05, 0.22);
+            // Each centre is `r + gap/2` from the canvas centre, and each
+            // polygon is contained by its radius-r circumcircle.  Therefore
+            // `2*r + gap/2 < c/2` is a construction-time proof that neither
+            // island can cross the full-bleed boundary.  The former 0.22c
+            // upper bound violated that inequality for large radii (the
+            // concrete generation-3 witness was variant 35).
+            let gap = c * rng.range(0.05, 0.16);
             let a = b.add_face(fg);
             let d = b.add_face(ink(0.8, 0.55, 0.05));
             let ca = Pt::new(c / 2.0 - r - gap / 2.0, c / 2.0);

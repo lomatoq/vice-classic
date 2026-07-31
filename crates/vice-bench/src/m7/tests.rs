@@ -228,8 +228,11 @@ fn quality_keeps_the_certified_primary_lane_on_the_successor_annulus_tail() {
         "{:?}",
         row.selected_hypothesis_id
     );
+    // p99 is a population quantile, not a per-row ceiling. A single row in
+    // the upper one percent may exceed it while the preregistered population
+    // still passes. The normative per-row bound is the frozen maximum.
     assert!(
-        boundary.max_px <= M7_BOUNDARY_P99_GATE_PX,
+        boundary.max_px <= M7_BOUNDARY_MAX_GATE_PX,
         "{}",
         boundary.max_px
     );

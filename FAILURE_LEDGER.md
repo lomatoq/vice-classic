@@ -5074,3 +5074,53 @@ evidence. A direct release-policy regression now proves that both a runtime
 hit and a runtime miss leave the M7 release refusal set unchanged. Generation
 3 must run to completion unless an actual executable hard gate becomes
 monotonically unreachable; wall clock alone is not such a gate.
+
+## F-0141 — The sealed-population commitment did not instantiate the population (M7 generation-3 preflight, 2026-07-31)
+
+**Found by.** The first generation-3 Quality calibration shard, before the
+audit seal was opened. `proc/two_islands/035` failed certification because an
+island boundary intersected the opaque full-bleed canvas boundary.
+
+**What happened.** The successor-population commitment enumerated the 1000
+group IDs and hashed their family names plus generator source, but never
+constructed the corresponding scenes. The `two_islands` recipe independently
+sampled a radius up to `0.20c` and a gap up to `0.22c`; its rightmost extent
+could therefore reach `2r + gap/2 > c/2`. The invalid population was called
+"committed" even though its first complete materialisation had never
+succeeded. Seven remaining calibration processes were stopped immediately;
+their partial ignored journals are not release evidence. The generation-3
+seal remained unopened.
+
+**Class rule.** A content commitment to a procedural population must first
+materialise and certify every committed source group, then hash the certified
+scene plus every truth field consumed by scoring. Hashing source text and IDs
+proves which recipe was named, not that the named population exists.
+
+**Status.** Closed before reopening calibration. The recipe now enforces the
+construction inequality `2r + gap/2 < c/2` with a `0.16c` gap ceiling. A
+regression certifies all 200 successor variants of the family, including the
+original variant 35 witness. Manifest construction now materialises all 1000
+sealed successor groups, certifies them, and commits scene digest, authored
+truth, salient features, and independently measured partition truth. The
+full preflight passed 1000/1000 in 105.41 seconds in the debug test profile.
+
+## F-0142 — A single calibration row was compared with a population p99 gate (M7 generation-3 preflight, 2026-07-31)
+
+**Found by.** The complete successor-labelled M7 regression subset after the
+generation-3 population repair.
+
+**What happened.** The protected-primary-lane regression required one
+particular annulus row's maximum boundary error to be no greater than the
+population p99 threshold. Generation 3 produced 0.751971 px: below the frozen
+1.50 px per-row maximum, but above the 0.60 px population p99. A p99
+constraint permits up to one percent of accepted rows above its value, so the
+test encoded a stronger and statistically different claim than the gate.
+
+**Class rule.** Quantile gates are evaluated only on their preregistered
+population. Assertions about one row must use an actual per-row ceiling; a
+sample cannot stand in for p95 or p99.
+
+**Status.** Closed. The regression still requires the certified primary lane,
+the expected topology hypothesis, an available candidate, and now the frozen
+1.50 px maximum. Population p95/p99 remain exclusively in calibration and
+release analysis over all eligible rows.

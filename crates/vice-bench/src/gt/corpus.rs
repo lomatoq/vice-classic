@@ -110,7 +110,7 @@ pub struct CorpusManifest {
 
 /// Compact content commitment for the fresh M7 population. The historical
 /// M3 entries stay byte-for-byte on generation 1; this digest commits the
-/// independently rekeyed generation 2 scenes used by calibration and audit.
+/// independently rekeyed successor scenes used by calibration and audit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct M7SuccessorPopulation {
     pub procedural_generation: u32,
@@ -137,18 +137,56 @@ fn m7_successor_population(policy: &SplitPolicy) -> Result<M7SuccessorPopulation
     hasher.update(M7_SUCCESSOR_POPULATION_POLICY.as_bytes());
     hasher.update(generator_source_sha256.as_bytes());
     let mut source_groups = 0usize;
+    let mut scenes = 0usize;
     for family in SHAPE_FAMILIES
         .iter()
         .copied()
         .filter(|family| policy.split_of_family(family) == Split::SealedAudit)
     {
         for variant in 0..M7_SUCCESSOR_PROCEDURAL_VARIANTS {
-            source_groups += 1;
             let group_id = format!("proc/{family}/{variant:03}");
-            for value in [group_id.as_str(), family] {
-                hasher.update((value.len() as u64).to_le_bytes());
-                hasher.update(value.as_bytes());
-            }
+            // Materialise and certify every committed source group before
+            // the manifest can exist.  Hashing only IDs and generator source
+            // once allowed an invalid sealed scene to survive until the
+            // expensive calibration run.  This projection commits both the
+            // certified scene and every truth field consumed by scoring.
+            let group = crate::gt::recipes::build_variant(
+                family,
+                variant,
+                &group_id,
+                M7_PROCEDURAL_GENERATION,
+            )
+            .map_err(|why| {
+                format!("successor population recipe {group_id} does not certify: {why}")
+            })?;
+            source_groups += 1;
+            scenes += group.scenes.len();
+            let scene_entries = group
+                .scenes
+                .iter()
+                .map(|scene| {
+                    Ok(serde_json::json!({
+                        "id": scene.id(),
+                        "scene_digest_sha256": vice_ir::scene_digest_sha256(scene.scene().scene())
+                            .map_err(|e| e.to_string())?,
+                        "authored_truth": scene.authored_truth(),
+                        "salient_features": scene.salient_features(),
+                        "partition_truth": scene.partition_truth(),
+                    }))
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            let committed_group = serde_json::json!({
+                "id": group.id,
+                "origin": group.origin,
+                "shape_family": group.shape_family,
+                "provenance": group.provenance,
+                "scenes": scene_entries,
+                "equivalence_class": group.equivalence_class,
+                "intentionally_ambiguous": group.intentionally_ambiguous,
+            });
+            let bytes = serde_json::to_vec(&committed_group).map_err(|e| e.to_string())?;
+            hasher.update((bytes.len() as u64).to_le_bytes());
+            hasher.update(bytes);
         }
     }
     Ok(M7SuccessorPopulation {
@@ -157,7 +195,7 @@ fn m7_successor_population(policy: &SplitPolicy) -> Result<M7SuccessorPopulation
         split: Split::SealedAudit.as_str(),
         population_policy: M7_SUCCESSOR_POPULATION_POLICY,
         source_groups,
-        scenes: source_groups,
+        scenes,
         generator_source_sha256,
         population_commitment_sha256: hex::encode(hasher.finalize()),
     })
