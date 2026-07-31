@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use super::{MeasurementReport, M7_MEASUREMENT_SCHEMA};
+use super::{MeasurementReport, MeasurementRow, M7_MEASUREMENT_SCHEMA};
 
 pub const M7_DETERMINISM_SCHEMA: &str = "vice-classic/m7-determinism/v2";
 
@@ -122,26 +122,73 @@ pub fn analyze(inputs: Vec<DeterminismInput>) -> Result<DeterminismVerdict, Stri
 }
 
 pub fn normalized_digest(report: &MeasurementReport) -> String {
-    let mut stable = report.clone();
-    stable.included_shards.clear();
-    stable.shard_count = 0;
-    stable.max_workers_per_shard = 0;
-    stable.resumed_rows = 0;
-    stable.runs = 0;
-    stable.elapsed_ms = 0;
-    stable.peak_working_set_bytes = 0;
-    for row in &mut stable.rows {
-        row.core_runtime_ms = 0;
-        row.court_runtime_ms = 0;
-        row.row_elapsed_ms = 0;
+    #[derive(Serialize)]
+    struct DecisionAndArtifact<'a> {
+        group_id: &'a str,
+        scene_id: &'a str,
+        cell_id: &'a str,
+        decision_status: &'a str,
+        decision_reason: Option<&'a str>,
+        production_provenance: bool,
+        production_accepted: bool,
+        candidate_available: bool,
+        selected_hypothesis_id: Option<&'a str>,
+        selected_scene_digest_sha256: Option<&'a str>,
+        selected_delivery_digest_sha256: Option<&'a str>,
+        selected_artifact_bundle_sha256: Option<&'a str>,
+        verifier_clean: bool,
+        measurement_refusal: Option<&'a str>,
     }
-    let bytes = serde_json::to_vec(&stable).expect("normalized M7 report serializes");
+
+    impl<'a> From<&'a MeasurementRow> for DecisionAndArtifact<'a> {
+        fn from(row: &'a MeasurementRow) -> Self {
+            Self {
+                group_id: &row.group_id,
+                scene_id: &row.scene_id,
+                cell_id: &row.cell_id,
+                decision_status: &row.decision_status,
+                decision_reason: row.decision_reason.as_deref(),
+                production_provenance: row.production_provenance,
+                production_accepted: row.production_accepted,
+                candidate_available: row.candidate_available,
+                selected_hypothesis_id: row.selected_hypothesis_id.as_deref(),
+                selected_scene_digest_sha256: row.selected_scene_digest_sha256.as_deref(),
+                selected_delivery_digest_sha256: row.selected_delivery_digest_sha256.as_deref(),
+                selected_artifact_bundle_sha256: row.selected_artifact_bundle_sha256.as_deref(),
+                verifier_clean: row.verifier_clean,
+                measurement_refusal: row.measurement_refusal.as_deref(),
+            }
+        }
+    }
+
+    #[derive(Serialize)]
+    struct Projection<'a> {
+        schema: &'a str,
+        scope: &'a str,
+        split: &'a str,
+        preset: vice_core::Preset,
+        identity: &'a vice_opt::ModelIdentity,
+        delivery_policy_sha256: &'a str,
+        rows: Vec<DecisionAndArtifact<'a>>,
+    }
+
+    let stable = Projection {
+        schema: &report.schema,
+        scope: &report.scope,
+        split: &report.split,
+        preset: report.preset,
+        identity: &report.identity,
+        delivery_policy_sha256: &report.delivery_policy_sha256,
+        rows: report.rows.iter().map(DecisionAndArtifact::from).collect(),
+    };
+    let bytes = serde_json::to_vec(&stable).expect("M7 determinism projection serializes");
     hex::encode(Sha256::digest(bytes))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::m7::tests::synthetic_report;
 
     #[test]
     fn raw_hashes_are_not_used_as_the_determinism_verdict() {
@@ -149,5 +196,34 @@ mod tests {
         let digest = hex::encode(Sha256::digest(bytes));
         assert_eq!(digest.len(), 64);
         assert_ne!(digest, "0".repeat(64));
+    }
+
+    #[test]
+    fn diagnostics_are_outside_the_decision_and_artifact_projection() {
+        let mut changed = synthetic_report(0, 1);
+        let original = changed.clone();
+        changed.rows[0].candidate_bytes = 99;
+        changed.rows[0].unexplored_proxy_hypotheses = Some(101);
+        changed.rows[0].core_runtime_ms = 1234;
+        changed.elapsed_ms = 5678;
+        assert_eq!(normalized_digest(&original), normalized_digest(&changed));
+    }
+
+    #[test]
+    fn decisions_and_selected_artifact_bytes_are_inside_the_projection() {
+        let original = synthetic_report(0, 1);
+        let mut decision_changed = original.clone();
+        decision_changed.rows[0].decision_status = "success".into();
+        assert_ne!(
+            normalized_digest(&original),
+            normalized_digest(&decision_changed)
+        );
+
+        let mut artifact_changed = original.clone();
+        artifact_changed.rows[0].selected_artifact_bundle_sha256 = Some("a".repeat(64));
+        assert_ne!(
+            normalized_digest(&original),
+            normalized_digest(&artifact_changed)
+        );
     }
 }

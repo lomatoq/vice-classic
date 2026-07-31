@@ -108,7 +108,7 @@ fn synthetic_row(group: &str) -> MeasurementRow {
     }
 }
 
-fn synthetic_report(shard: u32, shard_count: u32) -> MeasurementReport {
+pub(super) fn synthetic_report(shard: u32, shard_count: u32) -> MeasurementReport {
     let row = synthetic_row(&format!("group-{shard}"));
     MeasurementReport {
         schema: M7_MEASUREMENT_SCHEMA.into(),
