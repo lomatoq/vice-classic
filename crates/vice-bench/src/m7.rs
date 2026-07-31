@@ -43,7 +43,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{FixtureOrigin, GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v18";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v19";
 pub const M7_ALL_SPLIT_POPULATION_POLICY: &str = "vice-classic/m7-population/all-split-groups/v1";
 pub const M7_SEALED_POPULATION_POLICY: &str = M7_SUCCESSOR_POPULATION_POLICY;
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = M7_SUCCESSOR_PROCEDURAL_VARIANTS;

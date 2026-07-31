@@ -562,24 +562,26 @@ pub(crate) fn materialize_candidate(
             )
         })?)
     );
-    let stage_started = Instant::now();
     let optimizer = if let Some(cached) = cache.optimized_by_scene_and_prior.get(&optimization_key)
     {
         candidate.scene = cached.scene.clone();
         transactions.extend(cached.transactions.clone());
         cached.optimizer.clone()
     } else {
-        let base = vice_verify::preseal_scene(
+        let stage_started = Instant::now();
+        let base_result = vice_verify::preseal_scene(
             &candidate.scene,
             &candidate.bindings,
             request.config.verification,
         )
-        .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::Preseal, error))?;
-        let (optimized, optimizer, continuous_transactions): (
-            _,
-            OptimizationResult,
-            Vec<TransactionApplication>,
-        ) = optimize_continuous(
+        .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::Preseal, error));
+        runtime.preseal_ms = runtime.preseal_ms.saturating_add(elapsed_ms(stage_started));
+        let base = base_result?;
+        let stage_started = Instant::now();
+        let optimized_result: Result<
+            (_, OptimizationResult, Vec<TransactionApplication>),
+            CandidateRefusal,
+        > = optimize_continuous(
             candidate,
             request.image,
             base.render(),
@@ -593,7 +595,15 @@ pub(crate) fn materialize_candidate(
                 CandidateFailureStage::ContinuousOptimization,
                 error,
             )
-        })?;
+        });
+        runtime.continuous_optimization_ms = runtime
+            .continuous_optimization_ms
+            .saturating_add(elapsed_ms(stage_started));
+        let (optimized, optimizer, continuous_transactions): (
+            _,
+            OptimizationResult,
+            Vec<TransactionApplication>,
+        ) = optimized_result?;
         candidate = optimized;
         transactions.extend(continuous_transactions.clone());
         cache.optimized_by_scene_and_prior.insert(
@@ -606,9 +616,6 @@ pub(crate) fn materialize_candidate(
         );
         optimizer
     };
-    runtime.preseal_and_optimization_ms = runtime
-        .preseal_and_optimization_ms
-        .saturating_add(elapsed_ms(stage_started));
     let stage_started = Instant::now();
     let verified_result = quantize_and_verify(
         &candidate.scene,

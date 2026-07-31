@@ -24,9 +24,10 @@ pub use pipeline::{
 };
 pub use types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal,
-    CandidateRuntimeSummary, DecisionStatus, FailureReason, QualityAdmissionWitness,
-    RuntimeStageSummary, SuccessArtifacts, TopologyArmRefusal, TopologyArmTrace,
-    TopologyEnvelopeTrace, VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    CandidateRuntimeSummary, DecisionStatus, FailureReason, FittingRuntimeSummary,
+    QualityAdmissionWitness, RuntimeStageSummary, SuccessArtifacts, TopologyArmRefusal,
+    TopologyArmTrace, TopologyEnvelopeTrace, TopologyRuntimeSummary, VectorizeOutcome,
+    VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 
 #[cfg(test)]
@@ -396,7 +397,8 @@ mod tests {
         );
         let candidate_accounted = [
             stages.candidate_detail.scene_construction_ms,
-            stages.candidate_detail.preseal_and_optimization_ms,
+            stages.candidate_detail.preseal_ms,
+            stages.candidate_detail.continuous_optimization_ms,
             stages.candidate_detail.quantization_verification_ms,
             stages.candidate_detail.serialized_delivery_ms,
             stages.candidate_detail.serialized_likelihood_ms,

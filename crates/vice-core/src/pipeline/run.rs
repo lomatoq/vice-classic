@@ -41,6 +41,7 @@ pub(super) fn vectorize_impl(
         .as_millis()
         .try_into()
         .unwrap_or(u64::MAX);
+    parts.runtime_stages.topology_detail = topology.runtime.clone();
     let proposal = topology.proposal;
     let topology_classes_upper_bound = proposal
         .envelope
@@ -144,7 +145,12 @@ pub(super) fn vectorize_impl(
             let fit = if let Some(cached) = fit_cache.get(&fit_key) {
                 cached.clone()
             } else {
-                let fit = fit_chain(chain, canvas_dim_px, config);
+                let fit = fit_chain(
+                    chain,
+                    canvas_dim_px,
+                    config,
+                    &mut parts.runtime_stages.fitting_detail,
+                );
                 fit_cache.insert(fit_key, fit.clone());
                 fit
             };
