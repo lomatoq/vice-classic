@@ -33,8 +33,8 @@ pub const AUTHORING_CANVAS_PX: u32 = 256;
 pub const PROCEDURAL_GENERATION: u32 = 1;
 
 /// Fresh procedural population used by the successor M7 sealed audit after
-/// generation 1 was opened and burned.
-pub const M7_PROCEDURAL_GENERATION: u32 = 2;
+/// generations 1 and 2 were opened and burned.
+pub const M7_PROCEDURAL_GENERATION: u32 = 3;
 
 /// Deterministic splitmix64. Small, seedable per group, no dependency.
 #[derive(Debug, Clone)]
@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn generation_two_rekeys_but_generation_one_preserves_the_legacy_stream() {
+    fn successor_generations_rekey_but_generation_one_preserves_the_legacy_stream() {
         let label = "proc/annulus/000";
         let mut legacy_seed = 0xcbf2_9ce4_8422_2325u64;
         for byte in label.bytes() {
@@ -255,6 +255,13 @@ mod tests {
             successor.next_u64(),
             legacy.next_u64(),
             "a successor audit generation must not reuse opened fixture bytes"
+        );
+        let mut previous = Rng::from_label_generation(label, 2);
+        let mut current = Rng::from_label_generation(label, M7_PROCEDURAL_GENERATION);
+        assert_ne!(
+            current.next_u64(),
+            previous.next_u64(),
+            "generation 3 must not reuse burned generation 2 fixture bytes"
         );
     }
 
