@@ -138,7 +138,15 @@ pub(super) fn build_variant(
             let core_r = inner_r * rng.range(0.35, 0.62);
             let ring_face = b.add_face(fg);
             let hole_face = b.add_face(bg_paint);
-            let core = b.add_face(ink(0.85, rng.range(0.1, 0.4), 0.15));
+            // Generations 1--3 retain their recorded multicolour core.
+            // Generation 4 is a fresh Flat2 population: the core repeats
+            // the foreground paint while keeping the nested topology.
+            let core_paint = if generation >= 4 {
+                fg
+            } else {
+                ink(0.85, rng.range(0.1, 0.4), 0.15)
+            };
+            let core = b.add_face(core_paint);
             b.add_polygon_ring(
                 &regular_polygon(center, outer_r, 5 + v % 3, 0.3),
                 ring_face,
@@ -176,7 +184,13 @@ pub(super) fn build_variant(
                     SalientFeature::ThinFeature {
                         min_width_px: (inner_r - core_r).min(outer_r - inner_r),
                     },
-                    SalientFeature::PaintPair { separation: 0.5 },
+                    SalientFeature::PaintPair {
+                        separation: if generation >= 4 {
+                            separation(fg, bg_paint)
+                        } else {
+                            0.5
+                        },
+                    },
                 ],
             )
         }
@@ -420,7 +434,15 @@ pub(super) fn build_variant(
                 let cc = Pt::new(center.x + spread * t.cos(), center.y + spread * t.sin());
                 let rr = r * (0.7 + 0.3 * (i as f64) / (n as f64));
                 smallest = smallest.min(PI * rr * rr);
-                let f = b.add_face(ink(0.1 + 0.2 * i as f64 / n as f64, 0.2, 0.6));
+                // Generations 1--3 used one paint per dot and were therefore
+                // M8 multiregion inputs. Generation 4 keeps the independent
+                // components but uses one foreground paint for Flat2.
+                let dot_paint = if generation >= 4 {
+                    fg
+                } else {
+                    ink(0.1 + 0.2 * i as f64 / n as f64, 0.2, 0.6)
+                };
+                let f = b.add_face(dot_paint);
                 b.add_polygon_ring(&regular_polygon(cc, rr, 6, 0.0), f, outer)
                     .map_err(err)?;
             }

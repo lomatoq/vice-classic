@@ -34,8 +34,8 @@ use vice_opt::BoundValue;
 use vice_render::{CertifiedMesh, RenderOptions};
 
 use crate::gt::corpus::{
-    groups_with_variants_filtered_for_generation, M7_SUCCESSOR_POPULATION_POLICY,
-    M7_SUCCESSOR_PROCEDURAL_VARIANTS,
+    certify_m7_flat2_group, groups_with_variants_filtered_for_generation,
+    is_m7_sealed_flat2_family, M7_SUCCESSOR_POPULATION_POLICY, M7_SUCCESSOR_PROCEDURAL_VARIANTS,
 };
 use crate::gt::degradation::{matrix_v1, render_cell, DegradationCell};
 use crate::gt::grammar::{AUTHORING_CANVAS_PX, M7_PROCEDURAL_GENERATION};
@@ -43,7 +43,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{FixtureOrigin, GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v19";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v20";
 pub const M7_ALL_SPLIT_POPULATION_POLICY: &str = "vice-classic/m7-population/all-split-groups/v1";
 pub const M7_SEALED_POPULATION_POLICY: &str = M7_SUCCESSOR_POPULATION_POLICY;
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = M7_SUCCESSOR_PROCEDURAL_VARIANTS;
@@ -96,6 +96,10 @@ impl MeasurementScope {
 
     fn admits_origin(self, origin: FixtureOrigin) -> bool {
         self != Self::SealedAudit || origin == FixtureOrigin::Procedural
+    }
+
+    fn admits_shape_family(self, family: &str) -> bool {
+        self != Self::SealedAudit || is_m7_sealed_flat2_family(family)
     }
 
     fn cells(self) -> Vec<DegradationCell> {

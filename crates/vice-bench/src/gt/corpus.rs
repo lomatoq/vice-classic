@@ -29,7 +29,51 @@ pub const CORPUS_SCHEMA: &str = "vice-classic/gt-corpus/v2";
 pub const PROCEDURAL_VARIANTS: usize = 4;
 pub const M7_SUCCESSOR_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_SUCCESSOR_POPULATION_POLICY: &str =
-    "vice-classic/m7-population/generation-bound-procedural-only/v1";
+    "vice-classic/m7-population/generation-bound-procedural-flat2-only/v2";
+
+/// Whole shape families in the frozen split that exercise the M7 Flat2
+/// contract. `shared_edge` requires differently painted interior faces and
+/// belongs to M8 multiregion.
+pub const M7_SEALED_FLAT2_FAMILIES: &[&str] =
+    &["nested_island", "arc_disk", "thin_bridge", "dot_cluster"];
+
+pub(crate) fn is_m7_sealed_flat2_family(family: &str) -> bool {
+    M7_SEALED_FLAT2_FAMILIES.contains(&family)
+}
+
+/// Certify the supported-model boundary from independently measured visible
+/// partition truth, never from a recipe label. Transparent Flat2 has one
+/// opaque paint; opaque Flat2 has foreground plus full-bleed background.
+pub(crate) fn certify_m7_flat2_group(group: &GtSourceGroup) -> Result<(), String> {
+    if !is_m7_sealed_flat2_family(&group.shape_family) {
+        return Err(format!(
+            "shape family {:?} is outside the preregistered M7 Flat2 bucket",
+            group.shape_family
+        ));
+    }
+    for scene in &group.scenes {
+        let truth = scene.partition_truth();
+        let expected = match truth.exterior_model {
+            "transparent" => 1,
+            "opaque" => 2,
+            other => {
+                return Err(format!(
+                    "{} has unknown exterior model {other:?}",
+                    scene.id()
+                ))
+            }
+        };
+        if truth.palette.len() != expected {
+            return Err(format!(
+                "{} has {} distinct opaque paints under {} exterior; Flat2 requires {expected}",
+                scene.id(),
+                truth.palette.len(),
+                truth.exterior_model
+            ));
+        }
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SceneEntry {
@@ -131,7 +175,7 @@ fn m7_successor_population(policy: &SplitPolicy) -> Result<M7SuccessorPopulation
     let generator_source_sha256 = hex::encode(generator.finalize());
 
     let mut hasher = Sha256::new();
-    hasher.update(b"vice-classic/m7-successor-population/v1");
+    hasher.update(b"vice-classic/m7-successor-population/v2");
     hasher.update(M7_PROCEDURAL_GENERATION.to_le_bytes());
     hasher.update(policy.version.as_bytes());
     hasher.update(M7_SUCCESSOR_POPULATION_POLICY.as_bytes());
@@ -142,6 +186,7 @@ fn m7_successor_population(policy: &SplitPolicy) -> Result<M7SuccessorPopulation
         .iter()
         .copied()
         .filter(|family| policy.split_of_family(family) == Split::SealedAudit)
+        .filter(|family| is_m7_sealed_flat2_family(family))
     {
         for variant in 0..M7_SUCCESSOR_PROCEDURAL_VARIANTS {
             let group_id = format!("proc/{family}/{variant:03}");
@@ -159,6 +204,8 @@ fn m7_successor_population(policy: &SplitPolicy) -> Result<M7SuccessorPopulation
             .map_err(|why| {
                 format!("successor population recipe {group_id} does not certify: {why}")
             })?;
+            certify_m7_flat2_group(&group)
+                .map_err(|why| format!("successor population {group_id} is not Flat2: {why}"))?;
             source_groups += 1;
             scenes += group.scenes.len();
             let scene_entries = group
@@ -644,13 +691,8 @@ mod tests {
             let burned = crate::gt::recipes::build_variant(family, 0, &id, 3).unwrap();
             assert!(certify_m7_flat2_group(&burned).is_err());
 
-            let fresh = crate::gt::recipes::build_variant(
-                family,
-                0,
-                &id,
-                M7_PROCEDURAL_GENERATION,
-            )
-            .unwrap();
+            let fresh = crate::gt::recipes::build_variant(family, 0, &id, M7_PROCEDURAL_GENERATION)
+                .unwrap();
             certify_m7_flat2_group(&fresh).unwrap();
         }
     }
