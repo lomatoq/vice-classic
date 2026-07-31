@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 use vice_evidence::{BoundaryChain, Flat2Evidence};
@@ -17,7 +18,8 @@ use vice_verify::{quantize_and_verify, seal_delivery};
 use crate::config::CoreConfig;
 use crate::scene::{build_scene_candidate, optimize_continuous, SceneCandidate, TopologyArm};
 use crate::types::{
-    CandidateFailureStage, CandidateRefusal, CandidateRelationSolveTrace, CandidateSummary,
+    CandidateFailureStage, CandidateRefusal, CandidateRelationSolveTrace, CandidateRuntimeSummary,
+    CandidateSummary,
 };
 use crate::Intent;
 
@@ -104,6 +106,10 @@ pub(crate) struct ProposalWorkspace {
 
 fn digest(bytes: impl AsRef<[u8]>) -> String {
     hex::encode(Sha256::digest(bytes.as_ref()))
+}
+
+fn elapsed_ms(started: Instant) -> u64 {
+    started.elapsed().as_millis().try_into().unwrap_or(u64::MAX)
 }
 
 fn selected_relation_solve_trace(models: &[BoundaryModel]) -> Vec<CandidateRelationSolveTrace> {
@@ -515,16 +521,21 @@ pub(crate) fn score_candidate_proposal(
 pub(crate) fn materialize_candidate(
     request: CandidateRequest<'_>,
     cache: &mut CandidateCache,
+    runtime: &mut CandidateRuntimeSummary,
 ) -> Result<MaterializedCandidate, CandidateRefusal> {
     let hypothesis_id = request.hypothesis_id.clone();
-    let (mut candidate, mut transactions) =
-        build_transactional_candidate(&request).map_err(|error| {
-            refusal(
-                &hypothesis_id,
-                CandidateFailureStage::SceneConstruction,
-                error,
-            )
-        })?;
+    let stage_started = Instant::now();
+    let built = build_transactional_candidate(&request).map_err(|error| {
+        refusal(
+            &hypothesis_id,
+            CandidateFailureStage::SceneConstruction,
+            error,
+        )
+    });
+    runtime.scene_construction_ms = runtime
+        .scene_construction_ms
+        .saturating_add(elapsed_ms(stage_started));
+    let (mut candidate, mut transactions) = built?;
     let opaque_paints = 1 + usize::from(!candidate.paint_layout.background.is_empty());
     let prior = priors(
         request.models,
@@ -551,6 +562,7 @@ pub(crate) fn materialize_candidate(
             )
         })?)
     );
+    let stage_started = Instant::now();
     let optimizer = if let Some(cached) = cache.optimized_by_scene_and_prior.get(&optimization_key)
     {
         candidate.scene = cached.scene.clone();
@@ -594,27 +606,50 @@ pub(crate) fn materialize_candidate(
         );
         optimizer
     };
-    let verified = quantize_and_verify(
+    runtime.preseal_and_optimization_ms = runtime
+        .preseal_and_optimization_ms
+        .saturating_add(elapsed_ms(stage_started));
+    let stage_started = Instant::now();
+    let verified_result = quantize_and_verify(
         &candidate.scene,
         &candidate.bindings,
         request.config.verification,
         request.config.quantization,
     )
-    .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::Quantization, error))?;
+    .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::Quantization, error));
+    runtime.quantization_verification_ms = runtime
+        .quantization_verification_ms
+        .saturating_add(elapsed_ms(stage_started));
+    let verified = verified_result?;
     let scene_digest_sha256 = verified
         .post_quantization_certificate()
         .post_scene_digest_sha256
         .clone();
-    let delivery = match cache.last_serialized_scene.as_ref() {
+    let stage_started = Instant::now();
+    let delivery_result = match cache.last_serialized_scene.as_ref() {
         Some((digest, delivery)) if digest == &scene_digest_sha256 => delivery.clone(),
         _ => {
             let delivery = serialized_delivery(&verified, request.config)
-                .map_err(|(stage, error)| refusal(&hypothesis_id, stage, error))?;
+                .map_err(|(stage, error)| refusal(&hypothesis_id, stage, error));
+            let delivery = match delivery {
+                Ok(delivery) => delivery,
+                Err(error) => {
+                    runtime.serialized_delivery_ms = runtime
+                        .serialized_delivery_ms
+                        .saturating_add(elapsed_ms(stage_started));
+                    return Err(error);
+                }
+            };
             cache.last_serialized_scene = Some((scene_digest_sha256.clone(), delivery.clone()));
             delivery
         }
     };
-    let score = vice_opt::score_serialized_full_resolution(
+    runtime.serialized_delivery_ms = runtime
+        .serialized_delivery_ms
+        .saturating_add(elapsed_ms(stage_started));
+    let delivery = delivery_result;
+    let stage_started = Instant::now();
+    let score_result = vice_opt::score_serialized_full_resolution(
         verified.scene(),
         request.image,
         delivery.seam_witness.premultiplied_rgba8(),
@@ -629,88 +664,99 @@ pub(crate) fn materialize_candidate(
             CandidateFailureStage::SerializedLikelihood,
             error,
         )
-    })?;
-    let plan = vice_svg::build_export_plan(
-        verified.scene(),
-        request.config.export_decimal_places,
-        request.config.apron_width_px,
-    )
-    .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::ExportPlan, error))?;
-    let seal = seal_delivery(
-        &verified,
-        &plan,
-        &delivery.pure_witness,
-        &delivery.seam_witness,
-        request.config.seal,
-    )
-    .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::DeliverySeal, error))?;
-    let scene_json = vice_ir::canonical_scene_bytes(verified.scene()).map_err(|error| {
-        refusal(
-            &hypothesis_id,
-            CandidateFailureStage::CanonicalArtifact,
-            error,
+    });
+    runtime.serialized_likelihood_ms = runtime
+        .serialized_likelihood_ms
+        .saturating_add(elapsed_ms(stage_started));
+    let score = score_result?;
+    let stage_started = Instant::now();
+    let artifact_result = (|| -> Result<_, CandidateRefusal> {
+        let plan = vice_svg::build_export_plan(
+            verified.scene(),
+            request.config.export_decimal_places,
+            request.config.apron_width_px,
         )
-    })?;
-    let delivery_digest = digest(
-        format!(
-            "{}|{}",
-            delivery.pure_witness.render_digest_sha256(),
-            delivery.seam_witness.render_digest_sha256()
+        .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::ExportPlan, error))?;
+        let seal = seal_delivery(
+            &verified,
+            &plan,
+            &delivery.pure_witness,
+            &delivery.seam_witness,
+            request.config.seal,
         )
-        .as_bytes(),
-    );
-    let scored = ScoredHypothesis {
-        hypothesis_id: request.hypothesis_id.clone(),
-        delivery_digest: delivery_digest.clone(),
-        topology_class: request.arm.topology_class.clone(),
-        formation_class: request.formation_class.clone(),
-        total_bits: score.total_bits,
-    };
-    let summary = CandidateSummary {
-        hypothesis_id: request.hypothesis_id,
-        topology_arm: request.arm.class.clone(),
-        topology_class: request.arm.topology_class.clone(),
-        formation_class: request.formation_class,
-        scene_digest_sha256,
-        delivery_digest,
-        score,
-        pre_quantization: verified.pre_quantization_certificate().clone(),
-        post_quantization: verified.post_quantization_certificate().clone(),
-        delivery_seal: seal.clone(),
-        optimizer,
-        intra_boundary_relation_solve_trace: selected_relation_solve_trace(request.models),
-        transactions,
-    };
-    let seal_json = serde_json::to_vec(&seal).map_err(|error| {
-        refusal(
-            &hypothesis_id,
-            CandidateFailureStage::CanonicalArtifact,
-            error,
-        )
-    })?;
-    let bindings = verified.bindings().to_vec();
-    let bindings_bytes = serde_json::to_vec(&bindings)
-        .map_err(|error| {
+        .map_err(|error| refusal(&hypothesis_id, CandidateFailureStage::DeliverySeal, error))?;
+        let scene_json = vice_ir::canonical_scene_bytes(verified.scene()).map_err(|error| {
             refusal(
                 &hypothesis_id,
                 CandidateFailureStage::CanonicalArtifact,
                 error,
             )
-        })?
-        .len() as u64;
-    let mut candidate = MaterializedCandidate {
-        summary,
-        score: scored,
-        bindings,
-        bindings_bytes,
-        scene_json,
-        plan_json: delivery.plan_json,
-        pure_svg: delivery.pure_svg,
-        seam_svg: delivery.seam_svg,
-        render_png: delivery.seam_witness.png_bytes().to_vec(),
-        seal_json,
-        estimated_memory_bytes: 0,
-    };
-    candidate.estimated_memory_bytes = memory_bytes(&candidate);
-    Ok(candidate)
+        })?;
+        let delivery_digest = digest(
+            format!(
+                "{}|{}",
+                delivery.pure_witness.render_digest_sha256(),
+                delivery.seam_witness.render_digest_sha256()
+            )
+            .as_bytes(),
+        );
+        let scored = ScoredHypothesis {
+            hypothesis_id: request.hypothesis_id.clone(),
+            delivery_digest: delivery_digest.clone(),
+            topology_class: request.arm.topology_class.clone(),
+            formation_class: request.formation_class.clone(),
+            total_bits: score.total_bits,
+        };
+        let summary = CandidateSummary {
+            hypothesis_id: request.hypothesis_id,
+            topology_arm: request.arm.class.clone(),
+            topology_class: request.arm.topology_class.clone(),
+            formation_class: request.formation_class,
+            scene_digest_sha256,
+            delivery_digest,
+            score,
+            pre_quantization: verified.pre_quantization_certificate().clone(),
+            post_quantization: verified.post_quantization_certificate().clone(),
+            delivery_seal: seal.clone(),
+            optimizer,
+            intra_boundary_relation_solve_trace: selected_relation_solve_trace(request.models),
+            transactions,
+        };
+        let seal_json = serde_json::to_vec(&seal).map_err(|error| {
+            refusal(
+                &hypothesis_id,
+                CandidateFailureStage::CanonicalArtifact,
+                error,
+            )
+        })?;
+        let bindings = verified.bindings().to_vec();
+        let bindings_bytes = serde_json::to_vec(&bindings)
+            .map_err(|error| {
+                refusal(
+                    &hypothesis_id,
+                    CandidateFailureStage::CanonicalArtifact,
+                    error,
+                )
+            })?
+            .len() as u64;
+        let mut candidate = MaterializedCandidate {
+            summary,
+            score: scored,
+            bindings,
+            bindings_bytes,
+            scene_json,
+            plan_json: delivery.plan_json,
+            pure_svg: delivery.pure_svg,
+            seam_svg: delivery.seam_svg,
+            render_png: delivery.seam_witness.png_bytes().to_vec(),
+            seal_json,
+            estimated_memory_bytes: 0,
+        };
+        candidate.estimated_memory_bytes = memory_bytes(&candidate);
+        Ok(candidate)
+    })();
+    runtime.seal_and_artifact_ms = runtime
+        .seal_and_artifact_ms
+        .saturating_add(elapsed_ms(stage_started));
+    artifact_result
 }

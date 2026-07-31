@@ -17,9 +17,10 @@ use crate::config::{ConfidenceMetrics, CoreConfig, PerturbationStability};
 use crate::scene::{topology_arms, TopologyArm};
 use crate::types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal, CandidateSummary,
-    DecisionStatus, FailureReason, QualityAdmissionWitness, RuntimeSummary, SuccessArtifacts,
-    TopologyArmRefusal, TopologyEnvelopeTrace, TransactionInventory, TransactionInventoryRow,
-    VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
+    DecisionStatus, FailureReason, QualityAdmissionWitness, RuntimeStageSummary, RuntimeSummary,
+    SuccessArtifacts, TopologyArmRefusal, TopologyEnvelopeTrace, TransactionInventory,
+    TransactionInventoryRow, VectorizeOutcome, VectorizeReport, VectorizeSuccess,
+    CORE_REPORT_SCHEMA,
 };
 use crate::{Preset, VectorizeRequest};
 
@@ -47,6 +48,7 @@ struct ReportParts {
     selected_hypothesis_id: Option<String>,
     selected_boundary_bindings: Vec<vice_verify::BoundaryBinding>,
     candidate_bytes: u64,
+    runtime_stages: RuntimeStageSummary,
 }
 
 fn digest(bytes: impl AsRef<[u8]>) -> String {
@@ -89,6 +91,7 @@ fn make_report(
             elapsed_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
             candidates_scored: parts.candidates.len() as u64,
             candidate_bytes: parts.candidate_bytes,
+            stages: parts.runtime_stages,
         },
         candidates: parts.candidates,
         candidate_refusals: parts.candidate_refusals,
@@ -391,11 +394,12 @@ fn vectorize_with_admission_witness(
                 .evidence
                 .as_ref()
                 .is_none_or(|evidence| evidence.production);
-        let parts = ReportParts {
+        let mut parts = ReportParts {
             evidence: witness_report.evidence.clone(),
             quality_admission_witness: Some(certificate),
             ..ReportParts::default()
         };
+        parts.runtime_stages.quality_admission_witness_ms = prefix_elapsed_ms;
         return refuse(
             status,
             reason,
@@ -422,6 +426,11 @@ fn vectorize_with_admission_witness(
         | VectorizeOutcome::Failed(report) => report,
     };
     report.runtime.elapsed_ms = report.runtime.elapsed_ms.saturating_add(prefix_elapsed_ms);
+    report.runtime.stages.quality_admission_witness_ms = report
+        .runtime
+        .stages
+        .quality_admission_witness_ms
+        .saturating_add(prefix_elapsed_ms);
     report.runtime.candidates_scored = report
         .runtime
         .candidates_scored

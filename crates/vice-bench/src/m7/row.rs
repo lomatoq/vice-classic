@@ -417,6 +417,7 @@ pub(super) fn refusal_row(
         rasterizer: cell.profile.as_str().to_string(),
         identifiability: "measurement_refused".into(),
         core_runtime_ms: 0,
+        runtime_stages: vice_core::RuntimeStageSummary::default(),
         court_runtime_ms: 0,
         row_elapsed_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
         decision_status: "measurement_refused".into(),

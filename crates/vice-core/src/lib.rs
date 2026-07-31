@@ -23,8 +23,9 @@ pub use pipeline::{
     vectorize, vectorize_for_calibration, vectorize_with_config, vectorize_with_production_config,
 };
 pub use types::{
-    CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal, DecisionStatus,
-    FailureReason, QualityAdmissionWitness, SuccessArtifacts, TopologyArmRefusal, TopologyArmTrace,
+    CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal,
+    CandidateRuntimeSummary, DecisionStatus, FailureReason, QualityAdmissionWitness,
+    RuntimeStageSummary, SuccessArtifacts, TopologyArmRefusal, TopologyArmTrace,
     TopologyEnvelopeTrace, VectorizeOutcome, VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
 
@@ -377,6 +378,33 @@ mod tests {
             VectorizeOutcome::Success(_) | VectorizeOutcome::Failed(_)
         ));
         assert!(outcome.report().evidence.is_some());
+        let runtime = &outcome.report().runtime;
+        let stages = &runtime.stages;
+        let top_level_accounted = [
+            stages.quality_admission_witness_ms,
+            stages.input_and_evidence_ms,
+            stages.topology_ms,
+            stages.fitting_ms,
+            stages.proposal_ranking_ms,
+            stages.candidate_materialization_ms,
+        ]
+        .into_iter()
+        .sum::<u64>();
+        assert!(
+            top_level_accounted <= runtime.elapsed_ms,
+            "overlapping stage telemetry was presented as a top-level decomposition: {stages:?}"
+        );
+        let candidate_accounted = [
+            stages.candidate_detail.scene_construction_ms,
+            stages.candidate_detail.preseal_and_optimization_ms,
+            stages.candidate_detail.quantization_verification_ms,
+            stages.candidate_detail.serialized_delivery_ms,
+            stages.candidate_detail.serialized_likelihood_ms,
+            stages.candidate_detail.seal_and_artifact_ms,
+        ]
+        .into_iter()
+        .sum::<u64>();
+        assert!(candidate_accounted <= stages.candidate_materialization_ms);
         let topology = outcome
             .report()
             .topology

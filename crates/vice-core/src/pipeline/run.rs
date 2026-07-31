@@ -31,8 +31,16 @@ pub(super) fn vectorize_impl(
         formations,
         mut parts,
     } = input;
+    parts.runtime_stages.input_and_evidence_ms =
+        started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
     parts.quality_admission_witness = quality_admission_witness;
+    let stage_started = Instant::now();
     let topology = topology_arms(&evidence);
+    parts.runtime_stages.topology_ms = stage_started
+        .elapsed()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
     let proposal = topology.proposal;
     let topology_classes_upper_bound = proposal
         .envelope
@@ -116,6 +124,7 @@ pub(super) fn vectorize_impl(
         .map(|arm| arm.trace.clone())
         .collect::<Vec<_>>();
     let canvas_dim_px = f64::from(image.width_px().max(image.height_px()));
+    let stage_started = Instant::now();
     let mut fitted_arms = Vec::new();
     let mut fit_cache =
         std::collections::BTreeMap::<String, Result<vice_fit::ModelRun, String>>::new();
@@ -178,6 +187,11 @@ pub(super) fn vectorize_impl(
             variants,
         });
     }
+    parts.runtime_stages.fitting_ms = stage_started
+        .elapsed()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
     parts.topology = Some(TopologyEnvelopeTrace {
         proposal,
         materialized_arms: topology_traces,
@@ -277,6 +291,7 @@ pub(super) fn vectorize_impl(
     materialization_order.truncate(config.beam.budget.max_candidates_considered);
     // M6's evidence/description ordering may not monopolize M7's expensive
     // serialized slots, so reorder one bounded prefix by the real likelihood.
+    let stage_started = Instant::now();
     let mandatory_relation_materializations = rank_materializations(
         &mut materialization_order,
         diversity_seed_materializations,
@@ -288,6 +303,11 @@ pub(super) fn vectorize_impl(
         request,
         config,
     );
+    parts.runtime_stages.proposal_ranking_ms = stage_started
+        .elapsed()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
     let scheduled_materializations = materialization_order.len();
     if mandatory_relation_materializations > config.beam.budget.max_materializations {
         return refuse(
@@ -315,6 +335,7 @@ pub(super) fn vectorize_impl(
     // Candidate membership is a function of content and declared work units,
     // never scheduler speed. Wall-clock exhaustion is reported after this
     // deterministic prefix has completed.
+    let stage_started = Instant::now();
     for (topology_index, variant_index, formation_index) in materialization_order {
         let bundle = &fitted_arms[topology_index];
         let variant = &bundle.variants[variant_index];
@@ -373,12 +394,18 @@ pub(super) fn vectorize_impl(
                 config,
             },
             &mut candidate_cache,
+            &mut parts.runtime_stages.candidate_detail,
         );
         match built {
             Ok(candidate) => candidates.push(candidate),
             Err(error) => candidate_refusals.push(error),
         }
     }
+    parts.runtime_stages.candidate_materialization_ms = stage_started
+        .elapsed()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
     candidates.sort_by(|left, right| {
         left.score
             .total_bits

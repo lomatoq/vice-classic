@@ -49,6 +49,7 @@ fn synthetic_row(group: &str) -> MeasurementRow {
         rasterizer: "tiny-skia".into(),
         identifiability: "identifiable".into(),
         core_runtime_ms: 1,
+        runtime_stages: vice_core::RuntimeStageSummary::default(),
         court_runtime_ms: 1,
         row_elapsed_ms: 2,
         decision_status: "measurement_refused".into(),

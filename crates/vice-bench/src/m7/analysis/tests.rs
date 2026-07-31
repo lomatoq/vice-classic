@@ -35,6 +35,7 @@ fn row(index: usize, catastrophic: bool) -> MeasurementRow {
         rasterizer: "tiny-skia".into(),
         identifiability: "identifiable".into(),
         core_runtime_ms: 100,
+        runtime_stages: vice_core::RuntimeStageSummary::default(),
         court_runtime_ms: 1,
         row_elapsed_ms: 101,
         decision_status: "ambiguous".into(),

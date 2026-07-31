@@ -43,7 +43,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{FixtureOrigin, GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v17";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v18";
 pub const M7_ALL_SPLIT_POPULATION_POLICY: &str = "vice-classic/m7-population/all-split-groups/v1";
 pub const M7_SEALED_POPULATION_POLICY: &str = M7_SUCCESSOR_POPULATION_POLICY;
 pub const M7_RELEASE_PROCEDURAL_VARIANTS: usize = M7_SUCCESSOR_PROCEDURAL_VARIANTS;
@@ -237,6 +237,7 @@ pub struct MeasurementRow {
     pub rasterizer: String,
     pub identifiability: String,
     pub core_runtime_ms: u64,
+    pub runtime_stages: vice_core::RuntimeStageSummary,
     pub court_runtime_ms: u64,
     pub row_elapsed_ms: u64,
     pub decision_status: String,
@@ -503,6 +504,7 @@ fn measure_one(
         rasterizer: cell.profile.as_str().to_string(),
         identifiability: fixture.identifiability.as_str().to_string(),
         core_runtime_ms: report.runtime.elapsed_ms,
+        runtime_stages: report.runtime.stages.clone(),
         court_runtime_ms: 0,
         row_elapsed_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
         decision_status: format!("{:?}", report.status).to_lowercase(),

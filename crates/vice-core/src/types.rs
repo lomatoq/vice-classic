@@ -1,6 +1,6 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v11";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v12";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -31,6 +31,34 @@ pub struct RuntimeSummary {
     pub elapsed_ms: u64,
     pub candidates_scored: u64,
     pub candidate_bytes: u64,
+    pub stages: RuntimeStageSummary,
+}
+
+/// Production-observable wall-clock decomposition. These values are
+/// diagnostic telemetry only: no decision, candidate membership, score, or
+/// confidence branch may read them.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeStageSummary {
+    pub quality_admission_witness_ms: u64,
+    pub input_and_evidence_ms: u64,
+    pub topology_ms: u64,
+    pub fitting_ms: u64,
+    pub proposal_ranking_ms: u64,
+    pub candidate_materialization_ms: u64,
+    pub candidate_detail: CandidateRuntimeSummary,
+}
+
+/// Sub-stages inside candidate materialization. These overlap
+/// `candidate_materialization_ms` and therefore must not be added to it when
+/// reconstructing the top-level elapsed time.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CandidateRuntimeSummary {
+    pub scene_construction_ms: u64,
+    pub preseal_and_optimization_ms: u64,
+    pub quantization_verification_ms: u64,
+    pub serialized_delivery_ms: u64,
+    pub serialized_likelihood_ms: u64,
+    pub seal_and_artifact_ms: u64,
 }
 
 /// Production-observable admission certificate for the wider Quality lane.
