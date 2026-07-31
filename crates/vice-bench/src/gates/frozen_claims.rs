@@ -501,7 +501,7 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
             GateExpectation::num(crate::geometry::GATE_MIN_PRIMITIVE_SELECTED_ROWS as f64),
         ),
         // --- M7 selective delivery --------------------------------
-        // The preset-dependent values are the complete generation-3
+        // The preset-dependent values are the complete generation-4
         // calibration outputs frozen for M7. Keeping the preset dimension
         // here prevents the F-0138 scalar-gate collapse.
         (
@@ -522,42 +522,42 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         (
             "m7_selective",
             "quality_posterior_lower_bound_threshold",
-            GateExpectation::num(0.000_513_723_188_423_131_5),
+            GateExpectation::num(0.000_526_476_012_730_330_5),
         ),
         (
             "m7_selective",
             "quality_empirical_unexplored_relative_mass_upper_bound",
-            GateExpectation::num(1944.0),
+            GateExpectation::num(1896.0),
         ),
         (
             "m7_selective",
             "quality_gate_max_posterior_predictive_bits_per_block",
-            GateExpectation::num(0.226_298_997_786_858_58),
+            GateExpectation::num(0.249_761_695_832_955_54),
         ),
         (
             "m7_selective",
             "quality_gate_max_support_isotopy_displacement_px",
-            GateExpectation::num(0.780_279_568_628_516_7),
+            GateExpectation::num(0.776_890_594_215_616_9),
         ),
         (
             "m7_selective",
             "fast_posterior_lower_bound_threshold",
-            GateExpectation::num(0.001_041_147_903_033_478_6),
+            GateExpectation::num(0.001_581_236_510_458_300_8),
         ),
         (
             "m7_selective",
             "fast_empirical_unexplored_relative_mass_upper_bound",
-            GateExpectation::num(957.0),
+            GateExpectation::num(629.0),
         ),
         (
             "m7_selective",
             "fast_gate_max_posterior_predictive_bits_per_block",
-            GateExpectation::num(0.226_298_997_786_858_58),
+            GateExpectation::num(0.242_510_996_004_153_24),
         ),
         (
             "m7_selective",
             "fast_gate_max_support_isotopy_displacement_px",
-            GateExpectation::num(0.780_279_568_628_516_7),
+            GateExpectation::num(0.757_582_927_178_493),
         ),
         (
             "m7_selective",

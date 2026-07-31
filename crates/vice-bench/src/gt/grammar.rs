@@ -261,7 +261,7 @@ mod tests {
         assert_ne!(
             current.next_u64(),
             previous.next_u64(),
-            "generation 3 must not reuse burned generation 2 fixture bytes"
+            "the successor generation must not reuse burned generation 2 fixture bytes"
         );
     }
 
