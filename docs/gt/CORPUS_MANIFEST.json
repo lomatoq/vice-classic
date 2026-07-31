@@ -1,8 +1,19 @@
 {
-  "schema": "vice-classic/gt-corpus/v1",
+  "schema": "vice-classic/gt-corpus/v2",
   "platform": {
     "os": "windows",
     "arch": "x86_64"
+  },
+  "procedural_generation": 1,
+  "m7_successor_population": {
+    "procedural_generation": 2,
+    "procedural_variants_per_family": 200,
+    "split": "sealed_audit",
+    "population_policy": "vice-classic/m7-population/generation-bound-procedural-only/v1",
+    "source_groups": 1000,
+    "scenes": 1000,
+    "generator_source_sha256": "31cb38217091a4cff8d90be1128b20514a035ff7567a01ff8b6b00f1a23eb58d",
+    "population_commitment_sha256": "fe42e461a0acad878a2c0c6413da2a90e1242c60c291a32d27958a016e2d5720"
   },
   "procedural_variants_per_family": 4,
   "split_policy_version": "vice-classic/gt-split/v1",
@@ -38,7 +49,7 @@
       "scenes": [
         {
           "id": "adv/ambiguous/bridge-or-gap#bridged",
-          "scene_digest_sha256": "e43372c2feb878002efc6f48b41b27ee4d6b966581db414c88c3a7ee35476a5d",
+          "scene_digest_sha256": "63a6cb9d25b17cb5080a010869df0578f00fa61601fd60c5d2e41a83dc8bcc0f",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -72,7 +83,7 @@
         },
         {
           "id": "adv/ambiguous/bridge-or-gap#split",
-          "scene_digest_sha256": "c4ab2d6a3ca5b7d6252608dca9b0fc324d1b95fea0732a7ecf5dac3b064120b9",
+          "scene_digest_sha256": "bb7aae468472bca4300ea618636095bc2692006fb644021912598fbc7ab1a817",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -118,7 +129,7 @@
       "scenes": [
         {
           "id": "adv/ambiguous/hole-or-not#holed",
-          "scene_digest_sha256": "a08a73bd373f73197cd6123d1a0756792ffb8675e5ef9edfd8298a6ce6d42bc3",
+          "scene_digest_sha256": "165a1f30bcd2568c8422a4ce51d5a6a96b9e7b5459a864fd49c6e4e262b9618e",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -154,7 +165,7 @@
         },
         {
           "id": "adv/ambiguous/hole-or-not#solid",
-          "scene_digest_sha256": "414cb9e9d153e9cb97ca676ff6566f539ad1430fd0f2cdabaeda401171bd5fa1",
+          "scene_digest_sha256": "97cd523831b7077f6ca10b6b60bd99110d497d736e1571ef1daa6ca3b2767106",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -195,7 +206,7 @@
       "scenes": [
         {
           "id": "adv/ambiguous/one-face-or-two#split",
-          "scene_digest_sha256": "5a2729b5fbc5eddc0745f9b4ebc84a5e3074ccf14ba74d0f06f0d394610bb0c2",
+          "scene_digest_sha256": "6099bd3a625ff7ba62597abb4b77bc4d61968898f83ab398a96fa942cfe561e2",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -235,7 +246,7 @@
         },
         {
           "id": "adv/ambiguous/one-face-or-two#merged",
-          "scene_digest_sha256": "c97fd5023b2f6101aba75faed15f44477bc1e9f3499154e7cb93968498df8573",
+          "scene_digest_sha256": "66efa18e1c91ff6bb030e684b88445afef6c6f4c7558b68775294cd4786d3987",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -276,7 +287,7 @@
       "scenes": [
         {
           "id": "adv/checker-corner#a",
-          "scene_digest_sha256": "2e90e9a1aeca8a0241fb56ddf1d5ac9f02366daf57fd876679956fdf77b8c196",
+          "scene_digest_sha256": "dab6378670969dfe6b1da5c5b943ad8a90af546ce2c6e8b8dc325a0d3c4a0a06",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -318,7 +329,7 @@
       "scenes": [
         {
           "id": "adv/near-tangent#a",
-          "scene_digest_sha256": "26400fa50ebb6ac4b7ecff07a1c8f9f5b34082aae2836015df98e017eac73989",
+          "scene_digest_sha256": "c90c4064085a79036fe4ce2ed9a3bd15e6c1589ab133e3fe46f8252552822fa8",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -365,7 +376,7 @@
       "scenes": [
         {
           "id": "adv/sliver#a",
-          "scene_digest_sha256": "85e7c32974d31d9b8b707d3fc62ca2677d7e172c611661e7732b7a8f079c85a3",
+          "scene_digest_sha256": "b75261033d477f55e703ed8b6aa8fd090cbc5ad3bdb8181bd165efb0c8a9f126",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -406,7 +417,7 @@
       "scenes": [
         {
           "id": "authored/bracket#a",
-          "scene_digest_sha256": "b591b78f01a23d8ded590aa3ccb6aa38a507dae05d7a1d23fdeda49d2f3b84a9",
+          "scene_digest_sha256": "5a4dbefe098cc61942ab1d04f6fce597e9035164232c4227a123ecca832b7ad8",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -451,7 +462,7 @@
       "scenes": [
         {
           "id": "authored/keyhole#a",
-          "scene_digest_sha256": "2e6a2a79ca7e6fc5be857702ec6d09cc80f406e573811b2c1c2a8929f363efac",
+          "scene_digest_sha256": "e702e75dd38094f1a8cf0c99eca87a209ae77fc1ee306de29bc5a52f642de01d",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -502,7 +513,7 @@
       "scenes": [
         {
           "id": "authored/leaf#a",
-          "scene_digest_sha256": "cefa07b480d9c863e9066e1acc4d803c04e55e2d49531c6d60d42da2c097bcc4",
+          "scene_digest_sha256": "5e7c95d63f0bef1e49cac5e110655a8bbbb7d386e0e344d6c71a4b4fc0a73dad",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -547,7 +558,7 @@
       "scenes": [
         {
           "id": "authored/lobed#a",
-          "scene_digest_sha256": "94205e3e3a0ff238d1c69f12d7d5fdb8f111199466a4efd757d3a214a5bc0e39",
+          "scene_digest_sha256": "de5bad1e6c085de50b346600bcabbafa1c00474390996c6f16f8f8eef7630c1e",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -592,7 +603,7 @@
       "scenes": [
         {
           "id": "authored/pennant#a",
-          "scene_digest_sha256": "6f2ca79052e7e2a4e09cc41979f1a137c82eb96a3564a447e5d46eae55cf4127",
+          "scene_digest_sha256": "8b4385a66542267329e6021fb9b097067ecfffab9ebe6dabf35936c0c1430145",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -637,7 +648,7 @@
       "scenes": [
         {
           "id": "authored/twotone#a",
-          "scene_digest_sha256": "e9de3e44977bcbf8fc36e3ccb780b3db8c25cb668e531aa3fb9b320adfcc8e72",
+          "scene_digest_sha256": "81d471c5881c456f5f7ba454d223e346e4fa0bce0ebc23a0c412ade08d49c633",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 1,
@@ -691,14 +702,14 @@
       "id": "proc/annulus/000",
       "origin": "procedural",
       "shape_family": "annulus",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/annulus/000#a",
-          "scene_digest_sha256": "f5ef200576403e9c34029f00fae102b96c205385d2b88479a2ec01952316bd8e",
+          "scene_digest_sha256": "2dd960e40890f1c65604de66c6b699884a238ed63d4daccec17fc2270ebde340",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -742,14 +753,14 @@
       "id": "proc/annulus/001",
       "origin": "procedural",
       "shape_family": "annulus",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/annulus/001#a",
-          "scene_digest_sha256": "27ac78e933e32336eedebda355fde3a1d6875bfbc6be2db22f202dfc5413d057",
+          "scene_digest_sha256": "f2bb4d53d7807d1d4b211e9c28d05164adb6ca14d2c91209543a8df481307c11",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -793,14 +804,14 @@
       "id": "proc/annulus/002",
       "origin": "procedural",
       "shape_family": "annulus",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/annulus/002#a",
-          "scene_digest_sha256": "e6887feb62eac92764e36ebf499b3a710ad6642d16c1f38c798c60e7d32c082e",
+          "scene_digest_sha256": "5b2aa0978221f6da8898edc52cbfbf53d55fe635382cd20a2e5c53a4e2304443",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 2,
@@ -850,14 +861,14 @@
       "id": "proc/annulus/003",
       "origin": "procedural",
       "shape_family": "annulus",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/annulus/003#a",
-          "scene_digest_sha256": "a2cfa55434b59394e2833bc5d4245b4038ae9d3527480e97d04400f2f97de216",
+          "scene_digest_sha256": "07e3e532b2b1ad1041bbd35ec70531143f378bb8f5173e99e9754420aa926fa2",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -901,14 +912,14 @@
       "id": "proc/arc_disk/000",
       "origin": "procedural",
       "shape_family": "arc_disk",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/arc_disk/000#a",
-          "scene_digest_sha256": "1c5eb324c4f488ad02f1cc6d37ab155a148cdf69cce87bd855cb970713e5268d",
+          "scene_digest_sha256": "d9e7afa98a3afe7bac15c391cb58f52f6b60ca544a946b0e32462f012bb1dcc1",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -946,14 +957,14 @@
       "id": "proc/arc_disk/001",
       "origin": "procedural",
       "shape_family": "arc_disk",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/arc_disk/001#a",
-          "scene_digest_sha256": "30ce3574b6d177ceab91ccb9669fd4af55898e4ec93bc4a30e9dcc96b33b64f9",
+          "scene_digest_sha256": "f0da2fe42f593949d02b1f9ca1df9a34eb82b2fe8451525701559972a58ab8e3",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -991,14 +1002,14 @@
       "id": "proc/arc_disk/002",
       "origin": "procedural",
       "shape_family": "arc_disk",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/arc_disk/002#a",
-          "scene_digest_sha256": "665ed8c506b6ce8cbbabc7904ac1dec2abe219bc4c3d4a7c8f5fda26a146140e",
+          "scene_digest_sha256": "3d77bf57f5602383ed39bcf72b16d8ea41a7d6ca9a753c878d4b2cd8a94ed51a",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -1042,14 +1053,14 @@
       "id": "proc/arc_disk/003",
       "origin": "procedural",
       "shape_family": "arc_disk",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/arc_disk/003#a",
-          "scene_digest_sha256": "18e8781333df1df1fe067651b9e48ed0d3eb6237607bbc1ba23d0c140dce2ae6",
+          "scene_digest_sha256": "5a553bab33c432e945f65bf69ec27b64a777e8bc273887f40129ad4bcec0d626",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -1087,14 +1098,14 @@
       "id": "proc/bezier_blob/000",
       "origin": "procedural",
       "shape_family": "bezier_blob",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/bezier_blob/000#a",
-          "scene_digest_sha256": "778ff991b4ee003633fbdf9bcaae21807b70b644f46da1a2e2443ecb27cc2e2f",
+          "scene_digest_sha256": "e06df1253d0302648b5c9f6e0fc3cf7286f6e60fe7d9a20288ad7b2d13d57870",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -1132,14 +1143,14 @@
       "id": "proc/bezier_blob/001",
       "origin": "procedural",
       "shape_family": "bezier_blob",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/bezier_blob/001#a",
-          "scene_digest_sha256": "dda01d14c60095b476962d7b5d144066ed4964835e833d827b71da4d552dc0d4",
+          "scene_digest_sha256": "7ceb73fb131d1da12f95cbbdfb4c4d8acf1c3765263247c5461f4671ba89b820",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -1177,14 +1188,14 @@
       "id": "proc/bezier_blob/002",
       "origin": "procedural",
       "shape_family": "bezier_blob",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/bezier_blob/002#a",
-          "scene_digest_sha256": "cf14799c33cdad703ab0953766da57aee7ba32d8aa27f3013a57573570d3fc24",
+          "scene_digest_sha256": "048a02e6fb9f9f782e8374b6fd2de43608288a5177fc2071bcb76f8ee010b2bd",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -1228,14 +1239,14 @@
       "id": "proc/bezier_blob/003",
       "origin": "procedural",
       "shape_family": "bezier_blob",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/bezier_blob/003#a",
-          "scene_digest_sha256": "7d20ac3bad4b48a162f128fab89969821fd8caf36c627e48b5bdb9ed7aa769d8",
+          "scene_digest_sha256": "91bfab65079b0076ac6b43fb86b8cedae42cecb589677d6704b94b9dd73156e2",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -1273,14 +1284,14 @@
       "id": "proc/dot_cluster/000",
       "origin": "procedural",
       "shape_family": "dot_cluster",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/dot_cluster/000#a",
-          "scene_digest_sha256": "a01ceefc13d1aa95adf672fe84d0abfcf2cebc1dcb33d341c3a1d19d34cc153f",
+          "scene_digest_sha256": "b9768a3ea38c2c76df1b380146abfcbd1f0495d5301f07f300c670a4e85641e1",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 0,
@@ -1330,14 +1341,14 @@
       "id": "proc/dot_cluster/001",
       "origin": "procedural",
       "shape_family": "dot_cluster",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/dot_cluster/001#a",
-          "scene_digest_sha256": "dcb8491bcd330805735176ed4165164d2cfbccafa31b7ee701b3ed5b98a34e57",
+          "scene_digest_sha256": "5a6172d590e46155070026118e268a49e486e54797b6fffedb1acf18e74c4b82",
           "partition_truth": {
             "visible_faces": 4,
             "holes": 0,
@@ -1393,14 +1404,14 @@
       "id": "proc/dot_cluster/002",
       "origin": "procedural",
       "shape_family": "dot_cluster",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/dot_cluster/002#a",
-          "scene_digest_sha256": "47c127c7b876ff309fb992a6b9461574cb4b33a4506588daae9574e56c75d3e2",
+          "scene_digest_sha256": "5506329cf308a35a7ac8c603722536d030138c934ffe3f39dcedb9fabafd2e9c",
           "partition_truth": {
             "visible_faces": 6,
             "holes": 5,
@@ -1468,14 +1479,14 @@
       "id": "proc/dot_cluster/003",
       "origin": "procedural",
       "shape_family": "dot_cluster",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/dot_cluster/003#a",
-          "scene_digest_sha256": "c724724cf19b19fa7dd0f063cbf3f5f4ac28c7c9f489abe5fd88884146fc6b13",
+          "scene_digest_sha256": "f8e1e2d651730ed48e11a935aa5c01a2c92058409b72964a8f0b2043565c7489",
           "partition_truth": {
             "visible_faces": 6,
             "holes": 0,
@@ -1543,14 +1554,14 @@
       "id": "proc/l_shape/000",
       "origin": "procedural",
       "shape_family": "l_shape",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/l_shape/000#a",
-          "scene_digest_sha256": "01fe929372e631706c0e89642234c1bd5530a28fe4c5e27e4865a96c06555e1e",
+          "scene_digest_sha256": "e123ac91a534ae2a6da64f149b9876020817e47186588ed4c7e79317e68883f7",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -1594,14 +1605,14 @@
       "id": "proc/l_shape/001",
       "origin": "procedural",
       "shape_family": "l_shape",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/l_shape/001#a",
-          "scene_digest_sha256": "b7c5ef69ef9623b00230c582f0c09aa8bed75782a8bcb24799f8b2ca64a44caf",
+          "scene_digest_sha256": "fda65e8bc36797fbe53bf208290657f3be7f74e8c77f3ca6dedbd3caf944d64d",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -1645,14 +1656,14 @@
       "id": "proc/l_shape/002",
       "origin": "procedural",
       "shape_family": "l_shape",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/l_shape/002#a",
-          "scene_digest_sha256": "124d470a3144e1a00b5ddeb2f5debcc32cc76835effb9f7a701a7727f4abf1a4",
+          "scene_digest_sha256": "bbef04b0c30e2f9378c27b70a0e3d16e84674c7fdd6a2baac38486bad9e1ffce",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -1702,14 +1713,14 @@
       "id": "proc/l_shape/003",
       "origin": "procedural",
       "shape_family": "l_shape",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "calibration",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/l_shape/003#a",
-          "scene_digest_sha256": "5d479cb51ad8acb123b2d4708fed63a9f91dcce319038ce859e8d5fdea2363ed",
+          "scene_digest_sha256": "ea8fbbb106ad7fbf9f633897ea41bf3d5bb9bd29c0686e1a6d917048ab6317b0",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -1753,14 +1764,14 @@
       "id": "proc/nested_island/000",
       "origin": "procedural",
       "shape_family": "nested_island",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/nested_island/000#a",
-          "scene_digest_sha256": "f28735603aa8dc4f3569e6062cfc3c5881ce1e61283cf71a98a0d2e918b506d5",
+          "scene_digest_sha256": "d9e8c99a66c754ebbd374dde823ae84af0ffb5088a8f5f11ae116f7d26a45198",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 2,
@@ -1810,14 +1821,14 @@
       "id": "proc/nested_island/001",
       "origin": "procedural",
       "shape_family": "nested_island",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/nested_island/001#a",
-          "scene_digest_sha256": "f8e1e70965b4bde463202c70e8ceb7e623530bc207b9b620994ea1c64e353f07",
+          "scene_digest_sha256": "11146d948678c415a3a094a78aec2fff10d84daad9019546c3229494029ff582",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 2,
@@ -1867,14 +1878,14 @@
       "id": "proc/nested_island/002",
       "origin": "procedural",
       "shape_family": "nested_island",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/nested_island/002#a",
-          "scene_digest_sha256": "6307f212353e0fe051eb9529a516e2b19cc55d84dcc44f3e22f0c3cbc829143d",
+          "scene_digest_sha256": "12ad745e778ef85e62584b4a499bf6935ac0e7079b6d044d1fa2f25c645ac866",
           "partition_truth": {
             "visible_faces": 4,
             "holes": 3,
@@ -1930,14 +1941,14 @@
       "id": "proc/nested_island/003",
       "origin": "procedural",
       "shape_family": "nested_island",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/nested_island/003#a",
-          "scene_digest_sha256": "069ea5bc7f5fd1f31216c4aa9db066d5855b41ca85699a9ac10b6abe9d54de0f",
+          "scene_digest_sha256": "e56027b8bb204130e53f3261c3d6d7070e49f1baee42060879f582cc3356f306",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 2,
@@ -1987,14 +1998,14 @@
       "id": "proc/polygon/000",
       "origin": "procedural",
       "shape_family": "polygon",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/polygon/000#a",
-          "scene_digest_sha256": "30ac90512883af25e12651914655bdc6471b796cade1371e93b520aae675c8ef",
+          "scene_digest_sha256": "83acfb8fbec6518631dc366301844d58ab1dd9584116114a8e8f2e51f8be5b6a",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2038,14 +2049,14 @@
       "id": "proc/polygon/001",
       "origin": "procedural",
       "shape_family": "polygon",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/polygon/001#a",
-          "scene_digest_sha256": "c9200e208179f5c0812f7dc1e3bf757dea5dcbb64301c0c7f03e2d2279c1530e",
+          "scene_digest_sha256": "26db50935b13a55c096ebcd12de503219474f8daa62464c3272911d068057a56",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2089,14 +2100,14 @@
       "id": "proc/polygon/002",
       "origin": "procedural",
       "shape_family": "polygon",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/polygon/002#a",
-          "scene_digest_sha256": "90a48cae4d628dcc32af5282f6d3c17301a8cb134ca123b47b7f9359d50f39d3",
+          "scene_digest_sha256": "57e5a8ca09ce86eb900486d61f16c17d98e165e3b6d72573e85e702ec3e17b75",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -2146,14 +2157,14 @@
       "id": "proc/polygon/003",
       "origin": "procedural",
       "shape_family": "polygon",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/polygon/003#a",
-          "scene_digest_sha256": "d9428e2cb98c8b0762c2e1997f3d6dcfc8819a36cec939ce9dc3ec44c69294b3",
+          "scene_digest_sha256": "86b22286fad3dc62d33a6a89ffa5ed7a4370ee1eef6fd80331b3f452b181af9a",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2197,14 +2208,14 @@
       "id": "proc/shared_edge/000",
       "origin": "procedural",
       "shape_family": "shared_edge",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/shared_edge/000#a",
-          "scene_digest_sha256": "89fb5036dc7638130ae0072088f7165f5efbf8e4645bf41486a48445e4ff56c6",
+          "scene_digest_sha256": "19bbe69fc1675aee085d00beec56a1527f8d619f8eac506ed57dca34654c2a5c",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -2258,14 +2269,14 @@
       "id": "proc/shared_edge/001",
       "origin": "procedural",
       "shape_family": "shared_edge",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/shared_edge/001#a",
-          "scene_digest_sha256": "ee8831a54fb0417e12b48418a0a14b3803b353eee8ca68ebdc0304bc4ebe0e5d",
+          "scene_digest_sha256": "1aea3846c831930570c934820354f17facb83e64c9df8951c14cffbe20b3d4cb",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -2319,14 +2330,14 @@
       "id": "proc/shared_edge/002",
       "origin": "procedural",
       "shape_family": "shared_edge",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/shared_edge/002#a",
-          "scene_digest_sha256": "b4e9d16726646b0b5eb5215a4b6b00870824bdaba6b268962af31326cc1a4e51",
+          "scene_digest_sha256": "6e0a8956f6dc0a7a617188f4c9f9650de62d5dc97302977c9102c6a8fff523d1",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 1,
@@ -2386,14 +2397,14 @@
       "id": "proc/shared_edge/003",
       "origin": "procedural",
       "shape_family": "shared_edge",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/shared_edge/003#a",
-          "scene_digest_sha256": "308cc1741f65e25a25c9233b5a6b97c09ddb426274a0498eefcb083efcb90a1c",
+          "scene_digest_sha256": "2f70c0ba2254ccdde1466090f1f8a07067446f527975e990a05e49623e725aa5",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -2447,14 +2458,14 @@
       "id": "proc/star/000",
       "origin": "procedural",
       "shape_family": "star",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/star/000#a",
-          "scene_digest_sha256": "c3587135b3261dc6504668390cac31dff75c244c948ff313c54db0a17a690c89",
+          "scene_digest_sha256": "19f47528355962c776d65e60e1a5078a09b5729406a7bfd8ce7ff47eb84cc211",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2498,14 +2509,14 @@
       "id": "proc/star/001",
       "origin": "procedural",
       "shape_family": "star",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/star/001#a",
-          "scene_digest_sha256": "f7d321580cae5abe9b814ce073b7385d41edf12d71ed2e4dbca0d27519f3badc",
+          "scene_digest_sha256": "0bf911c722714acf5da7dac0fdb9c5cf4114fec1da85d78678a54fae18bcc8e9",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2549,14 +2560,14 @@
       "id": "proc/star/002",
       "origin": "procedural",
       "shape_family": "star",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/star/002#a",
-          "scene_digest_sha256": "54ee85184445b89b73c3cde157d2bd02b08707cfef3c2c400d925aa48d7fa46c",
+          "scene_digest_sha256": "8a7d8dff97e7be5a7d19fe3249c8cd1f14a183169b05c65b00ad298f3fc09f37",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -2606,14 +2617,14 @@
       "id": "proc/star/003",
       "origin": "procedural",
       "shape_family": "star",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/star/003#a",
-          "scene_digest_sha256": "65f420d9819ae91439700ada192cf527788d155bb872231d2ad50824e27a786a",
+          "scene_digest_sha256": "e12ded372e0477bf972aa48782c30c869746b75391c53c962597f02cdef38807",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2657,14 +2668,14 @@
       "id": "proc/thin_bridge/000",
       "origin": "procedural",
       "shape_family": "thin_bridge",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/thin_bridge/000#a",
-          "scene_digest_sha256": "537303741a79caf5e886ae38a59c781c271c2f9c1ffad213bea7e72a4dab93df",
+          "scene_digest_sha256": "79ca6e556465fe736f7f2a17db16e4dee353ae2320b0505947668417ad523aa1",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2706,14 +2717,14 @@
       "id": "proc/thin_bridge/001",
       "origin": "procedural",
       "shape_family": "thin_bridge",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/thin_bridge/001#a",
-          "scene_digest_sha256": "5ffb1b1f205fc27f6e5002f842756829cc7eca528e6e84ced7c84c0c31ba7c57",
+          "scene_digest_sha256": "4ca8e535a06e02cfc0ab6029dadc93292ff03ed1465529cbbc625bf7a9ab7a84",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2755,14 +2766,14 @@
       "id": "proc/thin_bridge/002",
       "origin": "procedural",
       "shape_family": "thin_bridge",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/thin_bridge/002#a",
-          "scene_digest_sha256": "f03dca216afd21fbad9d05f2774e950f8248ff94f465f5ff7f1694d498968740",
+          "scene_digest_sha256": "c218b5a47eb83919bb02eeae01520b2e0afd3b0bd3364d354bb32481b85d7904",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 1,
@@ -2810,14 +2821,14 @@
       "id": "proc/thin_bridge/003",
       "origin": "procedural",
       "shape_family": "thin_bridge",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "sealed_audit",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/thin_bridge/003#a",
-          "scene_digest_sha256": "e08004c04f73067de7b5c3b09d7f585a5a5aed7b5590cee1529ef6616101a4b8",
+          "scene_digest_sha256": "fe0a7147dd2c0958ab306d0e643f2c560c4571266dfc5448ed48b83a0ec81b10",
           "partition_truth": {
             "visible_faces": 1,
             "holes": 0,
@@ -2859,14 +2870,14 @@
       "id": "proc/triple_junction/000",
       "origin": "procedural",
       "shape_family": "triple_junction",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/triple_junction/000#a",
-          "scene_digest_sha256": "78ad3df3d2c75e70a7bbc09270a9ded816fd7791b6cb49eead94c13058a8a619",
+          "scene_digest_sha256": "930938c76d6d9d65f9e1c8255d3c3432439c82e0091beef869eb0d4d3d8a7e2c",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 0,
@@ -2922,14 +2933,14 @@
       "id": "proc/triple_junction/001",
       "origin": "procedural",
       "shape_family": "triple_junction",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/triple_junction/001#a",
-          "scene_digest_sha256": "a510921bc4d65583861a0d49ad5d9616624a22cfc6ede7b9fcc776b0a4e89139",
+          "scene_digest_sha256": "f85496a7359174bfdc1b08e682250dcd72483735ff299c3b569ebec9154b39f2",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 0,
@@ -2985,14 +2996,14 @@
       "id": "proc/triple_junction/002",
       "origin": "procedural",
       "shape_family": "triple_junction",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/triple_junction/002#a",
-          "scene_digest_sha256": "fdbaa53465fecca19d3cd66802b28a09e9604111dad040ec3b2c19dc55da94f5",
+          "scene_digest_sha256": "86f40cce8edbc8c781cdd34b70174db8c26e97033beb63f27c0b1aea50f6ad4e",
           "partition_truth": {
             "visible_faces": 4,
             "holes": 1,
@@ -3054,14 +3065,14 @@
       "id": "proc/triple_junction/003",
       "origin": "procedural",
       "shape_family": "triple_junction",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/triple_junction/003#a",
-          "scene_digest_sha256": "03f9e4390c827cdfb56874db48f20bf3cdcb3a4e0885fd899a5747818507b5c1",
+          "scene_digest_sha256": "d2d2c5c319c4594d755462b840b4e34548cb44eef09455f4b18ca277cfce73e0",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 0,
@@ -3117,14 +3128,14 @@
       "id": "proc/two_islands/000",
       "origin": "procedural",
       "shape_family": "two_islands",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/two_islands/000#a",
-          "scene_digest_sha256": "ce78f97e986815ae4d24cc0d0866cfb1e7409d677461f6d6453f4f0fab829e17",
+          "scene_digest_sha256": "bcba20581a4cdd5f309ba54b8e89e6c7145b623a1fb4973cec0436558b91652c",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -3172,14 +3183,14 @@
       "id": "proc/two_islands/001",
       "origin": "procedural",
       "shape_family": "two_islands",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/two_islands/001#a",
-          "scene_digest_sha256": "2c55cf047edcb5648143994975388600bea6abd4d46d6e57d598ad3a245b6b52",
+          "scene_digest_sha256": "029ea69fe43d53b9faef65db6f521f468104ebfc925f0f24478c18e39b7f2873",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
@@ -3227,14 +3238,14 @@
       "id": "proc/two_islands/002",
       "origin": "procedural",
       "shape_family": "two_islands",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/two_islands/002#a",
-          "scene_digest_sha256": "b2b2d92d018f9fe3a20e31413523e55dcec7131dca1c8404f2e58e974a6a037d",
+          "scene_digest_sha256": "343329039811702ff3ee7c7c5abf1a07f11b7188540aa4db38f73b65e0945780",
           "partition_truth": {
             "visible_faces": 3,
             "holes": 2,
@@ -3288,14 +3299,14 @@
       "id": "proc/two_islands/003",
       "origin": "procedural",
       "shape_family": "two_islands",
-      "provenance": "generated by vice-bench gt::grammar in this repository",
+      "provenance": "generated by vice-bench gt::grammar procedural generation 1 in this repository",
       "split": "development",
       "intentionally_ambiguous": false,
       "equivalence_class": null,
       "scenes": [
         {
           "id": "proc/two_islands/003#a",
-          "scene_digest_sha256": "f49943afdfd6f1d7d46ccf179ebf07c076c8f6b8b557c488c45e15e8582da2cc",
+          "scene_digest_sha256": "9820d9f3cc9f92d1177521ae118cbcdd914a704d8553a01e5e05d7444c88e1d0",
           "partition_truth": {
             "visible_faces": 2,
             "holes": 0,
