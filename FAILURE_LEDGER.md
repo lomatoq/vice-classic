@@ -5059,10 +5059,18 @@ Performance work after observing such a result is audit-driven tuning, so the
 opened generation must be burned and the next release attempt must use a
 fresh independently rekeyed population.
 
-**Status.** Open blocker. Generation 2 is recorded burned. Before generation
-3 is created, diagnose the full production-observable cost surface on
-development/calibration data, remove the algorithmic source of the 512 px
-tail without weakening correctness, confidence, search-mass, or delivery
-checks, and prove both Quality <= 10 s and Fast <= 1 s on isolated calibration
-courts. Only then may gates and production configs be re-frozen and a fresh
-successor population opened.
+**Correction after policy audit.** The monotone count was arithmetically
+correct but applied to the wrong kind of threshold. Spec §29 calls 10 s/1 s a
+"provisional M7 research target"; `m7::release` and `m7::analysis` both set
+`runtime_release_blocking = false`, omit a runtime miss from refusals, and
+make deterministic work-unit/memory bounds the hard resource contract.
+Therefore the partial run never proved an M7 release gate unreachable and
+must not have been stopped for that reason.
+
+**Status.** Closed as an invalid blocker/operator-policy failure. Generation
+2 remains burned because an opened generation is immutable and cannot be
+retroactively unburned. The raw timing remains valid non-blocking diagnostic
+evidence. A direct release-policy regression now proves that both a runtime
+hit and a runtime miss leave the M7 release refusal set unchanged. Generation
+3 must run to completion unless an actual executable hard gate becomes
+monotonically unreachable; wall clock alone is not such a gate.

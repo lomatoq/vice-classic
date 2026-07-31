@@ -7,5 +7,5 @@
   "prereg_hash": "67223533f3a4ab4d9e413d4b8e32b944523c0fb8111cfdc5201bf17fabce062b",
   "gates_hash": "fd137b55740a66b39a65fcbbb564c3c0f394269e51b4ba6c83a40cb7f61ca513",
   "opened_note": "807cbf51edebced679251c0688e08818f3f131e2",
-  "burn_reason": "generation-2 isolated Quality audit made the frozen 10 s 512 px p95 gate mathematically unreachable: 96 of the first 104 completed 512 px rows exceeded 10000 ms, while the complete 1000-row population permits at most 50"
+  "burn_reason": "operator burn, later classified as erroneous by the executable policy audit: 96 of the first 104 completed 512 px Quality rows exceeded the provisional non-blocking 10000 ms research target; generation remains irreversibly burned"
 }

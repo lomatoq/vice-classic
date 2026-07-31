@@ -161,3 +161,10 @@ fn each_preset_requires_its_own_frozen_calibration_gate() {
         gates
     ));
 }
+
+#[test]
+fn a_provisional_wall_clock_miss_cannot_refuse_an_m7_release() {
+    assert!(!runtime_blocks_release(false));
+    assert!(!runtime_blocks_release(true));
+    assert!(M7_RUNTIME_POLICY.contains("non-blocking for release"));
+}

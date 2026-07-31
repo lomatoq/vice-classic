@@ -356,7 +356,6 @@ pub fn analyze_calibration(
     // M7-37's finite elapsed/memory/evaluation caps remain hard release gates.
     // Confidence calibration itself is worker-count invariant and must not be
     // withheld merely because the complete corpus used bounded parallelism.
-    const RUNTIME_RELEASE_BLOCKING: bool = false;
     const RUNTIME_POLICY: &str = "provisional M7 research diagnostic on an isolated 512px run; \
                                   non-blocking for confidence/release, with bounded elapsed, \
                                   memory, hypothesis, and render budgets enforced separately";
@@ -393,7 +392,7 @@ pub fn analyze_calibration(
         runtime_limit_ms,
         runtime_isolated,
         runtime_met,
-        runtime_release_blocking: RUNTIME_RELEASE_BLOCKING,
+        runtime_release_blocking: super::release::M7_RUNTIME_RELEASE_BLOCKING,
         runtime_policy: RUNTIME_POLICY,
         threshold_evaluations,
         selected_threshold,

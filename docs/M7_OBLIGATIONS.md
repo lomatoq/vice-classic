@@ -96,6 +96,12 @@ evidence edit invalidates all prior reviews.
 | M7-39 | Keep every release claim replayable from the exact clean commit with canonical config, artifact, backend, universe, pricing, export, and renderer identities | governance | artifact replay and clean-tree checks | M7 canonical artifact |
 | M7-40 | Update traceability, reproducibility, status, failure ledger, and deferred-debt inventory without silently carrying an M5/M6 M7-owned item forward | docs | traceability/debt completeness tests | M7 documentation set |
 
+The 10 s Quality and 1 s Fast wall-clock values in spec §29 are provisional
+research diagnostics, not M7 release refusals. M7-37's deterministic work-unit,
+elapsed-cap accounting, memory, hypothesis, and render bounds remain hard. A
+wall-clock miss must be reported, but it cannot stop a sealed audit early or
+make an otherwise green release verdict fail.
+
 ## Required §30 output bundle
 
 For a successful production invocation:
@@ -133,4 +139,3 @@ reason, and any unsealed diagnostics. They must not publish a success SVG.
 8. If the audit fails, record the failed opening, burn/rekey the sealed split,
    fix on development/calibration data, and repeat the release sequence.
 9. Obtain all four independent reviews on the same exact clean SHA.
-

@@ -17,7 +17,15 @@ use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
 pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v8";
+pub const M7_RUNTIME_RELEASE_BLOCKING: bool = false;
+pub const M7_RUNTIME_POLICY: &str = "provisional M7 research diagnostic on an isolated 512px run; \
+                                     non-blocking for release, with bounded elapsed, memory, \
+                                     hypothesis, and render budgets enforced separately";
 const TARGET_BUCKET: &str = "flat2-clean-aa-identifiable-128-512";
+
+fn runtime_blocks_release(runtime_gate_met: bool) -> bool {
+    M7_RUNTIME_RELEASE_BLOCKING && !runtime_gate_met
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PresetCalibrationGates {
@@ -472,10 +480,9 @@ fn analyze_preset(
     // hard M7 resource contract is the bounded-growth ledger plus process
     // memory; an honest miss remains in this verdict without converting a
     // correctness-qualified release into a refusal.
-    const RUNTIME_RELEASE_BLOCKING: bool = false;
-    const RUNTIME_POLICY: &str = "provisional M7 research diagnostic on an isolated 512px run; \
-                                  non-blocking for release, with bounded elapsed, memory, \
-                                  hypothesis, and render budgets enforced separately";
+    if runtime_blocks_release(runtime_gate_met) {
+        refusals.push("provisional wall-clock research target is not met".into());
+    }
     if !memory_gate_met {
         refusals.push("process peak memory exceeds the frozen gate".into());
     }
@@ -500,8 +507,8 @@ fn analyze_preset(
         runtime_limit_ms,
         runtime_isolated,
         runtime_gate_met,
-        runtime_release_blocking: RUNTIME_RELEASE_BLOCKING,
-        runtime_policy: RUNTIME_POLICY,
+        runtime_release_blocking: M7_RUNTIME_RELEASE_BLOCKING,
+        runtime_policy: M7_RUNTIME_POLICY,
         peak_working_set_bytes: report.peak_working_set_bytes,
         memory_gate_met,
         calibration_gate_met,
