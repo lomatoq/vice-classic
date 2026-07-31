@@ -4976,3 +4976,54 @@ invariants remain shared. A direct regression proves a Quality calibration
 cannot match the Fast record and vice versa. The subsequent gate-only freeze
 populates both records; no corpus rerun is required because the production
 candidate path and both measured identities are unchanged.
+
+## F-0139 — Wall-clock truncation changed M7 decisions and selected artifact bytes (generation-1 audit, 2026-07-31)
+
+**Found by.** An early row-level comparison of the second isolated Quality
+audit run against the completed first run at exact source commit
+`5a3a2ebe7a52a11ba3623e9609b223e338e7451f`. The second run was stopped after
+2,682 of 3,006 rows because continuing the remaining four release runs could
+no longer produce a green determinism verdict.
+
+**What happened.** Eleven completed rows already differed in the normative
+M7-36 projection. Ten retained the same typed outcome but selected different
+scene/delivery/artifact bytes; `proc/thin_bridge/009` at 512 px also changed
+from accepted `success` to `ambiguous`. The 11 rows produced 46 differing
+decision/artifact fields. This was not the earlier judge bug that compared
+diagnostic counters: the corrected v2 projection contains only typed
+decisions, selected identities and selected artifact digests.
+
+The production loop checked `Instant::elapsed()` before each optional
+serialized candidate materialization. Scheduler and machine variation
+therefore changed the number of candidates entering posterior selection.
+The same class is visible in the complete pre-fix generation-1 matrix at
+`834f8af`: Quality had 13 isolated-repeat and 5 isolated/parallel differing
+rows; Fast had 10 and 7. A deterministic tie-break cannot repair a candidate
+set whose membership was selected by wall time.
+
+**Class rule.** Wall clock may measure and report a runtime target, but it may
+not decide production candidate membership, posterior evidence, typed
+outcome, or artifact bytes. Decision-bearing search limits must be replayable
+content-bound work units. Every scheduled item omitted by such a limit must
+remain explicit unexplored mass. A wall-time miss remains a typed budget
+ledger fact rather than a hidden change in the hypothesis set.
+
+**Status.** The class-wide code repair is committed as
+`0b2e77e7cbf02e8ba2f1f2b021ca15de25f554c9`. Fast and Quality now materialize
+fixed deterministic prefixes of five and eight work units. The prefix must
+contain the proposal winner, available scene-level repetition/mirror
+hypotheses and every topology/formation/transaction diversity seed; a config
+too small for that set fails typed. Remaining work is charged to a dedicated
+materialization-budget counter and the empirical unexplored-mass bound.
+Elapsed targets remain in the ledger but no longer branch candidate
+membership.
+
+Before any full rerun, two isolated repeats and one two-worker run agreed on
+all normative decision/artifact fields for both presets on a 24-row,
+23-source calibration shard at 128 px, and for both presets on a four-row,
+three-source calibration shard at 512 px. Strict clippy for the three changed
+crates and the direct search/core regression set are green. The blocker
+remains open until the complete calibration is re-frozen and all six reports
+on a fresh sealed generation pass the executable determinism court.
+Generation 1 is a failed opening and must be recorded burned; it cannot be
+reused to tune or substantiate the repaired candidate.
