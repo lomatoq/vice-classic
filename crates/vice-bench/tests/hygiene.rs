@@ -812,6 +812,9 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         "vice-bench/src/correlation.rs",
         "vice-bench/src/gt/raster.rs",
         "vice-bench/src/gt/split.rs",
+        // M7 unit tests exercise the shared calibration/audit admission
+        // predicate directly. They do not measure, score, or freeze fixtures.
+        "vice-bench/src/m7/tests.rs",
         "vice-bench/src/topology/tests.rs",
         "vice-bench/src/topology/tests_envelope.rs",
     ];
