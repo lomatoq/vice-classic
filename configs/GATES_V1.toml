@@ -194,7 +194,7 @@ bits_per_relation = 2.584963
 # which is the loss's one structural feature.
 [geometry_pricing]
 status = "frozen"
-pricing_surface_sha256 = "1060cc132bde90a32043a9a7bca6c6936be241b38ac20523ed2f76bea0dfc691"
+pricing_surface_sha256 = "beabb5b48b9cef811356bf49f4d178fb1e6cadbb9fec76cb49ca80d2895060c6"
 
 # --- Observation noise (§17.1; measured in M4) -------------------------------
 # MEASURED, not chosen, on the development split by
