@@ -1,15 +1,15 @@
 schema = "vice-classic/m7-gate-provenance/v2"
 status = "frozen"
 milestone = "M7"
-source_commit_sha = "3349c90e27d2aa05b973d13c96bea6f1aa461fd9"
-quality_calibration_measurement_sha256 = "d2864233e2cd6ef97d041e86e97ceb7f6385f6e8d92ff5ae725e43ed4d56408f"
-fast_calibration_measurement_sha256 = "d2fff0bab821aace77e4d2bdbc0ea05760ff3d860925434b13a4f5671a57998b"
-geometry_measurement_sha256 = "019dc6030b146116b2700ead14c309411dec9151b182a721bc3d886f6c01a509"
-quality_production_config_sha256 = "7293b4568fbf70e23140839d529e51f7582b5c5756c4fcb42bc08feb9819a510"
-fast_production_config_sha256 = "beb962764eeb849b07cf3ac4ba86e209ae24a0621b2a09d584baf7e1657bee68"
-quality_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset quality --workers 2 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
+source_commit_sha = "562d96bea5e5a29df3adc9612764f0b1e0904b4a"
+quality_calibration_measurement_sha256 = "db733e16efd18f82ec8ffb971fed7398b5df60459e23aa39ec0b3bbf47bc14be"
+fast_calibration_measurement_sha256 = "65b4349b297646962f82eaf00bdb39b3952feea51b658864333f498736acdbee"
+geometry_measurement_sha256 = "1c6bc17e43b066aba27cdb1db40381638c7a7d05b1cb5295278e77623946c1e8"
+quality_production_config_sha256 = "8a950dbe023a95ef3fc075bc6abfd8e415412a5fdcb5392ef63c6c2e27cca8db"
+fast_production_config_sha256 = "5341ae899610c746582b26afb01e53a29c884d523773d0310db76abffc447bf4"
+quality_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset quality --workers 1 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
 fast_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset fast --workers 1 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
-geometry_command = "target/release/gt-corpus.exe m7-oracle-geometry-calibrate --out runs/m7/calibration-generation4-geometry.json"
+geometry_command = "target/release/gt-corpus.exe m7-oracle-geometry-calibrate --out runs/m7/calibration-generation5-geometry.json"
 asserted_gate_keys = [
   "boundary_accuracy.max_px",
   "boundary_accuracy.p95_px",
