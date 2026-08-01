@@ -39,7 +39,46 @@ fn smoke_scope_has_one_declared_non_inverse_crime_cell() {
     assert!(!cells[0].is_inverse_crime());
 }
 
-fn synthetic_row(group: &str) -> MeasurementRow {
+#[test]
+fn failed_free_chain_baseline_is_published_as_a_typed_court_refusal() {
+    let groups = groups_with_variants_filtered_for_generation(
+        MeasurementScope::Calibration.variants(),
+        M7_PROCEDURAL_GENERATION,
+        |group_id| group_id == "authored/keyhole",
+    )
+    .unwrap();
+    let group = groups
+        .iter()
+        .find(|group| group.id == "authored/keyhole")
+        .expect("development calibration contains the keyhole adversary");
+    let cell = MeasurementScope::Calibration
+        .cells()
+        .into_iter()
+        .find(|cell| cell.size_px == 128)
+        .expect("calibration declares a 128px court cell");
+    let row = measure_one(
+        &group.id,
+        &group.shape_family,
+        &group.scenes[0],
+        &cell,
+        group
+            .equivalence_class
+            .as_ref()
+            .map_or(1, |class| class.members.len()),
+        vice_core::Preset::Quality,
+        &vice_core::CoreConfig::development(),
+        true,
+    );
+    assert!(row.candidate_available);
+    assert!(row.internal_baseline.is_none());
+    assert!(!row.internal_baseline_refusals.is_empty());
+    assert!(row
+        .internal_baseline_refusals
+        .iter()
+        .all(|refusal| refusal.starts_with("Preseal:")));
+}
+
+pub(super) fn synthetic_row(group: &str) -> MeasurementRow {
     MeasurementRow {
         group_id: group.into(),
         scene_id: format!("{group}#a"),
@@ -63,6 +102,7 @@ fn synthetic_row(group: &str) -> MeasurementRow {
         selected_artifact_bundle_sha256: None,
         selected_complexity: None,
         internal_baseline: None,
+        internal_baseline_refusals: Vec::new(),
         pf_oracle: None,
         cost_refusal_histogram: Vec::new(),
         numerical_conditioning: NumericalConditioningDiagnostics::default(),
@@ -309,6 +349,7 @@ fn generation_four_failure_classes_have_a_verified_candidate_after_the_generic_r
             1,
             Preset::Fast,
             &config,
+            false,
         );
         assert!(
             row.candidate_available,
@@ -421,6 +462,7 @@ fn every_generation_four_fast_refusal_is_remeasured_in_one_preflight() {
                                 *equivalence_members,
                                 Preset::Fast,
                                 config,
+                                false,
                             );
                             let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
                             if done.is_multiple_of(25) || done == total {

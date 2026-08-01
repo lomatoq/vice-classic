@@ -15,7 +15,7 @@ use crate::gt::split::{AuditSeal, SealStatus};
 use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 
-pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v3";
+pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v4";
 
 #[derive(Debug, Clone, Copy)]
 struct CourtGates {
@@ -137,6 +137,7 @@ pub struct BlindVerdict {
 pub struct PresetBaselineVerdict {
     pub preset: vice_core::Preset,
     pub accepted_paired_rows: u64,
+    pub baseline_refused_rows: u64,
     pub paired_source_groups: u64,
     pub selected_catastrophic_source_groups: u64,
     pub baseline_catastrophic_source_groups: u64,
@@ -244,28 +245,53 @@ fn analyze_preset(
     }
     let missing = rows
         .iter()
-        .filter(|row| row.internal_baseline.is_none() || row.selected_complexity.is_none())
+        .filter(|row| {
+            (row.internal_baseline.is_none() && row.internal_baseline_refusals.is_empty())
+                || row.selected_complexity.is_none()
+        })
         .count();
     if missing != 0 {
         return Err(format!(
-            "{:?}: {missing} accepted rows lack their paired internal baseline",
+            "{:?}: {missing} accepted rows lack a measured or typed-refused internal baseline",
             report.preset
         ));
     }
+    let contradictory = rows
+        .iter()
+        .filter(|row| row.internal_baseline.is_some() && !row.internal_baseline_refusals.is_empty())
+        .count();
+    if contradictory != 0 {
+        return Err(format!(
+            "{:?}: {contradictory} accepted rows report both a measured and refused baseline",
+            report.preset
+        ));
+    }
+    let paired_rows = rows
+        .iter()
+        .copied()
+        .filter(|row| row.internal_baseline.is_some())
+        .collect::<Vec<_>>();
+    if paired_rows.is_empty() {
+        return Err(format!(
+            "{:?}: no accepted rows have a measurable paired baseline",
+            report.preset
+        ));
+    }
+    let baseline_refused_rows = rows.len().saturating_sub(paired_rows.len()) as u64;
 
-    let selected_p95 = rows
+    let selected_p95 = paired_rows
         .iter()
         .map(|row| row.boundary.as_ref().expect("accepted court row").p95_px)
         .collect::<Vec<_>>();
-    let selected_p99 = rows
+    let selected_p99 = paired_rows
         .iter()
         .map(|row| row.boundary.as_ref().expect("accepted court row").p99_px)
         .collect::<Vec<_>>();
-    let selected_max = rows
+    let selected_max = paired_rows
         .iter()
         .map(|row| row.boundary.as_ref().expect("accepted court row").max_px)
         .collect::<Vec<_>>();
-    let baseline_p95 = rows
+    let baseline_p95 = paired_rows
         .iter()
         .map(|row| {
             row.internal_baseline
@@ -275,7 +301,7 @@ fn analyze_preset(
                 .p95_px
         })
         .collect::<Vec<_>>();
-    let baseline_p99 = rows
+    let baseline_p99 = paired_rows
         .iter()
         .map(|row| {
             row.internal_baseline
@@ -285,7 +311,7 @@ fn analyze_preset(
                 .p99_px
         })
         .collect::<Vec<_>>();
-    let baseline_max = rows
+    let baseline_max = paired_rows
         .iter()
         .map(|row| {
             row.internal_baseline
@@ -316,11 +342,13 @@ fn analyze_preset(
     };
 
     let selected_complexity = sum_complexity(
-        rows.iter()
+        paired_rows
+            .iter()
             .map(|row| row.selected_complexity.as_ref().expect("checked")),
     );
     let baseline_complexity = sum_complexity(
-        rows.iter()
+        paired_rows
+            .iter()
             .map(|row| &row.internal_baseline.as_ref().expect("checked").complexity),
     );
     let ratios = [
@@ -351,6 +379,7 @@ fn analyze_preset(
     };
 
     let grouped = group_rows(&rows);
+    let paired_grouped = group_rows(&paired_rows);
     let selected_catastrophic_source_groups = grouped
         .values()
         .filter(|group| {
@@ -362,12 +391,9 @@ fn analyze_preset(
     let baseline_catastrophic_source_groups = grouped
         .values()
         .filter(|group| {
-            group.iter().any(|row| {
-                baseline_catastrophic(
-                    row.internal_baseline.as_ref().expect("checked"),
-                    gates.release,
-                )
-            })
+            group
+                .iter()
+                .any(|row| baseline_row_catastrophic(row, gates.release))
         })
         .count() as u64;
     let catastrophic_not_worse =
@@ -390,8 +416,9 @@ fn analyze_preset(
     }
     Ok(PresetBaselineVerdict {
         preset: report.preset,
-        accepted_paired_rows: rows.len() as u64,
-        paired_source_groups: grouped.len() as u64,
+        accepted_paired_rows: paired_rows.len() as u64,
+        baseline_refused_rows,
+        paired_source_groups: paired_grouped.len() as u64,
         selected_catastrophic_source_groups,
         baseline_catastrophic_source_groups,
         catastrophic_not_worse,
@@ -413,6 +440,13 @@ fn baseline_catastrophic(baseline: &InternalBaselineMeasurement, gates: M7Releas
         || baseline.internal_to_pure_mean_channel_delta > gates.max_internal_mean_channel_delta
         || baseline.internal_to_seam_max_channel_delta > gates.max_internal_channel_delta
         || baseline.internal_to_seam_mean_channel_delta > gates.max_internal_mean_channel_delta
+}
+
+fn baseline_row_catastrophic(row: &MeasurementRow, gates: M7ReleaseGates) -> bool {
+    row.internal_baseline.as_ref().map_or_else(
+        || !row.internal_baseline_refusals.is_empty(),
+        |baseline| baseline_catastrophic(baseline, gates),
+    )
 }
 
 fn group_rows<'a>(rows: &[&'a MeasurementRow]) -> BTreeMap<String, Vec<&'a MeasurementRow>> {
@@ -450,11 +484,7 @@ fn blind_court(
             rows.iter()
                 .filter_map(|row| row.selected_artifact_bundle_sha256.as_deref()),
         );
-        let baseline_bundle = bundle_digest(rows.iter().filter_map(|row| {
-            row.internal_baseline
-                .as_ref()
-                .map(|baseline| baseline.artifact_bundle_sha256.as_str())
-        }));
+        let baseline_bundle = baseline_bundle_digest(rows);
         let commitment = hex::encode(Sha256::digest(
             format!(
                 "m7-blind-v1|{}|{}|{}|{}",
@@ -563,21 +593,20 @@ fn selected_metrics(rows: &[&MeasurementRow], gates: M7ReleaseGates) -> BlindMet
 }
 
 fn baseline_metrics(rows: &[&MeasurementRow], gates: M7ReleaseGates) -> BlindMetrics {
+    let penalty_p95 = gates.boundary_p95_px + 1.0;
+    let penalty_p99 = gates.boundary_p99_px + 1.0;
+    let penalty_max = gates.boundary_max_px + 1.0;
     BlindMetrics {
         catastrophic: rows
             .iter()
-            .filter(|row| {
-                baseline_catastrophic(row.internal_baseline.as_ref().expect("checked"), gates)
-            })
+            .filter(|row| baseline_row_catastrophic(row, gates))
             .count() as u64,
         boundary_p95_sum: rows
             .iter()
             .map(|row| {
                 row.internal_baseline
                     .as_ref()
-                    .expect("checked")
-                    .boundary
-                    .p95_px
+                    .map_or(penalty_p95, |baseline| baseline.boundary.p95_px)
             })
             .sum(),
         boundary_p99_sum: rows
@@ -585,9 +614,7 @@ fn baseline_metrics(rows: &[&MeasurementRow], gates: M7ReleaseGates) -> BlindMet
             .map(|row| {
                 row.internal_baseline
                     .as_ref()
-                    .expect("checked")
-                    .boundary
-                    .p99_px
+                    .map_or(penalty_p99, |baseline| baseline.boundary.p99_px)
             })
             .sum(),
         boundary_max: rows
@@ -595,42 +622,39 @@ fn baseline_metrics(rows: &[&MeasurementRow], gates: M7ReleaseGates) -> BlindMet
             .map(|row| {
                 row.internal_baseline
                     .as_ref()
-                    .expect("checked")
-                    .boundary
-                    .max_px
+                    .map_or(penalty_max, |baseline| baseline.boundary.max_px)
             })
             .fold(0.0, f64::max),
         palette_sum: rows
             .iter()
             .map(|row| {
-                u64::from(
-                    row.internal_baseline
-                        .as_ref()
-                        .expect("checked")
-                        .max_palette_code_delta,
-                )
+                row.internal_baseline
+                    .as_ref()
+                    .map_or(u64::from(gates.max_palette_code_delta) + 1, |baseline| {
+                        u64::from(baseline.max_palette_code_delta)
+                    })
             })
-            .sum(),
+            .fold(0u64, u64::saturating_add),
         curve_segments: rows
             .iter()
             .map(|row| {
                 row.internal_baseline
                     .as_ref()
-                    .expect("checked")
-                    .complexity
-                    .curve_segments
+                    .map_or(u64::MAX / 1024, |baseline| {
+                        baseline.complexity.curve_segments
+                    })
             })
-            .sum(),
+            .fold(0u64, u64::saturating_add),
         delivery_bytes: rows
             .iter()
             .map(|row| {
                 row.internal_baseline
                     .as_ref()
-                    .expect("checked")
-                    .complexity
-                    .canonical_delivery_bytes
+                    .map_or(u64::MAX / 1024, |baseline| {
+                        baseline.complexity.canonical_delivery_bytes
+                    })
             })
-            .sum(),
+            .fold(0u64, u64::saturating_add),
     }
 }
 
@@ -663,6 +687,23 @@ fn bundle_digest<'a>(digests: impl Iterator<Item = &'a str>) -> String {
         hash.update(digest.as_bytes());
     }
     hex::encode(hash.finalize())
+}
+
+fn baseline_bundle_digest(rows: &[&MeasurementRow]) -> String {
+    let mut entries = Vec::new();
+    for row in rows {
+        if let Some(baseline) = &row.internal_baseline {
+            entries.push(baseline.artifact_bundle_sha256.clone());
+        } else {
+            for refusal in &row.internal_baseline_refusals {
+                entries.push(hex::encode(Sha256::digest(
+                    format!("m7-baseline-refusal-v1|{}|{refusal}", row.cell_id).as_bytes(),
+                )));
+            }
+        }
+    }
+    entries.sort_unstable();
+    bundle_digest(entries.iter().map(String::as_str))
 }
 
 fn sum_complexity<'a>(values: impl Iterator<Item = &'a SceneComplexity>) -> SceneComplexity {
@@ -720,31 +761,4 @@ fn one_sided_binomial_tail(wins: u64, trials: u64) -> f64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn blind_judge_is_symmetric_under_presentation_swap() {
-        let better = BlindMetrics {
-            catastrophic: 0,
-            boundary_p95_sum: 1.0,
-            boundary_p99_sum: 2.0,
-            boundary_max: 3.0,
-            palette_sum: 0,
-            curve_segments: 4,
-            delivery_bytes: 100,
-        };
-        let worse = BlindMetrics {
-            boundary_p95_sum: 2.0,
-            ..better.clone()
-        };
-        assert_eq!(judge_blind(&better, &worse), BlindChoice::Left);
-        assert_eq!(judge_blind(&worse, &better), BlindChoice::Right);
-    }
-
-    #[test]
-    fn exact_binomial_tail_has_known_values() {
-        assert!((one_sided_binomial_tail(10, 10) - 1.0 / 1024.0).abs() < 1e-12);
-        assert!((one_sided_binomial_tail(0, 10) - 1.0).abs() < 1e-12);
-    }
-}
+mod tests;

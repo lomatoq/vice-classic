@@ -1,6 +1,6 @@
 {
   "schema": "vice-classic/gt-audit-seal/v1",
-  "generation": 5,
+  "generation": 6,
   "status": "sealed",
   "policy_version": "vice-classic/gt-split/v1",
   "corpus_hash": "",

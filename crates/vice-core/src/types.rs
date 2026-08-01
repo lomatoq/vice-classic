@@ -292,6 +292,9 @@ pub struct CalibrationRun {
     /// Best verified free-chain candidate: the frozen pre-M7 internal
     /// baseline judged on exactly the same raster and delivery path.
     pub baseline: Option<CalibrationWitness>,
+    /// Typed reasons why independently materializing the frozen free-chain
+    /// baseline failed. Empty whenever `baseline` is present.
+    pub baseline_refusals: Vec<CandidateRefusal>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -20,7 +20,8 @@ pub use config::{
     M7_FAST_PRODUCTION_CONFIG_SHA256, M7_QUALITY_PRODUCTION_CONFIG_SHA256,
 };
 pub use pipeline::{
-    vectorize, vectorize_for_calibration, vectorize_with_config, vectorize_with_production_config,
+    vectorize, vectorize_for_calibration, vectorize_for_calibration_without_baseline,
+    vectorize_with_config, vectorize_with_production_config,
 };
 pub use types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal,
@@ -54,6 +55,26 @@ mod tests {
         let mut bytes = Vec::new();
         {
             let mut encoder = png::Encoder::new(&mut bytes, width as u32, height as u32);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let mut writer = encoder.write_header().unwrap();
+            writer.write_image_data(&rgba).unwrap();
+        }
+        bytes
+    }
+
+    fn square_128_png() -> Vec<u8> {
+        let size = 128usize;
+        let mut rgba = vec![0u8; size * size * 4];
+        for y in 28..100 {
+            for x in 28..100 {
+                let offset = (y * size + x) * 4;
+                rgba[offset..offset + 4].copy_from_slice(&[220, 40, 30, 255]);
+            }
+        }
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, size as u32, size as u32);
             encoder.set_color(png::ColorType::Rgba);
             encoder.set_depth(png::BitDepth::Eight);
             let mut writer = encoder.write_header().unwrap();
@@ -455,6 +476,66 @@ mod tests {
                     !block.scope.global && block.scope.roi.is_some() && block.scope.halo_px > 0
                 })
         }));
+    }
+
+    #[test]
+    fn calibration_baseline_survives_production_only_candidate_filtering() {
+        let mut config = CoreConfig::development();
+        config.k_discrete_paths = 1;
+        let png = square_128_png();
+        let request = VectorizeRequest::default();
+        let run = vectorize_for_calibration(&png, &request, &config);
+        let calibration_only = vectorize_for_calibration_without_baseline(&png, &request, &config);
+        let production_equivalent = vectorize_with_config(&png, &request, &config);
+        let baseline = run
+            .baseline
+            .as_ref()
+            .expect("a supported 128px calibration run retains its paired free-chain baseline");
+        assert!(baseline
+            .candidate
+            .hypothesis_id
+            .starts_with("baseline-free/"));
+        assert!(calibration_only.baseline.is_none());
+        assert!(calibration_only.baseline_refusals.is_empty());
+        assert_eq!(run.selected, calibration_only.selected);
+        assert_eq!(
+            run.outcome.report().status,
+            calibration_only.outcome.report().status
+        );
+        assert_eq!(
+            run.outcome.report().reason,
+            calibration_only.outcome.report().reason
+        );
+        assert_eq!(
+            run.outcome.report().candidates,
+            calibration_only.outcome.report().candidates
+        );
+        assert_eq!(
+            run.outcome.report().status,
+            production_equivalent.report().status
+        );
+        assert_eq!(
+            run.outcome.report().reason,
+            production_equivalent.report().reason
+        );
+        assert_eq!(
+            run.outcome.report().selected_hypothesis_id,
+            production_equivalent.report().selected_hypothesis_id
+        );
+        assert_eq!(
+            run.outcome
+                .report()
+                .candidates
+                .iter()
+                .map(|candidate| (&candidate.hypothesis_id, &candidate.delivery_digest))
+                .collect::<Vec<_>>(),
+            production_equivalent
+                .report()
+                .candidates
+                .iter()
+                .map(|candidate| (&candidate.hypothesis_id, &candidate.delivery_digest))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]

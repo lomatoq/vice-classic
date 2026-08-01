@@ -23,7 +23,7 @@ use crate::types::{
 };
 use crate::Intent;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct MaterializedCandidate {
     pub summary: CandidateSummary,
     pub score: ScoredHypothesis,

@@ -44,7 +44,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{FixtureOrigin, GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v21";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v22";
 pub const M7_ALL_SPLIT_POPULATION_POLICY: &str = "vice-classic/m7-population/all-split-groups/v1";
 pub const M7_CALIBRATION_POPULATION_POLICY: &str =
     "vice-classic/m7-population/calibration-flat2-supported/v2";
@@ -271,6 +271,8 @@ pub struct MeasurementRow {
     pub selected_artifact_bundle_sha256: Option<String>,
     pub selected_complexity: Option<SceneComplexity>,
     pub internal_baseline: Option<InternalBaselineMeasurement>,
+    #[serde(default)]
+    pub internal_baseline_refusals: Vec<String>,
     pub pf_oracle: Option<PfOracleMeasurement>,
     pub cost_refusal_histogram: Vec<CostRefusalCount>,
     pub numerical_conditioning: NumericalConditioningDiagnostics,
@@ -478,6 +480,7 @@ fn measure_one(
     equivalence_members: usize,
     preset: Preset,
     config: &CoreConfig,
+    capture_baseline: bool,
 ) -> MeasurementRow {
     let started = Instant::now();
     let fixture = match render_cell(truth_scene, cell, equivalence_members) {
@@ -513,7 +516,11 @@ fn measure_one(
         production: config.is_sealed_production(),
         ..VectorizeRequest::default()
     };
-    let run = vice_core::vectorize_for_calibration(&png, &request, config);
+    let run = if capture_baseline {
+        vice_core::vectorize_for_calibration(&png, &request, config)
+    } else {
+        vice_core::vectorize_for_calibration_without_baseline(&png, &request, config)
+    };
     let report = run.outcome.report();
     let mut row = MeasurementRow {
         group_id: group_id.to_string(),
@@ -538,6 +545,11 @@ fn measure_one(
         selected_artifact_bundle_sha256: None,
         selected_complexity: None,
         internal_baseline: None,
+        internal_baseline_refusals: run
+            .baseline_refusals
+            .iter()
+            .map(|refusal| format!("{:?}: {}", refusal.stage, refusal.detail))
+            .collect(),
         pf_oracle: None,
         cost_refusal_histogram: cost_refusal_histogram(report),
         numerical_conditioning: numerical_conditioning(report),

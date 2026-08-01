@@ -292,6 +292,7 @@ fn measure_resuming(
                         equivalence_members,
                         preset,
                         config,
+                        scope == MeasurementScope::SealedAudit,
                     );
                     if sender.send(row).is_err() {
                         break;

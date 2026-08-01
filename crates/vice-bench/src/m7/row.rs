@@ -431,6 +431,7 @@ pub(super) fn refusal_row(
         selected_artifact_bundle_sha256: None,
         selected_complexity: None,
         internal_baseline: None,
+        internal_baseline_refusals: Vec::new(),
         pf_oracle: None,
         cost_refusal_histogram: Vec::new(),
         numerical_conditioning: NumericalConditioningDiagnostics::default(),

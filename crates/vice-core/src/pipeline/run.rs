@@ -2,6 +2,8 @@ use super::*;
 
 mod fit;
 use fit::fit_chain;
+mod baseline;
+use baseline::{calibration_baseline_evidence, BaselineEvidenceRequest};
 mod input;
 use input::{prepare_input, PreparedInput};
 mod output;
@@ -18,6 +20,7 @@ pub(super) fn vectorize_impl(
     request: &VectorizeRequest,
     config: &CoreConfig,
     mut calibration_observer: Option<&mut CalibrationObserver<'_>>,
+    capture_baseline: bool,
     quality_admission_witness: Option<QualityAdmissionWitness>,
 ) -> VectorizeOutcome {
     let input = match prepare_input(bytes, request, config) {
@@ -328,8 +331,7 @@ pub(super) fn vectorize_impl(
     } else {
         materialization_order.truncate(candidate_limit);
     }
-    // M6's evidence/description ordering may not monopolize M7's expensive
-    // serialized slots, so reorder one bounded prefix by the real likelihood.
+    // Reorder one bounded prefix by real likelihood so M6 ordering cannot monopolize M7 slots.
     let stage_started = Instant::now();
     let mandatory_relation_materializations = rank_materializations(
         &mut materialization_order,
@@ -371,9 +373,7 @@ pub(super) fn vectorize_impl(
     materialization_order.truncate(config.beam.budget.max_materializations);
     let evaluation_truncated =
         unmaterialized_by_candidate_budget > 0 || unmaterialized_by_materialization_budget > 0;
-    // Candidate membership is a function of content and declared work units,
-    // never scheduler speed. Wall-clock exhaustion is reported after this
-    // deterministic prefix has completed.
+    // Membership follows content/work units, never scheduler speed; elapsed is reported later.
     let stage_started = Instant::now();
     for (topology_index, variant_index, formation_index) in materialization_order {
         let bundle = &fitted_arms[topology_index];
@@ -445,6 +445,18 @@ pub(super) fn vectorize_impl(
         .as_millis()
         .try_into()
         .unwrap_or(u64::MAX);
+    let (calibration_baseline, calibration_baseline_refusals) =
+        calibration_baseline_evidence(BaselineEvidenceRequest {
+            enabled: calibration_observer.is_some() && capture_baseline,
+            candidates: &candidates,
+            fitted_arms: &fitted_arms,
+            formations: &formations,
+            canvas,
+            evidence: &evidence,
+            image: &image,
+            request,
+            config,
+        });
     candidates.sort_by(|left, right| {
         left.score
             .total_bits
@@ -682,11 +694,8 @@ pub(super) fn vectorize_impl(
         selected.summary.score.pixel_bits / diagnostics.blocks as f64
     };
     let max_abs_residual_lag1 = diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs());
-    // The phase leg is a stability statement about models that survived the
-    // complete typed refit. Refused and budget-pruned proposal arms are
-    // already charged by topology entropy and unexplored search mass; treating
-    // their raw event class as a second perturbation failure double-counts the
-    // same uncertainty and makes an unsupported arm veto a verified delivery.
+    // Refused/pruned arms are already charged by entropy and unexplored mass;
+    // charging their raw events again would double-count and veto verified delivery.
     let phase_envelope_stable = fitted_phase_envelope_stable(
         fitted_arms
             .iter()
@@ -770,10 +779,11 @@ pub(super) fn vectorize_impl(
     };
     parts.confidence_metrics = Some(confidence_metrics.clone());
     if let Some(observer) = calibration_observer.as_mut() {
-        let baseline = candidates
-            .iter()
-            .find(|candidate| candidate.score.hypothesis_id.starts_with("baseline-free/"));
-        observer(selected, baseline);
+        observer(
+            selected,
+            calibration_baseline.as_ref(),
+            &calibration_baseline_refusals,
+        );
     }
     deliver(
         production,

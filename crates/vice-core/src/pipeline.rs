@@ -30,6 +30,7 @@ const SINGLE_DELIVERY_CLASS_MARGIN_BITS_V1: f64 = 1024.0;
 type CalibrationObserver<'a> = dyn FnMut(
         &crate::candidate::MaterializedCandidate,
         Option<&crate::candidate::MaterializedCandidate>,
+        &[CandidateRefusal],
     ) + 'a;
 
 #[derive(Debug, Default)]
@@ -205,7 +206,7 @@ pub fn vectorize_with_config(
     request: &VectorizeRequest,
     config: &CoreConfig,
 ) -> VectorizeOutcome {
-    vectorize_with_admission_witness(bytes, request, config, None)
+    vectorize_with_admission_witness(bytes, request, config, None, false)
 }
 
 /// Load a digest-pinned production configuration and execute the production
@@ -217,7 +218,7 @@ pub fn vectorize_with_production_config(
     path: &std::path::Path,
 ) -> VectorizeOutcome {
     match CoreConfig::load_production_for(request.preset, path) {
-        Ok(config) => vectorize_with_admission_witness(bytes, request, &config, None),
+        Ok(config) => vectorize_with_admission_witness(bytes, request, &config, None, false),
         Err(error) => {
             let config = CoreConfig::development_for(request.preset);
             // Decode failures are faults in the input, independent of release
@@ -226,7 +227,7 @@ pub fn vectorize_with_production_config(
             if vice_image::CanonicalImage::decode_png(bytes, &vice_image::DecodeLimits::default())
                 .is_err()
             {
-                return vectorize_impl(bytes, request, &config, None, None);
+                return vectorize_impl(bytes, request, &config, None, false, None);
             }
             refuse(
                 DecisionStatus::Failed,
@@ -252,8 +253,29 @@ pub fn vectorize_for_calibration(
     request: &VectorizeRequest,
     config: &CoreConfig,
 ) -> CalibrationRun {
+    vectorize_for_calibration_impl(bytes, request, config, true)
+}
+
+/// Retain the selected court witness without constructing the paired baseline.
+/// Calibration thresholds do not consume baseline evidence; the sealed release
+/// measurement uses `vectorize_for_calibration` and remains fully paired.
+pub fn vectorize_for_calibration_without_baseline(
+    bytes: &[u8],
+    request: &VectorizeRequest,
+    config: &CoreConfig,
+) -> CalibrationRun {
+    vectorize_for_calibration_impl(bytes, request, config, false)
+}
+
+fn vectorize_for_calibration_impl(
+    bytes: &[u8],
+    request: &VectorizeRequest,
+    config: &CoreConfig,
+    capture_baseline: bool,
+) -> CalibrationRun {
     let mut selected = None;
     let mut baseline = None;
+    let mut baseline_refusals = Vec::new();
     let witness = |candidate: &crate::candidate::MaterializedCandidate| CalibrationWitness {
         candidate: candidate.summary.clone(),
         scene_json: candidate.scene_json.clone(),
@@ -263,17 +285,25 @@ pub fn vectorize_for_calibration(
         rendered_png: candidate.render_png.clone(),
         seal_json: candidate.seal_json.clone(),
     };
-    let mut capture =
-        |candidate: &crate::candidate::MaterializedCandidate,
-         baseline_candidate: Option<&crate::candidate::MaterializedCandidate>| {
-            selected = Some(witness(candidate));
-            baseline = baseline_candidate.map(witness);
-        };
-    let outcome = vectorize_with_admission_witness(bytes, request, config, Some(&mut capture));
+    let mut capture = |candidate: &crate::candidate::MaterializedCandidate,
+                       baseline_candidate: Option<&crate::candidate::MaterializedCandidate>,
+                       refusals: &[CandidateRefusal]| {
+        selected = Some(witness(candidate));
+        baseline = baseline_candidate.map(witness);
+        baseline_refusals = refusals.to_vec();
+    };
+    let outcome = vectorize_with_admission_witness(
+        bytes,
+        request,
+        config,
+        Some(&mut capture),
+        capture_baseline,
+    );
     CalibrationRun {
         outcome,
         selected,
         baseline,
+        baseline_refusals,
     }
 }
 
@@ -282,6 +312,7 @@ fn vectorize_with_admission_witness(
     request: &VectorizeRequest,
     config: &CoreConfig,
     calibration_observer: Option<&mut CalibrationObserver<'_>>,
+    capture_baseline: bool,
 ) -> VectorizeOutcome {
     if request.preset != config.preset() {
         return refuse(
@@ -302,7 +333,14 @@ fn vectorize_with_admission_witness(
         );
     }
     if request.preset != Preset::Quality || !config.requires_fast_admission_witness() {
-        return vectorize_impl(bytes, request, config, calibration_observer, None);
+        return vectorize_impl(
+            bytes,
+            request,
+            config,
+            calibration_observer,
+            capture_baseline,
+            None,
+        );
     }
 
     let started = Instant::now();
@@ -311,7 +349,8 @@ fn vectorize_with_admission_witness(
     let witness_config = CoreConfig::development_for(Preset::Fast);
     let mut selected_witness = None;
     let mut capture = |candidate: &crate::candidate::MaterializedCandidate,
-                       _: Option<&crate::candidate::MaterializedCandidate>| {
+                       _: Option<&crate::candidate::MaterializedCandidate>,
+                       _: &[CandidateRefusal]| {
         selected_witness = Some(candidate.summary.clone());
     };
     let witness_outcome = vectorize_impl(
@@ -319,6 +358,7 @@ fn vectorize_with_admission_witness(
         &witness_request,
         &witness_config,
         Some(&mut capture),
+        false,
         None,
     );
     let prefix_elapsed_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
@@ -417,6 +457,7 @@ fn vectorize_with_admission_witness(
         request,
         config,
         calibration_observer,
+        capture_baseline,
         Some(certificate),
     );
     let report = match &mut outcome {

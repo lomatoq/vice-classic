@@ -49,6 +49,7 @@ fn row(index: usize, catastrophic: bool) -> MeasurementRow {
         selected_artifact_bundle_sha256: Some("6".repeat(64)),
         selected_complexity: None,
         internal_baseline: None,
+        internal_baseline_refusals: Vec::new(),
         pf_oracle: None,
         cost_refusal_histogram: Vec::new(),
         numerical_conditioning: crate::m7::NumericalConditioningDiagnostics::default(),

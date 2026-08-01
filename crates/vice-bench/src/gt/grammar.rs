@@ -33,8 +33,8 @@ pub const AUTHORING_CANVAS_PX: u32 = 256;
 pub const PROCEDURAL_GENERATION: u32 = 1;
 
 /// Fresh procedural population used by the successor M7 sealed audit after
-/// generations 1--3 were opened and burned.
-pub const M7_PROCEDURAL_GENERATION: u32 = 5;
+/// generations 1--5 were opened and burned.
+pub const M7_PROCEDURAL_GENERATION: u32 = 6;
 
 /// Deterministic splitmix64. Small, seedable per group, no dependency.
 #[derive(Debug, Clone)]
