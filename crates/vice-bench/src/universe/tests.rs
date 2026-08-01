@@ -23,7 +23,7 @@ fn m7_is_a_distinct_finite_r1_model_version() {
     let m7 = SupportedModelUniverseV1::m7();
     m7.check_finite().expect("M7 must be a finite universe");
     assert_eq!(m7.schema, MODEL_UNIVERSE_SCHEMA);
-    assert_eq!(m7.version, "m7-v7");
+    assert_eq!(m7.version, "m7-v8");
     assert_ne!(model_universe_hash(&m7), model_universe_hash(&m6));
     assert_eq!(
         m7.search.unexplored_mass_bound,
