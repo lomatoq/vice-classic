@@ -5304,3 +5304,27 @@ abstentions (354 confidence, 46 verification/delivery, 10 evidence). This is
 diagnostic evidence, not a generation-5 release claim; the new universe,
 pricing and backend identities require complete fresh calibration and one
 untouched generation-5 sealed audit.
+
+## F-0149 — Generic M7 evidence repair invalidated inherited M4–M6 replay artifacts (generation-5 pre-audit barrier, 2026-08-01)
+
+**Found by.** The consolidated pre-audit artifact matrix, before opening the
+generation-5 seal.
+
+**What happened.** The M7 palette and bounded observed-geometry repair was a
+generic production change, so the committed M4 corridor, M4.5 topology, M5
+DCEL and M6 geometry reports no longer reproduced byte-for-byte. Targeted M7
+calibration was green but could not certify these inherited artifacts. The
+corridor change also left five declared M4 document values and their prose
+copies stale.
+
+**Class rule.** A cross-stage production repair invalidates every downstream
+and inherited replay artifact whose producer uses that code. Before any sealed
+audit, enumerate the entire artifact matrix, regenerate every stale report in
+one pass, enumerate all dependent document claims, and run exact same-platform
+replay plus `doc_claims`.
+
+**Status.** Closed before the seal opened. All four artifacts were regenerated
+with their gate-producing commands and remained MET; the committed files are
+byte-identical to the new reports. All dependent M4 values were updated in one
+enumerated pass and `doc_claims` passed 7/7. Topology, DCEL, corridor, geometry
+and full corpus replay are part of the single final author barrier.

@@ -1083,6 +1083,15 @@ fn every_status_document_is_classified_or_excepted_with_a_reason() {
              than classified under a tier that does not yet exist for it. Limitation 36",
             "M7",
         ),
+        (
+            "docs/STATUS_M7.md",
+            "author-candidate document written before the generation-5 seal is opened; it has no \
+             post-seal gate table or committed canonical M7 artifact to bind positionally yet. \
+             Frozen identities are enforced by production config, frozen_claims and structured \
+             provenance tests; replace this exception with the canonical-artifact tier before \
+             the final review candidate is declared",
+            "M7",
+        ),
     ];
 
     let mut classified: Vec<String> = CLAUSE_ROWS.iter().map(|(d, _)| (*d).to_string()).collect();

@@ -1,7 +1,7 @@
 # REQUIREMENTS_TRACEABILITY — vice-classic
 
 Формат (spec v1.3 §32 правило 23): invariant → implementation → tests →
-milestone gate. Покрыты M0…M6.
+milestone gate. Покрыты M0…M7.
 
 ## Перенесённые обязательства (явное отслеживание, REVIEW_M1 M1-N4)
 
@@ -13,6 +13,25 @@ milestone gate. Покрыты M0…M6.
 | D-6 | **Runtime-guard на неразрешимую геометрию**: отвергать типизированно, когда положение пересечения не разрешимо до пикселя в f64 (позиционная ошибка > ~0.25 px). Сегодня в этом режиме аккумулятор возвращает конечное, ограниченное, но бессмысленное число — как и любая f64-реализация (измерено: три независимые реализации дают 0 / +0.278 / −0.517). НЕ сделано: render-путь туда не попадает (`NumericDomain` ≤ 65536), а достаточно чувствительный guard рискует отвергать легитимную far-off-canvas геометрию, которая сегодня считается верно (1e308 принимается с ошибкой 1.8e-15). Основание: собственная находка при построении differential property-теста (C048) | при появлении прямого потребителя аккумулятора (M3) | **ЗАКРЫТО в дельте-4 (C052)**: оказалось тем же пунктом, что D-5 — конвексная/ближне-концевая форма `x_at` устраняет класс; «неразрешимость» была обусловленностью формулы, а не пределом f64 (F-0014) |
 | D-5 | **Колонко-относительная интерполяция промежуточной позиции** в `accumulate_edge` (`x_at`): red team измерил, что перестановка снимает ровно `ulp(M)/2` на всех магнитудах, то есть остаток F-M2-R2 сводим ещё раз. НЕ сделано сознательно: внутри enforced-домена запас ~50× (4.5e-12 против 2.33e-10), а правка сдвинула бы замороженный render digest без выигрыша в домене. Пересмотреть, если домен будет расширен или появится потребитель с бо́льшими координатами. Основание: REDTEAM_M2 addendum F-M2-R10 | при расширении домена / M3+ | **ЗАКРЫТО в дельте-4 (C052)**: перестановка выполнена; ни один замороженный digest не сдвинулся |
 | D-4 | **Типизированный witness сертификации вложения** (`CertifiedMesh`/`EmbeddedScene`): тип, который нельзя получить, не пройдя `verify_embedding`. Ввести ВМЕСТЕ с первым не-рендерящим потребителем `ValidatedScene` (M3 планово вводит: загрузчик GT-корпуса, identifiability-метаданные, scorecard). Основание: REVIEW_M2_A M2-A-N8, REVIEW_M2_B M2-B-N5; обоснование срока — ADR-0010 (критерий §32 п.7 по ADR-0005) | M3 | **ЗАКРЫТО в C062**: ice_render::certified::CertifiedMesh (приватные поля, два конструктора, несёт RenderOptions); mesh-входы рендера принимают только его; первый не-рендерящий потребитель — `gt::GtScene::new` (C064). Заявление СУЖЕНО и проверено: витнес НЕ утверждает замощение окна — B2-сцена сертифицируется, её ловит range check (ADR-0010 addendum M3) |
+
+## M7 — Exact posterior refinement + selective delivery + export materialization
+
+`docs/M7_OBLIGATIONS.md` is the exhaustive 40-row acceptance index. The rows
+below preserve the required invariant → implementation → judge → gate mapping
+without replacing that index.
+
+| # | Invariant | Implementation | Tests / replay | Gate |
+|---|---|---|---|---|
+| M7-01–05 | real production crates, identity-bound pipeline, observed/DCEL identity, typed CLI outcomes, no inverse crime | `vice-core`, `vice-cli`, `vice-opt::universe`, `vice-verify::scene`; GT builder remains in `vice-bench` | public call-site, stale-identity, binding survival, end-to-end CLI and source-role suites | product architecture |
+| M7-06–11 | full-resolution correlation-aware score, disjoint physical-bit ledger, finite search mass and delivery-equivalence posterior | `vice-opt::{likelihood,posterior,universe}` plus pipeline score trace | serialized perturbation, residual conditioning, duplicate-term, exact small-universe and equivalence aggregation tests | posterior/confidence |
+| M7-12–20 | deterministic scaled trust region, current-parent transactions, ROI/full reconciliation, relation solve, compound/incremental search, diverse bounded beam and real knockout population | `vice-opt::{trust_region,transaction,search}`, incremental DCEL and `vice-core::pipeline` | projection/backtracking, stale-parent, outside-ROI, rollback, incremental/full differential, quota/memo/budget and population tests | optimizer/search |
+| M7-21–26 | pre/post-quantization certification and canonical PurePartition/SeamSafe SVG independently parse/render to the certified bytes | `vice-verify::{scene,quantize,delivery}`, `vice-svg::{plan,write,independent}` | corrupt-scene, quantization collapse, shared-neighbor, parser/renderer, apron adversaries and tamper tests | delivery seal |
+| M7-27–33 | calibrated typed abstention; sealed clustered reliability, frozen tails, baseline/blind court and complete refusal accounting | `vice-core` production configs; `vice-bench::m7::{analysis,release,baseline}` | complete calibration plus untouched generation-5 release/baseline commands | sealed reliability |
+| M7-34–35 | complete PF00/PF10/PF01/PF11 and G00/G10/G01/G11/G20/G30, including controlled G20/G30 recovery | `vice-bench::m7::oracle`, `geometry::m7_recovery` | complete release oracle; 11 six-arm calibration rows before seal | oracle/recovery |
+| M7-36–37 | decisions/bytes deterministic under isolated repeats and worker counts; elapsed, memory, hypothesis and render caps typed | `m7::determinism`, core/optimizer budget ledgers | determinism and forced-exhaustion courts | determinism/resources |
+| M7-38 | release truth anchored outside local HEAD/PATH and every threshold has structured provenance | `m7::governance`, `M7_GATE_PROVENANCE_V1.toml` | Git/tool/path substitution, blob mismatch, clean-tree and gate-key completeness attacks | runner trust |
+| M7-39 | one replay object binds release, baseline, oracle, determinism and all identities to the exact clean candidate | `m7::artifact`, `m7-canonical-artifact` | component schema/digest/commit mismatch and tamper tests; final replay | canonical artifact |
+| M7-40 | status, reproduction, traceability, failures and deferred debt are explicit; no M7 item is silently carried | `STATUS_M7.md`, `REPRODUCIBILITY_M7.md`, `M7_OBLIGATIONS.md`, `FAILURE_LEDGER.md`, `DEFERRED_DEBT_M7.md` | `doc_claims`, hygiene and independent review | documentation/review |
 
 ## M6 — Typed boundary models + joint refit + Stage H (spec §28 M6, §14, §15)
 
