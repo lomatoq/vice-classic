@@ -1,5 +1,4 @@
 use super::*;
-
 mod fit;
 use fit::fit_chain;
 mod baseline;
