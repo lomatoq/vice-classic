@@ -1,5 +1,19 @@
 use super::*;
 
+pub(super) fn fitted_phase_envelope_stable<'a>(
+    fitted_classes: impl IntoIterator<Item = &'a str>,
+    selected_class: &str,
+) -> bool {
+    let mut saw_fitted = false;
+    for class in fitted_classes {
+        saw_fitted = true;
+        if class != selected_class {
+            return false;
+        }
+    }
+    saw_fitted
+}
+
 pub(super) struct RenderStability {
     pub(super) stable: bool,
     pub(super) refusal: Option<String>,
@@ -64,5 +78,28 @@ pub(super) fn certify_render_stability(
     RenderStability {
         stable: result.is_ok(),
         refusal: result.err(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fitted_phase_envelope_stable;
+
+    #[test]
+    fn phase_stability_is_owned_only_by_materialized_fitted_classes() {
+        let fitted = ["components=1;holes=0", "components=1;holes=0"];
+        assert!(fitted_phase_envelope_stable(fitted, "components=1;holes=0"));
+        assert!(!fitted_phase_envelope_stable(
+            std::iter::empty(),
+            "components=1;holes=0"
+        ));
+        assert!(!fitted_phase_envelope_stable(
+            ["components=1;holes=0", "components=2;holes=0"],
+            "components=1;holes=0"
+        ));
+        // Raw, refused or budget-pruned envelope classes are deliberately not
+        // an input to this predicate; entropy and unexplored mass own them.
+        let refused_raw_class = "components=3;holes=1";
+        assert!(!fitted.contains(&refused_raw_class));
     }
 }

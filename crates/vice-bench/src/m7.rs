@@ -657,12 +657,16 @@ fn measure_one(
         }
     }
     let Some(witness) = run.selected else {
-        row.measurement_refusal = Some(report.reason.as_ref().map_or_else(
+        let reason = report.reason.as_ref().map_or_else(
             || "no selected calibration witness".into(),
             |reason| {
                 serde_json::to_string(reason).unwrap_or_else(|_| "unserializable reason".into())
             },
-        ));
+        );
+        let candidate_refusals = serde_json::to_string(&report.candidate_refusals)
+            .unwrap_or_else(|_| "unserializable candidate refusals".into());
+        row.measurement_refusal =
+            Some(format!("{reason}; candidate_refusals={candidate_refusals}"));
         return row;
     };
     row.selected_scene_digest_sha256 = Some(witness.candidate.scene_digest_sha256.clone());

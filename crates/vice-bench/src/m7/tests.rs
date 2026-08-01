@@ -269,3 +269,200 @@ fn quality_keeps_the_certified_primary_lane_on_the_successor_annulus_tail() {
         boundary.max_px
     );
 }
+
+#[test]
+#[ignore = "explicit M7 development population court; run before calibration freeze"]
+fn generation_four_failure_classes_have_a_verified_candidate_after_the_generic_repairs() {
+    let cases = [
+        ("proc/dot_cluster/002", 128),
+        ("proc/dot_cluster/147", 512),
+        ("proc/nested_island/057", 128),
+        ("proc/dot_cluster/039", 256),
+        ("proc/dot_cluster/112", 512),
+        ("proc/nested_island/023", 128),
+        ("proc/thin_bridge/195", 256),
+        ("proc/thin_bridge/000", 128),
+    ];
+    let wanted = cases
+        .iter()
+        .map(|(group, _)| *group)
+        .collect::<std::collections::BTreeSet<_>>();
+    let groups =
+        groups_with_variants_filtered_for_generation(200, 4, |group| wanted.contains(group))
+            .expect("construct the frozen failure witnesses");
+    let cells = MeasurementScope::SealedAudit.cells();
+    let config = CoreConfig::development_for(Preset::Fast);
+    for (group, size) in cases {
+        let source = groups
+            .iter()
+            .find(|source| source.id == group)
+            .unwrap_or_else(|| panic!("missing {group}"));
+        let cell = cells
+            .iter()
+            .find(|cell| cell.size_px == size)
+            .unwrap_or_else(|| panic!("missing {size}px release cell"));
+        let row = measure_one(
+            source.id.as_str(),
+            source.shape_family.as_str(),
+            &source.scenes[0],
+            cell,
+            1,
+            Preset::Fast,
+            &config,
+        );
+        assert!(
+            row.candidate_available,
+            "{group} at {size}px remained {:?}: {:?}",
+            row.decision_reason, row.measurement_refusal
+        );
+        assert!(row.topology.as_ref().is_some_and(|topology| topology.exact));
+        assert!(row.verifier_clean);
+    }
+}
+
+#[test]
+#[ignore = "explicit full preflight over every generation-four Fast refusal"]
+fn every_generation_four_fast_refusal_is_remeasured_in_one_preflight() {
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Instant;
+
+    let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let old_report_path =
+        repository.join("runs/m7/generation4-audit-fast-clean-event-6ac2659/merged.json");
+    let config_path =
+        repository.join("runs/m7/calibration-generation4-flat2-fast/production-config.json");
+    let output_path = repository.join("runs/m7/generation4-fast-refusal-preflight-current.json");
+    let old_report = read_report(&old_report_path).expect("read generation-four Fast audit");
+    let old_refusals = old_report
+        .rows
+        .iter()
+        .filter(|row| !row.production_accepted)
+        .map(|row| {
+            (
+                row.group_id.clone(),
+                row.scene_id.clone(),
+                row.cell_id.clone(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        old_refusals.len(),
+        1_116,
+        "generation-four refusal court drifted"
+    );
+
+    let wanted_groups = old_refusals
+        .iter()
+        .map(|(group, _, _)| group.as_str())
+        .collect::<BTreeSet<_>>();
+    let groups =
+        groups_with_variants_filtered_for_generation(M7_RELEASE_PROCEDURAL_VARIANTS, 4, |group| {
+            wanted_groups.contains(group)
+        })
+        .expect("construct every refused generation-four group");
+    let cells = MeasurementScope::SealedAudit
+        .cells()
+        .into_iter()
+        .map(|cell| (cell.id(), cell))
+        .collect::<BTreeMap<_, _>>();
+    let mut tasks = Vec::with_capacity(old_refusals.len());
+    for group in groups {
+        let equivalence_members = group
+            .equivalence_class
+            .as_ref()
+            .map_or(1, |class| class.members.len());
+        for scene in &group.scenes {
+            for (wanted_group, wanted_scene, wanted_cell) in &old_refusals {
+                if wanted_group == &group.id && wanted_scene == scene.id() {
+                    tasks.push((
+                        group.id.clone(),
+                        group.shape_family.clone(),
+                        scene.clone(),
+                        *cells
+                            .get(wanted_cell)
+                            .unwrap_or_else(|| panic!("missing cell {wanted_cell}")),
+                        equivalence_members,
+                    ));
+                }
+            }
+        }
+    }
+    assert_eq!(
+        tasks.len(),
+        old_refusals.len(),
+        "preflight task matrix is incomplete"
+    );
+
+    let config = CoreConfig::load_production_for(Preset::Fast, &config_path)
+        .expect("load generation-four Fast production decision policy");
+    let workers = std::thread::available_parallelism()
+        .map_or(4, usize::from)
+        .clamp(1, 8);
+    let chunk_size = tasks.len().div_ceil(workers);
+    let total = old_refusals.len();
+    let completed = AtomicUsize::new(0);
+    let started = Instant::now();
+    let rows = std::thread::scope(|scope| {
+        let handles = tasks
+            .chunks(chunk_size)
+            .map(|chunk| {
+                let config = &config;
+                let completed = &completed;
+                scope.spawn(move || {
+                    chunk
+                        .iter()
+                        .map(|(group, family, scene, cell, equivalence_members)| {
+                            let row = measure_one(
+                                group,
+                                family,
+                                scene,
+                                cell,
+                                *equivalence_members,
+                                Preset::Fast,
+                                config,
+                            );
+                            let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
+                            if done.is_multiple_of(25) || done == total {
+                                eprintln!("M7 refusal preflight: {done}/{total}");
+                            }
+                            row
+                        })
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .flat_map(|handle| handle.join().expect("preflight worker did not panic"))
+            .collect::<Vec<_>>()
+    });
+    let remaining = rows
+        .iter()
+        .filter(|row| !row.production_accepted)
+        .collect::<Vec<_>>();
+    let report = serde_json::json!({
+        "schema": "vice-classic/m7-generation4-refusal-preflight/v1",
+        "source_report": old_report_path,
+        "decision_config": config_path,
+        "refusals_remeasured": rows.len(),
+        "production_accepted": rows.len() - remaining.len(),
+        "remaining_refusals": remaining.len(),
+        "elapsed_ms": started.elapsed().as_millis(),
+        "rows": rows,
+    });
+    std::fs::write(
+        &output_path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&report).expect("preflight report serializes")
+        ),
+    )
+    .expect("write complete preflight report");
+    assert!(
+        remaining.is_empty(),
+        "{} generation-four Fast refusals remain; complete report: {}",
+        remaining.len(),
+        output_path.display()
+    );
+}

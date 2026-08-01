@@ -339,6 +339,16 @@ fn build_transactional_candidate(
         request.arm,
         request.formation,
     )?;
+    // An unconstrained member of the declared grammar is a direct hypothesis,
+    // not a mutation of the first-ranked free model. Requiring that unrelated
+    // parent to construct successfully would let its scene refusal suppress a
+    // valid alternative before the alternative reaches verification.
+    if request.model_transactions.is_empty()
+        && request.arm.class == request.transaction_base_arm.class
+        && request.formation == request.transaction_base_formation
+    {
+        return Ok((final_candidate, Vec::new()));
+    }
     let base_target = build_scene_candidate(
         request.canvas,
         request.evidence,

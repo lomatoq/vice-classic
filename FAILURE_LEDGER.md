@@ -5261,3 +5261,46 @@ partition palette plus exterior truth; audit additionally applies its frozen
 family allowlist and procedural-only rule. A regression proves a calibration
 annulus and generation-4 nested island are admitted while `shared_edge` is
 rejected by both relevant scopes.
+
+## F-0148 — The compact selective core omitted bounded observed geometry and double-counted raw phase uncertainty (M7 generation-4 sealed audit, 2026-07-31)
+
+**Found by.** The complete generation-4 Quality and Fast sealed audit at release
+commit `6ac26599a0aaca22aae4694d5c416bb2bcb06fb5`. Both reports completed all
+2400 rows. Quality accepted 1287 renders and 569/800 source groups; Fast
+accepted 1284 renders and 568/800 groups. Both missed the frozen 80% coverage
+gate while accepted boundary tails, palette, memory, catastrophic risk and
+calibration gates were green. Runtime remained the explicitly non-blocking
+research diagnostic.
+
+**What happened.** Exhaustive classification of every one of Fast's 1116
+abstentions found four complete classes: evidence 208, fitting 331,
+no-verified-candidate 130, and confidence 447. The compact line/arc/Bezier
+grammar had no bounded full-observation member after every joint solve refused;
+small coherent opaque colours below a global histogram share were discarded;
+and the phase-stability leg counted raw, budget-pruned and refit-refused
+topology classes a second time after entropy and unexplored mass already owned
+that uncertainty. Candidate refusal reporting also exposed only the first
+failure and obscured the complete class matrix.
+
+**Class rule.** A selective system may abstain, but a supported finite model
+universe must declare and price its conservative representation boundary. A
+full-observation rescue is legitimate only when it has a hard structural cap,
+explicit code length, two-sided corridor and binding certificates, exact
+self-intersection checks, normal scene/quantization/delivery verification and
+honest unexplored-mass accounting. Stability legs may judge only materialized
+objects in their domain; refused raw proposals remain entropy/unexplored mass,
+not a duplicate perturbation veto. All candidate failures must remain visible.
+
+**Status.** Generation 4 is burned and generation 5 is freshly rekeyed before
+calibration. The generic repair adds a priced line-chain member capped at 128
+segments, preserves spatially coherent sub-share opaque modes, restricts phase
+agreement to completely fitted arms, and publishes every candidate refusal.
+An exact eight-family regression covers the former evidence, fitting,
+intersection, tessellation and delivery classes. A single parallel preflight
+then remeasured all 1116 former Fast abstentions: 706 became production
+successes with zero verifier or topology failures, maximum boundary error
+1.155448 px and maximum palette delta 4. The remaining 410 were safe typed
+abstentions (354 confidence, 46 verification/delivery, 10 evidence). This is
+diagnostic evidence, not a generation-5 release claim; the new universe,
+pricing and backend identities require complete fresh calibration and one
+untouched generation-5 sealed audit.

@@ -80,12 +80,14 @@ pub use grammar::{
 pub use ir_lift::refit_chain_from_ir;
 pub use models::{
     canonical_cuts, fit_forced_boundary_models, k_best_boundary_models,
-    k_best_boundary_models_bounded, models_at_cut, path_families, BoundaryModel, BoundedFitRefusal,
-    ForcedFitRefusal, ModelRun, SelectedBoundaryGeometry,
-    BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1, BINDING_RELATION_RESCUE_MARGIN_PX_V1,
-    CONTINUOUS_REFIT_SAMPLE_CAP_V1, DISCRETE_PROPOSAL_SAMPLE_CAP_V1, DUPLICATE_EPSILON_PX,
-    MAX_CANONICAL_CUTS, MAX_CERTIFICATION_ATTEMPTS_PER_LEVEL_V1, MAX_CERTIFIED_MODELS_PER_CHAIN_V1,
-    PROPOSAL_CONTINUOUS_REFIT_SAMPLE_CAP_V1, RELATION_REFIT_SAMPLE_CAP_V1,
+    k_best_boundary_models_bounded, models_at_cut, observed_polyline_rescue_model, path_families,
+    BoundaryModel, BoundedFitRefusal, ForcedFitRefusal, ModelRun, ObservedPolylineRefusal,
+    SelectedBoundaryGeometry, BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1,
+    BINDING_RELATION_RESCUE_MARGIN_PX_V1, CONTINUOUS_REFIT_SAMPLE_CAP_V1,
+    DISCRETE_PROPOSAL_SAMPLE_CAP_V1, DUPLICATE_EPSILON_PX, MAX_CANONICAL_CUTS,
+    MAX_CERTIFICATION_ATTEMPTS_PER_LEVEL_V1, MAX_CERTIFIED_MODELS_PER_CHAIN_V1,
+    MAX_OBSERVED_POLYLINE_SEGMENTS_V1, PROPOSAL_CONTINUOUS_REFIT_SAMPLE_CAP_V1,
+    RELATION_REFIT_SAMPLE_CAP_V1,
 };
 pub use primitive::{
     apply_best_primitive, apply_primitive_sibling, loop_primitive_hypotheses, lower_loop_primitive,

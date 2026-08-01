@@ -168,6 +168,28 @@ pub fn gap_bits(n_samples: usize) -> f64 {
     ((n_samples - 1) as f64).log2()
 }
 
+/// Complete discrete code for the bounded observed-polyline grammar member.
+/// Keeping the formula here lets the frozen pricing surface call the same
+/// implementation that constructs the production model.
+pub(crate) fn observed_polyline_code(
+    unique_nodes: usize,
+    segments: usize,
+    observations: usize,
+    canvas_dim_px: f64,
+    residual_bits: f64,
+) -> ChainCode {
+    let breakpoint_choices = observations.saturating_sub(1);
+    let breakpoints = segments.saturating_sub(1).min(breakpoint_choices);
+    ChainCode {
+        geometry_bits: unique_nodes as f64 * GEOMETRY_CODE_TABLE_V1.anchor_bits(canvas_dim_px)
+            + segments as f64
+                * GEOMETRY_CODE_TABLE_V1.segment_bits(SpanFamily::Line, canvas_dim_px),
+        topology_bits: log2_binomial(breakpoint_choices, breakpoints) + breakpoints as f64,
+        relation_bits: 0.0,
+        residual_bits,
+    }
+}
+
 /// **The COMPLETE pricing surface of the grammar, canonically serialized.**
 ///
 /// RT6-A3: the gate file froze the code table's three numbers and the rest of
@@ -202,7 +224,7 @@ pub fn pricing_surface_v1() -> String {
     use crate::span::FITTED_FAMILIES;
 
     let mut out = String::from(
-        "vice-classic/geometry-pricing/v1
+        "vice-classic/geometry-pricing/v2
 ",
     );
     for f in FITTED_FAMILIES {
@@ -315,6 +337,21 @@ pub fn pricing_surface_v1() -> String {
 ",
             n,
             gap_bits(n)
+        ));
+    }
+    out.push_str(&format!(
+        "observed_polyline segment_cap={} policy=full_observation_line_chain_half_corridor_and_binding_headroom
+",
+        crate::models::MAX_OBSERVED_POLYLINE_SEGMENTS_V1
+    ));
+    for (nodes, segments, observations, canvas, residual) in [
+        (3usize, 3usize, 17usize, 128.0f64, 0.0f64),
+        (12, 12, 257, 512.0, 9.5),
+    ] {
+        out.push_str(&format!(
+            "observed_polyline_code nodes={nodes} segments={segments} observations={observations} canvas={canvas} residual={residual} = {:?}
+",
+            observed_polyline_code(nodes, segments, observations, canvas, residual)
         ));
     }
     out.push_str(&format!(
@@ -673,5 +710,16 @@ mod tests {
         ] {
             assert!(bits.is_finite() && bits >= 0.0, "{bits}");
         }
+    }
+
+    #[test]
+    fn observed_polyline_code_is_explicit_and_monotone_in_structure() {
+        let small = observed_polyline_code(3, 3, 17, 128.0, 4.0);
+        let large = observed_polyline_code(12, 12, 17, 128.0, 4.0);
+        assert!(small.total_bits().is_finite());
+        assert!(small.geometry_bits < large.geometry_bits);
+        assert!(small.topology_bits < large.topology_bits);
+        assert_eq!(small.relation_bits, 0.0);
+        assert_eq!(small.residual_bits, 4.0);
     }
 }

@@ -27,9 +27,19 @@ pub(super) fn rank_materializations(
         config.beam.width
     };
     let rank_count = materialization_order.len().min(rank_limit);
-    let mut ranked = Vec::with_capacity(rank_count);
+    let mut rank_tasks = materialization_order[..rank_count].to_vec();
+    if let Some(rescue) = materialization_order
+        .iter()
+        .copied()
+        .find(|task| fitted_arms[task.0].variants[task.1].class == "observed-polyline-rescue")
+    {
+        if !rank_tasks.contains(&rescue) {
+            rank_tasks.push(rescue);
+        }
+    }
+    let mut ranked = Vec::with_capacity(rank_tasks.len());
     let mut workspace = crate::candidate::ProposalWorkspace::default();
-    for &(topology_index, variant_index, formation_index) in &materialization_order[..rank_count] {
+    for (topology_index, variant_index, formation_index) in rank_tasks {
         let bundle = &fitted_arms[topology_index];
         let variant = &bundle.variants[variant_index];
         let arm = &bundle.arm;

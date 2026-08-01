@@ -2,8 +2,9 @@ use vice_evidence::{BoundaryChain, BoundarySample};
 use vice_geom::Pt;
 
 use super::{
-    discrete_proposal_chain, k_best_boundary_models_bounded, observed_support_polyline,
-    retain_binding_certified_stage_h,
+    discrete_proposal_chain, k_best_boundary_models_bounded, observed_polyline_rescue_model,
+    observed_support_polyline, retain_binding_certified_stage_h, ObservedPolylineRefusal,
+    MAX_OBSERVED_POLYLINE_SEGMENTS_V1,
 };
 
 fn open_line(samples: usize) -> BoundaryChain {
@@ -120,6 +121,71 @@ fn binding_certificate_closes_only_a_declared_closed_support() {
     let closed = observed_support_polyline(&samples, true);
     assert_eq!(&closed[..closed.len() - 1], points);
     assert_eq!(closed.first(), closed.last());
+}
+
+#[test]
+fn observed_polyline_rescue_is_priced_bounded_and_full_resolution_certified() {
+    let points = [
+        Pt::new(2.0, 2.0),
+        Pt::new(14.0, 2.0),
+        Pt::new(14.0, 14.0),
+        Pt::new(2.0, 14.0),
+    ];
+    let chain = BoundaryChain {
+        samples: points
+            .into_iter()
+            .map(|p| BoundarySample {
+                p,
+                normal: Pt::new(0.0, 1.0),
+                halfwidth: 0.35,
+                confidence: 1.0,
+                weight_ds: 12.0,
+                corr_length_px: 1.0,
+            })
+            .collect(),
+        closed: true,
+        length_px: 48.0,
+        corr_length_px: 1.0,
+        vertices: 4,
+    };
+    let model = observed_polyline_rescue_model(&chain, 128.0).expect("square line rescue");
+    assert_eq!(model.families.len(), 4);
+    assert!(model.code.total_bits().is_finite() && model.code.total_bits() > 0.0);
+    assert!(model.worst_normal_deviation_px <= 0.35 * crate::FEASIBLE_HALFWIDTHS);
+    model
+        .geometry
+        .typed_chain()
+        .expect("typed rescue")
+        .lower()
+        .expect("rescue lowers without coincident nodes");
+}
+
+#[test]
+fn observed_polyline_rescue_refuses_instead_of_exceeding_its_structural_cap() {
+    let samples = (0..MAX_OBSERVED_POLYLINE_SEGMENTS_V1 + 2)
+        .map(|index| BoundarySample {
+            p: Pt::new(index as f64 * 0.5, f64::from((index % 2) as u8)),
+            normal: Pt::new(0.0, 1.0),
+            halfwidth: 0.001,
+            confidence: 1.0,
+            weight_ds: 0.5,
+            corr_length_px: 0.5,
+        })
+        .collect::<Vec<_>>();
+    let chain = BoundaryChain {
+        length_px: samples.len() as f64 * 0.5,
+        vertices: samples.len() as u64,
+        samples,
+        closed: false,
+        corr_length_px: 0.5,
+    };
+    assert!(matches!(
+        observed_polyline_rescue_model(&chain, 128.0),
+        Err(ObservedPolylineRefusal::TooComplex {
+            segments,
+            cap: MAX_OBSERVED_POLYLINE_SEGMENTS_V1
+        }) if segments > MAX_OBSERVED_POLYLINE_SEGMENTS_V1
+    ));
 }
 
 #[test]

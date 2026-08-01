@@ -282,6 +282,7 @@ fn mirrored_scene_sibling(
 pub(super) fn final_scene_variants(
     fits: &[vice_fit::ModelRun],
     chains: &[vice_evidence::BoundaryChain],
+    observed_polyline_models: Option<&[vice_fit::BoundaryModel]>,
     canvas_dim_px: f64,
 ) -> Vec<FinalSceneVariant> {
     let baseline: Vec<_> = fits.iter().map(|fit| free_model(&fit.models[0])).collect();
@@ -290,6 +291,17 @@ pub(super) fn final_scene_variants(
         models: baseline.clone(),
         model_transactions: Vec::new(),
     }];
+    if let Some(models) = observed_polyline_models.filter(|models| *models != baseline) {
+        variants.push(FinalSceneVariant {
+            class: "observed-polyline-rescue".into(),
+            models: models.to_vec(),
+            // This is an independently priced free member of the grammar, not
+            // a constrained mutation of the compact model. In particular, it
+            // must remain testable when that compact model cannot form a valid
+            // scene at all.
+            model_transactions: Vec::new(),
+        });
+    }
     for (chain_index, fit) in fits.iter().enumerate() {
         for (path_index, selected) in fit.models.iter().enumerate() {
             let free = free_model(selected);

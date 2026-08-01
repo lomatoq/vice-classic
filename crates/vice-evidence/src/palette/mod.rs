@@ -187,9 +187,10 @@ fn find_modes(
     border: &[usize],
     cfg: &PaletteConfig,
 ) -> (Vec<ColorMode>, f64) {
+    type HistogramBin = (f64, u64, u64, Vec<usize>);
     let opaque_floor = 1.0 - cfg.opaque_alpha_codes / 255.0;
     let bin = f64::from(cfg.bin_codes.max(1));
-    let mut hist: std::collections::BTreeMap<[u16; 3], (f64, u64, u64)> = Default::default();
+    let mut hist: std::collections::BTreeMap<[u16; 3], HistogramBin> = Default::default();
     let mut core_weight = 0.0;
     let is_border: std::collections::BTreeSet<usize> = border.iter().copied().collect();
     for i in 0..t.len() {
@@ -209,9 +210,10 @@ fn find_modes(
             (f64::from(encode_u8(c.g)) / bin).floor() as u16,
             (f64::from(encode_u8(c.b)) / bin).floor() as u16,
         ];
-        let e = hist.entry(key).or_insert((0.0, 0, 0));
+        let e = hist.entry(key).or_insert_with(|| (0.0, 0, 0, Vec::new()));
         e.0 += w;
         e.1 += 1;
+        e.3.push(i);
         if is_border.contains(&i) {
             e.2 += 1;
         }
@@ -222,7 +224,7 @@ fn find_modes(
     }
     // Deterministic order: weight descending, then the bin key. No hash
     // iteration and no tie broken by insertion order (§5.5).
-    let mut bins: Vec<([u16; 3], (f64, u64, u64))> = hist.into_iter().collect();
+    let mut bins: Vec<([u16; 3], HistogramBin)> = hist.into_iter().collect();
     bins.sort_by(|a, b| {
         b.1 .0
             .partial_cmp(&a.1 .0)
@@ -238,36 +240,73 @@ fn find_modes(
         LinearRgb::new(mid(key[0]), mid(key[1]), mid(key[2]))
     };
 
-    let mut modes: Vec<ColorMode> = Vec::new();
-    for (key, (w, px, bpx)) in &bins {
-        if w / total < cfg.min_mode_share {
-            continue;
-        }
+    struct CandidateMode {
+        mode: ColorMode,
+        pixels: Vec<usize>,
+    }
+    let mut candidates: Vec<CandidateMode> = Vec::new();
+    for (key, (w, px, bpx, pixels)) in &bins {
         let c = center_of(*key);
-        if let Some(existing) = modes
+        if let Some(existing) = candidates
             .iter_mut()
-            .find(|m| separation_codes(m.color, c) < cfg.min_separation_codes)
+            .find(|m| separation_codes(m.mode.color, c) < cfg.min_separation_codes)
         {
             // Same mode seen through a neighbouring bin: merge by weight,
             // which also refines the colour beyond bin resolution.
-            let tw = existing.weight + w;
-            existing.color = LinearRgb::new(
-                (existing.color.r * existing.weight + c.r * w) / tw,
-                (existing.color.g * existing.weight + c.g * w) / tw,
-                (existing.color.b * existing.weight + c.b * w) / tw,
+            let tw = existing.mode.weight + w;
+            existing.mode.color = LinearRgb::new(
+                (existing.mode.color.r * existing.mode.weight + c.r * w) / tw,
+                (existing.mode.color.g * existing.mode.weight + c.g * w) / tw,
+                (existing.mode.color.b * existing.mode.weight + c.b * w) / tw,
             );
-            existing.weight = tw;
-            existing.pixels += px;
-            existing.border_pixels += bpx;
+            existing.mode.weight = tw;
+            existing.mode.pixels += px;
+            existing.mode.border_pixels += bpx;
+            existing.pixels.extend(pixels);
             continue;
         }
-        modes.push(ColorMode {
-            color: c,
-            weight: *w,
-            pixels: *px,
-            border_pixels: *bpx,
+        candidates.push(CandidateMode {
+            mode: ColorMode {
+                color: c,
+                weight: *w,
+                pixels: *px,
+                border_pixels: *bpx,
+            },
+            pixels: pixels.clone(),
         });
     }
+
+    // Spatial support distinguishes a small real face from isolated chromatic
+    // noise. The existing core floor remains the only support threshold.
+    let width = t.width_px() as usize;
+    let height = t.height_px() as usize;
+    let spatially_supported = |pixels: &[usize]| {
+        let members = pixels
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut coherent_weight = 0.0;
+        for &i in pixels {
+            let x = i % width;
+            let y = i / width;
+            let has_neighbour = (x > 0 && members.contains(&(i - 1)))
+                || (x + 1 < width && members.contains(&(i + 1)))
+                || (y > 0 && members.contains(&(i - width)))
+                || (y + 1 < height && members.contains(&(i + width)));
+            if has_neighbour {
+                coherent_weight += interior.weight(i);
+            }
+        }
+        coherent_weight >= cfg.min_core_weight
+    };
+    let mut modes = candidates
+        .into_iter()
+        .filter(|candidate| {
+            candidate.mode.weight / total >= cfg.min_mode_share
+                || spatially_supported(&candidate.pixels)
+        })
+        .map(|candidate| candidate.mode)
+        .collect::<Vec<_>>();
     modes.sort_by(|a, b| {
         b.weight
             .partial_cmp(&a.weight)
@@ -313,6 +352,35 @@ fn border_share(
         })
         .count();
     hits as f64 / border.len() as f64
+}
+
+/// Detect a spatially coherent opaque residual for §9.2's bounded gamut ray.
+fn has_coherent_opaque_residual(
+    t: &ObservationTensor,
+    background: LinearRgb,
+    cfg: &PaletteConfig,
+) -> bool {
+    let opaque_floor = 1.0 - cfg.opaque_alpha_codes / 255.0;
+    let width = t.width_px() as usize;
+    let height = t.height_px() as usize;
+    let residual = (0..t.len())
+        .filter(|&i| {
+            t.alpha(i) >= opaque_floor
+                && separation_codes(opaque_color(t, i), background) >= cfg.min_separation_codes
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    let coherent = residual
+        .iter()
+        .filter(|&&i| {
+            let x = i % width;
+            let y = i / width;
+            (x > 0 && residual.contains(&(i - 1)))
+                || (x + 1 < width && residual.contains(&(i + 1)))
+                || (y > 0 && residual.contains(&(i - width)))
+                || (y + 1 < height && residual.contains(&(i + width)))
+        })
+        .count();
+    coherent as f64 >= cfg.min_core_weight
 }
 
 /// Propose the §9.2 hypotheses for one image.
@@ -379,6 +447,40 @@ pub fn propose_flat2(
             });
         }
         (false, 0) => refusal = Some(PaletteRefusal::Empty),
+        (false, 1) if has_coherent_opaque_residual(t, modes[0].color, cfg) => {
+            let bg = modes[0];
+            match gamut_bounded_interval(t, bg.color, cfg) {
+                Some(fg) => {
+                    let bg_point = point(&bg);
+                    let (bsb, bsf) = with_border(fg.center(), Some(bg.color));
+                    hypotheses.push(Flat2Hypothesis {
+                        id: "H2/border-supported-background".to_string(),
+                        kind: Flat2Kind::BorderSupportedBackground,
+                        foreground: fg,
+                        background: BackgroundHypothesis::OpaqueFace(bg_point),
+                        border_support_of_background: bsb,
+                        border_support_of_foreground: bsf,
+                    });
+                    hypotheses.push(Flat2Hypothesis {
+                        id: "H3/full-bleed-two-face".to_string(),
+                        kind: Flat2Kind::FullBleedTwoFace,
+                        foreground: fg,
+                        background: BackgroundHypothesis::OpaqueFace(bg_point),
+                        border_support_of_background: bsb,
+                        border_support_of_foreground: bsf,
+                    });
+                    hypotheses.push(Flat2Hypothesis {
+                        id: "H4/label-swapped".to_string(),
+                        kind: Flat2Kind::LabelSwappedFullBleed,
+                        foreground: bg_point,
+                        background: BackgroundHypothesis::OpaqueFace(fg),
+                        border_support_of_background: bsf,
+                        border_support_of_foreground: bsb,
+                    });
+                }
+                None => refusal = Some(PaletteRefusal::SingleUniformFace),
+            }
+        }
         (false, 1) => refusal = Some(PaletteRefusal::SingleUniformFace),
         (_, 2) if !has_exterior => {
             // Two opaque faces. THREE readings, and the border decides only
@@ -692,3 +794,6 @@ mod tests {
         assert!(dark.kind.is_oracle_override());
     }
 }
+
+#[cfg(test)]
+mod coherence_tests;

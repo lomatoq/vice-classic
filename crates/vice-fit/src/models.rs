@@ -47,7 +47,10 @@ use crate::grammar::{
     build_edges, k_best_paths_with_closure, materialize_with_closure, path_is_representable,
     GrammarPath,
 };
-use crate::refit::{closure_g1_spread_rad, g1_readings, RefitChain, RefitRefusal};
+use crate::refit::{
+    closure_g1_spread_rad, g1_readings, RefitChain, RefitNode, RefitRefusal, RefitSegment,
+    FEASIBLE_HALFWIDTHS,
+};
 use crate::schedule::{FitBudget, Support};
 use crate::solve::{joint_constrained_refit, joint_constrained_refit_bounded};
 use crate::span::{NoFit, SpanCandidate, SpanFamily};
@@ -259,6 +262,11 @@ pub const BINDING_CERTIFICATION_CHORD_TOLERANCE_PX_V1: f64 = 1.0 / 64.0;
 /// It covers the bounded-refit tessellation comparison and is carried into
 /// the verifier binding; larger misses open the next discrete proposal level.
 pub const BINDING_RELATION_RESCUE_MARGIN_PX_V1: f64 = crate::solve::REFIT_CHORD_TOLERANCE_PX;
+
+mod observed_polyline;
+pub use observed_polyline::{
+    observed_polyline_rescue_model, ObservedPolylineRefusal, MAX_OBSERVED_POLYLINE_SEGMENTS_V1,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "bounded_fit_refusal", rename_all = "snake_case")]

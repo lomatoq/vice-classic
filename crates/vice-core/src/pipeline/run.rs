@@ -9,7 +9,7 @@ use output::deliver;
 mod proposal;
 use proposal::rank_materializations;
 mod stability;
-use stability::certify_render_stability;
+use stability::{certify_render_stability, fitted_phase_envelope_stable};
 mod trace;
 use trace::build_trace;
 
@@ -129,10 +129,11 @@ pub(super) fn vectorize_impl(
     let canvas_dim_px = f64::from(image.width_px().max(image.height_px()));
     let stage_started = Instant::now();
     let mut fitted_arms = Vec::new();
-    let mut fit_cache =
-        std::collections::BTreeMap::<String, Result<vice_fit::ModelRun, String>>::new();
+    let mut fit_cache = std::collections::BTreeMap::<String, Result<fit::ChainFit, String>>::new();
     for mut arm in arms.into_iter().take(max_topology_arms) {
         let mut fits = Vec::with_capacity(arm.chains.len());
+        let mut observed_polyline_models = Vec::with_capacity(arm.chains.len());
+        let mut complete_observed_polyline = true;
         let mut fit_refusal = None;
         for (chain_index, chain) in arm.chains.iter().enumerate() {
             let fit_key = match serde_json::to_vec(chain) {
@@ -157,7 +158,13 @@ pub(super) fn vectorize_impl(
                 fit
             };
             match fit {
-                Ok(fit) => fits.push(fit),
+                Ok(fit) => {
+                    match fit.observed_polyline {
+                        Some(model) => observed_polyline_models.push(model),
+                        None => complete_observed_polyline = false,
+                    }
+                    fits.push(fit.run);
+                }
                 Err(error) => {
                     fit_refusal = Some(format!("chain {chain_index}: {error}"));
                     break;
@@ -185,7 +192,15 @@ pub(super) fn vectorize_impl(
             *trace = arm.trace.clone();
         }
         let baseline_models = fits.iter().map(|fit| free_model(&fit.models[0])).collect();
-        let variants = final_scene_variants(&fits, &arm.chains, canvas_dim_px);
+        let observed_polyline_models = complete_observed_polyline
+            .then_some(observed_polyline_models)
+            .filter(|models| models.len() == arm.chains.len());
+        let variants = final_scene_variants(
+            &fits,
+            &arm.chains,
+            observed_polyline_models.as_deref(),
+            canvas_dim_px,
+        );
         let variant_count = variants.len();
         let variants = retain_variant_diversity(variants, variant_count, canvas_dim_px >= 128.0);
         fitted_arms.push(FittedTopologyArm {
@@ -293,10 +308,26 @@ pub(super) fn vectorize_impl(
             }
         }
     }
-    let unmaterialized_by_candidate_budget = materialization_order
-        .len()
-        .saturating_sub(config.beam.budget.max_candidates_considered);
-    materialization_order.truncate(config.beam.budget.max_candidates_considered);
+    let candidate_limit = config.beam.budget.max_candidates_considered;
+    let unmaterialized_by_candidate_budget =
+        materialization_order.len().saturating_sub(candidate_limit);
+    let observed_rescue = materialization_order
+        .iter()
+        .copied()
+        .find(|task| fitted_arms[task.0].variants[task.1].class == "observed-polyline-rescue");
+    if let Some(rescue) = observed_rescue.filter(|rescue| {
+        !materialization_order
+            .iter()
+            .take(candidate_limit)
+            .any(|task| task == rescue)
+    }) {
+        materialization_order.truncate(candidate_limit.saturating_sub(1));
+        if candidate_limit > 0 {
+            materialization_order.push(rescue);
+        }
+    } else {
+        materialization_order.truncate(candidate_limit);
+    }
     // M6's evidence/description ordering may not monopolize M7's expensive
     // serialized slots, so reorder one bounded prefix by the real likelihood.
     let stage_started = Instant::now();
@@ -651,22 +682,17 @@ pub(super) fn vectorize_impl(
         selected.summary.score.pixel_bits / diagnostics.blocks as f64
     };
     let max_abs_residual_lag1 = diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs());
-    let phase_envelope_stable = parts.topology.as_ref().is_some_and(|topology| {
-        let same = |class: &str| class == selected.score.topology_class;
-        !topology.materialized_arms.is_empty()
-            && topology
-                .materialized_arms
-                .iter()
-                .all(|arm| same(&arm.topology_class))
-            && topology
-                .prefit_budget_pruned_arms
-                .iter()
-                .all(|arm| same(&arm.topology_class))
-            && topology
-                .materialization_refusals
-                .iter()
-                .all(|arm| same(&arm.topology_class))
-    });
+    // The phase leg is a stability statement about models that survived the
+    // complete typed refit. Refused and budget-pruned proposal arms are
+    // already charged by topology entropy and unexplored search mass; treating
+    // their raw event class as a second perturbation failure double-counts the
+    // same uncertainty and makes an unsupported arm veto a verified delivery.
+    let phase_envelope_stable = fitted_phase_envelope_stable(
+        fitted_arms
+            .iter()
+            .map(|bundle| bundle.arm.topology_class.as_str()),
+        selected.score.topology_class.as_str(),
+    );
     let sample_step_certificate_stable = fitted_arms
         .iter()
         .find(|bundle| bundle.arm.class == selected.summary.topology_arm)

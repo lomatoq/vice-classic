@@ -418,11 +418,10 @@ impl SupportedModelUniverseV1 {
     /// content hash and full recalibration for those changes.
     pub fn m7() -> SupportedModelUniverseV1 {
         let mut universe = Self::v1();
-        // v7 retains the v6 geometry/topology model but replaces
-        // scheduler-dependent elapsed-time admission with deterministic
-        // serialized-materialization work units. Candidate membership,
-        // confidence, and unexplored mass are calibrated from scratch.
-        universe.version = "m7-v7";
+        // v8 adds the bounded, explicitly priced observed-polyline member and
+        // rekeys the palette/fitter/scheduler implementation. Candidate
+        // membership, confidence, and unexplored mass are calibrated anew.
+        universe.version = "m7-v8";
         universe.topology.operators = vec![
             Family::admissible(
                 "topology_merge",
@@ -465,6 +464,7 @@ impl SupportedModelUniverseV1 {
             truncation_rules: vec![
                 "dense chains protect the same k=4 primary path court for Fast and Quality at deterministic 32/64/96/128-sample levels; a certified miss opens one bounded k=16 recovery, search stops after the first level with a certified model, attempts at most 3 paths per level, and retains at most 2 certified models per physical chain; Quality remains wider in topology/formation materialization, beam width, and continuous optimization, and every skipped level/path is reported as unexplored mass",
                 "proposal-path Jacobians use at most 64 mandatory-breakpoint-preserving samples and final continuous refits use at most 128; every retained model is physically recoded, Stage-H compared, binding-isotopy checked, and certified in both corridor directions on all observations",
+                "when every compact line/arc/Bezier grammar solve refuses, or as an explicitly priced alternative to one that constructs no valid scene, a full-observation line-chain member may retain at most 128 segments; it is simplified inside half the certified corridor and binding headroom, refined until exact non-adjacent line crossings are absent, charged for every retained anchor, segment, corner and residual, and must pass the same full two-sided corridor, binding-isotopy, scene, quantization and delivery certificates",
                 "Stage-H relation Jacobians use at most 16 mandatory-breakpoint-preserving samples while relation residual code and both corridor checks use all observations",
                 "observed binding tubes include the maximum evidence halfwidth, half a physical sample interval, the frozen 1/64 px verifier tessellation certificate, and one 0.05 px fitter chord certificate; an optional Stage-H sibling outside that tube or more than one fitter chord certificate worse than its certified free sibling falls back to that free sibling",
                 "opaque label-swapped mixture surrogates within 1e-9 canonicalize to the border-supported H2 reading while all palette hypotheses remain published",

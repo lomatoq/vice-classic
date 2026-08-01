@@ -605,7 +605,8 @@ impl CoreConfig {
         let pricing_sha256 = hex::encode(Sha256::digest(vice_fit::pricing_surface_v1()));
         let backend_sha256 = hex::encode(Sha256::digest(
             format!(
-                "{}|{}|{}|{}",
+                "{}|{}|{}|{}|{}",
+                "vice-core/m7/backend/v15",
                 vice_render::RENDER_DIGEST_SCHEMA,
                 vice_svg::SVG_PARSER_ID,
                 vice_svg::SVG_RENDERER_ID,
@@ -634,7 +635,7 @@ impl CoreConfig {
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
             quality_fast_admission_witness,
-            implementation: "vice-core/m7/v14",
+            implementation: "vice-core/m7/v15",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),

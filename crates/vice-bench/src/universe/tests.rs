@@ -242,7 +242,7 @@ const FROZEN_V1_HASH: &str = "47903d7374d54683e60c318239d75adabcc2eef5fc80ad9d78
 /// M7 is a separate model version. The successor-generation Fast/Quality
 /// calibration and both digest-pinned production configs must bind this exact
 /// finite universe; changing it requires another version and recalibration.
-const FROZEN_M7_HASH: &str = "2ede950dbfe0a74194a1023718518c293e26643722e264d148bc64e9bbb477ab";
+const FROZEN_M7_HASH: &str = "bad6c768e289fe624843fb0260bf0c49f89a6a9789689bc515cb7f9e7e84af05";
 
 #[test]
 fn m7_model_universe_hash_is_frozen() {
