@@ -83,7 +83,7 @@
     }
   },
   "config_hash": "991f23f19ced6eefa8c44d582fcb64a10315df2435419d3e8dec77748e808d07",
-  "fixture_set_hash": "120b2c58afc46feb6bfd3fb2edca04a12805a7d293750ff9501a47df9a4a4db6",
+  "fixture_set_hash": "81ac1e0854ffdc702ffad0887bdf672b93e1b6f05cc674bc86f6837c53505e5e",
   "scenes": 41,
   "arms_measured": 500,
   "arms_refused": 2,
@@ -91,11 +91,11 @@
   "outcomes": [
     {
       "outcome": "ambiguous",
-      "arms": 38
+      "arms": 39
     },
     {
       "outcome": "supported",
-      "arms": 342
+      "arms": 344
     },
     {
       "outcome": "unsupported/no_hypothesis_explains",
@@ -103,39 +103,39 @@
     },
     {
       "outcome": "unsupported/palette",
-      "arms": 117
+      "arms": 114
     }
   ],
   "overall": {
-    "samples": 115885,
-    "ds_px": 57942.480648558216,
+    "samples": 116108,
+    "ds_px": 58054.02845047379,
     "coverage": [
       [
         0.5,
-        0.8983946679644372
+        0.8976425182878194
       ],
       [
         0.9,
-        0.9804312188602363
+        0.9804258061872122
       ],
       [
         0.95,
-        0.9912874220419687
+        0.9912783822515929
       ],
       [
         0.99,
-        0.9990249370319819
+        0.9990182170450974
       ]
     ],
-    "median_halfwidth_px": 0.3189225682710906,
+    "median_halfwidth_px": 0.3190310397475143,
     "p95_halfwidth_px": 0.4135324903040876,
-    "median_distance_px": 0.049625020526260985,
-    "p95_distance_px": 0.18744692803415577,
+    "median_distance_px": 0.049729264116749154,
+    "p95_distance_px": 0.19015998495510786,
     "max_distance_px": 0.7594650841060577,
-    "bias_px": 0.007867493244363985,
-    "mean_corr_length_px": 1.2440108637572054,
-    "capped_fraction_at_95": 0.00012080942313500453,
-    "margin_survival": 0.0009493479144648742
+    "bias_px": 0.018568970956702277,
+    "mean_corr_length_px": 1.2468927726432948,
+    "capped_fraction_at_95": 0.0001205773934612602,
+    "margin_survival": 0.0009475237799034405
   },
   "held_out": {
     "samples": 14330,
@@ -163,7 +163,7 @@
     "median_distance_px": 0.05188475830333789,
     "p95_distance_px": 0.18744692803415577,
     "max_distance_px": 0.5701786102764279,
-    "bias_px": 0.0017579749919436009,
+    "bias_px": 0.02821466331033628,
     "mean_corr_length_px": 1.2668316406538882,
     "capped_fraction_at_95": 0.0,
     "margin_survival": 0.0
@@ -201,7 +201,7 @@
         "median_distance_px": 0.048153222259284714,
         "p95_distance_px": 0.08612704473512485,
         "max_distance_px": 0.4759740440466409,
-        "bias_px": 0.014109925614706958,
+        "bias_px": 0.014080668493205453,
         "mean_corr_length_px": 1.2466043031145595,
         "capped_fraction_at_95": 0.0,
         "margin_survival": 0.00017868638282107625
@@ -211,35 +211,35 @@
       "axis": "blend_space",
       "value": "linear_light",
       "summary": {
-        "samples": 99107,
-        "ds_px": 49553.65580648444,
+        "samples": 99330,
+        "ds_px": 49665.203608400014,
         "coverage": [
           [
             0.5,
-            0.883766946500017
+            0.8829206069001548
           ],
           [
             0.9,
-            0.9777944808081419
+            0.9777940759947447
           ],
           [
             0.95,
-            0.9902261111285939
+            0.9902179281489906
           ],
           [
             0.99,
-            0.9989809259012822
+            0.9989731697070677
           ]
         ],
-        "median_halfwidth_px": 0.3176503189056539,
-        "p95_halfwidth_px": 0.4218915146909751,
-        "median_distance_px": 0.04999462671772097,
-        "p95_distance_px": 0.19750532865825576,
+        "median_halfwidth_px": 0.3177385071816659,
+        "p95_halfwidth_px": 0.4216961113156009,
+        "median_distance_px": 0.0500850770803396,
+        "p95_distance_px": 0.19807847878036103,
         "max_distance_px": 0.7594650841060577,
-        "bias_px": 0.006810726172568525,
-        "mean_corr_length_px": 1.2435718263510052,
-        "capped_fraction_at_95": 0.00014126146488139082,
-        "margin_survival": 0.0010798114392294212
+        "bias_px": 0.019327078856577258,
+        "mean_corr_length_px": 1.2469414973070223,
+        "capped_fraction_at_95": 0.00014094432699083862,
+        "margin_survival": 0.0010773861742472348
       }
     },
     {
@@ -271,7 +271,7 @@
         "median_distance_px": 0.04858437671048433,
         "p95_distance_px": 0.11697899714228299,
         "max_distance_px": 0.4763427086358263,
-        "bias_px": 0.01301800838945139,
+        "bias_px": 0.019910362857620274,
         "mean_corr_length_px": 2.605160280647785,
         "capped_fraction_at_95": 0.0,
         "margin_survival": 0.0002385833493078138
@@ -281,70 +281,70 @@
       "axis": "contrast",
       "value": "1.00",
       "summary": {
-        "samples": 99108,
-        "ds_px": 49554.51435159057,
+        "samples": 99331,
+        "ds_px": 49666.062153506144,
         "coverage": [
           [
             0.5,
-            0.8842835104073848
+            0.8834360252577202
           ],
           [
             0.9,
-            0.9778653462750626
+            0.977864782307926
           ],
           [
             0.95,
-            0.990246405116141
+            0.9902381766985837
           ],
           [
             0.99,
-            0.9990011168767632
+            0.9989933154685777
           ]
         ],
-        "median_halfwidth_px": 0.31756995135291344,
-        "p95_halfwidth_px": 0.42187763531675604,
-        "median_distance_px": 0.04987332996933663,
-        "p95_distance_px": 0.19750532865825576,
+        "median_halfwidth_px": 0.3176401926245763,
+        "p95_halfwidth_px": 0.4216739622748881,
+        "median_distance_px": 0.0499593333519248,
+        "p95_distance_px": 0.19786135665117754,
         "max_distance_px": 0.7594650841060577,
-        "bias_px": 0.006995678677834273,
-        "mean_corr_length_px": 1.0136125724328366,
-        "capped_fraction_at_95": 0.00014126003955281107,
-        "margin_survival": 0.0010696572201986867
+        "bias_px": 0.018342426923048584,
+        "mean_corr_length_px": 1.017498663559443,
+        "capped_fraction_at_95": 0.0001409429080548872,
+        "margin_survival": 0.0010672548030720224
       }
     },
     {
       "axis": "phase",
       "value": "dx0.00dy0.00",
       "summary": {
-        "samples": 100444,
-        "ds_px": 50222.40026257218,
+        "samples": 100667,
+        "ds_px": 50333.94806448775,
         "coverage": [
           [
             0.5,
-            0.884837242315796
+            0.8839997753712073
           ],
           [
             0.9,
-            0.9778114710856844
+            0.9778110339976205
           ],
           [
             0.95,
-            0.9901672104358028
+            0.9901592667095368
           ],
           [
             0.99,
-            0.9988850003561288
+            0.9988775597977069
           ]
         ],
-        "median_halfwidth_px": 0.32180172324365275,
-        "p95_halfwidth_px": 0.41653114926078544,
+        "median_halfwidth_px": 0.3218972116244473,
+        "p95_halfwidth_px": 0.41642384265316723,
         "median_distance_px": 0.053319714505144944,
         "p95_distance_px": 0.19750532865825576,
         "max_distance_px": 0.7594650841060577,
-        "bias_px": 0.009311036893228744,
-        "mean_corr_length_px": 1.3398380014872644,
-        "capped_fraction_at_95": 9.955796264585242e-6,
-        "margin_survival": 0.0005410576518312215
+        "bias_px": 0.021650678255305453,
+        "mean_corr_length_px": 1.342949561774328,
+        "capped_fraction_at_95": 9.93374194125185e-6,
+        "margin_survival": 0.0005398585708787533
       }
     },
     {
@@ -386,70 +386,70 @@
       "axis": "profile",
       "value": "exact-clip",
       "summary": {
-        "samples": 78225,
-        "ds_px": 39111.27064936979,
+        "samples": 78336,
+        "ds_px": 39166.647258701036,
         "coverage": [
           [
             0.5,
-            0.9570419612638928
+            0.956287493105371
           ],
           [
             0.9,
-            0.9953346758137601
+            0.9952903216506924
           ],
           [
             0.95,
-            0.9972776059089049
+            0.9972432422745571
           ],
           [
             0.99,
-            0.9993353381186191
+            0.999323540281643
           ]
         ],
-        "median_halfwidth_px": 0.31679952714963416,
-        "p95_halfwidth_px": 0.3973620851044017,
-        "median_distance_px": 0.0484180051832368,
-        "p95_distance_px": 0.11823134877153862,
+        "median_halfwidth_px": 0.31681197521742765,
+        "p95_halfwidth_px": 0.39744499081649043,
+        "median_distance_px": 0.04842082059040735,
+        "p95_distance_px": 0.11985627164001755,
         "max_distance_px": 0.5971023067568656,
-        "bias_px": 0.010554666278571271,
-        "mean_corr_length_px": 1.3315286082272257,
-        "capped_fraction_at_95": 0.00016618728028124002,
-        "margin_survival": 0.0010709054494838072
+        "bias_px": 0.017357164798746293,
+        "mean_corr_length_px": 1.3345835474768193,
+        "capped_fraction_at_95": 0.00016595179738562092,
+        "margin_survival": 0.001069391309176358
       }
     },
     {
       "axis": "profile",
       "value": "raqote",
       "summary": {
-        "samples": 13036,
-        "ds_px": 6518.287427766405,
+        "samples": 13148,
+        "ds_px": 6574.458620351958,
         "coverage": [
           [
             0.5,
-            0.5814216630787192
+            0.5814888523310586
           ],
           [
             0.9,
-            0.8924859848468983
+            0.8933282841856981
           ],
           [
             0.95,
-            0.9465571139007354
+            0.9470137219580513
           ],
           [
             0.99,
-            0.9970856519551669
+            0.9971105517096167
           ]
         ],
-        "median_halfwidth_px": 0.31106983152014733,
-        "p95_halfwidth_px": 0.39858249236907795,
-        "median_distance_px": 0.09562052520823286,
+        "median_halfwidth_px": 0.3110928053835231,
+        "p95_halfwidth_px": 0.3986884627080134,
+        "median_distance_px": 0.09548770969977641,
         "p95_distance_px": 0.27071970272241863,
         "max_distance_px": 0.5937775363708118,
-        "bias_px": -0.008640230411537471,
-        "mean_corr_length_px": 0.8546771146969536,
-        "capped_fraction_at_95": 0.00007671064743786438,
-        "margin_survival": 0.001401153288001887
+        "bias_px": 0.016617652489548426,
+        "mean_corr_length_px": 0.8645148216880347,
+        "capped_fraction_at_95": 0.000076057195010648,
+        "margin_survival": 0.001389182043565334
       }
     },
     {
@@ -516,7 +516,7 @@
         "median_distance_px": 0.05188475830333789,
         "p95_distance_px": 0.18744692803415577,
         "max_distance_px": 0.5701786102764279,
-        "bias_px": 0.0017579749919436009,
+        "bias_px": 0.02821466331033628,
         "mean_corr_length_px": 1.2668316406538882,
         "capped_fraction_at_95": 0.0,
         "margin_survival": 0.0
@@ -526,35 +526,35 @@
       "axis": "psf",
       "value": "box",
       "summary": {
-        "samples": 105591,
-        "ds_px": 52794.26347404448,
+        "samples": 105814,
+        "ds_px": 52905.81127596005,
         "coverage": [
           [
             0.5,
-            0.8965755866739132
+            0.895754081376901
           ],
           [
             0.9,
-            0.9800286243311999
+            0.9800235337951612
           ],
           [
             0.95,
-            0.9909017069145414
+            0.9908926007206958
           ],
           [
             0.99,
-            0.9989298540515971
+            0.9989226806238929
           ]
         ],
-        "median_halfwidth_px": 0.3128929399304337,
+        "median_halfwidth_px": 0.31292937552659783,
         "p95_halfwidth_px": 0.39730544774199544,
-        "median_distance_px": 0.05241468461153125,
-        "p95_distance_px": 0.18249109825644538,
+        "median_distance_px": 0.05241468461154131,
+        "p95_distance_px": 0.18325855108796987,
         "max_distance_px": 0.5971023067568656,
-        "bias_px": 0.006990954183200264,
-        "mean_corr_length_px": 1.263873723531637,
-        "capped_fraction_at_95": 0.00013258705760907654,
-        "margin_survival": 0.0009663472767507115
+        "bias_px": 0.018735631234624666,
+        "mean_corr_length_px": 1.266994189093623,
+        "capped_fraction_at_95": 0.0001323076341504905,
+        "margin_survival": 0.0009643097954490516
       }
     },
     {
@@ -691,7 +691,7 @@
         "median_distance_px": 0.04810991012140086,
         "p95_distance_px": 0.12062645488387908,
         "max_distance_px": 0.5734715851099309,
-        "bias_px": 0.010185580230003778,
+        "bias_px": 0.018031588789275996,
         "mean_corr_length_px": 1.4047989273652735,
         "capped_fraction_at_95": 0.00017606826031015102,
         "margin_survival": 0.0008894370414642843
@@ -701,35 +701,35 @@
       "axis": "resolution_px",
       "value": "32",
       "summary": {
-        "samples": 20916,
-        "ds_px": 10459.082009228348,
+        "samples": 21139,
+        "ds_px": 10570.62981114515,
         "coverage": [
           [
             0.5,
-            0.8356319878893748
+            0.8321634831383746
           ],
           [
             0.9,
-            0.9733294245016642
+            0.9733746405469731
           ],
           [
             0.95,
-            0.9863744786273194
+            0.9863766763952508
           ],
           [
             0.99,
-            0.9985181385829931
+            0.9984865803823223
           ]
         ],
-        "median_halfwidth_px": 0.364901872847874,
-        "p95_halfwidth_px": 0.5881689982606263,
-        "median_distance_px": 0.04652917104521226,
-        "p95_distance_px": 0.25390874436491717,
+        "median_halfwidth_px": 0.3649018728478743,
+        "p95_halfwidth_px": 0.5876993429514008,
+        "median_distance_px": 0.04705188641795545,
+        "p95_distance_px": 0.2531544254867486,
         "max_distance_px": 0.7594650841060577,
-        "bias_px": 0.0041366330773571994,
-        "mean_corr_length_px": 0.913200045377345,
-        "capped_fraction_at_95": 0.000047810288774144196,
-        "margin_survival": 0.0014717199133405397
+        "bias_px": 0.011514188421832054,
+        "mean_corr_length_px": 0.9325184439735233,
+        "capped_fraction_at_95": 0.00004730592743270732,
+        "margin_survival": 0.0014561893526342596
       }
     },
     {
@@ -761,7 +761,7 @@
         "median_distance_px": 0.06437998303278257,
         "p95_distance_px": 0.21292220698047093,
         "max_distance_px": 0.5971023067568656,
-        "bias_px": 0.003462806347978646,
+        "bias_px": 0.027502254742185112,
         "mean_corr_length_px": 1.0097752831861002,
         "capped_fraction_at_95": 0.0,
         "margin_survival": 0.0006416466292166897
@@ -771,35 +771,35 @@
       "axis": "split",
       "value": "calibration",
       "summary": {
-        "samples": 64368,
-        "ds_px": 32184.71648280686,
+        "samples": 64591,
+        "ds_px": 32296.264298898728,
         "coverage": [
           [
             0.5,
-            0.8892143735104108
+            0.8878940573566458
           ],
           [
             0.9,
-            0.9814152538855546
+            0.9814021256029481
           ],
           [
             0.95,
-            0.9942033325669616
+            0.9941770118841374
           ],
           [
             0.99,
-            0.9990213502552807
+            0.9990092831568929
           ]
         ],
-        "median_halfwidth_px": 0.3156264197283819,
-        "p95_halfwidth_px": 0.4010895149094772,
-        "median_distance_px": 0.047668982347760736,
-        "p95_distance_px": 0.18375304018182703,
+        "median_halfwidth_px": 0.31573931974990616,
+        "p95_halfwidth_px": 0.4012810786478163,
+        "median_distance_px": 0.0477964723261146,
+        "p95_distance_px": 0.18720626907213322,
         "max_distance_px": 0.6268082123098593,
-        "bias_px": 0.007622679167485974,
-        "mean_corr_length_px": 1.2896699736457793,
+        "bias_px": 0.021334191028697148,
+        "mean_corr_length_px": 1.2946926366798799,
         "capped_fraction_at_95": 0.0,
-        "margin_survival": 0.00009323055124631762
+        "margin_survival": 0.00009290854297042788
       }
     },
     {
@@ -807,23 +807,23 @@
       "value": "development",
       "summary": {
         "samples": 51517,
-        "ds_px": 25757.764165762645,
+        "ds_px": 25757.764151588282,
         "coverage": [
           [
             0.5,
-            0.9098655849404017
+            0.9098655850449988
           ],
           [
             0.9,
-            0.9792016521906797
+            0.9792016521920632
           ],
           [
             0.95,
-            0.9876439476731372
+            0.987643947672311
           ],
           [
             0.99,
-            0.9990294187638001
+            0.999029418763266
           ]
         ],
         "median_halfwidth_px": 0.322274669442574,
@@ -831,35 +831,35 @@
         "median_distance_px": 0.05293881360988173,
         "p95_distance_px": 0.19750532865825576,
         "max_distance_px": 0.7594650841060577,
-        "bias_px": 0.008173392141663249,
-        "mean_corr_length_px": 1.186959114343873,
+        "bias_px": 0.01510181139407619,
+        "mean_corr_length_px": 1.1869591140654276,
         "capped_fraction_at_95": 0.0002717549546751558,
-        "margin_survival": 0.0020190795275763676
+        "margin_survival": 0.0020190795020308227
       }
     }
   ],
   "step_invariance": [
     [
       0.25,
-      0.9910847368734054
+      0.9910803832923375
     ],
     [
       0.5,
-      0.9912874220419687
+      0.9912783822515929
     ],
     [
       1.0,
-      0.9898693884182339
+      0.9898541672941137
     ]
   ],
   "formation_recovery": {
-    "supported_arms": 342,
-    "exterior_correct": 342,
+    "supported_arms": 344,
+    "exterior_correct": 344,
     "exterior_wrong": 0,
     "blend_correct_where_identifiable": 12,
-    "blend_arms_identifiable": 42,
+    "blend_arms_identifiable": 44,
     "filter_correct_where_identifiable": 268,
-    "filter_arms_identifiable": 325,
+    "filter_arms_identifiable": 327,
     "filter_arms_unidentifiable": 17,
     "max_alpha_error": 0.009004329656086552,
     "alpha_error_arms": 143,
@@ -898,12 +898,12 @@
   },
   "over_opaque_layer": {
     "probes": 1191,
-    "delivered_as_two_colour": 790,
+    "delivered_as_two_colour": 823,
     "rejected_as_semi_transparent": 10,
-    "other_outcomes": 391,
+    "other_outcomes": 358,
     "single_ink_probes": 918,
     "multi_ink_probes": 273,
-    "single_ink_rejected_as_semi_transparent": 0,
+    "single_ink_rejected_as_semi_transparent": 4,
     "single_ink_byte_identical": 143,
     "single_ink_within_one_code": 918,
     "single_ink_max_byte_difference": 1,
@@ -5249,9 +5249,9 @@
       "filter_identifiable": true,
       "samples": 239,
       "coverage_at_95": 0.9790593707138848,
-      "median_halfwidth_px": 0.3115442217413752,
+      "median_halfwidth_px": 0.31154422174137514,
       "p95_distance_px": 0.26114987166312886,
-      "bias_px": -0.02616888353346357,
+      "bias_px": 0.026168883533463583,
       "max_alpha_error": null
     },
     {
@@ -5272,9 +5272,9 @@
       "filter_identifiable": true,
       "samples": 484,
       "coverage_at_95": 0.9111466111864718,
-      "median_halfwidth_px": 0.28059768823328435,
+      "median_halfwidth_px": 0.28059768823328424,
       "p95_distance_px": 0.3228945843769586,
-      "bias_px": -0.1388895260442903,
+      "bias_px": 0.13888952604429033,
       "max_alpha_error": null
     },
     {
@@ -5297,7 +5297,7 @@
       "coverage_at_95": 1.0,
       "median_halfwidth_px": 0.3070628138501666,
       "p95_distance_px": 0.14637903810982242,
-      "bias_px": -0.023822468372684313,
+      "bias_px": 0.023822468372684376,
       "max_alpha_error": null
     },
     {
@@ -5343,7 +5343,7 @@
       "coverage_at_95": 0.9958736518861674,
       "median_halfwidth_px": 0.2805976882332838,
       "p95_distance_px": 0.25620085028083395,
-      "bias_px": -0.12775982286938325,
+      "bias_px": 0.12775982286938328,
       "max_alpha_error": null
     },
     {
@@ -6491,9 +6491,9 @@
       "filter_identifiable": true,
       "samples": 210,
       "coverage_at_95": 1.0,
-      "median_halfwidth_px": 0.32764852272412337,
+      "median_halfwidth_px": 0.3276485227241239,
       "p95_distance_px": 0.18813290609667171,
-      "bias_px": -0.09875195411264809,
+      "bias_px": 0.098751954112649,
       "max_alpha_error": null
     },
     {
@@ -6514,9 +6514,9 @@
       "filter_identifiable": true,
       "samples": 422,
       "coverage_at_95": 1.0,
-      "median_halfwidth_px": 0.3156420889270468,
+      "median_halfwidth_px": 0.3156420889270469,
       "p95_distance_px": 0.1957044338692225,
-      "bias_px": -0.10961444874754625,
+      "bias_px": 0.10961444874754597,
       "max_alpha_error": null
     },
     {
@@ -6560,9 +6560,9 @@
       "filter_identifiable": true,
       "samples": 211,
       "coverage_at_95": 0.947867298578199,
-      "median_halfwidth_px": 0.32447482797035976,
+      "median_halfwidth_px": 0.3244748279703553,
       "p95_distance_px": 0.35067291625246044,
-      "bias_px": -0.11460896058685012,
+      "bias_px": 0.11460896058684994,
       "max_alpha_error": null
     },
     {
@@ -6606,9 +6606,9 @@
       "filter_identifiable": true,
       "samples": 211,
       "coverage_at_95": 1.0,
-      "median_halfwidth_px": 0.32227907376024073,
+      "median_halfwidth_px": 0.32227907376024106,
       "p95_distance_px": 0.18649956816970023,
-      "bias_px": -0.08397672257232275,
+      "bias_px": 0.08397672257232279,
       "max_alpha_error": null
     },
     {
@@ -7745,20 +7745,20 @@
       "split": "calibration",
       "profile": "exact-clip",
       "size_px": 32,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "exterior_truth": "opaque",
-      "exterior_recovered": null,
+      "exterior_recovered": "opaque",
       "blend_truth": "linear_light",
-      "blend_recovered": null,
-      "blend_identifiable": null,
+      "blend_recovered": "encoded_srgb",
+      "blend_identifiable": true,
       "filter_truth": "box",
-      "filter_recovered": null,
-      "filter_identifiable": null,
-      "samples": 0,
-      "coverage_at_95": null,
-      "median_halfwidth_px": null,
-      "p95_distance_px": null,
-      "bias_px": null,
+      "filter_recovered": "triangle",
+      "filter_identifiable": true,
+      "samples": 111,
+      "coverage_at_95": 0.972972972972973,
+      "median_halfwidth_px": 0.3466344262829696,
+      "p95_distance_px": 0.21808150150397054,
+      "bias_px": 0.11633853666769794,
       "max_alpha_error": null
     },
     {
@@ -7781,7 +7781,7 @@
       "coverage_at_95": 0.9868995633187774,
       "median_halfwidth_px": 0.2537905104418217,
       "p95_distance_px": 0.12240732402821486,
-      "bias_px": -0.0846115329470214,
+      "bias_px": 0.0846115329470214,
       "max_alpha_error": null
     },
     {
@@ -7814,20 +7814,20 @@
       "split": "calibration",
       "profile": "raqote",
       "size_px": 32,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "exterior_truth": "opaque",
-      "exterior_recovered": null,
+      "exterior_recovered": "opaque",
       "blend_truth": "linear_light",
-      "blend_recovered": null,
-      "blend_identifiable": null,
+      "blend_recovered": "encoded_srgb",
+      "blend_identifiable": true,
       "filter_truth": "box",
-      "filter_recovered": null,
-      "filter_identifiable": null,
-      "samples": 0,
-      "coverage_at_95": null,
-      "median_halfwidth_px": null,
-      "p95_distance_px": null,
-      "bias_px": null,
+      "filter_recovered": "gauss0.50",
+      "filter_identifiable": true,
+      "samples": 112,
+      "coverage_at_95": 1.0,
+      "median_halfwidth_px": 0.3958204094525968,
+      "p95_distance_px": 0.23830497844277865,
+      "bias_px": 0.05841293431114996,
       "max_alpha_error": null
     },
     {
@@ -7848,9 +7848,9 @@
       "filter_identifiable": true,
       "samples": 228,
       "coverage_at_95": 0.9868421052631579,
-      "median_halfwidth_px": 0.2714292812073973,
+      "median_halfwidth_px": 0.27142928120739723,
       "p95_distance_px": 0.1540397625011103,
-      "bias_px": -0.11660482439378753,
+      "bias_px": 0.11660482439378753,
       "max_alpha_error": null
     },
     {
@@ -7871,9 +7871,9 @@
       "filter_identifiable": true,
       "samples": 110,
       "coverage_at_95": 0.9636363636363636,
-      "median_halfwidth_px": 0.315834650170046,
+      "median_halfwidth_px": 0.31583465017004625,
       "p95_distance_px": 0.31976685250886927,
-      "bias_px": -0.14150486883535174,
+      "bias_px": 0.1415048688353515,
       "max_alpha_error": null
     },
     {
@@ -7894,9 +7894,9 @@
       "filter_identifiable": true,
       "samples": 228,
       "coverage_at_95": 0.9868421052631579,
-      "median_halfwidth_px": 0.2714292812073973,
+      "median_halfwidth_px": 0.27142928120739723,
       "p95_distance_px": 0.1540397625011103,
-      "bias_px": -0.11660482439378753,
+      "bias_px": 0.11660482439378753,
       "max_alpha_error": null
     },
     {
@@ -7975,7 +7975,7 @@
       "split": "calibration",
       "profile": "supersample",
       "size_px": 32,
-      "outcome": "unsupported/palette",
+      "outcome": "ambiguous",
       "exterior_truth": "opaque",
       "exterior_recovered": null,
       "blend_truth": "linear_light",
@@ -8032,9 +8032,9 @@
       "filter_identifiable": true,
       "samples": 462,
       "coverage_at_95": 0.9935064935064936,
-      "median_halfwidth_px": 0.3721444638510171,
+      "median_halfwidth_px": 0.372144463851017,
       "p95_distance_px": 0.13031203566121619,
-      "bias_px": -0.07326884690499219,
+      "bias_px": 0.07326884690499219,
       "max_alpha_error": null
     },
     {
@@ -8906,9 +8906,9 @@
       "filter_identifiable": true,
       "samples": 121,
       "coverage_at_95": 0.9752066115702479,
-      "median_halfwidth_px": 0.31027399609058776,
-      "p95_distance_px": 0.2246912188339738,
-      "bias_px": -0.13002913122695783,
+      "median_halfwidth_px": 0.3102739960905878,
+      "p95_distance_px": 0.22469121883397292,
+      "bias_px": 0.1300291312269578,
       "max_alpha_error": null
     },
     {
@@ -8929,9 +8929,9 @@
       "filter_identifiable": true,
       "samples": 245,
       "coverage_at_95": 0.9959183673469387,
-      "median_halfwidth_px": 0.3104724032212964,
+      "median_halfwidth_px": 0.31047240322129643,
       "p95_distance_px": 0.21785046452624582,
-      "bias_px": -0.12320781500308589,
+      "bias_px": 0.12320781500308603,
       "max_alpha_error": null
     },
     {
@@ -8953,8 +8953,8 @@
       "samples": 494,
       "coverage_at_95": 0.9898785425101213,
       "median_halfwidth_px": 0.31605880880512627,
-      "p95_distance_px": 0.22002593356815905,
-      "bias_px": -0.12543292471536707,
+      "p95_distance_px": 0.22002593356815622,
+      "bias_px": 0.1254329247153669,
       "max_alpha_error": null
     },
     {
@@ -8977,7 +8977,7 @@
       "coverage_at_95": 0.9752066115702479,
       "median_halfwidth_px": 0.3011881264219791,
       "p95_distance_px": 0.23445628146220873,
-      "bias_px": -0.09341381778462056,
+      "bias_px": 0.09341381778462055,
       "max_alpha_error": null
     },
     {
@@ -8998,9 +8998,9 @@
       "filter_identifiable": true,
       "samples": 246,
       "coverage_at_95": 0.9796747967479673,
-      "median_halfwidth_px": 0.3026664898686403,
+      "median_halfwidth_px": 0.30266648986864036,
       "p95_distance_px": 0.2498686540315571,
-      "bias_px": -0.08715438126202302,
+      "bias_px": 0.08715438126202302,
       "max_alpha_error": null
     },
     {
@@ -9090,9 +9090,9 @@
       "filter_identifiable": true,
       "samples": 495,
       "coverage_at_95": 0.997979797979798,
-      "median_halfwidth_px": 0.30760738715920205,
-      "p95_distance_px": 0.08168589223303271,
-      "bias_px": 0.0004953800578518349,
+      "median_halfwidth_px": 0.3076073871592021,
+      "p95_distance_px": 0.08168589223303625,
+      "bias_px": -0.0004953800578517471,
       "max_alpha_error": null
     },
     {
@@ -9113,9 +9113,9 @@
       "filter_identifiable": true,
       "samples": 495,
       "coverage_at_95": 0.9959595959595959,
-      "median_halfwidth_px": 0.3081140169424854,
+      "median_halfwidth_px": 0.3081140169424855,
       "p95_distance_px": 0.12712375187592379,
-      "bias_px": -0.048489015724133624,
+      "bias_px": 0.048489015724133486,
       "max_alpha_error": null
     },
     {
@@ -9917,10 +9917,10 @@
       "filter_recovered": "triangle",
       "filter_identifiable": true,
       "samples": 158,
-      "coverage_at_95": 0.9936594139228108,
-      "median_halfwidth_px": 0.3339207628910283,
-      "p95_distance_px": 0.2929870381702205,
-      "bias_px": -0.05610871563115161,
+      "coverage_at_95": 0.99365941360214,
+      "median_halfwidth_px": 0.33392069973057936,
+      "p95_distance_px": 0.292987146964666,
+      "bias_px": 0.05610901109888104,
       "max_alpha_error": null
     },
     {
@@ -9987,9 +9987,9 @@
       "filter_identifiable": true,
       "samples": 151,
       "coverage_at_95": 0.9801324503311258,
-      "median_halfwidth_px": 0.32577244947463935,
-      "p95_distance_px": 0.28668647120170554,
-      "bias_px": -0.035284831390522804,
+      "median_halfwidth_px": 0.32577239726590174,
+      "p95_distance_px": 0.2866867393984548,
+      "bias_px": 0.035285258910339776,
       "max_alpha_error": null
     },
     {
@@ -23655,7 +23655,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
       "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "ambiguous",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -23790,7 +23790,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
       "cell_id": "s64_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "ambiguous",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -23898,7 +23898,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "supported",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -23907,7 +23907,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "ambiguous",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -23916,7 +23916,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#bridged",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "supported",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -24033,7 +24033,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#split",
       "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "ambiguous",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -24168,7 +24168,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#split",
       "cell_id": "s64_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "ambiguous",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -24276,7 +24276,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#split",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "supported",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -24285,7 +24285,7 @@
       "scene_id": "adv/ambiguous/bridge-or-gap#split",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "ambiguous",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -25599,7 +25599,7 @@
       "scene_id": "adv/checker-corner#a",
       "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "ambiguous",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -25761,7 +25761,7 @@
       "scene_id": "adv/checker-corner#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/palette",
+      "outcome": "ambiguous",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -25770,7 +25770,7 @@
       "scene_id": "adv/checker-corner#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -25779,7 +25779,7 @@
       "scene_id": "adv/checker-corner#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -26247,7 +26247,7 @@
       "scene_id": "adv/sliver#a",
       "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -26256,7 +26256,7 @@
       "scene_id": "adv/sliver#a",
       "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -26265,7 +26265,7 @@
       "scene_id": "adv/sliver#a",
       "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -27138,7 +27138,7 @@
       "scene_id": "authored/pennant#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "supported",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -27246,7 +27246,7 @@
       "scene_id": "authored/twotone#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -27255,8 +27255,8 @@
       "scene_id": "authored/twotone#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/semi_transparent_interior",
-      "rejected_as_semi_transparent": true,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
     },
@@ -27327,7 +27327,7 @@
       "scene_id": "authored/twotone#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -27336,8 +27336,8 @@
       "scene_id": "authored/twotone#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/semi_transparent_interior",
-      "rejected_as_semi_transparent": true,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
     },
@@ -27381,7 +27381,7 @@
       "scene_id": "authored/twotone#a",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -27390,8 +27390,8 @@
       "scene_id": "authored/twotone#a",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/semi_transparent_interior",
-      "rejected_as_semi_transparent": true,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
     },
@@ -27462,7 +27462,7 @@
       "scene_id": "authored/twotone#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -29811,7 +29811,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -29820,7 +29820,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 0
@@ -29829,7 +29829,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -29901,7 +29901,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -29910,7 +29910,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -29946,7 +29946,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 0
@@ -29955,7 +29955,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -29964,7 +29964,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_ptiny-skia_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -30027,7 +30027,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -30036,7 +30036,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -30045,8 +30045,8 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
+      "outcome": "unsupported/semi_transparent_interior",
+      "rejected_as_semi_transparent": true,
       "single_ink": true,
       "max_byte_difference": 1
     },
@@ -30054,7 +30054,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -30063,7 +30063,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -30072,7 +30072,7 @@
       "scene_id": "proc/l_shape/000#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "ambiguous",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -30756,7 +30756,7 @@
       "scene_id": "proc/l_shape/003#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -30765,7 +30765,7 @@
       "scene_id": "proc/l_shape/003#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -30774,7 +30774,7 @@
       "scene_id": "proc/l_shape/003#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -31935,7 +31935,7 @@
       "scene_id": "proc/star/000#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -31962,8 +31962,8 @@
       "scene_id": "proc/star/000#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
+      "outcome": "unsupported/semi_transparent_interior",
+      "rejected_as_semi_transparent": true,
       "single_ink": true,
       "max_byte_difference": 1
     },
@@ -32070,7 +32070,7 @@
       "scene_id": "proc/star/001#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32151,7 +32151,7 @@
       "scene_id": "proc/star/001#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32196,7 +32196,7 @@
       "scene_id": "proc/star/001#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32205,7 +32205,7 @@
       "scene_id": "proc/star/001#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32223,7 +32223,7 @@
       "scene_id": "proc/star/001#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32232,7 +32232,7 @@
       "scene_id": "proc/star/001#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32259,8 +32259,8 @@
       "scene_id": "proc/star/001#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
+      "outcome": "unsupported/semi_transparent_interior",
+      "rejected_as_semi_transparent": true,
       "single_ink": true,
       "max_byte_difference": 1
     },
@@ -32358,7 +32358,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32367,7 +32367,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32448,7 +32448,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32493,7 +32493,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32502,7 +32502,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32511,7 +32511,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32520,7 +32520,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32529,7 +32529,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32547,7 +32547,7 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/palette",
+      "outcome": "supported",
       "rejected_as_semi_transparent": false,
       "single_ink": true,
       "max_byte_difference": 1
@@ -32556,8 +32556,8 @@
       "scene_id": "proc/star/003#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
+      "outcome": "unsupported/semi_transparent_interior",
+      "rejected_as_semi_transparent": true,
       "single_ink": true,
       "max_byte_difference": 1
     },
@@ -32853,7 +32853,7 @@
       "scene_id": "proc/triple_junction/000#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
+      "outcome": "unsupported/no_hypothesis_explains",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -33132,6 +33132,24 @@
       "scene_id": "proc/triple_junction/001#a",
       "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/triple_junction/001#a",
+      "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/triple_junction/001#a",
+      "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
       "outcome": "unsupported/semi_transparent_interior",
       "rejected_as_semi_transparent": true,
       "single_ink": false,
@@ -33139,24 +33157,6 @@
     },
     {
       "scene_id": "proc/triple_junction/001#a",
-      "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/triple_junction/001#a",
-      "cell_id": "s32_psupersample_gauss1.00_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/triple_junction/001#a",
       "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
       "outcome": "unsupported/palette",
@@ -33537,7 +33537,7 @@
       "scene_id": "proc/two_islands/000#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -33546,7 +33546,7 @@
       "scene_id": "proc/two_islands/000#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -33555,7 +33555,7 @@
       "scene_id": "proc/two_islands/000#a",
       "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -33618,7 +33618,7 @@
       "scene_id": "proc/two_islands/000#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -33627,7 +33627,7 @@
       "scene_id": "proc/two_islands/000#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -33636,7 +33636,7 @@
       "scene_id": "proc/two_islands/000#a",
       "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/no_hypothesis_explains",
+      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null
@@ -33672,14 +33672,581 @@
       "scene_id": "proc/two_islands/000#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/000#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
       "outcome": "unsupported/semi_transparent_interior",
       "rejected_as_semi_transparent": true,
       "single_ink": false,
       "max_byte_difference": null
     },
     {
-      "scene_id": "proc/two_islands/000#a",
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/001#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
       "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.5,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.75,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
+      "alpha": 0.35,
+      "outcome": "unsupported/palette",
+      "rejected_as_semi_transparent": false,
+      "single_ink": false,
+      "max_byte_difference": null
+    },
+    {
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.5,
       "outcome": "unsupported/no_hypothesis_explains",
       "rejected_as_semi_transparent": false,
@@ -33687,577 +34254,10 @@
       "max_byte_difference": null
     },
     {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
+      "scene_id": "proc/two_islands/003#a",
+      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
       "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/semi_transparent_interior",
-      "rejected_as_semi_transparent": true,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
       "outcome": "unsupported/no_hypothesis_explains",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/000#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_srgb_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c0.50",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/001#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.33dy0.50_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s64_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s128_pexact-clip_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s64_praqote_box_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_psupersample_triangle_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.35,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.5,
-      "outcome": "unsupported/palette",
-      "rejected_as_semi_transparent": false,
-      "single_ink": false,
-      "max_byte_difference": null
-    },
-    {
-      "scene_id": "proc/two_islands/003#a",
-      "cell_id": "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00",
-      "alpha": 0.75,
-      "outcome": "unsupported/palette",
       "rejected_as_semi_transparent": false,
       "single_ink": false,
       "max_byte_difference": null

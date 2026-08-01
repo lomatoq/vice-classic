@@ -14,7 +14,7 @@
     "s32_psupersample_gauss0.50_lin_none_dx0.00dy0.00_c1.00"
   ],
   "scenes": 41,
-  "fixture_set_hash": "120b2c58afc46feb6bfd3fb2edca04a12805a7d293750ff9501a47df9a4a4db6",
+  "fixture_set_hash": "81ac1e0854ffdc702ffad0887bdf672b93e1b6f05cc674bc86f6837c53505e5e",
   "arms": [
     {
       "source": "corpus",
@@ -34245,6 +34245,7 @@
     "EditLeftTheCanvas",
     "NotTheDeclaredEdit",
     "UnrelatedGraphMutation",
+    "IncrementalRebuildFailed",
     "CandidateFailedAudit"
   ],
   "arms_with_a_loop_of_three_or_more": 20,
