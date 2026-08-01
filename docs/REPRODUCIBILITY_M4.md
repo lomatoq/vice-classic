@@ -136,13 +136,13 @@ Float-ы округлены до четырёх знаков и сверяютс
 | из них с неверным exterior | `corridor:formation_recovery.exterior_wrong` | 0 |
 | max \|α̂ − true coverage\| | `corridor:formation_recovery.max_alpha_error` | 0.009 |
 | arms, сверенных с точным интегратором | `corridor:formation_recovery.alpha_error_arms` | 143 |
-| arms oracle | `oracle:arms_measured` | 1162 |
-| отказов oracle | `oracle:arms_refused` | 350 |
-| arms PF10 (формация ОЦЕНЕНА) | `oracle:formation_arms.estimated` | 406 |
+| arms oracle | `oracle:arms_measured` | 1172 |
+| отказов oracle | `oracle:arms_refused` | 340 |
+| arms PF10 (формация ОЦЕНЕНА) | `oracle:formation_arms.estimated` | 416 |
 | arms PF11 (формация — истина) | `oracle:formation_arms.ground_truth` | 756 |
-| из PF10 формация совпала с истиной | `oracle:formation_arms.formation_matches` | 204 |
-| общих (scene, cell) пар факториала | `oracle:factorial_common_fixtures` | 406 |
-| отброшено факториалом | `oracle:factorial_dropped_fixtures` | 350 |
+| из PF10 формация совпала с истиной | `oracle:formation_arms.formation_matches` | 206 |
+| общих (scene, cell) пар факториала | `oracle:factorial_common_fixtures` | 416 |
+| отброшено факториалом | `oracle:factorial_dropped_fixtures` | 340 |
 
 ## CI
 
