@@ -113,7 +113,7 @@ Float-ы округлены до четырёх знаков и сверяютс
 | held-out coverage@99 | `corridor:held_out.coverage@99` | 0.9984 |
 | held-out median halfwidth, px | `corridor:held_out.median_halfwidth_px` | 0.3111 |
 | held-out p95 halfwidth, px | `corridor:held_out.p95_halfwidth_px` | 0.3959 |
-| held-out bias вдоль нормали, px | `corridor:held_out.bias_px` | 0.0018 |
+| held-out bias вдоль нормали, px | `corridor:held_out.bias_px` | 0.0282 |
 | контроль резкости (held-out) | `corridor:held_out.margin_survival` | 0 |
 | §1.6-проб всего | `corridor:semi_transparent.probes` | 1242 |
 | из них разрешимых | `corridor:semi_transparent.probes_observable` | 849 |
@@ -123,16 +123,16 @@ Float-ы округлены до четырёх знаков и сверяютс
 | доставлено как two-colour ВСЕГО | `corridor:semi_transparent.delivered_as_two_colour` | 26 |
 | чистых arms отвергнуто по §1.6 | `corridor:semi_transparent.clean_arms_rejected` | 0 |
 | проб «постоянная α НАД НЕПРОЗРАЧНЫМ слоем» | `corridor:over_opaque_layer.probes` | 1191 |
-| из них доставлено как two-colour | `corridor:over_opaque_layer.delivered_as_two_colour` | 790 |
-| прочие исходы (palette / no-hypothesis / ambiguous) | `corridor:over_opaque_layer.other_outcomes` | 391 |
+| из них доставлено как two-colour | `corridor:over_opaque_layer.delivered_as_two_colour` | 823 |
+| прочие исходы (palette / no-hypothesis / ambiguous) | `corridor:over_opaque_layer.other_outcomes` | 358 |
 | отвергнуто по §1.6 | `corridor:over_opaque_layer.rejected_as_semi_transparent` | 10 |
 | проб на arms с ОДНОЙ краской | `corridor:over_opaque_layer.single_ink_probes` | 918 |
 | проб на arms с несколькими красками | `corridor:over_opaque_layer.multi_ink_probes` | 273 |
-| из одночернильных отвергнуто по §1.6 | `corridor:over_opaque_layer.single_ink_rejected_as_semi_transparent` | 0 |
+| из одночернильных отвергнуто по §1.6 | `corridor:over_opaque_layer.single_ink_rejected_as_semi_transparent` | 4 |
 | побайтово совпало с two-colour сценой | `corridor:over_opaque_layer.single_ink_byte_identical` | 143 |
 | совпало в пределах одного кода | `corridor:over_opaque_layer.single_ink_within_one_code` | 918 |
 | макс. расхождение с two-colour сценой, кодов | `corridor:over_opaque_layer.single_ink_max_byte_difference` | 1 |
-| supported arms | `corridor:formation_recovery.supported_arms` | 342 |
+| supported arms | `corridor:formation_recovery.supported_arms` | 344 |
 | из них с неверным exterior | `corridor:formation_recovery.exterior_wrong` | 0 |
 | max \|α̂ − true coverage\| | `corridor:formation_recovery.max_alpha_error` | 0.009 |
 | arms, сверенных с точным интегратором | `corridor:formation_recovery.alpha_error_arms` | 143 |
