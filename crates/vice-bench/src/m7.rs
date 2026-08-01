@@ -472,15 +472,20 @@ pub use measure::{
     measure_with_config, merge_reports, read_report, report_content_sha256, write_report,
 };
 
+#[derive(Debug, Clone, Copy)]
+struct MeasurementExecution {
+    preset: Preset,
+    capture_baseline: bool,
+}
+
 fn measure_one(
     group_id: &str,
     shape_family: &str,
     truth_scene: &GtScene,
     cell: &DegradationCell,
     equivalence_members: usize,
-    preset: Preset,
     config: &CoreConfig,
-    capture_baseline: bool,
+    execution: MeasurementExecution,
 ) -> MeasurementRow {
     let started = Instant::now();
     let fixture = match render_cell(truth_scene, cell, equivalence_members) {
@@ -512,11 +517,11 @@ fn measure_one(
         }
     };
     let request = VectorizeRequest {
-        preset,
+        preset: execution.preset,
         production: config.is_sealed_production(),
         ..VectorizeRequest::default()
     };
-    let run = if capture_baseline {
+    let run = if execution.capture_baseline {
         vice_core::vectorize_for_calibration(&png, &request, config)
     } else {
         vice_core::vectorize_for_calibration_without_baseline(&png, &request, config)

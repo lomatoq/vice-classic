@@ -65,9 +65,11 @@ fn failed_free_chain_baseline_is_published_as_a_typed_court_refusal() {
             .equivalence_class
             .as_ref()
             .map_or(1, |class| class.members.len()),
-        vice_core::Preset::Quality,
         &vice_core::CoreConfig::development(),
-        true,
+        MeasurementExecution {
+            preset: vice_core::Preset::Quality,
+            capture_baseline: true,
+        },
     );
     assert!(row.candidate_available);
     assert!(row.internal_baseline.is_none());
@@ -347,9 +349,11 @@ fn generation_four_failure_classes_have_a_verified_candidate_after_the_generic_r
             &source.scenes[0],
             cell,
             1,
-            Preset::Fast,
             &config,
-            false,
+            MeasurementExecution {
+                preset: Preset::Fast,
+                capture_baseline: false,
+            },
         );
         assert!(
             row.candidate_available,
@@ -460,9 +464,11 @@ fn every_generation_four_fast_refusal_is_remeasured_in_one_preflight() {
                                 scene,
                                 cell,
                                 *equivalence_members,
-                                Preset::Fast,
                                 config,
-                                false,
+                                MeasurementExecution {
+                                    preset: Preset::Fast,
+                                    capture_baseline: false,
+                                },
                             );
                             let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
                             if done.is_multiple_of(25) || done == total {

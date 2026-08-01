@@ -290,9 +290,11 @@ fn measure_resuming(
                         scene,
                         &cells[job.cell],
                         equivalence_members,
-                        preset,
                         config,
-                        scope == MeasurementScope::SealedAudit,
+                        MeasurementExecution {
+                            preset,
+                            capture_baseline: scope == MeasurementScope::SealedAudit,
+                        },
                     );
                     if sender.send(row).is_err() {
                         break;
