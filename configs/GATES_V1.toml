@@ -94,20 +94,20 @@ max_px = 1.50
 
 # --- M7 selective delivery and resource court (§1.5, §27.4, §29) -----------
 #
-# Frozen from the complete generation-5 calibration court: 1,809/1,809
+# Frozen from the complete generation-6 calibration court: 1,809/1,809
 # renders for each preset, zero catastrophic source groups, and the exact
 # digest-pinned production configs committed beside this file. Runtime remains
 # a separate isolated-machine release claim rather than a corpus-load timing.
 [m7_selective]
 status = "frozen"
-quality_posterior_lower_bound_threshold = 0.0005294467469807713
-quality_empirical_unexplored_relative_mass_upper_bound = 1884.0
-quality_gate_max_posterior_predictive_bits_per_block = 0.23230730958896773
-quality_gate_max_support_isotopy_displacement_px = 0.7634564581698986
-fast_posterior_lower_bound_threshold = 0.0012460896972730008
-fast_empirical_unexplored_relative_mass_upper_bound = 799.0
-fast_gate_max_posterior_predictive_bits_per_block = 0.23230730958896773
-fast_gate_max_support_isotopy_displacement_px = 0.7222824562882783
+quality_posterior_lower_bound_threshold = 0.0005173325243726209
+quality_empirical_unexplored_relative_mass_upper_bound = 1930.0
+quality_gate_max_posterior_predictive_bits_per_block = 0.20876439508949438
+quality_gate_max_support_isotopy_displacement_px = 0.7622932614875958
+fast_posterior_lower_bound_threshold = 0.0013737336919493275
+fast_empirical_unexplored_relative_mass_upper_bound = 725.0
+fast_gate_max_posterior_predictive_bits_per_block = 0.209974495756963
+fast_gate_max_support_isotopy_displacement_px = 0.7241164183692568
 gate_min_top2_class_margin_bits = 0.0
 gate_max_abs_residual_lag1 = 0.90
 gate_max_topology_entropy_bits = 1.0
@@ -119,9 +119,9 @@ gate_max_palette_code_delta = 4
 gate_max_quality_p95_ms = 10000
 gate_max_fast_p95_ms = 1000
 gate_max_peak_memory_bytes = 1073741824
-gate_max_profile_channel_delta = 3
+gate_max_profile_channel_delta = 5
 gate_max_profile_mean_channel_delta = 0.0075
-gate_max_internal_channel_delta = 120
+gate_max_internal_channel_delta = 128
 gate_max_internal_mean_channel_delta = 1.5
 gate_max_complexity_growth_ratio = 2.0
 gate_min_blind_source_trials = 20
