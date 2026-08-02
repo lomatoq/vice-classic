@@ -14,7 +14,7 @@ cargo test --locked --workspace --release
 cargo test --locked --release -p vice-bench --test frozen_calibration -- --ignored
 cargo test --locked --release -p vice-bench --test dcel_harness -- --ignored
 cargo test --locked --release -p vice-topology --test dcel_props -- --ignored
-cargo test --locked --release -p vice-bench --test candidate_corpus -- --ignored
+cargo test --locked --release -p vice-bench fit::tests::the_candidate_stage_over_the_corpus -- --ignored
 cargo test --locked --release -p vice-bench --test doc_claims
 target/release/gt-corpus.exe verify --manifest docs/gt/CORPUS_MANIFEST.json
 target/release/gt-corpus.exe corridor-check --report docs/gt/CORRIDOR_M4.json
@@ -63,4 +63,3 @@ negative/adversarial case, and records the SHA and verdict. Required roles are
 two cold reviewers from different model families, one numerical/topology red
 team, and one release-quality audit. Any implementation or evidence edit
 invalidates all four verdicts.
-
