@@ -19,6 +19,26 @@ pub use config::{
     IntentPriorPolicy, PerturbationStability, Preset, ProductionConfigError, VectorizeRequest,
     M7_FAST_PRODUCTION_CONFIG_SHA256, M7_QUALITY_PRODUCTION_CONFIG_SHA256,
 };
+
+/// Stable, observable calibration stratum for a selected hypothesis. Native
+/// primitive kinds are kept separate because a family-held-out split can
+/// otherwise move an entirely unseen primitive kind behind a global
+/// confidence threshold. Everything else remains in the preregistered
+/// general Flat2 stratum.
+pub fn selection_calibration_class(hypothesis_id: &str) -> String {
+    let Some((_, tail)) = hypothesis_id.split_once("primitive-") else {
+        return "flat2/general".into();
+    };
+    let Some((_, kind_and_delivery)) = tail.split_once('-') else {
+        return "flat2/native-primitive/unknown".into();
+    };
+    let kind = kind_and_delivery.split('/').next().unwrap_or("unknown");
+    if kind.is_empty() {
+        "flat2/native-primitive/unknown".into()
+    } else {
+        format!("flat2/native-primitive/{kind}")
+    }
+}
 pub use pipeline::{
     vectorize, vectorize_for_calibration, vectorize_for_calibration_without_baseline,
     vectorize_with_config, vectorize_with_production_config,
@@ -34,6 +54,28 @@ pub use types::{
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selection_calibration_classes_fail_closed_by_native_primitive_kind() {
+        assert_eq!(
+            selection_calibration_class(
+                "c1-path0-primitive-15-regularpolygon/t0/srgb/box/u8/opaque"
+            ),
+            "flat2/native-primitive/regularpolygon"
+        );
+        assert_eq!(
+            selection_calibration_class("c1-path0-primitive-0-circle/t0/lin/box/u8/transparent"),
+            "flat2/native-primitive/circle"
+        );
+        assert_eq!(
+            selection_calibration_class("observed-polyline-rescue/t0/srgb/box/u8/opaque"),
+            "flat2/general"
+        );
+        assert_eq!(
+            selection_calibration_class("primitive-malformed"),
+            "flat2/native-primitive/unknown"
+        );
+    }
 
     fn fast_request() -> VectorizeRequest {
         VectorizeRequest {
@@ -239,7 +281,7 @@ mod tests {
     fn exact_zero_failure_bound_needs_at_least_459_independent_groups() {
         let identity = CoreConfig::development().identity();
         let calibration = |accepted_source_groups| ConfidenceCalibration {
-            schema: "vice-classic/confidence-calibration/v2".into(),
+            schema: "vice-classic/confidence-calibration/v3".into(),
             model_universe_sha256: identity.universe_sha256.clone(),
             pricing_sha256: identity.pricing_sha256.clone(),
             backend_sha256: identity.backend_sha256.clone(),
@@ -260,6 +302,7 @@ mod tests {
             maximum_formation_entropy_bits: 1.0,
             minimum_perturbation_stability: 0.95,
             empirical_unexplored_relative_mass_upper_bound: Some(0.0),
+            supported_selection_classes: vec!["flat2/general".into()],
             buckets: vec![CalibrationBucket {
                 name: "all".into(),
                 accepted_source_groups,
@@ -274,6 +317,7 @@ mod tests {
             posterior_lower_bound: vice_opt::BoundValue::Certified(1.0),
         };
         let metrics = ConfidenceMetrics {
+            selection_class: "flat2/general".into(),
             top2_class_margin_bits: 10.0,
             posterior_predictive_bits_per_block: 0.01,
             support_isotopy_displacement_px: 0.1,
@@ -288,6 +332,12 @@ mod tests {
         assert!(calibration(459)
             .permits(&identity, &delivery, &metrics)
             .is_ok());
+        let mut unseen_class = metrics.clone();
+        unseen_class.selection_class = "flat2/native-primitive/regularpolygon".into();
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &unseen_class),
+            Err("selection_class_outside_calibration_support")
+        );
         let mut predictive_mismatch = metrics.clone();
         predictive_mismatch.posterior_predictive_bits_per_block = 0.11;
         assert_eq!(

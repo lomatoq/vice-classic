@@ -5,6 +5,8 @@
 //! gate-only commit may freeze. Reliability is aggregated by source group,
 //! while every render remains visible for coverage and tail diagnostics.
 
+use std::collections::BTreeSet;
+
 use serde::Serialize;
 
 use super::{
@@ -21,7 +23,7 @@ pub use delivery::DeliveryCalibration;
 use delivery::{calibrate_delivery_seal, delivery_diagnostics_permit};
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
-    "vice-classic/m7-confidence-calibration-analysis/v14";
+    "vice-classic/m7-confidence-calibration-analysis/v15";
 pub const PROPOSED_BOUNDARY_P95_PX: f64 = super::M7_BOUNDARY_P95_GATE_PX;
 pub const PROPOSED_BOUNDARY_P99_PX: f64 = super::M7_BOUNDARY_P99_GATE_PX;
 pub const PROPOSED_BOUNDARY_MAX_PX: f64 = super::M7_BOUNDARY_MAX_GATE_PX;
@@ -290,6 +292,30 @@ pub fn analyze_calibration(
         selected.map(|evaluation| evaluation.maximum_posterior_predictive_bits_per_block);
     let selected_maximum_support_isotopy_displacement_px =
         selected.map(|evaluation| evaluation.maximum_support_isotopy_displacement_px);
+    let supported_selection_classes = selected
+        .map(|evaluation| {
+            target_rows
+                .iter()
+                .filter(|row| {
+                    row.candidate_available
+                        && diagnostics_permit(
+                            row,
+                            empirical_upper,
+                            delivery_seal,
+                            evaluation.maximum_posterior_predictive_bits_per_block,
+                            evaluation.maximum_support_isotopy_displacement_px,
+                        )
+                        && effective_lower_bound(row, empirical_upper).is_some_and(|score| {
+                            score >= evaluation.posterior_lower_bound_threshold
+                        })
+                })
+                .filter_map(|row| row.selected_hypothesis_id.as_deref())
+                .map(vice_core::selection_calibration_class)
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     const RUNTIME_SCOPE_SIZE_PX: u32 = 512;
     let runtime_p95_ms = runtime_quantile(
         &target_rows
@@ -308,7 +334,7 @@ pub fn analyze_calibration(
     let audit_untouched = audit.status == SealStatus::Sealed;
     let measurement_sha256 = calibration_measurement_digest(report);
     let calibration = selected.map(|evaluation| vice_core::ConfidenceCalibration {
-        schema: "vice-classic/confidence-calibration/v2".into(),
+        schema: "vice-classic/confidence-calibration/v3".into(),
         model_universe_sha256: report.identity.universe_sha256.clone(),
         pricing_sha256: report.identity.pricing_sha256.clone(),
         backend_sha256: report.identity.backend_sha256.clone(),
@@ -330,6 +356,7 @@ pub fn analyze_calibration(
         maximum_formation_entropy_bits: PROPOSED_MAX_FORMATION_ENTROPY_BITS,
         minimum_perturbation_stability: PROPOSED_MIN_PERTURBATION_STABILITY,
         empirical_unexplored_relative_mass_upper_bound: Some(empirical_upper),
+        supported_selection_classes: supported_selection_classes.clone(),
         buckets: vec![vice_core::CalibrationBucket {
             name: TARGET_BUCKET.into(),
             accepted_source_groups: evaluation.reliability.groups_accepted,

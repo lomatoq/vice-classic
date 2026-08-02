@@ -757,6 +757,7 @@ pub(super) fn vectorize_impl(
     );
     perturbation_stability.render_tolerance_refusal = render_stability.refusal;
     let confidence_metrics = ConfidenceMetrics {
+        selection_class: crate::selection_calibration_class(&selected.summary.hypothesis_id),
         top2_class_margin_bits,
         posterior_predictive_bits_per_block: if predictive_bits_per_block.is_finite() {
             predictive_bits_per_block

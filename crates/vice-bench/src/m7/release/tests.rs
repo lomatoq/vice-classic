@@ -107,7 +107,7 @@ fn calibration_for(
     gates: M7ReleaseGates,
 ) -> vice_core::ConfidenceCalibration {
     vice_core::ConfidenceCalibration {
-        schema: "vice-classic/confidence-calibration/v2".into(),
+        schema: "vice-classic/confidence-calibration/v3".into(),
         model_universe_sha256: "1".repeat(64),
         pricing_sha256: "2".repeat(64),
         backend_sha256: "3".repeat(64),
@@ -130,6 +130,7 @@ fn calibration_for(
         empirical_unexplored_relative_mass_upper_bound: Some(
             preset.empirical_unexplored_relative_mass_upper_bound,
         ),
+        supported_selection_classes: vec!["flat2/general".into()],
         buckets: Vec::new(),
     }
 }

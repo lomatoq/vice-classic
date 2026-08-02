@@ -91,11 +91,17 @@ pub struct ConfidenceCalibration {
     /// Frozen R1 upper bound on omitted search mass relative to the best
     /// retained hypothesis. `None` means truncated search remains Unknown.
     pub empirical_unexplored_relative_mass_upper_bound: Option<f64>,
+    /// Observable selected-model classes represented among the rows admitted
+    /// by the frozen calibration policy. Production fails closed when search
+    /// selects a class that never appeared in calibration; this is the
+    /// distribution-shift guard required by spec section 3.4.
+    pub supported_selection_classes: Vec<String>,
     pub buckets: Vec<CalibrationBucket>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ConfidenceMetrics {
+    pub selection_class: String,
     pub top2_class_margin_bits: f64,
     pub posterior_predictive_bits_per_block: f64,
     pub support_isotopy_displacement_px: f64,
@@ -165,6 +171,13 @@ impl ConfidenceCalibration {
         metrics: &ConfidenceMetrics,
     ) -> Result<(), &'static str> {
         self.validate_for_identity(identity)?;
+        if !self
+            .supported_selection_classes
+            .iter()
+            .any(|class| class == &metrics.selection_class)
+        {
+            return Err("selection_class_outside_calibration_support");
+        }
         let posterior_lower_bound = match &delivery.posterior_lower_bound {
             vice_opt::BoundValue::Certified(value)
             | vice_opt::BoundValue::EmpiricallyCalibrated(value) => *value,
@@ -225,7 +238,7 @@ impl ConfidenceCalibration {
     }
 
     pub fn validate_for_identity(&self, identity: &ModelIdentity) -> Result<(), &'static str> {
-        if self.schema != "vice-classic/confidence-calibration/v2"
+        if self.schema != "vice-classic/confidence-calibration/v3"
             || self.model_universe_sha256 != identity.universe_sha256
             || self.pricing_sha256 != identity.pricing_sha256
             || self.backend_sha256 != identity.backend_sha256
@@ -269,7 +282,13 @@ impl ConfidenceCalibration {
             return Err("calibration_search_mass_gate");
         }
         let mut bucket_names = std::collections::BTreeSet::new();
-        if self.buckets.is_empty()
+        let mut selection_classes = std::collections::BTreeSet::new();
+        if self.supported_selection_classes.is_empty()
+            || self
+                .supported_selection_classes
+                .iter()
+                .any(|class| class.is_empty() || !selection_classes.insert(class.as_str()))
+            || self.buckets.is_empty()
             || self.buckets.iter().any(|bucket| {
                 bucket.name.is_empty()
                     || !bucket_names.insert(bucket.name.as_str())
@@ -635,7 +654,7 @@ impl CoreConfig {
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
             quality_fast_admission_witness,
-            implementation: "vice-core/m7/v15",
+            implementation: "vice-core/m7/v16",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),

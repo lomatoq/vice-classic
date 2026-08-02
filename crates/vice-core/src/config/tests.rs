@@ -13,7 +13,7 @@ fn production_bytes(stale_calibration_field: Option<&str>) -> Vec<u8> {
     config.seal = seal;
     let identity = config.identity();
     let mut calibration = json!({
-        "schema": "vice-classic/confidence-calibration/v2",
+        "schema": "vice-classic/confidence-calibration/v3",
         "model_universe_sha256": identity.universe_sha256,
         "pricing_sha256": identity.pricing_sha256,
         "backend_sha256": identity.backend_sha256,
@@ -34,6 +34,7 @@ fn production_bytes(stale_calibration_field: Option<&str>) -> Vec<u8> {
         "maximum_formation_entropy_bits": 1.0,
         "minimum_perturbation_stability": 0.95,
         "empirical_unexplored_relative_mass_upper_bound": 0.25,
+        "supported_selection_classes": ["flat2/general"],
         "buckets": [{
             "name": "all",
             "accepted_source_groups": 459,

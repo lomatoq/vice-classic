@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v13";
+pub const CORE_REPORT_SCHEMA: &str = "vice-classic/m7-vectorize-report/v14";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
