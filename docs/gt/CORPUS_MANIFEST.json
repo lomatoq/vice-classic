@@ -6,14 +6,14 @@
   },
   "procedural_generation": 1,
   "m7_successor_population": {
-    "procedural_generation": 6,
+    "procedural_generation": 7,
     "procedural_variants_per_family": 200,
     "split": "sealed_audit",
     "population_policy": "vice-classic/m7-population/generation-bound-procedural-flat2-only/v2",
     "source_groups": 800,
     "scenes": 800,
-    "generator_source_sha256": "9c20c57e1677fe7db002a2db08abe9cd91488e8c3814570e9d49368369531372",
-    "population_commitment_sha256": "047c9e07d851bca0721a0f190c1f9630fc773207fc0b788a49d128a475248a48"
+    "generator_source_sha256": "af27e4811fcd0d1a0fff684a02c54bf08cb39438a3d9872fa2b0667b5e15a020",
+    "population_commitment_sha256": "9577babe396f18d044f050d5bf872438428f1b4b628d834b5dfdf9125e8602aa"
   },
   "procedural_variants_per_family": 4,
   "split_policy_version": "vice-classic/gt-split/v1",
