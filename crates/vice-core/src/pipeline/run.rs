@@ -693,8 +693,7 @@ pub(super) fn vectorize_impl(
         selected.summary.score.pixel_bits / diagnostics.blocks as f64
     };
     let max_abs_residual_lag1 = diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs());
-    // Refused/pruned arms are already charged by entropy and unexplored mass;
-    // charging their raw events again would double-count and veto verified delivery.
+    // Refused/pruned arms are already charged by entropy/unexplored mass; charging them again would double-count.
     let phase_envelope_stable = fitted_phase_envelope_stable(
         fitted_arms
             .iter()
