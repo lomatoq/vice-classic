@@ -522,42 +522,42 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         (
             "m7_selective",
             "quality_posterior_lower_bound_threshold",
-            GateExpectation::num(0.000_517_332_524_372_620_9),
+            GateExpectation::num(0.000_411_563_631_903_807_3),
         ),
         (
             "m7_selective",
             "quality_empirical_unexplored_relative_mass_upper_bound",
-            GateExpectation::num(1930.0),
+            GateExpectation::num(2426.0),
         ),
         (
             "m7_selective",
             "quality_gate_max_posterior_predictive_bits_per_block",
-            GateExpectation::num(0.208_764_395_089_494_38),
+            GateExpectation::num(0.274_790_766_388_837_04),
         ),
         (
             "m7_selective",
             "quality_gate_max_support_isotopy_displacement_px",
-            GateExpectation::num(0.762_293_261_487_595_8),
+            GateExpectation::num(0.721_798_526_325_252_5),
         ),
         (
             "m7_selective",
             "fast_posterior_lower_bound_threshold",
-            GateExpectation::num(0.001_373_733_691_949_327_5),
+            GateExpectation::num(0.001_213_308_180_175_341_6),
         ),
         (
             "m7_selective",
             "fast_empirical_unexplored_relative_mass_upper_bound",
-            GateExpectation::num(725.0),
+            GateExpectation::num(821.0),
         ),
         (
             "m7_selective",
             "fast_gate_max_posterior_predictive_bits_per_block",
-            GateExpectation::num(0.209_974_495_756_963),
+            GateExpectation::num(0.246_380_119_202_410_49),
         ),
         (
             "m7_selective",
             "fast_gate_max_support_isotopy_displacement_px",
-            GateExpectation::num(0.724_116_418_369_256_8),
+            GateExpectation::num(0.708_816_431_115_121_7),
         ),
         (
             "m7_selective",
@@ -624,7 +624,7 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         (
             "m7_selective",
             "gate_max_profile_channel_delta",
-            GateExpectation::num(5.0),
+            GateExpectation::num(4.0),
         ),
         (
             "m7_selective",
@@ -634,7 +634,7 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         (
             "m7_selective",
             "gate_max_internal_channel_delta",
-            GateExpectation::num(128.0),
+            GateExpectation::num(120.0),
         ),
         (
             "m7_selective",
