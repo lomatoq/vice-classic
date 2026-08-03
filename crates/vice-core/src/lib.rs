@@ -1,8 +1,8 @@
 #![forbid(unsafe_code)]
-
 mod candidate;
 mod config;
 mod m10;
+mod m11;
 mod m8;
 mod m9;
 mod p1;
@@ -20,6 +20,7 @@ pub use m10::{
     M10Decision, M10Error, M10Inspection, M10ModelKind, M10Selection, M10SelectionReport,
     M10_INSPECTION_SCHEMA, M10_SELECTION_SCHEMA,
 };
+pub use m11::*;
 pub use m8::*;
 pub use m9::{
     inspect_m9_formation, score_m9_formation, score_m9_formation_calibrated, M9FormationError,
@@ -149,7 +150,6 @@ mod tests {
         }
         bytes
     }
-
     fn annulus_png() -> Vec<u8> {
         let width = 48usize;
         let height = 48usize;

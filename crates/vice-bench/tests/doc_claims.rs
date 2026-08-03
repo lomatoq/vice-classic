@@ -1119,6 +1119,12 @@ fn every_status_document_is_classified_or_excepted_with_a_reason() {
              contract and executable behavioral regressions without inventing a new release court",
             "M11",
         ),
+        (
+            "docs/STATUS_M11.md",
+            "M11 has no numerical acceptance gate in section 28; this status records typed model \
+             selection behavior and executable regressions without inventing a calibration court",
+            "M12",
+        ),
     ];
 
     let mut classified: Vec<String> = CLAUSE_ROWS.iter().map(|(d, _)| (*d).to_string()).collect();

@@ -32,6 +32,7 @@ pub mod canonical;
 pub mod color;
 pub mod connectivity;
 pub mod curve;
+pub mod gradient;
 pub mod graph;
 pub mod interference;
 pub mod scene;
@@ -49,6 +50,10 @@ pub use color::{BlendSpace, LinearRgb, LinearRgba, PremulRgba};
 // boundary too, not only inside this one.
 pub use connectivity::{ComplementaryConnectivity, PixelConnectivity};
 pub use curve::{ChainNode, CurveChain, JoinKind, Segment};
+pub use gradient::{
+    gradient_scene_bytes, gradient_scene_digest_sha256, GradientIrError, GradientPaint,
+    GradientScene, GradientStop, ValidatedGradientScene, GRADIENT_SCENE_SCHEMA, MAX_GRADIENT_STOPS,
+};
 pub use graph::{
     Boundary, BoundaryId, Face, FaceId, GraphVertex, HalfEdge, HalfEdgeId, Paint, PlanarGraph,
     VertexId,

@@ -1,7 +1,7 @@
 # REQUIREMENTS_TRACEABILITY — vice-classic
 
 Формат (spec v1.3 §32 правило 23): invariant → implementation → tests →
- milestone gate. Покрыты M0…M10.
+ milestone gate. Покрыты M0…M11.
 
 ## Перенесённые обязательства (явное отслеживание, REVIEW_M1 M1-N4)
 
@@ -13,6 +13,16 @@
 | D-6 | **Runtime-guard на неразрешимую геометрию**: отвергать типизированно, когда положение пересечения не разрешимо до пикселя в f64 (позиционная ошибка > ~0.25 px). Сегодня в этом режиме аккумулятор возвращает конечное, ограниченное, но бессмысленное число — как и любая f64-реализация (измерено: три независимые реализации дают 0 / +0.278 / −0.517). НЕ сделано: render-путь туда не попадает (`NumericDomain` ≤ 65536), а достаточно чувствительный guard рискует отвергать легитимную far-off-canvas геометрию, которая сегодня считается верно (1e308 принимается с ошибкой 1.8e-15). Основание: собственная находка при построении differential property-теста (C048) | при появлении прямого потребителя аккумулятора (M3) | **ЗАКРЫТО в дельте-4 (C052)**: оказалось тем же пунктом, что D-5 — конвексная/ближне-концевая форма `x_at` устраняет класс; «неразрешимость» была обусловленностью формулы, а не пределом f64 (F-0014) |
 | D-5 | **Колонко-относительная интерполяция промежуточной позиции** в `accumulate_edge` (`x_at`): red team измерил, что перестановка снимает ровно `ulp(M)/2` на всех магнитудах, то есть остаток F-M2-R2 сводим ещё раз. НЕ сделано сознательно: внутри enforced-домена запас ~50× (4.5e-12 против 2.33e-10), а правка сдвинула бы замороженный render digest без выигрыша в домене. Пересмотреть, если домен будет расширен или появится потребитель с бо́льшими координатами. Основание: REDTEAM_M2 addendum F-M2-R10 | при расширении домена / M3+ | **ЗАКРЫТО в дельте-4 (C052)**: перестановка выполнена; ни один замороженный digest не сдвинулся |
 | D-4 | **Типизированный witness сертификации вложения** (`CertifiedMesh`/`EmbeddedScene`): тип, который нельзя получить, не пройдя `verify_embedding`. Ввести ВМЕСТЕ с первым не-рендерящим потребителем `ValidatedScene` (M3 планово вводит: загрузчик GT-корпуса, identifiability-метаданные, scorecard). Основание: REVIEW_M2_A M2-A-N8, REVIEW_M2_B M2-B-N5; обоснование срока — ADR-0010 (критерий §32 п.7 по ADR-0005) | M3 | **ЗАКРЫТО в C062**: ice_render::certified::CertifiedMesh (приватные поля, два конструктора, несёт RenderOptions); mesh-входы рендера принимают только его; первый не-рендерящий потребитель — `gt::GtScene::new` (C064). Заявление СУЖЕНО и проверено: витнес НЕ утверждает замощение окна — B2-сцена сертифицируется, её ловит range check (ADR-0010 addendum M3) |
+
+## M11 — Gradients
+
+| # | Invariant | Implementation | Tests / evidence |
+|---|---|---|---|
+| M11-01 | Solid, linear and radial paints have validated compact typed geometry | `vice-ir::gradient` | canonical identity, stop-order and discontinuity validation tests |
+| M11-02 | Duplicate offsets represent real two-sided discontinuities, not a smoothed approximation | `GradientStop`; `vice-render::gradient` | hard-step render and extraction regressions |
+| M11-03 | Direction, radial center and bounded stop inventories come from observed pixels | `vice-evidence::gradient` | linear/radial fixtures, unique inventory and typed alpha/work refusals |
+| M11-04 | Every model is judged by one codec-aware residual plus explicit structural MDL | `vice-core::m11` | solid/linear/radial selection and positive-margin tests |
+| M11-05 | Flat input remains on the solid path | standalone M11 classifier; existing flat pipeline unchanged | flat and one-pixel regression plus full workspace replay |
 
 ## M10 — Stroke/line-art lane
 

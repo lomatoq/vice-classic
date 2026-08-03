@@ -48,6 +48,7 @@ pub mod boundary;
 pub mod corridor;
 pub mod formation;
 pub mod formation_m9;
+pub mod gradient;
 pub mod interior;
 pub mod line_art;
 pub mod mixture;
@@ -77,6 +78,10 @@ pub use formation_m9::{
     estimate_global_kernel_from_alpha, formation_m9_id, ExtendedFormationHypothesis,
     GlobalKernelEstimate, KernelCandidate, KernelEstimationError, M9KernelProfile,
     M9_FORMATION_SCHEMA, M9_GAUSSIAN_SIGMAS_PX, M9_KERNEL_PROFILES_V1,
+};
+pub use gradient::{
+    propose_gradients, GradientEvidenceRefusal, GradientEvidenceReport, GradientProposal,
+    GRADIENT_EVIDENCE_SCHEMA,
 };
 pub use interior::{interior_confidence, InteriorConfidence, InteriorConfig, INTERIOR_CONFIG_V1};
 pub use line_art::{
