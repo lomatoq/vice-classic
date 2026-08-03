@@ -501,7 +501,7 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
             GateExpectation::num(crate::geometry::GATE_MIN_PRIMITIVE_SELECTED_ROWS as f64),
         ),
         // --- M7 selective delivery --------------------------------
-        // The preset-dependent values are the complete generation-6
+        // The preset-dependent values are the complete generation-8
         // calibration outputs frozen for M7. Keeping the preset dimension
         // here prevents the F-0138 scalar-gate collapse.
         (
@@ -522,42 +522,72 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         (
             "m7_selective",
             "quality_posterior_lower_bound_threshold",
-            GateExpectation::num(0.000_411_563_631_903_807_3),
+            GateExpectation::num(0.000_439_518_769_632_718_14),
         ),
         (
             "m7_selective",
             "quality_empirical_unexplored_relative_mass_upper_bound",
-            GateExpectation::num(2426.0),
+            GateExpectation::num(2272.0),
         ),
         (
             "m7_selective",
             "quality_gate_max_posterior_predictive_bits_per_block",
-            GateExpectation::num(0.274_790_766_388_837_04),
+            GateExpectation::num(0.225_018_236_855_307_25),
         ),
         (
             "m7_selective",
             "quality_gate_max_support_isotopy_displacement_px",
-            GateExpectation::num(0.721_798_526_325_252_5),
+            GateExpectation::num(0.732_888_801_697_498_1),
+        ),
+        (
+            "m7_selective",
+            "quality_gate_max_evidence_palette_shift_codes",
+            GateExpectation::num(3.0),
+        ),
+        (
+            "m7_selective",
+            "quality_gate_min_palette_support_px",
+            GateExpectation::num(961.0),
+        ),
+        (
+            "m7_selective",
+            "quality_gate_max_palette_interval_radius_codes",
+            GateExpectation::num(0.0),
         ),
         (
             "m7_selective",
             "fast_posterior_lower_bound_threshold",
-            GateExpectation::num(0.001_213_308_180_175_341_6),
+            GateExpectation::num(0.000_998_450_215_527_499),
         ),
         (
             "m7_selective",
             "fast_empirical_unexplored_relative_mass_upper_bound",
-            GateExpectation::num(821.0),
+            GateExpectation::num(999.0),
         ),
         (
             "m7_selective",
             "fast_gate_max_posterior_predictive_bits_per_block",
-            GateExpectation::num(0.246_380_119_202_410_49),
+            GateExpectation::num(0.225_018_236_855_307_25),
         ),
         (
             "m7_selective",
             "fast_gate_max_support_isotopy_displacement_px",
-            GateExpectation::num(0.708_816_431_115_121_7),
+            GateExpectation::num(0.732_888_801_697_498_1),
+        ),
+        (
+            "m7_selective",
+            "fast_gate_max_evidence_palette_shift_codes",
+            GateExpectation::num(3.0),
+        ),
+        (
+            "m7_selective",
+            "fast_gate_min_palette_support_px",
+            GateExpectation::num(961.0),
+        ),
+        (
+            "m7_selective",
+            "fast_gate_max_palette_interval_radius_codes",
+            GateExpectation::num(0.0),
         ),
         (
             "m7_selective",
@@ -629,7 +659,7 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         (
             "m7_selective",
             "gate_max_profile_mean_channel_delta",
-            GateExpectation::num(0.0075),
+            GateExpectation::num(0.01),
         ),
         (
             "m7_selective",
