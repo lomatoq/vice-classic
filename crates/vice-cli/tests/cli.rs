@@ -29,6 +29,24 @@ fn file_sha256(path: &Path) -> String {
     ))
 }
 
+fn write_png(path: &Path, width: u32, height: u32, pixel: impl Fn(u32, u32) -> [u8; 4]) {
+    let mut rgba = Vec::with_capacity((width * height * 4) as usize);
+    for y in 0..height {
+        for x in 0..width {
+            rgba.extend_from_slice(&pixel(x, y));
+        }
+    }
+    let file = std::fs::File::create(path).unwrap();
+    let mut encoder = png::Encoder::new(file, width, height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder
+        .write_header()
+        .unwrap()
+        .write_image_data(&rgba)
+        .unwrap();
+}
+
 #[test]
 fn the_evidence_path_runs_on_a_committed_fixture_and_writes_its_report() {
     let dir = tempfile::tempdir().unwrap();
@@ -222,6 +240,137 @@ fn production_vectorize_delivers_a_supported_128px_input() {
         serde_json::from_slice(&std::fs::read(output.join("result.report.json")).unwrap()).unwrap();
     assert_eq!(report["status"], "success");
     assert_eq!(report["production"], true);
+}
+
+#[test]
+fn auto_mode_chooses_flat2_for_a_supported_flat2_input() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("result");
+    let run = vicec()
+        .arg("vectorize")
+        .arg(repo_root().join("tests/fixtures/smoke/triangle_128.png"))
+        .args(["--mode", "auto", "--intent", "clean", "--preset", "fast"])
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(run.status.code(), Some(0));
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.join("result.report.json")).unwrap()).unwrap();
+    assert_eq!(report["selected_lane"], "flat2");
+    assert_eq!(report["status"], "success");
+    assert_eq!(report["production"], true);
+    assert!(output.join("result.svg").is_file());
+}
+
+#[test]
+fn auto_routes_multicolour_art_and_emits_labeled_experimental_svg() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("multicolour.png");
+    let output = dir.path().join("result");
+    write_png(&input, 24, 12, |x, _| match x / 8 {
+        0 => [230, 20, 20, 255],
+        1 => [20, 220, 30, 255],
+        _ => [20, 40, 230, 255],
+    });
+    let run = vicec()
+        .arg("vectorize")
+        .arg(&input)
+        .args(["--mode", "auto", "--preset", "fast", "--experimental"])
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(run.status.code(), Some(3));
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.join("result.report.json")).unwrap()).unwrap();
+    assert_eq!(report["selected_lane"], "multiregion");
+    assert_eq!(report["production"], false);
+    assert_eq!(report["experimental_artifacts"], true);
+    assert!(output.join("result.experimental.svg").is_file());
+    assert!(!output.join("result.svg").exists());
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.join("result.manifest.json")).unwrap())
+            .unwrap();
+    assert_eq!(manifest["experimental"], true);
+    assert_eq!(manifest["production"], false);
+    assert_eq!(
+        manifest["artifact_trust"],
+        "non_production_manual_inspection_only"
+    );
+}
+
+#[test]
+fn explicit_gradient_mode_exposes_scene_and_render_without_production_claim() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("gradient.png");
+    let output = dir.path().join("result");
+    write_png(&input, 32, 16, |x, _| {
+        let red = ((x as f64 / 31.0) * 255.0).round() as u8;
+        [red, 20, 255 - red, 255]
+    });
+    let run = vicec()
+        .arg("vectorize")
+        .arg(&input)
+        .args(["--mode", "gradient", "--preset", "fast", "--experimental"])
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(run.status.code(), Some(3));
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.join("result.report.json")).unwrap()).unwrap();
+    assert_eq!(report["selected_lane"], "gradient");
+    assert_eq!(report["production"], false);
+    assert!(output.join("result.experimental.scene.json").is_file());
+    assert!(output.join("result.experimental.render.png").is_file());
+}
+
+#[test]
+fn explicit_line_art_mode_is_public_and_never_silently_becomes_flat2() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("line-art.png");
+    let output = dir.path().join("result");
+    write_png(&input, 48, 24, |x, y| {
+        if (5..43).contains(&x) && (10..14).contains(&y) {
+            [0, 0, 0, 255]
+        } else {
+            [255, 255, 255, 255]
+        }
+    });
+    let run = vicec()
+        .arg("vectorize")
+        .arg(&input)
+        .args(["--mode", "line-art", "--preset", "fast", "--experimental"])
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert!(matches!(run.status.code(), Some(3 | 4)));
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.join("result.report.json")).unwrap()).unwrap();
+    assert_eq!(report["selected_lane"], "line_art");
+    assert_eq!(report["production"], false);
+    assert_ne!(report["route_reason"], "supported Flat2 evidence");
+
+    let auto_output = dir.path().join("auto-result");
+    let auto = vicec()
+        .arg("vectorize")
+        .arg(&input)
+        .args(["--mode", "auto", "--preset", "fast", "--experimental"])
+        .arg("--out")
+        .arg(&auto_output)
+        .output()
+        .expect("vicec auto runs");
+    assert!(matches!(auto.status.code(), Some(3 | 4)));
+    let auto_report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(auto_output.join("result.report.json")).unwrap())
+            .unwrap();
+    assert_eq!(auto_report["selected_lane"], "line_art");
+    assert!(auto_report["route_reason"]
+        .as_str()
+        .unwrap()
+        .contains("stroke-first"));
 }
 
 #[test]

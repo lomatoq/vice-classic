@@ -25,7 +25,7 @@ use vice_ir::LinearRgb;
 #[command(
     name = "vicec",
     version,
-    about = "vice-classic: selective classical Flat2 vectorization"
+    about = "vice-classic: routed selective classical vectorization"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -40,7 +40,11 @@ enum ExteriorArg {
 
 #[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
 enum ModeArg {
+    Auto,
     Flat2,
+    Multiregion,
+    LineArt,
+    Gradient,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
@@ -75,7 +79,7 @@ enum Cmd {
         #[arg(long, value_enum)]
         exterior: Option<ExteriorArg>,
     },
-    /// Selectively reconstruct and seal a Flat2 scene.
+    /// Route and vectorize through the selected product lane.
     Vectorize {
         input: PathBuf,
         #[arg(long, value_enum)]
@@ -84,6 +88,10 @@ enum Cmd {
         intent: IntentArg,
         #[arg(long, value_enum, default_value = "quality")]
         preset: PresetArg,
+        /// Emit clearly labeled non-production artifacts for inspectable lane
+        /// candidates that are not production-admitted.
+        #[arg(long)]
+        experimental: bool,
         /// New or empty output directory.
         #[arg(long)]
         out: PathBuf,
@@ -604,9 +612,10 @@ fn run() -> i32 {
         }
         Cmd::Vectorize {
             input,
-            mode: ModeArg::Flat2,
+            mode,
             intent,
             preset,
+            experimental,
             out,
             production_config,
             trace,
@@ -624,18 +633,31 @@ fn run() -> i32 {
                     return 2;
                 }
             };
-            let oracle_override = match parse_oracle(fg, bg, exterior) {
-                Ok(value) => value,
-                Err(error) => {
-                    eprintln!("error: {error}");
-                    return 2;
-                }
+            let product_mode = match mode {
+                ModeArg::Auto => vice_core::ProductMode::Auto,
+                ModeArg::Flat2 => vice_core::ProductMode::Flat2,
+                ModeArg::Multiregion => vice_core::ProductMode::Multiregion,
+                ModeArg::LineArt => vice_core::ProductMode::LineArt,
+                ModeArg::Gradient => vice_core::ProductMode::Gradient,
             };
+            let has_flat2_only_options = production_config.is_some()
+                || dump_candidates != 0
+                || milestone_debug.is_some()
+                || fg.is_some()
+                || bg.is_some()
+                || exterior.is_some();
+            if mode != ModeArg::Flat2 && has_flat2_only_options {
+                eprintln!(
+                    "error: --production-config, --dump-candidates, --milestone-debug, and oracle overrides are explicit Flat2 options"
+                );
+                return 2;
+            }
             if let Err(error) = prepare_output_dir(&out) {
                 eprintln!("error: {error}");
                 return 2;
             }
-            let request = vice_core::VectorizeRequest {
+            let product_request = vice_core::ProductRequest {
+                mode: product_mode,
                 intent: match intent {
                     IntentArg::Exact => vice_core::Intent::Exact,
                     IntentArg::Clean => vice_core::Intent::Clean,
@@ -644,87 +666,121 @@ fn run() -> i32 {
                     PresetArg::Fast => vice_core::Preset::Fast,
                     PresetArg::Quality => vice_core::Preset::Quality,
                 },
-                trace,
-                dump_candidates,
-                strict,
                 production: true,
-                research_override: false,
-                milestone_debug,
-                oracle_override,
+                experimental_artifacts: experimental,
+                trace,
+                strict,
             };
-            let outcome = match production_config {
-                Some(path) => vice_core::vectorize_with_production_config(&bytes, &request, &path),
-                None => vice_core::vectorize_embedded_production(&bytes, &request),
+            let product = if mode == ModeArg::Flat2 {
+                let oracle_override = match parse_oracle(fg, bg, exterior) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        eprintln!("error: {error}");
+                        return 2;
+                    }
+                };
+                let flat2_request = vice_core::VectorizeRequest {
+                    intent: product_request.intent,
+                    preset: product_request.preset,
+                    trace,
+                    dump_candidates,
+                    strict,
+                    production: true,
+                    research_override: false,
+                    milestone_debug,
+                    oracle_override,
+                };
+                let outcome = match production_config {
+                    Some(path) => {
+                        vice_core::vectorize_with_production_config(&bytes, &flat2_request, &path)
+                    }
+                    None => vice_core::vectorize_embedded_production(&bytes, &flat2_request),
+                };
+                vice_core::product_from_flat2_outcome(
+                    outcome,
+                    &product_request,
+                    "explicit Flat2 mode",
+                )
+            } else {
+                vice_core::vectorize_product(&bytes, &product_request)
             };
-            let write_result = match &outcome {
-                vice_core::VectorizeOutcome::Success(success) => {
-                    let artifacts = &success.artifacts;
-                    write_artifact(&out, "result.svg", &artifacts.result_svg)
-                        .and_then(|_| {
-                            write_artifact(
-                                &out,
-                                "result.pure-partition.svg",
-                                &artifacts.pure_partition_svg,
-                            )
-                        })
-                        .and_then(|_| {
-                            write_artifact(&out, "result.scene.json", &artifacts.scene_json)
-                        })
-                        .and_then(|_| {
-                            write_artifact(
-                                &out,
-                                "result.export-plan.json",
-                                &artifacts.export_plan_json,
-                            )
-                        })
-                        .and_then(|_| {
-                            write_artifact(&out, "result.report.json", &artifacts.report_json)
-                        })
-                        .and_then(|_| {
-                            write_artifact(&out, "result.render.png", &artifacts.render_png)
-                        })
-                        .and_then(|_| {
-                            write_artifact(&out, "result.seal.json", &artifacts.seal_json)
-                        })
-                        .and_then(|_| {
-                            if let Some(trace_json) = &artifacts.trace_json {
-                                let trace_dir = out.join("trace");
-                                std::fs::create_dir(&trace_dir).map_err(|error| {
-                                    format!("create {}: {error}", trace_dir.display())
-                                })?;
-                                write_artifact(&trace_dir, "trace.json", trace_json)
-                            } else {
-                                Ok(())
-                            }
-                        })
+            let artifacts = &product.artifacts;
+            let experimental_names = product.report.experimental_artifacts;
+            let name = |production: &'static str, experimental: &'static str| {
+                if experimental_names {
+                    experimental
+                } else {
+                    production
                 }
-                _ => write_artifact(
-                    &out,
-                    "result.report.json",
-                    outcome.report().canonical_json().as_bytes(),
-                ),
             };
+            let mut write_result =
+                write_artifact(&out, "result.report.json", &artifacts.report_json);
+            for (filename, bytes) in [
+                (
+                    name("result.svg", "result.experimental.svg"),
+                    artifacts.result_svg.as_deref(),
+                ),
+                (
+                    name(
+                        "result.pure-partition.svg",
+                        "result.experimental.pure-partition.svg",
+                    ),
+                    artifacts.pure_partition_svg.as_deref(),
+                ),
+                (
+                    name("result.scene.json", "result.experimental.scene.json"),
+                    artifacts.scene_json.as_deref(),
+                ),
+                (
+                    name(
+                        "result.export-plan.json",
+                        "result.experimental.export-plan.json",
+                    ),
+                    artifacts.export_plan_json.as_deref(),
+                ),
+                (
+                    name("result.render.png", "result.experimental.render.png"),
+                    artifacts.render_png.as_deref(),
+                ),
+                (
+                    name("result.seal.json", "result.experimental.seal.json"),
+                    artifacts.seal_json.as_deref(),
+                ),
+                (
+                    "result.manifest.json",
+                    artifacts.artifact_manifest_json.as_deref(),
+                ),
+            ] {
+                if let (Ok(()), Some(bytes)) = (&write_result, bytes) {
+                    write_result = write_artifact(&out, filename, bytes);
+                }
+            }
+            if write_result.is_ok() {
+                if let Some(trace_json) = &artifacts.trace_json {
+                    let trace_dir = out.join("trace");
+                    write_result = std::fs::create_dir(&trace_dir)
+                        .map_err(|error| format!("create {}: {error}", trace_dir.display()))
+                        .and_then(|_| write_artifact(&trace_dir, "trace.json", trace_json));
+                }
+            }
             if let Err(error) = write_result {
                 eprintln!("error: {error}");
                 return 2;
             }
-            let report = outcome.report();
             println!(
-                "outcome: {:?}; report: {}",
-                report.status,
+                "outcome: {:?}; lane: {:?}; production: {}; experimental: {}; report: {}",
+                product.report.status,
+                product.report.selected_lane,
+                product.report.production,
+                product.report.experimental_artifacts,
                 out.join("result.report.json").display()
             );
-            if let Some(reason) = &report.reason {
-                println!(
-                    "reason: {}",
-                    serde_json::to_string(reason).unwrap_or_default()
-                );
-            }
-            match outcome {
-                vice_core::VectorizeOutcome::Success(_) => 0,
-                vice_core::VectorizeOutcome::Ambiguous(_) => 3,
-                vice_core::VectorizeOutcome::Unsupported(_) => 4,
-                vice_core::VectorizeOutcome::Failed(_) => 2,
+            println!("{}", product.report.message);
+            match product.report.status {
+                vice_core::DecisionStatus::Success => 0,
+                vice_core::DecisionStatus::Ambiguous => 3,
+                vice_core::DecisionStatus::Unsupported => 4,
+                vice_core::DecisionStatus::Failed => 2,
             }
         }
         Cmd::LegacyVectorize {

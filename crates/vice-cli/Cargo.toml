@@ -3,7 +3,7 @@ name = "vice-cli"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-description = "vice-classic selective Flat2 vectorization and production adapters (vicec)"
+description = "vice-classic routed selective vectorization and production adapters (vicec)"
 
 [lints]
 workspace = true
@@ -23,3 +23,6 @@ vice-core = { path = "../vice-core" }
 vice-evidence = { path = "../vice-evidence" }
 vice-image = { path = "../vice-image" }
 vice-ir = { path = "../vice-ir" }
+
+[dev-dependencies]
+png = "0.17"
