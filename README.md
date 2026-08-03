@@ -1,97 +1,87 @@
 # vice-classic
 
-Классический (без обязательного AI) raster → SVG inverse rasterizer.
-Единственный source of truth: `VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`
-(SHA-256 `652fd0b6e17c96c38af0173ddcc93a3921eafd60a9aff34c8d848829228d9bb1`).
+A clean-room classical raster-to-SVG inverse rasterizer. The normative design
+is `docs/spec/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`.
 
-**Текущее состояние: M6 completion candidate.** Stage G/H, joint refit,
-relations/primitives і растра-выведзены пяцірукі geometry oracle дастаўлены;
-аўтар спынены перад M7 і чакае два незалежныя cold review плюс асобны red-team
-вердыкт на дакладным HEAD.
+Current state: M0–M11 are implemented. M12 provides the technical product
+release candidate: installed CLI, embedded digest-pinned production configs,
+WASM adapter, browser UI source, explicit legacy wrapper, cross-platform
+structural checks and security/resource policy.
 
-Приняты независимыми review: M0, M1 ([REVIEW_M0](docs/REVIEW_M0.md),
-[REVIEW_M1](docs/REVIEW_M1.md)); M2 — двумя review плюс отдельный
-red-team pass: A дал REJECT и затем ACCEPT в двух addendum-ах, B дал
-ACCEPT ([REVIEW_M2_A](docs/REVIEW_M2_A.md),
-[REVIEW_M2_B](docs/REVIEW_M2_B.md), [REDTEAM_M2](docs/REDTEAM_M2.md)); M3 — ACCEPT в addendum-е после REJECT
-([REVIEW_M3](docs/REVIEW_M3.md)); M3.5 — ACCEPT
-([REVIEW_M3_5](docs/REVIEW_M3_5.md)).
+This repository is **not authorized for public or commercial release yet**.
+The repository license grant, owner-controlled donor attestations and a human
+patent/FTO review remain mandatory. `vicec release-status` is the machine
+readable authority and deliberately reports both authorizations as false.
 
-M4 получил от независимого cold review **REJECT** с тремя блокерами и
-**ACCEPT** в addendum-е после дельты ([docs/REVIEW_M4.md](docs/REVIEW_M4.md)),
-с условиями D1 и D2 к следующему гейту. Оба закрыты в M4.5.
-
-M4.5 і M5 прыняты пасля сваіх незалежных review-цыклаў. Бягучы M6 gate і
-рэпрадукцыйны кантракт знаходзяцца ў `docs/STATUS_M6.md` і
-`docs/REPRODUCIBILITY_M6.md`. Аўтар НЕ самасертыфікуе (§32 п. 29, §34), таму
-**M7 яшчэ не пачаты**.
-
-## Что здесь есть
-
-- `crates/vice-bench` (M0) — детерминированный baseline runner для трёх
-  pinned донорских систем (`SOURCE_PINS.toml`): свежий checkout pin-SHA из
-  локального зеркала, сборка, прогон по фиксированному smoke corpus,
-  SHA-256 всех артефактов, typed errors, сравнение повторов.
-- `crates/vice-geom` (M1/M2) — координатные конвенции, `Vec2`, robust
-  predicates (adaptive-precision), certified curve flattening с
-  chord-error бюджетом.
-- `crates/vice-ir` (M1) — canonical IR: typed curve grammar, shared
-  planar graph с exterior как настоящим `FaceId`, типизированная
-  валидация §12-инвариантов, canonical bytes + sha256 (seal skeleton).
-- `crates/vice-render` (M2) — certified partition renderer: точное
-  signed-area покрытие на фиксированной tessellation, сертификация
-  вложения/ориентации loops, premultiplied compositing, ROI с dependency
-  closure, типизированный числовой домен, seal revalidation skeleton,
-  independent differential court.
-- `crates/vice-image` (M4) — canonical decode и premultiplied observation
-  tensor как ФУНКЦИЯ гипотезы blend space; квантовый интервал едет вместе
-  с тензором как граница.
-- `crates/vice-evidence` (M4) — interior confidence, несколько
-  Flat2-гипотез палитры/exterior, минимальное global formation family,
-  premultiplied mixture, §1.6-детектор, boundary observations и corridor.
-  Ничто из этого не является вторым pixel likelihood, и это выражено
-  типом, а не комментарием.
-- `crates/vice-topology` (M4.5) — скалярные поля §11.1, cubical complex с
-  комплементарной связностью, критические события max/min-деревьев как
-  ПАРТИИ по равным значениям, saddle-альтернативы, кандидатный конверт с
-  тремя уровнями pruning и dual/primal continuation, честная относительно
-  того, чего без DCEL сделать нельзя. Ничто здесь не выбирает победителя:
-  §11.3 требует конверта, и гейт мерит RECALL.
-- `crates/vice-fit` (M6) — hierarchical span generation, budgeted k-best
-  jet-compatible grammar, joint constrained refit, physical-bit coding,
-  materialized Stage-H relation/primitive siblings і closed-loop semantics.
-- `crates/vice-cli` (M4) — `vicec evidence`: исполняемый путь милестоуна.
-  `vicec vectorize` НЕ объявлен, потому что за ним пока нет ни топологии,
-  ни scene-level search/posterior/sealed export plan.
-- `tests/fixtures/smoke/` — фиксированный smoke corpus (5 PNG, побайтово
-  воспроизводится `gen-smoke`-ом, зафиксирован `SMOKE_MANIFEST.toml`).
-- `configs/baselines.toml` — явные команды baseline-ов, лимиты ресурсов.
-- Provenance: `SOURCE_PINS.toml`, `PORTING_MANIFEST.toml` (ноль
-  перенесённых блоков), `THIRD_PARTY_NOTICES.md`.
-- `docs/gt/` (M3…M6) — GT-корпус, manifest/seal, oracle-, corridor-,
-  topology-, DCEL- і geometry-артефакты. Tier-A справаздачы нясуць сваю
-  платформу і адмаўляюцца параўноўвацца з чужой.
-- Governance: `REQUIREMENTS_TRACEABILITY.md`, `FAILURE_LEDGER.md`,
-  `docs/ADR/`.
-
-Чего здесь осознанно НЕТ: M7 scene search/full posterior, M8 optimizer,
-selective-delivery confidence, sealed export plan, SVG-экспорт, UI/WASM/AI.
-M6 выбірае boundary-local geometry, але не выдае яе за завершаную сцэну.
-
-## Быстрые команды
+## CLI
 
 ```bash
-cargo test --workspace
+cargo run --release --bin vicec -- vectorize input.png \
+  --mode flat2 --intent clean --preset quality --out out/sample
 ```
+
+The installed binary uses production configs embedded at compile time and
+bound to the existing SHA-256 trust anchors. `--production-config PATH` is an
+explicit fail-closed override; a missing or modified file never falls back.
+
+Successful Classic runs write:
+
+```text
+result.svg
+result.pure-partition.svg
+result.scene.json
+result.export-plan.json
+result.report.json
+result.render.png
+result.seal.json
+trace/trace.json       # only with --trace
+```
+
+Ambiguous, unsupported and failed runs publish only their typed report.
+
+An external legacy engine is never an implicit fallback. It can only be run
+through the explicit digest-pinned wrapper:
 
 ```bash
-cargo run --release --bin baseline-runner -- selftest --out runs/selftest --corpus tests/fixtures/smoke --manifest tests/fixtures/smoke/SMOKE_MANIFEST.toml
+vicec legacy-vectorize input.png \
+  --engine /absolute/path/to/engine \
+  --engine-sha256 <64-hex-digest> \
+  --arg --input --arg {input} --arg --output --arg {output} \
+  --out out/legacy
 ```
 
-Полный baseline run (нужны локальные зеркала pinned-репозиториев):
-см. [docs/REPRODUCIBILITY_M0.md](docs/REPRODUCIBILITY_M0.md).
+Its report always contains `classic_success: false`.
 
-## Лицензия
+## Browser/WASM
 
-Не определена до отдельного license/IP review (донoры owner-controlled;
-см. `THIRD_PARTY_NOTICES.md`). Не публиковать до этого review.
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack --locked
+wasm-pack build crates/vice-wasm --target web --out-dir ../../web/pkg
+python -m http.server --directory web 8080
+```
+
+Open `http://localhost:8080`. The UI runs the same embedded production core;
+it has no JavaScript reimplementation of inference or thresholds.
+
+## Verification
+
+```bash
+cargo fmt --all --check
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --release --workspace
+cargo build --locked --release -p vice-wasm --target wasm32-unknown-unknown
+cargo run --locked --release --bin vicec -- release-status \
+  --check docs/M12_CROSS_PLATFORM_VECTORS.json
+```
+
+See `SECURITY.md`, `docs/M12_PRODUCTIZATION.md`,
+`docs/M12_PERFORMANCE.md`, `docs/M12_LEGAL_FTO_REVIEW.md` and milestone status
+documents for scope and remaining release blockers.
+
+## Provenance
+
+No donor code is ported: `PORTING_MANIFEST.toml` remains at zero units.
+Dependencies and their verified package licenses are recorded in
+`THIRD_PARTY_NOTICES.md`; pinned donor roles and hashes are in
+`SOURCE_PINS.toml`.

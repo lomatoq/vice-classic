@@ -32,8 +32,9 @@ pub use p1::{
     P1_CORRECTION_SCHEMA, P1_SNAPSHOT_SCHEMA,
 };
 pub use pipeline::{
-    vectorize, vectorize_for_calibration, vectorize_for_calibration_without_baseline,
-    vectorize_with_config, vectorize_with_production_config,
+    vectorize, vectorize_embedded_production, vectorize_for_calibration,
+    vectorize_for_calibration_without_baseline, vectorize_with_config,
+    vectorize_with_production_config,
 };
 pub use types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal,

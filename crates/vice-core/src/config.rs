@@ -485,6 +485,21 @@ pub enum ProductionConfigError {
 }
 
 impl CoreConfig {
+    /// Load the digest-pinned release configuration embedded in the binary.
+    /// This is the packaging-safe production path for WASM and installed CLI
+    /// binaries, where repository-relative config files do not exist.
+    pub fn embedded_production_for(preset: Preset) -> Result<Self, ProductionConfigError> {
+        let bytes: &[u8] = match preset {
+            Preset::Fast => include_bytes!("../../../configs/M7_PRODUCTION_FAST.json"),
+            Preset::Quality => include_bytes!("../../../configs/M7_PRODUCTION_QUALITY.json"),
+        };
+        let expected_digest = match preset {
+            Preset::Fast => M7_FAST_PRODUCTION_CONFIG_SHA256,
+            Preset::Quality => M7_QUALITY_PRODUCTION_CONFIG_SHA256,
+        };
+        Self::production_from_bytes(preset, bytes, expected_digest)
+    }
+
     /// Load the one release-authorized M7 production configuration.
     ///
     /// Parsing a lookalike file is insufficient: the exact canonical bytes

@@ -1,7 +1,7 @@
 # REQUIREMENTS_TRACEABILITY — vice-classic
 
 Формат (spec v1.3 §32 правило 23): invariant → implementation → tests →
- milestone gate. Покрыты M0…M11.
+ milestone gate. Покрыты M0…M12.
 
 ## Перенесённые обязательства (явное отслеживание, REVIEW_M1 M1-N4)
 
@@ -13,6 +13,17 @@
 | D-6 | **Runtime-guard на неразрешимую геометрию**: отвергать типизированно, когда положение пересечения не разрешимо до пикселя в f64 (позиционная ошибка > ~0.25 px). Сегодня в этом режиме аккумулятор возвращает конечное, ограниченное, но бессмысленное число — как и любая f64-реализация (измерено: три независимые реализации дают 0 / +0.278 / −0.517). НЕ сделано: render-путь туда не попадает (`NumericDomain` ≤ 65536), а достаточно чувствительный guard рискует отвергать легитимную far-off-canvas геометрию, которая сегодня считается верно (1e308 принимается с ошибкой 1.8e-15). Основание: собственная находка при построении differential property-теста (C048) | при появлении прямого потребителя аккумулятора (M3) | **ЗАКРЫТО в дельте-4 (C052)**: оказалось тем же пунктом, что D-5 — конвексная/ближне-концевая форма `x_at` устраняет класс; «неразрешимость» была обусловленностью формулы, а не пределом f64 (F-0014) |
 | D-5 | **Колонко-относительная интерполяция промежуточной позиции** в `accumulate_edge` (`x_at`): red team измерил, что перестановка снимает ровно `ulp(M)/2` на всех магнитудах, то есть остаток F-M2-R2 сводим ещё раз. НЕ сделано сознательно: внутри enforced-домена запас ~50× (4.5e-12 против 2.33e-10), а правка сдвинула бы замороженный render digest без выигрыша в домене. Пересмотреть, если домен будет расширен или появится потребитель с бо́льшими координатами. Основание: REDTEAM_M2 addendum F-M2-R10 | при расширении домена / M3+ | **ЗАКРЫТО в дельте-4 (C052)**: перестановка выполнена; ни один замороженный digest не сдвинулся |
 | D-4 | **Типизированный witness сертификации вложения** (`CertifiedMesh`/`EmbeddedScene`): тип, который нельзя получить, не пройдя `verify_embedding`. Ввести ВМЕСТЕ с первым не-рендерящим потребителем `ValidatedScene` (M3 планово вводит: загрузчик GT-корпуса, identifiability-метаданные, scorecard). Основание: REVIEW_M2_A M2-A-N8, REVIEW_M2_B M2-B-N5; обоснование срока — ADR-0010 (критерий §32 п.7 по ADR-0005) | M3 | **ЗАКРЫТО в C062**: ice_render::certified::CertifiedMesh (приватные поля, два конструктора, несёт RenderOptions); mesh-входы рендера принимают только его; первый не-рендерящий потребитель — `gt::GtScene::new` (C064). Заявление СУЖЕНО и проверено: витнес НЕ утверждает замощение окна — B2-сцена сертифицируется, её ловит range check (ADR-0010 addendum M3) |
+
+## M12 — Productization
+
+| # | Invariant | Implementation | Tests / evidence |
+|---|---|---|---|
+| M12-01 | Installed native and browser entry points use the same digest-pinned production policy | embedded `CoreConfig`; `vicec vectorize`; `vice-wasm::vectorize_flat2` | config-anchor tests, CLI integration tests, real wasm32 release build |
+| M12-02 | Browser delivery does not duplicate inference or thresholds | `vice-wasm`; `web/` | adapter unit test, workspace dependency boundary, CI wasm build and JavaScript syntax check |
+| M12-03 | Legacy execution is explicit, pinned, bounded and can never become a Classic success/fallback | `vicec legacy-vectorize` | digest-refusal and successful-wrapper integration tests; timeout/output limits; typed provenance report |
+| M12-04 | Structural release identity is deterministic across Linux, Windows and macOS | `vicec release-status`; `M12_CROSS_PLATFORM_VECTORS.json` | three-platform CI exact comparison |
+| M12-05 | Public/commercial authorization cannot be inferred from technical readiness | machine-readable false authorization fields; `M12_LEGAL_FTO_REVIEW.md` | release-status unit test and committed cross-platform vector |
+| M12-06 | Runtime work remains bounded; unmeasured named-CPU SLOs remain unclaimed | existing core budgets plus WASM/legacy boundary limits | `M12_PERFORMANCE.md`; existing load-bearing budget tests |
 
 ## M11 — Gradients
 

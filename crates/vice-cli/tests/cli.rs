@@ -10,6 +10,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use sha2::{Digest, Sha256};
+
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -19,6 +21,12 @@ fn repo_root() -> PathBuf {
 
 fn vicec() -> Command {
     Command::new(env!("CARGO_BIN_EXE_vicec"))
+}
+
+fn file_sha256(path: &Path) -> String {
+    hex::encode(Sha256::digest(
+        std::fs::read(path).expect("read executable"),
+    ))
 }
 
 #[test]
@@ -188,4 +196,81 @@ fn vectorize_refuses_to_mix_a_new_verdict_with_stale_output() {
     assert_eq!(run.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&run.stderr).contains("not empty"));
     assert_eq!(std::fs::read(output.join("result.svg")).unwrap(), b"stale");
+}
+
+#[test]
+fn legacy_wrapper_refuses_an_unpinned_engine_before_execution() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = std::env::current_exe().unwrap();
+    let output = dir.path().join("legacy");
+    let run = vicec()
+        .arg("legacy-vectorize")
+        .arg(repo_root().join("tests/fixtures/smoke/circle_64.png"))
+        .arg("--engine")
+        .arg(engine)
+        .arg("--engine-sha256")
+        .arg("0".repeat(64))
+        .args(["--arg", "{input}", "--arg", "{output}"])
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(run.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&run.stderr).contains("digest does not match"));
+    assert!(
+        !output.exists(),
+        "refusal must happen before output creation"
+    );
+}
+
+#[test]
+fn explicit_legacy_wrapper_is_provenanced_and_never_a_classic_success() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = repo_root().join("tests/fixtures/smoke/circle_64.png");
+    let output = dir.path().join("legacy");
+
+    #[cfg(unix)]
+    let (engine, argv): (PathBuf, Vec<&str>) =
+        (PathBuf::from("/bin/cp"), vec!["{input}", "{output}"]);
+    #[cfg(windows)]
+    let (engine, argv): (PathBuf, Vec<&str>) = (
+        PathBuf::from(std::env::var_os("COMSPEC").expect("COMSPEC")),
+        vec!["/C", "copy", "/Y", "{input}", "{output}"],
+    );
+
+    let mut command = vicec();
+    command
+        .arg("legacy-vectorize")
+        .arg(&input)
+        .arg("--engine")
+        .arg(&engine)
+        .arg("--engine-sha256")
+        .arg(file_sha256(&engine));
+    for arg in argv {
+        command.args(["--arg", arg]);
+    }
+    let run = command
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(
+        run.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert_eq!(
+        std::fs::read(output.join("legacy-result.svg")).unwrap(),
+        std::fs::read(&input).unwrap()
+    );
+    let report: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(output.join("legacy.report.json")).expect("legacy report"),
+    )
+    .unwrap();
+    assert_eq!(report["schema"], "vice-classic/legacy-wrapper-report/v1");
+    assert_eq!(report["status"], "legacy_success");
+    assert_eq!(report["classic_success"], false);
+    assert_eq!(report["engine_sha256_before"], file_sha256(&engine));
+    assert_eq!(report["engine_sha256_after"], file_sha256(&engine));
 }

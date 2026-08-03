@@ -131,3 +131,13 @@ schema = "vice-classic/porting-manifest/v1"
 # verbatim, §13 gives the sample fields), the closed forms of the transition
 # statistic derived here and checked against synthetic profiles, and the
 # clean-room literature basis of §37.
+
+# --- M10-M12 ------------------------------------------------------------
+# Units after M10, M11 and M12: still ZERO.
+#
+# The stroke, gradient, WASM, UI, packaging and explicit legacy-wrapper work
+# was implemented from VICE_CLASSIC_CORE_AGENT_SPEC_v1.3 and repository-local
+# contracts. No donor source or asset was opened, copied, translated or
+# vendored. The M12 WASM packages are ordinary Cargo dependencies recorded in
+# THIRD_PARTY_NOTICES.md; an explicitly invoked external legacy executable is
+# provenance-recorded but is neither linked nor a ported unit.

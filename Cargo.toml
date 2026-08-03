@@ -14,6 +14,7 @@ members = [
     "crates/vice-svg",
     "crates/vice-topology",
     "crates/vice-verify",
+    "crates/vice-wasm",
 ]
 # Baseline checkouts are cloned under runs/<out>/checkouts/ at run time; a
 # donor crate without its own [workspace] must not be captured by this one.
@@ -58,6 +59,8 @@ exclude = ["runs", "baselines-work"]
 # owns the end-to-end outcome/report/artifact contract and is the only shipped
 # caller allowed to compose evidence, DCEL, fitting, posterior, verification,
 # and delivery.
+# M12: vice-wasm is the browser-safe product adapter over the digest-pinned
+# production core. It owns no inference, thresholds, or fallback policy.
 
 [workspace.package]
 edition = "2021"

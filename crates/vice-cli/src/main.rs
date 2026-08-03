@@ -27,9 +27,16 @@
 
 #![forbid(unsafe_code)]
 
-use std::path::PathBuf;
+mod product;
+
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 use clap::{Parser, Subcommand, ValueEnum};
+use serde::Serialize;
+use sha2::{Digest, Sha256};
 use vice_evidence::analysis::{analyze, Flat2Outcome, ANALYSIS_CONFIG_V1};
 use vice_evidence::palette::oracle_override;
 use vice_image::{CanonicalImage, DecodeLimits};
@@ -125,6 +132,56 @@ enum Cmd {
         #[arg(long, value_enum)]
         exterior: Option<ExteriorArg>,
     },
+    /// Run an explicitly pinned external legacy engine. This never reports a
+    /// Classic success and is never called as a fallback by `vectorize`.
+    LegacyVectorize {
+        input: PathBuf,
+        #[arg(long)]
+        engine: PathBuf,
+        #[arg(long)]
+        engine_sha256: String,
+        /// Direct argv token; `{input}` and `{output}` are substituted. No
+        /// shell is involved, so leading-hyphen values are safe.
+        #[arg(long = "arg", allow_hyphen_values = true)]
+        args: Vec<String>,
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, default_value_t = 60, value_parser = clap::value_parser!(u64).range(1..=600))]
+        timeout_secs: u64,
+    },
+    /// Print the deterministic M12 technical/legal release status. With
+    /// `--check`, refuse if it differs from the committed cross-platform vector.
+    ReleaseStatus {
+        #[arg(long)]
+        check: Option<PathBuf>,
+    },
+}
+
+const LEGACY_REPORT_SCHEMA: &str = "vice-classic/legacy-wrapper-report/v1";
+const MAX_LEGACY_OUTPUT_BYTES: u64 = 64 * 1024 * 1024;
+
+#[derive(Serialize)]
+struct LegacyWrapperReport {
+    schema: &'static str,
+    status: &'static str,
+    classic_success: bool,
+    source_path: String,
+    source_sha256: String,
+    engine_path: String,
+    engine_sha256_expected: String,
+    engine_sha256_before: String,
+    engine_sha256_after: String,
+    argv: Vec<String>,
+    timeout_secs: u64,
+    duration_ms: u64,
+    timed_out: bool,
+    exit_code: Option<i32>,
+    output_path: String,
+    output_bytes: Option<u64>,
+    output_sha256: Option<String>,
+    stdout_sha256: String,
+    stderr_sha256: String,
+    refusal: Option<String>,
 }
 
 fn parse_rgb(s: &str) -> Result<LinearRgb, String> {
@@ -190,6 +247,189 @@ fn prepare_output_dir(path: &std::path::Path) -> Result<(), String> {
 fn write_artifact(directory: &std::path::Path, name: &str, bytes: &[u8]) -> Result<(), String> {
     let path = directory.join(name);
     std::fs::write(&path, bytes).map_err(|error| format!("write {}: {error}", path.display()))
+}
+
+fn sha256_file(path: &Path, limit: u64) -> Result<(String, u64), String> {
+    let metadata = std::fs::symlink_metadata(path)
+        .map_err(|error| format!("stat {}: {error}", path.display()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > limit {
+        return Err(format!(
+            "{} is not a regular file within the {limit}-byte limit",
+            path.display()
+        ));
+    }
+    let mut file =
+        std::fs::File::open(path).map_err(|error| format!("open {}: {error}", path.display()))?;
+    let mut digest = Sha256::new();
+    let mut buffer = [0u8; 65_536];
+    loop {
+        let count = file
+            .read(&mut buffer)
+            .map_err(|error| format!("read {}: {error}", path.display()))?;
+        if count == 0 {
+            break;
+        }
+        digest.update(&buffer[..count]);
+    }
+    Ok((hex::encode(digest.finalize()), metadata.len()))
+}
+
+fn run_legacy_vectorizer(
+    input: PathBuf,
+    engine: PathBuf,
+    expected_digest: String,
+    args: Vec<String>,
+    out: PathBuf,
+    timeout_secs: u64,
+) -> Result<bool, String> {
+    let input = input
+        .canonicalize()
+        .map_err(|error| format!("resolve input: {error}"))?;
+    let engine = engine
+        .canonicalize()
+        .map_err(|error| format!("resolve engine: {error}"))?;
+    let expected_digest = expected_digest.to_ascii_lowercase();
+    if expected_digest.len() != 64 || !expected_digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err("--engine-sha256 must be exactly 64 hexadecimal characters".into());
+    }
+    let (source_sha256, _) = sha256_file(&input, 64 * 1024 * 1024)?;
+    let (engine_before, _) = sha256_file(&engine, 1024 * 1024 * 1024)?;
+    if engine_before != expected_digest {
+        return Err(
+            "legacy engine digest does not match --engine-sha256; refusing execution".into(),
+        );
+    }
+    prepare_output_dir(&out)?;
+    let output = out.join("legacy-result.svg");
+    let argv = args
+        .iter()
+        .map(|arg| match arg.as_str() {
+            "{input}" => input.to_string_lossy().into_owned(),
+            "{output}" => output.to_string_lossy().into_owned(),
+            _ => arg.clone(),
+        })
+        .collect::<Vec<_>>();
+    if !argv.iter().any(|arg| arg == &input.to_string_lossy())
+        || !argv.iter().any(|arg| arg == &output.to_string_lossy())
+    {
+        return Err("legacy argv must contain both {input} and {output} placeholders".into());
+    }
+    let stdout_path = out.join("legacy.stdout.log");
+    let stderr_path = out.join("legacy.stderr.log");
+    let stdout = std::fs::File::create(&stdout_path)
+        .map_err(|error| format!("create {}: {error}", stdout_path.display()))?;
+    let stderr = std::fs::File::create(&stderr_path)
+        .map_err(|error| format!("create {}: {error}", stderr_path.display()))?;
+    let started = Instant::now();
+    let mut child = Command::new(&engine)
+        .args(&argv)
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(stdout))
+        .stderr(Stdio::from(stderr))
+        .spawn()
+        .map_err(|error| format!("spawn {}: {error}", engine.display()))?;
+    let deadline = started + Duration::from_secs(timeout_secs);
+    let (status, timed_out, output_limit_exceeded) = loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| format!("wait legacy engine: {error}"))?
+        {
+            break (status, false, false);
+        }
+        let live_output_bytes = [&stdout_path, &stderr_path, &output]
+            .into_iter()
+            .filter_map(|path| std::fs::symlink_metadata(path).ok())
+            .map(|metadata| metadata.len())
+            .sum::<u64>();
+        if live_output_bytes > MAX_LEGACY_OUTPUT_BYTES {
+            child
+                .kill()
+                .map_err(|error| format!("kill oversized legacy engine: {error}"))?;
+            break (
+                child
+                    .wait()
+                    .map_err(|error| format!("reap legacy engine: {error}"))?,
+                false,
+                true,
+            );
+        }
+        if Instant::now() >= deadline {
+            child
+                .kill()
+                .map_err(|error| format!("kill timed-out legacy engine: {error}"))?;
+            break (
+                child
+                    .wait()
+                    .map_err(|error| format!("reap legacy engine: {error}"))?,
+                true,
+                false,
+            );
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let (engine_after, _) = sha256_file(&engine, 1024 * 1024 * 1024)?;
+    let (stdout_sha256, _) = sha256_file(&stdout_path, MAX_LEGACY_OUTPUT_BYTES)?;
+    let (stderr_sha256, _) = sha256_file(&stderr_path, MAX_LEGACY_OUTPUT_BYTES)?;
+    let output_result = output
+        .exists()
+        .then(|| sha256_file(&output, MAX_LEGACY_OUTPUT_BYTES))
+        .transpose();
+    let (output_sha256, output_bytes, output_error) = match output_result {
+        Ok(Some((digest, bytes))) => (Some(digest), Some(bytes), None),
+        Ok(None) => (
+            None,
+            None,
+            Some("legacy engine produced no output".to_string()),
+        ),
+        Err(error) => (None, None, Some(error)),
+    };
+    let refusal = if output_limit_exceeded {
+        Some("legacy engine exceeded the combined 64 MiB output limit".into())
+    } else if timed_out {
+        Some("legacy engine exceeded its wall-clock timeout".into())
+    } else if engine_after != engine_before {
+        Some("legacy engine changed on disk during execution".into())
+    } else if !status.success() {
+        Some("legacy engine exited unsuccessfully".into())
+    } else {
+        output_error
+    };
+    let success = refusal.is_none();
+    let report = LegacyWrapperReport {
+        schema: LEGACY_REPORT_SCHEMA,
+        status: if success {
+            "legacy_success"
+        } else {
+            "legacy_failed"
+        },
+        classic_success: false,
+        source_path: input.display().to_string(),
+        source_sha256,
+        engine_path: engine.display().to_string(),
+        engine_sha256_expected: expected_digest,
+        engine_sha256_before: engine_before,
+        engine_sha256_after: engine_after,
+        argv,
+        timeout_secs,
+        duration_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
+        timed_out,
+        exit_code: status.code(),
+        output_path: output.display().to_string(),
+        output_bytes,
+        output_sha256,
+        stdout_sha256,
+        stderr_sha256,
+        refusal,
+    };
+    write_artifact(
+        &out,
+        "legacy.report.json",
+        serde_json::to_vec_pretty(&report)
+            .map_err(|error| format!("serialize legacy report: {error}"))?
+            .as_slice(),
+    )?;
+    Ok(success)
 }
 
 fn main() {
@@ -374,12 +614,10 @@ fn run() -> i32 {
                 milestone_debug,
                 oracle_override,
             };
-            let production_config = production_config.unwrap_or_else(|| match request.preset {
-                vice_core::Preset::Fast => PathBuf::from("configs/M7_PRODUCTION_FAST.json"),
-                vice_core::Preset::Quality => PathBuf::from("configs/M7_PRODUCTION_QUALITY.json"),
-            });
-            let outcome =
-                vice_core::vectorize_with_production_config(&bytes, &request, &production_config);
+            let outcome = match production_config {
+                Some(path) => vice_core::vectorize_with_production_config(&bytes, &request, &path),
+                None => vice_core::vectorize_embedded_production(&bytes, &request),
+            };
             let write_result = match &outcome {
                 vice_core::VectorizeOutcome::Success(success) => {
                     let artifacts = &success.artifacts;
@@ -450,6 +688,62 @@ fn run() -> i32 {
                 vice_core::VectorizeOutcome::Unsupported(_) => 4,
                 vice_core::VectorizeOutcome::Failed(_) => 2,
             }
+        }
+        Cmd::LegacyVectorize {
+            input,
+            engine,
+            engine_sha256,
+            args,
+            out,
+            timeout_secs,
+        } => match run_legacy_vectorizer(input, engine, engine_sha256, args, out, timeout_secs) {
+            Ok(true) => {
+                println!("outcome: LEGACY_SUCCESS (never Classic success)");
+                0
+            }
+            Ok(false) => {
+                eprintln!("outcome: LEGACY_FAILED; see legacy.report.json");
+                2
+            }
+            Err(error) => {
+                eprintln!("error: {error}");
+                2
+            }
+        },
+        Cmd::ReleaseStatus { check } => {
+            let json = match product::canonical_json() {
+                Ok(json) => json,
+                Err(error) => {
+                    eprintln!("error: serialize release status: {error}");
+                    return 2;
+                }
+            };
+            if let Some(path) = check {
+                let expected = match std::fs::read(&path) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        eprintln!("error: read {}: {error}", path.display());
+                        return 2;
+                    }
+                };
+                let actual_value: serde_json::Value = serde_json::from_slice(&json).unwrap();
+                let expected_value: serde_json::Value = match serde_json::from_slice(&expected) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        eprintln!("error: parse {}: {error}", path.display());
+                        return 2;
+                    }
+                };
+                if actual_value != expected_value {
+                    eprintln!(
+                        "error: M12 structural contract differs from {}",
+                        path.display()
+                    );
+                    return 2;
+                }
+            }
+            println!("{}", String::from_utf8_lossy(&json));
+            0
         }
     }
 }

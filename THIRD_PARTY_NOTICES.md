@@ -1,6 +1,6 @@
 # Third-party notices — vice-classic
 
-Status date: 2026-08-03 (M9).
+Status date: 2026-08-03 (M12).
 
 ## 1. Pinned donor repositories (NOT vendored, NOT linked in M0)
 
@@ -212,3 +212,22 @@ PORTING_MANIFEST на M4.5 остаётся при **нуле units**. Ближ�
 связности и запрет на `OUTSIDE = -1` пришли из СПЕКИ (§5.3), которая сама
 называет донорский `topology.py` отрицательным примером. Наблюдение о доноре,
 взятое из спеки, — не чтение донора.
+
+## 2f. M10–M12 dependency update
+
+M10 and M11 add no external dependency. M12 adds the browser adapter and its
+Cargo-locked WASM toolchain packages. Licenses below were checked from the
+actual unpacked package metadata used by this workspace on 2026-08-03.
+
+| Package | Version | Declared license | Role |
+|---|---:|---|---|
+| `wasm-bindgen` and its macro/support/shared packages | 0.2.126 | MIT OR Apache-2.0 | Rust/JavaScript ABI |
+| `serde-wasm-bindgen` | 0.6.5 | MIT | typed JavaScript values |
+| `js-sys` | 0.3.103 | MIT OR Apache-2.0 | transitive JavaScript bindings |
+| `bumpalo` | 3.20.3 | MIT OR Apache-2.0 | transitive macro allocator |
+| `rustversion` | 1.0.23 | MIT OR Apache-2.0 | transitive compiler-version gate |
+
+No package code is vendored. `Cargo.lock` is the version authority. This
+engineering inventory does not authorize distribution: the repository has no
+selected license, the owner-controlled donor attestations are incomplete, and
+the human patent/FTO checklist remains open in `docs/M12_LEGAL_FTO_REVIEW.md`.

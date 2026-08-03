@@ -310,6 +310,27 @@ jobs:
             --gates configs/GATES_V1.toml \
             --out runs/ci-geometry-m6/report.json
 
+  m12-product:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned toolchain and WASM target
+        run: |
+          rustup show
+          rustup target add wasm32-unknown-unknown
+      - name: Native product adapters
+        run: cargo test --locked --release -p vice-cli -p vice-wasm
+      - name: Browser core builds without native filesystem/process assumptions
+        run: cargo build --locked --release -p vice-wasm --target wasm32-unknown-unknown
+      - name: Cross-platform structural release contract
+        run: cargo run --locked --release --bin vicec -- release-status --check docs/M12_CROSS_PLATFORM_VECTORS.json
+      - name: Browser UI JavaScript parses
+        run: node --check web/app.js
+
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
   # verified by nobody: the ubuntu job above physically cannot, because
   # render digests and oracle metrics are TIER A (§5.5) and this corpus is

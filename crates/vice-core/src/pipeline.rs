@@ -13,7 +13,7 @@ use crate::candidate::{
     materialize_candidate, score_candidate_proposal, CandidateCache, CandidateModelTransaction,
     CandidateRequest,
 };
-use crate::config::{ConfidenceMetrics, CoreConfig, PerturbationStability};
+use crate::config::{ConfidenceMetrics, CoreConfig, PerturbationStability, ProductionConfigError};
 use crate::scene::{topology_arms, TopologyArm};
 use crate::types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal, CandidateSummary,
@@ -224,7 +224,29 @@ pub fn vectorize_with_production_config(
     request: &VectorizeRequest,
     path: &std::path::Path,
 ) -> VectorizeOutcome {
-    match CoreConfig::load_production_for(request.preset, path) {
+    vectorize_with_loaded_production(
+        bytes,
+        request,
+        CoreConfig::load_production_for(request.preset, path),
+    )
+}
+
+/// Packaging-safe production entry point using digest-pinned config bytes
+/// compiled into the executable. There is no filesystem fallback.
+pub fn vectorize_embedded_production(bytes: &[u8], request: &VectorizeRequest) -> VectorizeOutcome {
+    vectorize_with_loaded_production(
+        bytes,
+        request,
+        CoreConfig::embedded_production_for(request.preset),
+    )
+}
+
+fn vectorize_with_loaded_production(
+    bytes: &[u8],
+    request: &VectorizeRequest,
+    loaded: Result<CoreConfig, ProductionConfigError>,
+) -> VectorizeOutcome {
+    match loaded {
         Ok(config) => vectorize_with_admission_witness(bytes, request, &config, None, false),
         Err(error) => {
             let config = CoreConfig::development_for(request.preset);
