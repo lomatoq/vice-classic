@@ -199,6 +199,32 @@ fn vectorize_refuses_to_mix_a_new_verdict_with_stale_output() {
 }
 
 #[test]
+fn production_vectorize_delivers_a_supported_128px_input() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("result");
+    let run = vicec()
+        .arg("vectorize")
+        .arg(repo_root().join("tests/fixtures/smoke/triangle_128.png"))
+        .args(["--mode", "flat2", "--intent", "clean", "--preset", "fast"])
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .expect("vicec runs");
+    assert_eq!(
+        run.status.code(),
+        Some(0),
+        "stdout={}\nstderr={}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert!(output.join("result.svg").is_file());
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.join("result.report.json")).unwrap()).unwrap();
+    assert_eq!(report["status"], "success");
+    assert_eq!(report["production"], true);
+}
+
+#[test]
 fn legacy_wrapper_refuses_an_unpinned_engine_before_execution() {
     let dir = tempfile::tempdir().unwrap();
     let engine = std::env::current_exe().unwrap();

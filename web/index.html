@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'">
   <title>vice-classic</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -11,6 +11,7 @@
   <main>
     <h1>vice-classic</h1>
     <p>Selective classical vectorization. Unsupported and ambiguous inputs stay explicit.</p>
+    <p>Current calibrated production envelope: 128–512 px Flat2 images. Other inputs safely return a report without SVG.</p>
     <label>Image <input id="input" type="file" accept="image/png,image/jpeg,image/webp"></label>
     <label>Preset
       <select id="preset"><option value="fast">Fast</option><option value="quality">Quality</option></select>

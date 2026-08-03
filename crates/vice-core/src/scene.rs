@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vice_evidence::{BackgroundHypothesis, BoundaryChain, Flat2Evidence};
@@ -11,6 +9,7 @@ use vice_ir::{
 };
 use vice_topology::{audit, Dcel};
 use vice_verify::{topology_signature_sha256, BoundaryBinding};
+use web_time::Instant;
 
 use crate::types::{TopologyArmRefusal, TopologyArmTrace, TopologyRuntimeSummary};
 

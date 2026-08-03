@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 use vice_evidence::{BoundaryChain, Flat2Evidence};
@@ -14,6 +13,7 @@ use vice_svg::{
     parse_and_render_independently, IndependentlyRenderedSvg, SvgProfile,
 };
 use vice_verify::{quantize_and_verify, seal_delivery};
+use web_time::Instant;
 
 use crate::config::CoreConfig;
 use crate::scene::{build_scene_candidate, optimize_continuous, SceneCandidate, TopologyArm};

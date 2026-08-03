@@ -226,6 +226,7 @@ actual unpacked package metadata used by this workspace on 2026-08-03.
 | `js-sys` | 0.3.103 | MIT OR Apache-2.0 | transitive JavaScript bindings |
 | `bumpalo` | 3.20.3 | MIT OR Apache-2.0 | transitive macro allocator |
 | `rustversion` | 1.0.23 | MIT OR Apache-2.0 | transitive compiler-version gate |
+| `web-time` | 1.1.0 | MIT OR Apache-2.0 | browser-safe monotonic clock adapter |
 
 No package code is vendored. `Cargo.lock` is the version authority. This
 engineering inventory does not authorize distribution: the repository has no

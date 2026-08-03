@@ -334,7 +334,8 @@ jobs:
       - name: Browser UI JavaScript parses
         run: |
           node --check web/app.js
-          node --input-type=module -e "const m=await import('./web/pkg/vice_wasm.js'); if(typeof m.default!=='function'||typeof m.vectorize_flat2!=='function') process.exit(1)"
+          node --input-type=module -e "import fs from 'node:fs'; const m=await import('./web/pkg/vice_wasm.js'); await m.default({module_or_path:fs.readFileSync('./web/pkg/vice_wasm_bg.wasm')}); if(typeof m.vectorize_flat2!=='function') process.exit(1)"
+          node -e "const html=require('fs').readFileSync('web/index.html','utf8'); if(!html.includes('wasm-unsafe-eval')) process.exit(1)"
 
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
   # verified by nobody: the ubuntu job above physically cannot, because

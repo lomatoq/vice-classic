@@ -104,6 +104,38 @@ fn compare(a: &[u8], b: &[u8]) -> Result<DeliveryComparison, DeliverySealError> 
 }
 
 fn internal_premultiplied_srgb8(scene: &QuantizedVerifiedScene) -> Vec<u8> {
+    if scene.scene().formation.blend_space == vice_ir::BlendSpace::EncodedSrgb {
+        let pixels = scene.render().composite.len();
+        let mut encoded = vec![[0.0f64; 4]; pixels];
+        for (face, coverage) in scene
+            .scene()
+            .graph
+            .faces
+            .iter()
+            .zip(&scene.render().face_coverage)
+        {
+            let paint = match face.paint {
+                vice_ir::Paint::OpaqueSolid(color) => [
+                    linear_to_srgb_encoded(color.r),
+                    linear_to_srgb_encoded(color.g),
+                    linear_to_srgb_encoded(color.b),
+                    1.0,
+                ],
+                vice_ir::Paint::TransparentExterior => [0.0; 4],
+            };
+            for (pixel, alpha) in encoded.iter_mut().zip(coverage) {
+                for channel in 0..4 {
+                    pixel[channel] += alpha * paint[channel];
+                }
+            }
+        }
+        return encoded
+            .into_iter()
+            .flat_map(|pixel| {
+                pixel.map(|channel| (channel * 255.0).round().clamp(0.0, 255.0) as u8)
+            })
+            .collect();
+    }
     let mut output = Vec::with_capacity(scene.render().composite.len() * 4);
     for pixel in &scene.render().composite {
         let alpha = pixel.a.clamp(0.0, 1.0);

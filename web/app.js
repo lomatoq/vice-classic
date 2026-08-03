@@ -10,7 +10,13 @@ const download = document.querySelector("#download");
 const report = document.querySelector("#report");
 let resultUrl;
 
-await init();
+try {
+  await init();
+} catch (error) {
+  run.disabled = true;
+  status.textContent = `WASM initialization failed: ${error}`;
+  throw error;
+}
 
 run.addEventListener("click", async () => {
   const file = input.files?.[0];
@@ -24,7 +30,10 @@ run.addEventListener("click", async () => {
   try {
     const output = vectorize_flat2(new Uint8Array(await file.arrayBuffer()), preset.value);
     report.textContent = JSON.stringify(output.report, null, 2);
-    status.textContent = `Outcome: ${output.status}`;
+    const reason = output.report?.reason;
+    status.textContent = reason
+      ? `Outcome: ${output.status} — ${reason.reason}: ${reason.detail}`
+      : `Outcome: ${output.status}`;
     if (output.result_svg) {
       if (resultUrl) URL.revokeObjectURL(resultUrl);
       resultUrl = URL.createObjectURL(new Blob([output.result_svg], { type: "image/svg+xml" }));

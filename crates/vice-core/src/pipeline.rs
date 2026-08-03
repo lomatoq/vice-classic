@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 use vice_evidence::Flat2Outcome;
@@ -8,6 +7,7 @@ use vice_opt::{
     posterior_with_search_mass, select_diverse_beam, BeamCandidate, SearchMassInput,
     TransactionKind,
 };
+use web_time::Instant;
 
 use crate::candidate::{
     materialize_candidate, score_candidate_proposal, CandidateCache, CandidateModelTransaction,

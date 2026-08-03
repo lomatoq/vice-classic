@@ -23,6 +23,9 @@ cargo run --release --bin vicec -- vectorize input.png \
 The installed binary uses production configs embedded at compile time and
 bound to the existing SHA-256 trust anchors. `--production-config PATH` is an
 explicit fail-closed override; a missing or modified file never falls back.
+The current calibrated production envelope is 128–512 px Flat2 input. Inputs
+outside the envelope return an explicit typed report without an SVG rather
+than silently guessing.
 
 Successful Classic runs write:
 
