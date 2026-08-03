@@ -1,6 +1,6 @@
 schema = "vice-classic/m8-gate-provenance/v1"
 milestone = "M8"
-status = "calibration_frozen_sealed_pending"
+status = "sealed_release_green_review_pending"
 feature_sha = "0f4ecd36e7a34d2c8b64269ba78acb5adad6f562"
 procedural_generation = 6
 variants_per_family = 650
@@ -43,3 +43,17 @@ sealed_corpus_commitment_sha256 = "a9d1fa98eac58857913fd6a8ca6a2a11108de29168117
 groups_accepted = 399
 coverage = 0.6717171717171717
 catastrophic_rows = 5
+
+[sealed_generation_6]
+gate_sha = "2eb6082"
+release_artifact = "docs/gt/M8_RELEASE_VERDICT.json"
+release_artifact_sha256 = "5df0f37a86eb421475a9cd97db2dd2b679815ed54c99652df01b6e047dea4959"
+release_court_sha256 = "4db6e0fd6d0967394c7d4efc0a722a35ba812d6e41c5f1180d5ec7cfa7307034"
+calibration_sha256 = "268e037b33f539a904da7b1526fb8e56a81d4400bd5e80d306b7809da2f81a16"
+sealed_corpus_commitment_sha256 = "74fc37d5863d61db595b1c3c569814268ff73f9b8f8e2433e670f83cb4a8e0fe"
+groups_total = 592
+groups_accepted = 496
+groups_catastrophic = 0
+coverage = 0.8378378378378378
+catastrophic_risk_upper = 0.009241648337477704
+gate_met = true
