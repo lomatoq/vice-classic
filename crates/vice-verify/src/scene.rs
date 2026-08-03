@@ -43,6 +43,13 @@ pub enum BoundaryBindingOrigin {
     CanvasClosure {
         canvas_sha256: String,
     },
+    /// One exact canvas-edge segment owned by one visible multiregion face.
+    /// M7 Flat2 can encode the canvas as one closure; M8 cannot when several
+    /// faces meet different portions of the image border.
+    CanvasSegment {
+        canvas_sha256: String,
+        dcel_boundary_sha256: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -134,6 +141,43 @@ impl BoundaryBinding {
         })
     }
 
+    pub fn new_canvas_segment(
+        canvas: Canvas,
+        dcel_boundary_sha256: impl Into<String>,
+        boundary: BoundaryId,
+        topology_signature_sha256: impl Into<String>,
+        support_polyline: Vec<Pt>,
+    ) -> Result<Self, VerificationError> {
+        let dcel_boundary_sha256 = dcel_boundary_sha256.into();
+        let topology_signature_sha256 = topology_signature_sha256.into();
+        let digest_valid = |value: &str| {
+            value.len() == 64
+                && value
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        };
+        if !digest_valid(&dcel_boundary_sha256)
+            || !digest_valid(&topology_signature_sha256)
+            || support_polyline.len() != 2
+            || !canvas_segment_points(canvas, support_polyline[0], support_polyline[1])
+        {
+            return Err(VerificationError::BoundaryBinding);
+        }
+        let support_bytes = serde_json::to_vec(&support_polyline)
+            .map_err(|_| VerificationError::BoundaryBinding)?;
+        Ok(Self {
+            origin: BoundaryBindingOrigin::CanvasSegment {
+                canvas_sha256: canvas_closure_sha256(canvas),
+                dcel_boundary_sha256,
+            },
+            support_geometry_sha256: hex::encode(Sha256::digest(support_bytes)),
+            boundary,
+            topology_signature_sha256,
+            isotopy_tube_px: f64::EPSILON,
+            support_polyline,
+        })
+    }
+
     pub fn origin(&self) -> &BoundaryBindingOrigin {
         &self.origin
     }
@@ -144,6 +188,7 @@ impl BoundaryBinding {
                 ..
             } => Some(observed_chain_sha256),
             BoundaryBindingOrigin::CanvasClosure { .. } => None,
+            BoundaryBindingOrigin::CanvasSegment { .. } => None,
         }
     }
     pub fn dcel_boundary_sha256(&self) -> Option<&str> {
@@ -153,6 +198,10 @@ impl BoundaryBinding {
                 ..
             } => Some(dcel_boundary_sha256),
             BoundaryBindingOrigin::CanvasClosure { .. } => None,
+            BoundaryBindingOrigin::CanvasSegment {
+                dcel_boundary_sha256,
+                ..
+            } => Some(dcel_boundary_sha256),
         }
     }
     pub fn support_geometry_sha256(&self) -> &str {
@@ -181,6 +230,21 @@ fn canvas_support_polyline(canvas: Canvas) -> Vec<Pt> {
     ]
 }
 
+fn canvas_segment_points(canvas: Canvas, a: Pt, b: Pt) -> bool {
+    if !a.is_finite() || !b.is_finite() || a == b {
+        return false;
+    }
+    let width = f64::from(canvas.width_px);
+    let height = f64::from(canvas.height_px);
+    let in_range = |p: Pt| (0.0..=width).contains(&p.x) && (0.0..=height).contains(&p.y);
+    in_range(a)
+        && in_range(b)
+        && ((a.x == 0.0 && b.x == 0.0)
+            || (a.x == width && b.x == width)
+            || (a.y == 0.0 && b.y == 0.0)
+            || (a.y == height && b.y == height))
+}
+
 pub fn canvas_closure_sha256(canvas: Canvas) -> String {
     let bytes = serde_json::to_vec(&canvas).expect("Canvas serialization is infallible");
     hex::encode(Sha256::digest(bytes))
@@ -202,6 +266,21 @@ fn is_exact_canvas_closure(scene: &VectorScene, binding: &BoundaryBinding) -> bo
             .curve
             .node_positions(Pt::new(0.0, 0.0), Pt::new(0.0, 0.0))
             == canvas_support_polyline(scene.canvas)
+}
+
+fn is_exact_canvas_segment(scene: &VectorScene, binding: &BoundaryBinding) -> bool {
+    let boundary = &scene.graph.boundaries[binding.boundary.index()];
+    if boundary.start_vertex == boundary.end_vertex
+        || boundary.closure_join.is_some()
+        || !boundary.curve.interior_nodes.is_empty()
+        || boundary.curve.segments.len() != 1
+        || !boundary.curve.segments[0].is_line()
+    {
+        return false;
+    }
+    let start = scene.graph.vertices[boundary.start_vertex.index()].pos;
+    let end = scene.graph.vertices[boundary.end_vertex.index()].pos;
+    binding.support_polyline == [start, end] && canvas_segment_points(scene.canvas, start, end)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -655,6 +734,17 @@ fn verify_bindings(
                     return Err(VerificationError::BoundaryBinding);
                 }
             }
+            BoundaryBindingOrigin::CanvasSegment {
+                canvas_sha256,
+                dcel_boundary_sha256,
+            } => {
+                if canvas_sha256 != &canvas_closure_sha256(scene.canvas)
+                    || !dcel_boundaries.insert(dcel_boundary_sha256.as_str())
+                    || !is_exact_canvas_segment(scene, binding)
+                {
+                    return Err(VerificationError::BoundaryBinding);
+                }
+            }
         }
     }
     Ok(())
@@ -691,6 +781,13 @@ pub fn rebind_scene_bindings(
                 &candidate.origin,
                 BoundaryBindingOrigin::CanvasClosure { .. }
             ) && !is_exact_canvas_closure(scene, &candidate)
+            {
+                continue;
+            }
+            if matches!(
+                &candidate.origin,
+                BoundaryBindingOrigin::CanvasSegment { .. }
+            ) && !is_exact_canvas_segment(scene, &candidate)
             {
                 continue;
             }
@@ -775,7 +872,13 @@ pub(crate) fn preseal_scene_reusing(
             .count() as u64,
         dcel_boundary_bindings: bindings
             .iter()
-            .filter(|binding| matches!(&binding.origin, BoundaryBindingOrigin::ObservedDcel { .. }))
+            .filter(|binding| {
+                matches!(
+                    &binding.origin,
+                    BoundaryBindingOrigin::ObservedDcel { .. }
+                        | BoundaryBindingOrigin::CanvasSegment { .. }
+                )
+            })
             .count() as u64,
         g1_nodes,
         worst_g1_spread_rad,

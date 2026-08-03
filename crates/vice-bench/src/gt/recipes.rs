@@ -434,10 +434,23 @@ pub(super) fn build_variant(
                 let cc = Pt::new(center.x + spread * t.cos(), center.y + spread * t.sin());
                 let rr = r * (0.7 + 0.3 * (i as f64) / (n as f64));
                 smallest = smallest.min(PI * rr * rr);
-                // Generations 1--3 used one paint per dot and were therefore
-                // M8 multiregion inputs. Generation 4 keeps the independent
-                // components but uses one foreground paint for Flat2.
-                let dot_paint = if generation >= 4 {
+                // Generations 1--3 used weakly separated paints. Generation
+                // 4 keeps one foreground paint for the M7 Flat2 court.
+                // M8 generations 5 and 6 are separately re-keyed multiregion
+                // courts: every dot has a well-separated paint, making
+                // cardinality observable. Generation numbers are not a
+                // feature-level ordering: the frozen M7 successor is
+                // generation 8 and must remain Flat2.
+                let dot_paint = if matches!(generation, 5 | 6) {
+                    [
+                        ink(0.90, 0.08, 0.06),
+                        ink(0.06, 0.82, 0.10),
+                        ink(0.06, 0.14, 0.92),
+                        ink(0.90, 0.72, 0.04),
+                        ink(0.72, 0.06, 0.82),
+                        ink(0.04, 0.78, 0.78),
+                    ][i]
+                } else if generation >= 4 {
                     fg
                 } else {
                     ink(0.1 + 0.2 * i as f64 / n as f64, 0.2, 0.6)

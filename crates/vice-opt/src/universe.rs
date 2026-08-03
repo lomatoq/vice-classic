@@ -486,6 +486,37 @@ impl SupportedModelUniverseV1 {
         universe
     }
 
+    /// The M8 multiregion universe.  It has a distinct content identity and
+    /// intentionally carries NO M7 reliability claim: expanding Flat2 to a
+    /// palette/RAG/paint search requires a separately frozen calibration.
+    pub fn m8() -> SupportedModelUniverseV1 {
+        let mut universe = Self::m7();
+        universe.version = "m8-v1";
+        universe.topology.operators.extend([
+            Family::admissible(
+                "rag_merge",
+                "atomically merge two adjacent visible regions and rebuild affected topology",
+            ),
+            Family::admissible(
+                "rag_split",
+                "atomically split one visible region into two connected regions",
+            ),
+            Family::admissible(
+                "rag_assign_paint",
+                "atomically replace one quantized per-face opaque paint",
+            ),
+        ]);
+        universe.search.truncation_rules.insert(
+            0,
+            "multiregion search retains a deterministic palette-cardinality beam, alternates palette/partition/per-face paint for a bounded number of rounds, and admits a winner only after common full-resolution exact rerender scoring",
+        );
+        universe.search.unexplored_mass_bound = BoundStatus::Unknown;
+        universe.search.retained_mass_bound = BoundStatus::Unknown;
+        universe.search.reliability_tier =
+            "none: M8 multiregion rows require a separately frozen calibration; M7 Flat2 confidence is stale by construction";
+        universe
+    }
+
     /// Canonical JSON: struct declaration order, compact, no map iteration.
     ///
     /// "Canonical" here means DETERMINISTIC FOR A FIXED DECLARATION, not

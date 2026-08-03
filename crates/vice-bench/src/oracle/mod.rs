@@ -29,6 +29,7 @@ pub mod crime;
 pub mod design;
 pub mod effects;
 pub mod key;
+pub mod paint;
 pub mod report;
 
 use serde::Serialize;

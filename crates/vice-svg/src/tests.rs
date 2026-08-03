@@ -117,6 +117,43 @@ fn nested_scene() -> VectorScene {
     }
 }
 
+fn three_paint_nested_scene() -> VectorScene {
+    let mut scene = nested_scene();
+    scene.graph.vertices.push(GraphVertex {
+        pos: Pt::new(4.0, 4.0),
+    });
+    scene.graph.boundaries.push(Boundary {
+        left_face: FaceId(3),
+        right_face: FaceId(2),
+        start_vertex: VertexId(2),
+        end_vertex: VertexId(2),
+        closure_join: Some(JoinKind::Corner),
+        curve: closed_square(Pt::new(4.0, 4.0), Pt::new(6.0, 6.0)),
+    });
+    scene.graph.half_edges.extend([
+        HalfEdge {
+            boundary: vice_ir::BoundaryId(2),
+            forward: true,
+            twin: HalfEdgeId(5),
+            next: HalfEdgeId(4),
+            face: FaceId(3),
+        },
+        HalfEdge {
+            boundary: vice_ir::BoundaryId(2),
+            forward: false,
+            twin: HalfEdgeId(4),
+            next: HalfEdgeId(5),
+            face: FaceId(2),
+        },
+    ]);
+    scene.graph.faces[2].loops.push(HalfEdgeId(5));
+    scene.graph.faces.push(Face {
+        loops: vec![HalfEdgeId(4)],
+        paint: Paint::OpaqueSolid(LinearRgb::new(0.0, 1.0, 0.0)),
+    });
+    scene
+}
+
 #[test]
 fn both_profiles_share_one_canonical_plan_and_independently_render() {
     let scene = nested_scene();
@@ -137,6 +174,29 @@ fn both_profiles_share_one_canonical_plan_and_independently_render() {
     assert_eq!(pure.scene_digest_sha256(), seam.scene_digest_sha256());
     assert!(!pure.png_bytes().is_empty());
     assert!(!seam.png_bytes().is_empty());
+}
+
+#[test]
+fn multicolor_faces_share_one_plan_and_both_svg_profiles_render_independently() {
+    let scene = three_paint_nested_scene();
+    vice_ir::validate_scene(&scene).unwrap();
+    let plan = build_export_plan(&scene, 6, 0.5).unwrap();
+    assert_eq!(plan.faces().len(), 3);
+    assert_eq!(
+        plan.faces()
+            .iter()
+            .map(|face| face.fill_srgb8())
+            .collect::<Vec<_>>(),
+        vec!["#ff0000", "#0000ff", "#00ff00"]
+    );
+    let pure = materialize_svg(&plan, SvgProfile::PurePartition).unwrap();
+    let seam = materialize_svg(&plan, SvgProfile::SeamSafe).unwrap();
+    let pure_render = parse_and_render_independently(&pure).unwrap();
+    let seam_render = parse_and_render_independently(&seam).unwrap();
+    assert_eq!(
+        pure_render.scene_digest_sha256(),
+        seam_render.scene_digest_sha256()
+    );
 }
 
 #[test]

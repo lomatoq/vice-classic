@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 pub mod likelihood;
+pub mod multiregion;
 pub mod posterior;
 pub mod search;
 pub mod transaction;
@@ -23,6 +24,13 @@ pub use likelihood::{
     score_serialized_full_resolution_scope_with_workspace, BlockLikelihoodConfig,
     LikelihoodDiagnostics, LikelihoodError, LikelihoodWorkspace, PredictionSource,
     PriorCodeLengths, ResidualModelId, ScoreBreakdown, ScoreOwnership,
+};
+pub use multiregion::{
+    certify_exact_roi_transaction, fit_opaque_face_paints, fit_opaque_face_paints_weighted,
+    run_exact_alternation, AlternationCandidate, AlternationConfig, AlternationError,
+    AlternationResult, AlternationTraceRow, ExactRoiCertificateError,
+    ExactRoiTransactionCertificate, FacePaintFit, MultiregionPaintConfig, PaintFit, PaintFitError,
+    M8_ROI_CERTIFICATE_SCHEMA, MULTIREGION_PAINT_CONFIG_V1,
 };
 pub use posterior::{
     finite_class_entropy_upper_bound, posterior_with_search_mass, BoundValue, ClassPosterior,

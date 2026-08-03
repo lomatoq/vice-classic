@@ -28,7 +28,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::gt::raster::RasterProfile;
 
@@ -267,7 +267,7 @@ pub fn group_verdicts(outcomes: &[RenderOutcome]) -> BTreeMap<String, GroupVerdi
 }
 
 /// A risk–coverage report for one bucket, in both units §27.4 requires.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RiskCoverage {
     pub bucket: String,
     /// Independent trial units.

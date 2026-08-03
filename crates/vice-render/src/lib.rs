@@ -26,6 +26,7 @@ pub mod certified;
 pub mod coverage;
 pub mod domain;
 pub mod embedding;
+pub mod junction;
 pub mod mesh;
 pub mod partition;
 pub mod render_error;
@@ -36,6 +37,10 @@ pub use certified::CertifiedMesh;
 pub use coverage::{polygon_coverage, CoverageError};
 pub use domain::NumericDomain;
 pub use embedding::verify_embedding;
+pub use junction::{
+    certify_junction_fractions, JunctionCertificateError, JunctionFractionCertificate,
+    JunctionFractionSample, JUNCTION_FRACTION_SCHEMA,
+};
 pub use mesh::{BoundaryPolyline, LoopPolygon, MeshError, RenderMesh, TessellationBudget};
 pub use partition::{
     render_digest_sha256, render_mesh_partition, render_mesh_partition_reusing, render_partition,

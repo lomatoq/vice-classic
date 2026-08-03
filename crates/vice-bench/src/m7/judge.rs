@@ -9,9 +9,17 @@ pub(super) fn judge_witness(
         .map_err(|error| format!("parse selected scene: {error}"))?;
     let selected = ValidatedScene::new(selected)
         .map_err(|error| format!("validate selected scene: {error}"))?;
-    let selected_mesh = CertifiedMesh::from_scene(&selected, RenderOptions::default())
+    judge_scene(truth_scene, cell, &selected)
+}
+
+pub(crate) fn judge_scene(
+    truth_scene: &GtScene,
+    cell: &DegradationCell,
+    selected: &ValidatedScene,
+) -> Result<(TopologyComparison, BoundaryTail, u8), String> {
+    let selected_mesh = CertifiedMesh::from_scene(selected, RenderOptions::default())
         .map_err(|error| format!("certify selected scene: {error}"))?;
-    let selected_truth = PartitionTruth::measure(&selected, &selected_mesh)
+    let selected_truth = PartitionTruth::measure(selected, &selected_mesh)
         .map_err(|error| format!("measure selected partition: {error}"))?;
     let truth = truth_scene.partition_truth();
     let topology = TopologyComparison {

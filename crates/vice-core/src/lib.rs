@@ -4,6 +4,7 @@
 
 mod candidate;
 mod config;
+mod m8;
 mod pipeline;
 mod scene;
 mod types;
@@ -12,6 +13,14 @@ pub use config::{
     CalibrationBucket, ConfidenceCalibration, ConfidenceMetrics, CoreConfig, Intent,
     IntentPriorPolicy, PaintCalibrationClass, PerturbationStability, Preset, ProductionConfigError,
     VectorizeRequest, M7_FAST_PRODUCTION_CONFIG_SHA256, M7_QUALITY_PRODUCTION_CONFIG_SHA256,
+};
+pub use m8::{
+    materialize_multiregion_seed, multiregion_boundary_bindings, propose_multiregion_seeds,
+    seal_multiregion_delivery, solve_multiregion_exact, M8CandidateSummary, M8DeliveryArtifacts,
+    M8DeliveryConfig, M8DeliveryError, M8DeliveryReport, M8ExactConfig, M8ExactError,
+    M8ExactReport, M8SolvedCandidate, MultiregionMaterializeError, MultiregionSeed,
+    MultiregionSeedError, MultiregionSeedReport, M8_DELIVERY_SCHEMA, M8_EXACT_SCHEMA,
+    M8_SEED_SCHEMA,
 };
 
 /// Stable class; unseen native primitive kinds cannot hide behind a global threshold.

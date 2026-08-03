@@ -1020,7 +1020,7 @@ fn measure_one(
 mod row;
 use row::*;
 
-mod judge;
+pub(crate) mod judge;
 #[cfg(test)]
 use judge::{directed_distances, point_segment_distance, quantile, SegmentIndex};
 use judge::{encode_png, judge_witness};

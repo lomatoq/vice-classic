@@ -49,6 +49,7 @@ pub mod corridor;
 pub mod formation;
 pub mod interior;
 pub mod mixture;
+pub mod multicolor;
 pub mod palette;
 pub mod support;
 
@@ -73,6 +74,10 @@ pub use interior::{interior_confidence, InteriorConfidence, InteriorConfig, INTE
 pub use mixture::{
     infer_mixture, Flat2Evidence, MixtureConfig, MixtureRefusal, SemiTransparentInterior,
     MIXTURE_CONFIG_V1,
+};
+pub use multicolor::{
+    propose_multicolor, MulticolorConfig, MulticolorHypothesis, MulticolorProposals,
+    MulticolorRefusal, PaletteScore, MULTICOLOR_CONFIG_V1, MULTICOLOR_SCHEMA,
 };
 pub use palette::{
     conditioning, oracle_override, propose_flat2, BackgroundHypothesis, ColorHypothesis,

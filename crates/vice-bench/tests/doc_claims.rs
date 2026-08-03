@@ -1092,6 +1092,14 @@ fn every_status_document_is_classified_or_excepted_with_a_reason() {
              the final review candidate is declared",
             "M7",
         ),
+        (
+            "docs/STATUS_M8.md",
+            "active implementation checkpoint with no frozen gate table or release verdict; its \
+             obligation states are development inventory, not measured release claims. Replace \
+             this exception with the M8 canonical-artifact positional tier before an M8 review \
+             candidate is declared",
+            "M8",
+        ),
     ];
 
     let mut classified: Vec<String> = CLAUSE_ROWS.iter().map(|(d, _)| (*d).to_string()).collect();

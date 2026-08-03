@@ -181,7 +181,7 @@ pub struct Flat2Proposals {
 }
 
 /// Weighted colour modes among opaque, high-confidence pixels.
-fn find_modes(
+pub(crate) fn find_modes(
     t: &ObservationTensor,
     interior: &InteriorConfidence,
     border: &[usize],

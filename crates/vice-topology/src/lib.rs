@@ -54,6 +54,9 @@ pub mod envelope;
 pub mod events;
 pub mod field;
 pub mod hypothesis;
+pub mod multidcel;
+pub mod rag;
+pub mod rag_transaction;
 
 use std::collections::BTreeSet;
 
@@ -91,6 +94,17 @@ pub use field::{
     FieldSet, FIELD_CONFIG_V1,
 };
 pub use hypothesis::{CostBounds, Provenance, TopologyHypothesis, NOT_A_LIKELIHOOD};
+pub use multidcel::{
+    MultiBoundary, MultiBoundaryId, MultiDcelError, MultiFace, MultiHalfEdgeId, MultiJunction,
+    MulticolorDcel, MULTICOLOR_DCEL_SCHEMA,
+};
+pub use rag::{
+    RagEdge, RagError, RagNode, RegionAdjacencyGraph, RegionId, RegionLabelling, RAG_SCHEMA,
+};
+pub use rag_transaction::{
+    apply_rag_transaction, QuantizedPaint, RagEdit, RagTransactionError, RagTransactionLedger,
+    RagTransactionOutcome, RegionScene,
+};
 
 pub const TOPOLOGY_SCHEMA: &str = "vice-classic/topology-envelope/v1";
 
