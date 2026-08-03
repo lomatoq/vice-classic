@@ -1,10 +1,4 @@
-//! M7 selective Flat2 vectorization.
-//!
-//! This crate is the first production owner of the complete §7/§30 path:
-//! decode → evidence → complementary-connectivity DCEL → typed k-best fit →
-//! full-resolution posterior → confidence/abstention → quantized verification
-//! → two-profile serialized delivery seal. A non-success outcome contains no
-//! SVG bytes.
+//! M7 selective Flat2 vectorization; a non-success outcome contains no SVG bytes.
 
 #![forbid(unsafe_code)]
 
@@ -16,15 +10,11 @@ mod types;
 
 pub use config::{
     CalibrationBucket, ConfidenceCalibration, ConfidenceMetrics, CoreConfig, Intent,
-    IntentPriorPolicy, PerturbationStability, Preset, ProductionConfigError, VectorizeRequest,
-    M7_FAST_PRODUCTION_CONFIG_SHA256, M7_QUALITY_PRODUCTION_CONFIG_SHA256,
+    IntentPriorPolicy, PaintCalibrationClass, PerturbationStability, Preset, ProductionConfigError,
+    VectorizeRequest, M7_FAST_PRODUCTION_CONFIG_SHA256, M7_QUALITY_PRODUCTION_CONFIG_SHA256,
 };
 
-/// Stable, observable calibration stratum for a selected hypothesis. Native
-/// primitive kinds are kept separate because a family-held-out split can
-/// otherwise move an entirely unseen primitive kind behind a global
-/// confidence threshold. Everything else remains in the preregistered
-/// general Flat2 stratum.
+/// Stable class; unseen native primitive kinds cannot hide behind a global threshold.
 pub fn selection_calibration_class(hypothesis_id: &str) -> String {
     let Some((_, tail)) = hypothesis_id.split_once("primitive-") else {
         return "flat2/general".into();
@@ -50,7 +40,6 @@ pub use types::{
     TopologyArmTrace, TopologyEnvelopeTrace, TopologyRuntimeSummary, VectorizeOutcome,
     VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,7 +270,7 @@ mod tests {
     fn exact_zero_failure_bound_needs_at_least_459_independent_groups() {
         let identity = CoreConfig::development().identity();
         let calibration = |accepted_source_groups| ConfidenceCalibration {
-            schema: "vice-classic/confidence-calibration/v3".into(),
+            schema: "vice-classic/confidence-calibration/v4".into(),
             model_universe_sha256: identity.universe_sha256.clone(),
             pricing_sha256: identity.pricing_sha256.clone(),
             backend_sha256: identity.backend_sha256.clone(),
@@ -297,12 +286,19 @@ mod tests {
             minimum_top2_class_margin_bits: 0.0,
             maximum_posterior_predictive_bits_per_block: 0.1,
             maximum_support_isotopy_displacement_px: 0.5,
+            maximum_evidence_palette_shift_codes: 2,
+            minimum_palette_support_px: 1,
+            maximum_palette_interval_radius_codes: 4,
             maximum_abs_residual_lag1: 0.9,
             maximum_topology_entropy_bits: 1.0,
             maximum_formation_entropy_bits: 1.0,
             minimum_perturbation_stability: 0.95,
             empirical_unexplored_relative_mass_upper_bound: Some(0.0),
             supported_selection_classes: vec!["flat2/general".into()],
+            paint_calibration_classes: vec![PaintCalibrationClass {
+                name: "flat2/general|delivery:t0/srgb/box/u8/opaque|paint:fg-point+bg-point".into(),
+                accepted_source_groups: 459,
+            }],
             buckets: vec![CalibrationBucket {
                 name: "all".into(),
                 accepted_source_groups,
@@ -318,6 +314,11 @@ mod tests {
         };
         let metrics = ConfidenceMetrics {
             selection_class: "flat2/general".into(),
+            paint_calibration_class:
+                "flat2/general|delivery:t0/srgb/box/u8/opaque|paint:fg-point+bg-point".into(),
+            evidence_palette_shift_codes: 1,
+            palette_support_px: 8,
+            palette_interval_radius_codes: 0,
             top2_class_margin_bits: 10.0,
             posterior_predictive_bits_per_block: 0.01,
             support_isotopy_displacement_px: 0.1,
@@ -349,6 +350,37 @@ mod tests {
         assert_eq!(
             calibration(459).permits(&identity, &delivery, &support_mismatch),
             Err("support_isotopy_displacement_above_calibrated_threshold")
+        );
+        let mut paint_shift = metrics.clone();
+        paint_shift.evidence_palette_shift_codes = 3;
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &paint_shift),
+            Err("evidence_palette_shift_above_calibrated_threshold")
+        );
+        let mut weak_palette_support = metrics.clone();
+        weak_palette_support.palette_support_px = 0;
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &weak_palette_support),
+            Err("palette_support_below_calibrated_threshold")
+        );
+        let mut wide_palette_interval = metrics.clone();
+        wide_palette_interval.palette_interval_radius_codes = 5;
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &wide_palette_interval),
+            Err("palette_interval_above_calibrated_threshold")
+        );
+        let mut unseen_paint_class = metrics.clone();
+        unseen_paint_class.paint_calibration_class =
+            "flat2/general|delivery:t0/lin/box/u8/transparent|paint:fg-point+bg-transparent".into();
+        assert_eq!(
+            calibration(459).permits(&identity, &delivery, &unseen_paint_class),
+            Err("paint_class_outside_calibration_support")
+        );
+        let mut undersampled = calibration(459);
+        undersampled.paint_calibration_classes[0].accepted_source_groups = 1;
+        assert_eq!(
+            undersampled.permits(&identity, &delivery, &metrics),
+            Err("calibration_coverage_gate")
         );
         let mut spatial_mismatch = metrics.clone();
         spatial_mismatch.max_abs_residual_lag1 = 0.91;

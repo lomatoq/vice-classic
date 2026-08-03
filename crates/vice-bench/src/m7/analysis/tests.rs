@@ -70,6 +70,12 @@ fn row(index: usize, catastrophic: bool) -> MeasurementRow {
         serialized_pixel_bits: Some(1.0),
         serialized_pixel_bits_per_block: Some(0.01),
         support_isotopy_displacement_px: Some(0.1),
+        evidence_palette_shift_codes: Some(1),
+        palette_support_px: Some(16),
+        palette_interval_radius_codes: Some(0),
+        paint_calibration_class: Some(
+            "flat2/general|delivery:t0/srgb/box/u8/opaque|paint:fg-point+bg-point".into(),
+        ),
         empirical_correlation_length_px: Some(1.0),
         max_abs_lag1: Some(0.0),
         topology_entropy_upper_bound: Some(0.0),
@@ -292,6 +298,19 @@ fn observed_support_separates_a_tail_failure_without_reading_ground_truth_in_pro
     assert_eq!(calibration.accepted_source_groups, 459);
     assert_eq!(calibration.catastrophic_source_groups, 0);
     assert_eq!(calibration.maximum_support_isotopy_displacement_px, 0.1);
+}
+
+#[test]
+fn palette_evidence_shift_separates_a_paint_failure_with_equal_geometry_support() {
+    let mut report = report_with_groups(460, true);
+    report.rows[0].evidence_palette_shift_codes = Some(3);
+    let analysis = analyze_calibration(&report, &AuditSeal::sealed(M7_PROCEDURAL_GENERATION))
+        .expect("analysis succeeds");
+    assert!(analysis.gate_met);
+    let calibration = analysis.calibration.expect("calibration");
+    assert_eq!(calibration.accepted_source_groups, 459);
+    assert_eq!(calibration.catastrophic_source_groups, 0);
+    assert_eq!(calibration.maximum_evidence_palette_shift_codes, 1);
 }
 
 #[test]

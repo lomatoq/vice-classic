@@ -107,7 +107,7 @@ fn calibration_for(
     gates: M7ReleaseGates,
 ) -> vice_core::ConfidenceCalibration {
     vice_core::ConfidenceCalibration {
-        schema: "vice-classic/confidence-calibration/v3".into(),
+        schema: "vice-classic/confidence-calibration/v4".into(),
         model_universe_sha256: "1".repeat(64),
         pricing_sha256: "2".repeat(64),
         backend_sha256: "3".repeat(64),
@@ -123,6 +123,9 @@ fn calibration_for(
         minimum_top2_class_margin_bits: gates.min_top2_class_margin_bits,
         maximum_posterior_predictive_bits_per_block: preset.max_posterior_predictive_bits_per_block,
         maximum_support_isotopy_displacement_px: preset.max_support_isotopy_displacement_px,
+        maximum_evidence_palette_shift_codes: 2,
+        minimum_palette_support_px: 1,
+        maximum_palette_interval_radius_codes: 4,
         maximum_abs_residual_lag1: gates.max_abs_residual_lag1,
         maximum_topology_entropy_bits: gates.max_topology_entropy_bits,
         maximum_formation_entropy_bits: gates.max_formation_entropy_bits,
@@ -131,6 +134,10 @@ fn calibration_for(
             preset.empirical_unexplored_relative_mass_upper_bound,
         ),
         supported_selection_classes: vec!["flat2/general".into()],
+        paint_calibration_classes: vec![vice_core::PaintCalibrationClass {
+            name: "flat2/general|delivery:t0/srgb/box/u8/opaque|paint:fg-point+bg-point".into(),
+            accepted_source_groups: 459,
+        }],
         buckets: Vec::new(),
     }
 }

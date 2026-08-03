@@ -13,7 +13,7 @@ fn production_bytes(stale_calibration_field: Option<&str>) -> Vec<u8> {
     config.seal = seal;
     let identity = config.identity();
     let mut calibration = json!({
-        "schema": "vice-classic/confidence-calibration/v3",
+        "schema": "vice-classic/confidence-calibration/v4",
         "model_universe_sha256": identity.universe_sha256,
         "pricing_sha256": identity.pricing_sha256,
         "backend_sha256": identity.backend_sha256,
@@ -29,12 +29,19 @@ fn production_bytes(stale_calibration_field: Option<&str>) -> Vec<u8> {
         "minimum_top2_class_margin_bits": 0.0,
         "maximum_posterior_predictive_bits_per_block": 0.1,
         "maximum_support_isotopy_displacement_px": 0.5,
+        "maximum_evidence_palette_shift_codes": 2,
+        "minimum_palette_support_px": 1,
+        "maximum_palette_interval_radius_codes": 4,
         "maximum_abs_residual_lag1": 0.9,
         "maximum_topology_entropy_bits": 1.0,
         "maximum_formation_entropy_bits": 1.0,
         "minimum_perturbation_stability": 0.95,
         "empirical_unexplored_relative_mass_upper_bound": 0.25,
         "supported_selection_classes": ["flat2/general"],
+        "paint_calibration_classes": [{
+            "name": "flat2/general|delivery:t0/srgb/box/u8/opaque|paint:fg-point+bg-point",
+            "accepted_source_groups": 459
+        }],
         "buckets": [{
             "name": "all",
             "accepted_source_groups": 459,

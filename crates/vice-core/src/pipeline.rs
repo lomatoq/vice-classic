@@ -27,6 +27,13 @@ use crate::{Preset, VectorizeRequest};
 const TRANSACTION_DIVERSITY_SEED_CLASSES: usize = 2;
 const SINGLE_DELIVERY_CLASS_MARGIN_BITS_V1: f64 = 1024.0;
 
+#[path = "pipeline/run/paint.rs"]
+mod paint;
+use paint::paint_risk_metrics;
+#[path = "pipeline/run/trace.rs"]
+mod trace;
+use trace::build_trace;
+
 type CalibrationObserver<'a> = dyn FnMut(
         &crate::candidate::MaterializedCandidate,
         Option<&crate::candidate::MaterializedCandidate>,

@@ -34,7 +34,7 @@ pub const PROCEDURAL_GENERATION: u32 = 1;
 
 /// Fresh procedural population used by the successor M7 sealed audit after
 /// generations 1--5 were opened and burned.
-pub const M7_PROCEDURAL_GENERATION: u32 = 7;
+pub const M7_PROCEDURAL_GENERATION: u32 = 8;
 
 /// Deterministic splitmix64. Small, seedable per group, no dependency.
 #[derive(Debug, Clone)]

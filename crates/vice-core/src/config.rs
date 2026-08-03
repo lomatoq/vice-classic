@@ -64,6 +64,17 @@ pub struct CalibrationBucket {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct PaintCalibrationClass {
+    pub name: String,
+    /// Distinct calibration source groups admitted in this observable joint
+    /// geometry/delivery/paint-evidence stratum. Two groups are the minimum
+    /// needed to distinguish repeatability from a one-off observation; the
+    /// global exact zero-failure bound remains the risk authority.
+    pub accepted_source_groups: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfidenceCalibration {
     pub schema: String,
     pub model_universe_sha256: String,
@@ -84,6 +95,15 @@ pub struct ConfidenceCalibration {
     /// to its observed support. This is an observable selective-delivery
     /// discriminator, not a ground-truth boundary error.
     pub maximum_support_isotopy_displacement_px: f64,
+    /// Maximum encoded-code movement of the final serialized scene palette
+    /// away from the independently observed Flat2 palette hypothesis.
+    pub maximum_evidence_palette_shift_codes: u8,
+    /// Smallest opaque-palette evidence support represented by an admitted
+    /// calibration row. Production fails closed below this envelope.
+    pub minimum_palette_support_px: u64,
+    /// Largest encoded-code radius of a bounded palette interval represented
+    /// by an admitted calibration row.
+    pub maximum_palette_interval_radius_codes: u8,
     pub maximum_abs_residual_lag1: f64,
     pub maximum_topology_entropy_bits: f64,
     pub maximum_formation_entropy_bits: f64,
@@ -96,12 +116,19 @@ pub struct ConfidenceCalibration {
     /// selects a class that never appeared in calibration; this is the
     /// distribution-shift guard required by spec section 3.4.
     pub supported_selection_classes: Vec<String>,
+    /// Observable joint strata. A geometry class alone is too coarse to
+    /// establish exchangeability of final serialized paint error.
+    pub paint_calibration_classes: Vec<PaintCalibrationClass>,
     pub buckets: Vec<CalibrationBucket>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ConfidenceMetrics {
     pub selection_class: String,
+    pub paint_calibration_class: String,
+    pub evidence_palette_shift_codes: u8,
+    pub palette_support_px: u64,
+    pub palette_interval_radius_codes: u8,
     pub top2_class_margin_bits: f64,
     pub posterior_predictive_bits_per_block: f64,
     pub support_isotopy_displacement_px: f64,
@@ -178,6 +205,20 @@ impl ConfidenceCalibration {
         {
             return Err("selection_class_outside_calibration_support");
         }
+        if !self.paint_calibration_classes.iter().any(|class| {
+            class.name == metrics.paint_calibration_class && class.accepted_source_groups >= 2
+        }) {
+            return Err("paint_class_outside_calibration_support");
+        }
+        if metrics.evidence_palette_shift_codes > self.maximum_evidence_palette_shift_codes {
+            return Err("evidence_palette_shift_above_calibrated_threshold");
+        }
+        if metrics.palette_support_px < self.minimum_palette_support_px {
+            return Err("palette_support_below_calibrated_threshold");
+        }
+        if metrics.palette_interval_radius_codes > self.maximum_palette_interval_radius_codes {
+            return Err("palette_interval_above_calibrated_threshold");
+        }
         let posterior_lower_bound = match &delivery.posterior_lower_bound {
             vice_opt::BoundValue::Certified(value)
             | vice_opt::BoundValue::EmpiricallyCalibrated(value) => *value,
@@ -238,7 +279,7 @@ impl ConfidenceCalibration {
     }
 
     pub fn validate_for_identity(&self, identity: &ModelIdentity) -> Result<(), &'static str> {
-        if self.schema != "vice-classic/confidence-calibration/v3"
+        if self.schema != "vice-classic/confidence-calibration/v4"
             || self.model_universe_sha256 != identity.universe_sha256
             || self.pricing_sha256 != identity.pricing_sha256
             || self.backend_sha256 != identity.backend_sha256
@@ -267,6 +308,7 @@ impl ConfidenceCalibration {
             || self.maximum_posterior_predictive_bits_per_block < 0.0
             || !self.maximum_support_isotopy_displacement_px.is_finite()
             || self.maximum_support_isotopy_displacement_px < 0.0
+            || self.minimum_palette_support_px == 0
             || !self.maximum_abs_residual_lag1.is_finite()
             || !(0.0..=1.0).contains(&self.maximum_abs_residual_lag1)
             || !self.maximum_topology_entropy_bits.is_finite()
@@ -283,11 +325,18 @@ impl ConfidenceCalibration {
         }
         let mut bucket_names = std::collections::BTreeSet::new();
         let mut selection_classes = std::collections::BTreeSet::new();
+        let mut paint_classes = std::collections::BTreeSet::new();
         if self.supported_selection_classes.is_empty()
             || self
                 .supported_selection_classes
                 .iter()
                 .any(|class| class.is_empty() || !selection_classes.insert(class.as_str()))
+            || self.paint_calibration_classes.is_empty()
+            || self.paint_calibration_classes.iter().any(|class| {
+                class.name.is_empty()
+                    || !paint_classes.insert(class.name.as_str())
+                    || class.accepted_source_groups < 2
+            })
             || self.buckets.is_empty()
             || self.buckets.iter().any(|bucket| {
                 bucket.name.is_empty()
@@ -654,7 +703,7 @@ impl CoreConfig {
             exact_prior: self.exact_prior,
             clean_prior: self.clean_prior,
             quality_fast_admission_witness,
-            implementation: "vice-core/m7/v16",
+            implementation: "vice-core/m7/v17",
         };
         let config_sha256 = hex::encode(Sha256::digest(
             serde_json::to_vec(&identity).expect("config serializes"),

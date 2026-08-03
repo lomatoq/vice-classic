@@ -44,7 +44,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{FixtureOrigin, GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v22";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v23";
 pub const M7_ALL_SPLIT_POPULATION_POLICY: &str = "vice-classic/m7-population/all-split-groups/v1";
 pub const M7_CALIBRATION_POPULATION_POLICY: &str =
     "vice-classic/m7-population/calibration-flat2-supported/v2";
@@ -296,6 +296,12 @@ pub struct MeasurementRow {
     pub serialized_pixel_bits: Option<f64>,
     pub serialized_pixel_bits_per_block: Option<f64>,
     pub support_isotopy_displacement_px: Option<f64>,
+    /// Production-observable distance between the selected serialized scene
+    /// palette and independent Flat2 palette evidence.
+    pub evidence_palette_shift_codes: Option<u8>,
+    pub palette_support_px: Option<u64>,
+    pub palette_interval_radius_codes: Option<u8>,
+    pub paint_calibration_class: Option<String>,
     pub empirical_correlation_length_px: Option<f64>,
     pub max_abs_lag1: Option<f64>,
     pub topology_entropy_upper_bound: Option<f64>,
@@ -601,6 +607,10 @@ fn measure_one(
         serialized_pixel_bits: None,
         serialized_pixel_bits_per_block: None,
         support_isotopy_displacement_px: None,
+        evidence_palette_shift_codes: None,
+        palette_support_px: None,
+        palette_interval_radius_codes: None,
+        paint_calibration_class: None,
         empirical_correlation_length_px: None,
         max_abs_lag1: None,
         topology_entropy_upper_bound: None,
@@ -636,6 +646,10 @@ fn measure_one(
         ) = measured_bound(&metrics.formation_entropy_upper_bound);
         row.perturbation_stability = Some(metrics.perturbation_stability.score);
         row.support_isotopy_displacement_px = Some(metrics.support_isotopy_displacement_px);
+        row.evidence_palette_shift_codes = Some(metrics.evidence_palette_shift_codes);
+        row.palette_support_px = Some(metrics.palette_support_px);
+        row.palette_interval_radius_codes = Some(metrics.palette_interval_radius_codes);
+        row.paint_calibration_class = Some(metrics.paint_calibration_class.clone());
         row.phase_envelope_stable = Some(metrics.perturbation_stability.phase_envelope_stable);
         row.sample_step_certificate_stable = Some(
             metrics

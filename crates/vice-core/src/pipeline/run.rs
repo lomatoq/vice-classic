@@ -11,9 +11,6 @@ mod proposal;
 use proposal::rank_materializations;
 mod stability;
 use stability::{certify_render_stability, fitted_phase_envelope_stable};
-mod trace;
-use trace::build_trace;
-
 pub(super) fn vectorize_impl(
     bytes: &[u8],
     request: &VectorizeRequest,
@@ -330,7 +327,6 @@ pub(super) fn vectorize_impl(
     } else {
         materialization_order.truncate(candidate_limit);
     }
-    // Reorder one bounded prefix by real likelihood so M6 ordering cannot monopolize M7 slots.
     let stage_started = Instant::now();
     let mandatory_relation_materializations = rank_materializations(
         &mut materialization_order,
@@ -372,7 +368,6 @@ pub(super) fn vectorize_impl(
     materialization_order.truncate(config.beam.budget.max_materializations);
     let evaluation_truncated =
         unmaterialized_by_candidate_budget > 0 || unmaterialized_by_materialization_budget > 0;
-    // Membership follows content/work units, never scheduler speed; elapsed is reported later.
     let stage_started = Instant::now();
     for (topology_index, variant_index, formation_index) in materialization_order {
         let bundle = &fitted_arms[topology_index];
@@ -693,7 +688,6 @@ pub(super) fn vectorize_impl(
         selected.summary.score.pixel_bits / diagnostics.blocks as f64
     };
     let max_abs_residual_lag1 = diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs());
-    // Refused/pruned arms are already charged by entropy/unexplored mass; charging them again would double-count.
     let phase_envelope_stable = fitted_phase_envelope_stable(
         fitted_arms
             .iter()
@@ -755,8 +749,13 @@ pub(super) fn vectorize_impl(
         solver_certificate_stable,
     );
     perturbation_stability.render_tolerance_refusal = render_stability.refusal;
+    let paint_risk = paint_risk_metrics(selected, &evidence);
     let confidence_metrics = ConfidenceMetrics {
         selection_class: crate::selection_calibration_class(&selected.summary.hypothesis_id),
+        paint_calibration_class: paint_risk.calibration_class,
+        evidence_palette_shift_codes: paint_risk.evidence_palette_shift_codes,
+        palette_support_px: paint_risk.palette_support_px,
+        palette_interval_radius_codes: paint_risk.palette_interval_radius_codes,
         top2_class_margin_bits,
         posterior_predictive_bits_per_block: if predictive_bits_per_block.is_finite() {
             predictive_bits_per_block
