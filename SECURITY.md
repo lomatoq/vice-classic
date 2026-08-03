@@ -27,8 +27,10 @@ or private customer images in a public issue.
 `vicec vectorize` never calls a legacy engine. `legacy-vectorize` is an
 explicit operator action and requires an exact executable SHA-256. It uses
 direct argv with no implicit shell, null stdin, bounded wall time and a combined
-64 MiB output/log limit; executable identity is checked before and after the
-run. Its report always says `classic_success: false`.
+64 MiB output/log limit. The expected digest is checked while streaming the
+executable into a private temporary copy; that exact copy is launched and
+checked again after the run, closing the source-path check/use race. Its report
+always says `classic_success: false`.
 
 A pinned legacy executable is still trusted native code. The wrapper is not an
 OS sandbox and cannot prevent a deliberately malicious engine from accessing

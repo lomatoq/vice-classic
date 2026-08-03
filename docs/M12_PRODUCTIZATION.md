@@ -25,8 +25,8 @@ Tier A exact floating render artifacts remain same-platform, as documented by
 the existing corpus policy. M12 adds Tier B structural compatibility on Linux,
 Windows and macOS: binary version, both production config trust anchors, WASM
 schema, fallback policy and legal status must exactly match
-`M12_CROSS_PLATFORM_VECTORS.json`. CI also builds the real wasm32 target on all
-three platforms.
+`M12_CROSS_PLATFORM_VECTORS.json`. CI also uses pinned `wasm-pack` to build the
+real browser package and imports its generated module on all three platforms.
 
 ## Packaging
 

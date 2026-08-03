@@ -322,14 +322,19 @@ jobs:
         run: |
           rustup show
           rustup target add wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
       - name: Native product adapters
         run: cargo test --locked --release -p vice-cli -p vice-wasm
       - name: Browser core builds without native filesystem/process assumptions
-        run: cargo build --locked --release -p vice-wasm --target wasm32-unknown-unknown
+        run: wasm-pack build crates/vice-wasm --release --target web --out-dir ../../web/pkg
       - name: Cross-platform structural release contract
         run: cargo run --locked --release --bin vicec -- release-status --check docs/M12_CROSS_PLATFORM_VECTORS.json
       - name: Browser UI JavaScript parses
-        run: node --check web/app.js
+        run: |
+          node --check web/app.js
+          node --input-type=module -e "const m=await import('./web/pkg/vice_wasm.js'); if(typeof m.default!=='function'||typeof m.vectorize_flat2!=='function') process.exit(1)"
 
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
   # verified by nobody: the ubuntu job above physically cannot, because

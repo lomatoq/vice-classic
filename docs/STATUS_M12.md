@@ -10,8 +10,8 @@ M12 completes the technical productization scope from spec v1.3 section 28:
   upload, classify, preview and download successful output;
 - the legacy engine path is explicit-only, SHA-256 pinned, directly spawned,
   time/output bounded and always reported as non-Classic;
-- Linux, Windows and macOS CI compare one exact structural release vector and
-  build the real wasm32 release target;
+- Linux, Windows and macOS CI compare one exact structural release vector,
+  build the browser package with pinned `wasm-pack` and import its module;
 - dependency inventory, security boundary and performance claims are written
   down without claiming an unmeasured named-CPU SLO;
 - release status keeps public and commercial authorization false until the

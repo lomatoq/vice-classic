@@ -1,35 +1,13 @@
-//! `vicec` — the command-line path of vice-classic.
-//!
-//! M7 adds the §30 `vectorize` executable path while retaining M4's
-//! `evidence` diagnostic path. Vectorization is selective: non-success writes
-//! a typed canonical report and never publishes SVG bytes.
-//!
-//! ```text
-//! vicec evidence input.png --out out/sample
-//!       [--fg R,G,B] [--bg R,G,B] [--exterior transparent|opaque]
-//! vicec vectorize input.png --mode flat2 --intent clean --preset quality
-//!       --out out/sample
-//! ```
-//!
-//! Exit codes are the §1.4 outcomes, kept apart rather than collapsed into
-//! "error":
-//!
-//! ```text
-//! 0  supported     one mixture class explains the pixels
-//! 3  ambiguous     several physically different readings do
-//! 4  unsupported   none does (or the input is outside Flat2 v1, spec 1.6)
-//! 2  failed        decode/IO failure - a fault, not a verdict
-//! ```
-//!
-//! `--fg/--bg/--exterior` are ORACLE overrides (§9.2, §30). They mark the run
-//! NON-PRODUCTION, and the mark travels in the artifact rather than in the
-//! operator's memory.
+//! `vicec` is the native evidence, selective vectorization, explicit legacy
+//! wrapper and release-status path. Non-success outcomes stay distinct and
+//! never publish Classic SVG bytes; diagnostic overrides remain visibly
+//! non-production. See the root README for the command contract.
 
 #![forbid(unsafe_code)]
 
 mod product;
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -274,6 +252,66 @@ fn sha256_file(path: &Path, limit: u64) -> Result<(String, u64), String> {
     Ok((hex::encode(digest.finalize()), metadata.len()))
 }
 
+fn make_verified_engine_copy(
+    source: &Path,
+    expected_digest: &str,
+    directory: &Path,
+) -> Result<(PathBuf, String), String> {
+    let metadata = std::fs::symlink_metadata(source)
+        .map_err(|error| format!("stat {}: {error}", source.display()))?;
+    let limit = 1024 * 1024 * 1024;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > limit {
+        return Err(format!(
+            "{} is not a regular file within the {limit}-byte limit",
+            source.display()
+        ));
+    }
+    let file_name = source
+        .file_name()
+        .ok_or_else(|| "legacy engine has no file name".to_string())?;
+    let copy = directory.join(file_name);
+    let mut input = std::fs::File::open(source)
+        .map_err(|error| format!("open {}: {error}", source.display()))?;
+    let mut output = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&copy)
+        .map_err(|error| format!("create private engine copy: {error}"))?;
+    let mut digest = Sha256::new();
+    let mut total = 0u64;
+    let mut buffer = [0u8; 65_536];
+    loop {
+        let count = input
+            .read(&mut buffer)
+            .map_err(|error| format!("read {}: {error}", source.display()))?;
+        if count == 0 {
+            break;
+        }
+        total = total
+            .checked_add(count as u64)
+            .ok_or_else(|| "legacy engine size overflow".to_string())?;
+        if total > limit {
+            return Err("legacy engine exceeds the 1 GiB limit".into());
+        }
+        digest.update(&buffer[..count]);
+        output
+            .write_all(&buffer[..count])
+            .map_err(|error| format!("write private engine copy: {error}"))?;
+    }
+    output
+        .sync_all()
+        .map_err(|error| format!("sync private engine copy: {error}"))?;
+    std::fs::set_permissions(&copy, metadata.permissions())
+        .map_err(|error| format!("set private engine permissions: {error}"))?;
+    let actual = hex::encode(digest.finalize());
+    if actual != expected_digest {
+        return Err(
+            "legacy engine digest does not match --engine-sha256; refusing execution".into(),
+        );
+    }
+    Ok((copy, actual))
+}
+
 fn run_legacy_vectorizer(
     input: PathBuf,
     engine: PathBuf,
@@ -294,12 +332,12 @@ fn run_legacy_vectorizer(
         return Err("--engine-sha256 must be exactly 64 hexadecimal characters".into());
     }
     let (source_sha256, _) = sha256_file(&input, 64 * 1024 * 1024)?;
-    let (engine_before, _) = sha256_file(&engine, 1024 * 1024 * 1024)?;
-    if engine_before != expected_digest {
-        return Err(
-            "legacy engine digest does not match --engine-sha256; refusing execution".into(),
-        );
-    }
+    let execution_dir = tempfile::Builder::new()
+        .prefix("vice-classic-legacy-")
+        .tempdir()
+        .map_err(|error| format!("create private engine directory: {error}"))?;
+    let (private_engine, engine_before) =
+        make_verified_engine_copy(&engine, &expected_digest, execution_dir.path())?;
     prepare_output_dir(&out)?;
     let output = out.join("legacy-result.svg");
     let argv = args
@@ -322,13 +360,13 @@ fn run_legacy_vectorizer(
     let stderr = std::fs::File::create(&stderr_path)
         .map_err(|error| format!("create {}: {error}", stderr_path.display()))?;
     let started = Instant::now();
-    let mut child = Command::new(&engine)
+    let mut child = Command::new(&private_engine)
         .args(&argv)
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
         .spawn()
-        .map_err(|error| format!("spawn {}: {error}", engine.display()))?;
+        .map_err(|error| format!("spawn verified engine copy: {error}"))?;
     let deadline = started + Duration::from_secs(timeout_secs);
     let (status, timed_out, output_limit_exceeded) = loop {
         if let Some(status) = child
@@ -368,7 +406,7 @@ fn run_legacy_vectorizer(
         }
         std::thread::sleep(Duration::from_millis(10));
     };
-    let (engine_after, _) = sha256_file(&engine, 1024 * 1024 * 1024)?;
+    let (engine_after, _) = sha256_file(&private_engine, 1024 * 1024 * 1024)?;
     let (stdout_sha256, _) = sha256_file(&stdout_path, MAX_LEGACY_OUTPUT_BYTES)?;
     let (stderr_sha256, _) = sha256_file(&stderr_path, MAX_LEGACY_OUTPUT_BYTES)?;
     let output_result = output
