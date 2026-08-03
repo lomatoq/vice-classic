@@ -674,16 +674,9 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
     let mut inputs_complete = true;
     let mut input_report_hashes = Vec::new();
     for report in reports {
-        if report.execution_attestation.is_some() {
+        if let Some(attestation) = &report.execution_attestation {
             validate_execution_attestation(&report)?;
-            input_report_hashes.push(
-                report
-                    .execution_attestation
-                    .as_ref()
-                    .expect("checked")
-                    .report_sha256
-                    .clone(),
-            );
+            input_report_hashes.push(attestation.report_sha256.clone());
         }
         for shard in report.included_shards {
             if !included_shards.insert(shard) {

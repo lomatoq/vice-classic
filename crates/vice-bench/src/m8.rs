@@ -1,6 +1,6 @@
 //! M8 multiregion calibration and untouched release court.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
@@ -14,20 +14,30 @@ use crate::correlation::ResidualModel;
 use crate::gt::degradation::{render_cell, DegradationCell, ResizeChain};
 use crate::gt::grammar::procedural_groups_filtered_for_generation;
 use crate::gt::raster::{Psf, RasterProfile};
+use crate::gt::GtSourceGroup;
 use crate::m7::{judge::judge_scene, BoundaryTail, TopologyComparison};
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
+
+#[path = "m8/merge.rs"]
+mod merge;
+pub use merge::merge_courts;
+#[path = "m8/formal.rs"]
+mod formal;
+use formal::*;
 
 pub const M8_COURT_SCHEMA: &str = "vice-classic/m8-court/v1";
 pub const M8_CALIBRATION_SCHEMA: &str = "vice-classic/m8-calibration/v1";
 pub const M8_RELEASE_SCHEMA: &str = "vice-classic/m8-release/v1";
-pub const M8_PROCEDURAL_GENERATION: u32 = 6;
+pub const M8_PROCEDURAL_GENERATION: u32 = 7;
 pub const M8_VARIANTS_PER_FAMILY: usize = 650;
 pub const M8_CLUSTER_SIZE: usize = 5;
 pub const M8_CONFIDENCE: f64 = 0.99;
 pub const M8_CATASTROPHIC_RISK_TARGET: f64 = 0.01;
 pub const M8_MIN_COVERAGE: f64 = 0.80;
+pub const M8_MIN_ORIGIN_COVERAGE: f64 = 0.50;
 pub const M8_CATASTROPHIC_BOUNDARY_MAX_PX: f64 = 4.0;
 pub const M8_CATASTROPHIC_PAINT_DELTA_CODES: u8 = 8;
+pub const M8_FORMAL_SHARDS: u32 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -57,11 +67,25 @@ impl M8CourtScope {
             Self::Smoke => true,
         }
     }
+
+    fn admits_nonprocedural(self, id: &str) -> bool {
+        if self == Self::Smoke {
+            return false;
+        }
+        let calibration_half = shard_of(id, 2) == 0;
+        match self {
+            Self::Calibration => calibration_half,
+            Self::SealedAudit => !calibration_half,
+            Self::Smoke => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct M8CourtRow {
     pub group_id: String,
+    pub fixture_origin: String,
     pub shape_family: String,
     pub cluster_id: String,
     pub cell_id: String,
@@ -88,6 +112,7 @@ pub struct M8CourtRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct M8CourtReport {
     pub schema: String,
     pub scope: M8CourtScope,
@@ -98,6 +123,9 @@ pub struct M8CourtReport {
     pub shard_index: u32,
     pub shard_count: u32,
     pub included_shards: Vec<u32>,
+    pub candidate_sha: String,
+    pub runner_sha256: String,
+    pub execution_ids: Vec<String>,
     pub model_universe_sha256: String,
     pub exact_config_sha256: String,
     pub corpus_commitment_sha256: String,
@@ -107,6 +135,7 @@ pub struct M8CourtReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct M8ReleaseGates {
     pub boundary_p95_px: f64,
     pub boundary_p99_px: f64,
@@ -120,13 +149,20 @@ pub struct M8ReleaseGates {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct M8CalibrationArtifact {
     pub schema: String,
     pub court_sha256: String,
+    pub candidate_sha: String,
+    pub runner_sha256: String,
+    pub procedural_generation: u32,
+    pub variants_per_family: usize,
+    pub corpus_commitment_sha256: String,
     pub model_universe_sha256: String,
     pub exact_config_sha256: String,
     pub classes: Vec<M8CalibrationClass>,
     pub excluded_unsafe_classes: Vec<M8ExcludedCalibrationClass>,
+    pub origin_summary: Vec<M8OriginSummary>,
     pub reliability: RiskCoverage,
     pub gates: Option<M8ReleaseGates>,
     pub gate_met: bool,
@@ -134,6 +170,7 @@ pub struct M8CalibrationArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct M8CalibrationClass {
     pub name: String,
     pub clean_source_groups: u64,
@@ -141,18 +178,54 @@ pub struct M8CalibrationClass {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct M8ExcludedCalibrationClass {
     pub name: String,
     pub clean_source_groups: u64,
     pub catastrophic_source_groups: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct M8OriginSummary {
+    pub origin: String,
+    pub groups_total: u64,
+    pub pipeline_accepted: u64,
+    pub admitted: u64,
+    pub catastrophic: u64,
+}
+
+pub const M8_AUTHORITY_SCHEMA: &str = "vice-classic/m8-gate-provenance/v2";
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct M8ReleaseAuthority {
+    pub schema: String,
+    pub status: String,
+    pub feature_sha: String,
+    pub procedural_generation: u32,
+    pub variants_per_family: usize,
+    pub cluster_size: usize,
+    pub runner_sha256: String,
+    pub calibration_artifact_sha256: String,
+    pub calibration_court_sha256: String,
+    pub calibration_corpus_commitment_sha256: String,
+    pub model_universe_sha256: String,
+    pub exact_config_sha256: String,
+    pub gates: M8ReleaseGates,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct M8ReleaseArtifact {
-    pub schema: &'static str,
+    pub schema: String,
+    pub candidate_sha: String,
+    pub runner_sha256: String,
     pub court_sha256: String,
     pub calibration_sha256: String,
+    pub authority_sha256: String,
     pub reliability: RiskCoverage,
+    pub origin_summary: Vec<M8OriginSummary>,
     pub gate_met: bool,
     pub catastrophic_rows: u64,
     pub refusals: Vec<String>,
@@ -177,11 +250,7 @@ pub fn measure_court_shard(
     if shard_count == 0 || shard_index >= shard_count {
         return Err("M8 shard index/count is malformed".into());
     }
-    let groups = procedural_groups_filtered_for_generation(
-        variants_per_family,
-        M8_PROCEDURAL_GENERATION,
-        |id| id.contains("/dot_cluster/") || id.contains("/triple_junction/"),
-    );
+    let groups = eligible_court_population(scope, variants_per_family)?;
     let exact_cfg = court_exact_config();
     let delivery_cfg = M8DeliveryConfig::default();
     let mut rows = Vec::new();
@@ -189,10 +258,6 @@ pub fn measure_court_shard(
     commitment.update(M8_COURT_SCHEMA.as_bytes());
     commitment.update((variants_per_family as u64).to_le_bytes());
     for group in groups {
-        let variant = parse_variant(&group.id)?;
-        if !scope.admits_variant(variant) {
-            continue;
-        }
         if shard_of(&group.id, shard_count) != shard_index {
             continue;
         }
@@ -201,16 +266,6 @@ pub fn measure_court_shard(
             .first()
             .ok_or_else(|| format!("{} has no scene", group.id))?;
         let cell = court_cell(scope.profile(), &group.shape_family);
-        // Supported-observation boundary, frozen before running the system:
-        // each authored visible face must leave at least a four-pixel salient
-        // scale in this court. Sub-two-pixel coloured dots have no stable
-        // opaque interior paint evidence and belong to typed abstention, not
-        // to the M8 success denominator.
-        let visible_scale_px = scene.min_salient_scale_px() * f64::from(cell.size_px)
-            / f64::from(crate::gt::grammar::AUTHORING_CANVAS_PX);
-        if scene.partition_truth().visible_faces < 3 || visible_scale_px < 5.0 {
-            continue;
-        }
         commitment.update(group.id.as_bytes());
         commitment.update(
             vice_ir::canonical_scene_bytes(scene.scene().scene()).map_err(|e| e.to_string())?,
@@ -228,11 +283,7 @@ pub fn measure_court_shard(
             Ok::<_, String>((solved, delivery, topology, boundary, paint_delta_codes))
         })();
         let runtime_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
-        let cluster_id = format!(
-            "{}/cluster-{:03}",
-            group.shape_family,
-            variant / M8_CLUSTER_SIZE
-        );
+        let cluster_id = court_cluster_id(&group);
         match result {
             Ok((solved, delivery, topology, boundary, paint_delta_codes)) => {
                 let seal = &delivery.report.seal;
@@ -241,6 +292,7 @@ pub fn measure_court_shard(
                     || paint_delta_codes > M8_CATASTROPHIC_PAINT_DELTA_CODES;
                 rows.push(M8CourtRow {
                     group_id: group.id,
+                    fixture_origin: group.origin.as_str().into(),
                     shape_family: group.shape_family,
                     cluster_id,
                     cell_id: rendered.cell_id,
@@ -276,6 +328,7 @@ pub fn measure_court_shard(
             }
             Err(refusal) => rows.push(M8CourtRow {
                 group_id: group.id,
+                fixture_origin: group.origin.as_str().into(),
                 shape_family: group.shape_family,
                 cluster_id,
                 cell_id: rendered.cell_id,
@@ -319,6 +372,9 @@ pub fn measure_court_shard(
         shard_index,
         shard_count,
         included_shards: vec![shard_index],
+        candidate_sha: "UNATTESTED".into(),
+        runner_sha256: "UNATTESTED".into(),
+        execution_ids: vec![format!("UNATTESTED-{shard_index}")],
         model_universe_sha256: vice_opt::model_universe_hash(
             &vice_opt::SupportedModelUniverseV1::m8(),
         ),
@@ -330,67 +386,11 @@ pub fn measure_court_shard(
     })
 }
 
-pub fn merge_courts(mut reports: Vec<M8CourtReport>) -> Result<M8CourtReport, String> {
-    if reports.is_empty() {
-        return Err("M8 merge has no inputs".into());
-    }
-    reports.sort_by_key(|report| report.shard_index);
-    let first = reports.first().expect("nonempty").clone();
-    let shard_count = first.shard_count;
-    if reports.len() != shard_count as usize
-        || reports.iter().enumerate().any(|(index, report)| {
-            report.shard_index != index as u32
-                || report.shard_count != shard_count
-                || report.scope != first.scope
-                || report.procedural_generation != first.procedural_generation
-                || report.variants_per_family != first.variants_per_family
-                || report.cluster_size != first.cluster_size
-                || report.profile != first.profile
-                || report.model_universe_sha256 != first.model_universe_sha256
-                || report.exact_config_sha256 != first.exact_config_sha256
-        })
-    {
-        return Err("M8 shards are incomplete or identity-incompatible".into());
-    }
-    let mut rows = reports
-        .iter_mut()
-        .flat_map(|report| std::mem::take(&mut report.rows))
-        .collect::<Vec<_>>();
-    rows.sort_by(|a, b| a.group_id.cmp(&b.group_id));
-    if rows
-        .windows(2)
-        .any(|pair| pair[0].group_id == pair[1].group_id)
-    {
-        return Err("M8 shards contain duplicate source groups".into());
-    }
-    let mut commitment = Sha256::new();
-    commitment.update(b"vice-classic/m8-merged-court/v1");
-    for report in &reports {
-        commitment.update(report.corpus_commitment_sha256.as_bytes());
-    }
-    let source_groups = rows.len() as u64;
-    let accepted_groups = rows.iter().filter(|row| row.accepted).count() as u64;
-    Ok(M8CourtReport {
-        schema: first.schema.clone(),
-        scope: first.scope,
-        procedural_generation: first.procedural_generation,
-        variants_per_family: first.variants_per_family,
-        cluster_size: first.cluster_size,
-        profile: first.profile.clone(),
-        shard_index: 0,
-        shard_count,
-        included_shards: (0..shard_count).collect(),
-        model_universe_sha256: first.model_universe_sha256.clone(),
-        exact_config_sha256: first.exact_config_sha256.clone(),
-        corpus_commitment_sha256: hex::encode(commitment.finalize()),
-        source_groups,
-        accepted_groups,
-        rows,
-    })
-}
-
 pub fn calibrate(report: &M8CourtReport) -> M8CalibrationArtifact {
     let mut refusals = Vec::new();
+    if let Err(error) = validate_formal_court(report, M8CourtScope::Calibration) {
+        refusals.push(error);
+    }
     if report.scope != M8CourtScope::Calibration {
         refusals.push("calibration requires a calibration-split court".into());
     }
@@ -430,6 +430,14 @@ pub fn calibrate(report: &M8CourtReport) -> M8CalibrationArtifact {
         .collect::<Vec<_>>();
     let admitted = |row: &M8CourtRow| admitted_by_class(row, &classes);
     let reliability = reliability_for(report, admitted, |row| row.intrinsic_catastrophic);
+    let origin_summary = summarize_origins(report, admitted, |row| row.intrinsic_catastrophic);
+    if origin_summary.iter().any(|summary| {
+        summary.groups_total == 0
+            || summary.admitted as f64 / (summary.groups_total as f64) < M8_MIN_ORIGIN_COVERAGE
+    }) || origin_summary.len() != 3
+    {
+        refusals.push("calibration coverage is below 50% in one or more required origins".into());
+    }
     if !reliability.contract_met {
         refusals.push("clustered 99% catastrophic-risk contract is not met".into());
     }
@@ -513,10 +521,16 @@ pub fn calibrate(report: &M8CourtReport) -> M8CalibrationArtifact {
     M8CalibrationArtifact {
         schema: M8_CALIBRATION_SCHEMA.into(),
         court_sha256: digest_json(report),
+        candidate_sha: report.candidate_sha.clone(),
+        runner_sha256: report.runner_sha256.clone(),
+        procedural_generation: report.procedural_generation,
+        variants_per_family: report.variants_per_family,
+        corpus_commitment_sha256: report.corpus_commitment_sha256.clone(),
         model_universe_sha256: report.model_universe_sha256.clone(),
         exact_config_sha256: report.exact_config_sha256.clone(),
         classes,
         excluded_unsafe_classes,
+        origin_summary,
         reliability,
         gates,
         gate_met: refusals.is_empty(),
@@ -524,13 +538,40 @@ pub fn calibrate(report: &M8CourtReport) -> M8CalibrationArtifact {
     }
 }
 
-pub fn release(report: &M8CourtReport, calibration: &M8CalibrationArtifact) -> M8ReleaseArtifact {
+pub fn release(
+    report: &M8CourtReport,
+    calibration: &M8CalibrationArtifact,
+    authority: &M8ReleaseAuthority,
+    calibration_file_sha256: &str,
+    authority_file_sha256: &str,
+) -> M8ReleaseArtifact {
     let mut refusals = Vec::new();
+    if let Err(error) = validate_formal_court(report, M8CourtScope::SealedAudit) {
+        refusals.push(error);
+    }
     if report.scope != M8CourtScope::SealedAudit {
         refusals.push("release requires the untouched sealed-audit court".into());
     }
     if !calibration.gate_met {
         refusals.push("calibration is not green".into());
+    }
+    if authority.schema != M8_AUTHORITY_SCHEMA
+        || authority.status != "calibration_frozen_sealed_pending"
+        || authority.feature_sha != calibration.candidate_sha
+        || authority.procedural_generation != M8_PROCEDURAL_GENERATION
+        || authority.variants_per_family != M8_VARIANTS_PER_FAMILY
+        || authority.cluster_size != M8_CLUSTER_SIZE
+        || calibration.runner_sha256 != authority.runner_sha256
+        || calibration.procedural_generation != authority.procedural_generation
+        || calibration.variants_per_family != authority.variants_per_family
+        || authority.calibration_artifact_sha256 != calibration_file_sha256
+        || authority.calibration_court_sha256 != calibration.court_sha256
+        || authority.calibration_corpus_commitment_sha256 != calibration.corpus_commitment_sha256
+        || authority.model_universe_sha256 != calibration.model_universe_sha256
+        || authority.exact_config_sha256 != calibration.exact_config_sha256
+        || calibration.gates.as_ref() != Some(&authority.gates)
+    {
+        refusals.push("release inputs do not match the frozen M8 authority".into());
     }
     if report.model_universe_sha256 != calibration.model_universe_sha256
         || report.exact_config_sha256 != calibration.exact_config_sha256
@@ -565,6 +606,14 @@ pub fn release(report: &M8CourtReport, calibration: &M8CalibrationArtifact) -> M
     };
     let admitted = |row: &M8CourtRow| admitted_by_class(row, &calibration.classes);
     let reliability = reliability_for(report, admitted, gated_bad);
+    let origin_summary = summarize_origins(report, admitted, gated_bad);
+    if origin_summary.iter().any(|summary| {
+        summary.groups_total == 0
+            || summary.admitted as f64 / (summary.groups_total as f64) < M8_MIN_ORIGIN_COVERAGE
+    }) || origin_summary.len() != 3
+    {
+        refusals.push("sealed coverage is below 50% in one or more required origins".into());
+    }
     if !reliability.contract_met {
         refusals.push("sealed clustered catastrophic-risk contract is not met".into());
     }
@@ -580,14 +629,100 @@ pub fn release(report: &M8CourtReport, calibration: &M8CalibrationArtifact) -> M
         refusals.push("one or more accepted sealed rows violate frozen gates".into());
     }
     M8ReleaseArtifact {
-        schema: M8_RELEASE_SCHEMA,
+        schema: M8_RELEASE_SCHEMA.into(),
+        candidate_sha: report.candidate_sha.clone(),
+        runner_sha256: report.runner_sha256.clone(),
         court_sha256: digest_json(report),
         calibration_sha256: digest_json(calibration),
+        authority_sha256: authority_file_sha256.into(),
         reliability,
+        origin_summary,
         gate_met: refusals.is_empty(),
         catastrophic_rows,
         refusals,
     }
+}
+
+fn summarize_origins(
+    report: &M8CourtReport,
+    admitted: impl Fn(&M8CourtRow) -> bool,
+    catastrophic: impl Fn(&M8CourtRow) -> bool,
+) -> Vec<M8OriginSummary> {
+    let mut by_origin = BTreeMap::<String, M8OriginSummary>::new();
+    for row in &report.rows {
+        let summary = by_origin
+            .entry(row.fixture_origin.clone())
+            .or_insert_with(|| M8OriginSummary {
+                origin: row.fixture_origin.clone(),
+                groups_total: 0,
+                pipeline_accepted: 0,
+                admitted: 0,
+                catastrophic: 0,
+            });
+        summary.groups_total += 1;
+        summary.pipeline_accepted += u64::from(row.accepted);
+        let is_admitted = row.accepted && admitted(row);
+        summary.admitted += u64::from(is_admitted);
+        summary.catastrophic += u64::from(is_admitted && catastrophic(row));
+    }
+    by_origin.into_values().collect()
+}
+
+pub fn production_policy(
+    calibration: &M8CalibrationArtifact,
+    release: &M8ReleaseArtifact,
+) -> Result<vice_core::M8ProductionPolicy, String> {
+    let origin_green = |summaries: &[M8OriginSummary]| {
+        summaries.len() == 3
+            && summaries.iter().all(|summary| {
+                summary.groups_total > 0
+                    && summary.admitted as f64 / (summary.groups_total as f64)
+                        >= M8_MIN_ORIGIN_COVERAGE
+                    && summary.catastrophic == 0
+            })
+    };
+    if calibration.schema != M8_CALIBRATION_SCHEMA
+        || release.schema != M8_RELEASE_SCHEMA
+        || !calibration.gate_met
+        || !release.gate_met
+        || release.catastrophic_rows != 0
+        || release.calibration_sha256 != digest_json(calibration)
+        || calibration.candidate_sha == release.candidate_sha
+        || !release.reliability.contract_met
+        || release.reliability.coverage_per_source < M8_MIN_COVERAGE
+        || !origin_green(&calibration.origin_summary)
+        || !origin_green(&release.origin_summary)
+    {
+        return Err("M8 production policy requires matching green calibration and release".into());
+    }
+    let gates = calibration
+        .gates
+        .as_ref()
+        .ok_or_else(|| "M8 calibration has no frozen delivery gates".to_string())?;
+    Ok(vice_core::M8ProductionPolicy {
+        schema: vice_core::M8_PRODUCTION_POLICY_SCHEMA.into(),
+        calibration_candidate_sha: calibration.candidate_sha.clone(),
+        calibration_runner_sha256: calibration.runner_sha256.clone(),
+        sealed_candidate_sha: release.candidate_sha.clone(),
+        sealed_runner_sha256: release.runner_sha256.clone(),
+        model_universe_sha256: calibration.model_universe_sha256.clone(),
+        exact_config_sha256: calibration.exact_config_sha256.clone(),
+        calibration_sha256: release.calibration_sha256.clone(),
+        gate_authority_sha256: release.authority_sha256.clone(),
+        sealed_release_sha256: digest_json(release),
+        release_gate_met: true,
+        safe_selection_classes: calibration
+            .classes
+            .iter()
+            .map(|class| class.name.clone())
+            .collect(),
+        delivery_gates: vice_core::M8ProductionDeliveryGates {
+            profile_max_channel_delta: gates.profile_max_channel_delta,
+            profile_mean_channel_delta: gates.profile_mean_channel_delta,
+            internal_max_channel_delta: gates.internal_max_channel_delta,
+            internal_mean_channel_delta: gates.internal_mean_channel_delta,
+        },
+    })
 }
 
 fn reliability_for(
@@ -627,68 +762,6 @@ fn admitted_by_class(row: &M8CourtRow, classes: &[M8CalibrationClass]) -> bool {
     classes.iter().any(|calibration| calibration.name == *class)
 }
 
-fn court_exact_config() -> M8ExactConfig {
-    let mut cfg = M8ExactConfig::default();
-    cfg.alternation.max_rounds = 2;
-    cfg.max_vertex_trials_per_round = 8;
-    cfg
-}
-
-fn court_cell(profile: RasterProfile, family: &str) -> DegradationCell {
-    DegradationCell {
-        size_px: if family == "dot_cluster" { 256 } else { 128 },
-        subpixel_dx: 0.25,
-        subpixel_dy: 0.375,
-        profile,
-        psf: Psf::Box,
-        blend: vice_ir::BlendSpace::LinearLight,
-        resize: ResizeChain::None,
-        contrast: 1.0,
-    }
-}
-
-fn parse_variant(id: &str) -> Result<usize, String> {
-    id.rsplit('/')
-        .next()
-        .and_then(|value| value.parse().ok())
-        .ok_or_else(|| format!("M8 procedural id has no variant: {id}"))
-}
-
-fn shard_of(id: &str, shard_count: u32) -> u32 {
-    let digest = Sha256::digest(id.as_bytes());
-    let value = u64::from_le_bytes(digest[..8].try_into().expect("eight digest bytes"));
-    (value % u64::from(shard_count)) as u32
-}
-
-fn encode_png(width: u32, height: u32, rgba8: &[u8]) -> Result<Vec<u8>, String> {
-    let mut bytes = Vec::new();
-    {
-        let mut encoder = png::Encoder::new(&mut bytes, width, height);
-        encoder.set_color(png::ColorType::Rgba);
-        encoder.set_depth(png::BitDepth::Eight);
-        let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
-        writer.write_image_data(rgba8).map_err(|e| e.to_string())?;
-    }
-    Ok(bytes)
-}
-
-#[derive(Serialize)]
-struct ExactConfigIdentity {
-    likelihood: vice_opt::BlockLikelihoodConfig,
-    alternation: vice_opt::AlternationConfig,
-    vertex_step_px: f64,
-    max_vertex_trials_per_round: usize,
-}
-
-fn exact_config_digest(cfg: &M8ExactConfig) -> String {
-    digest_json(&ExactConfigIdentity {
-        likelihood: cfg.likelihood,
-        alternation: cfg.alternation,
-        vertex_step_px: cfg.vertex_step_px,
-        max_vertex_trials_per_round: cfg.max_vertex_trials_per_round,
-    })
-}
-
 fn digest_json(value: &impl Serialize) -> String {
     hex::encode(Sha256::digest(
         serde_json::to_vec(value).expect("M8 court artifact serializes"),
@@ -719,42 +792,5 @@ fn quantile_u64(values: &[u64], probability: f64) -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn smoke_court_runs_both_multicolor_families_through_exact_delivery() {
-        let report = measure_court(M8CourtScope::Smoke, 4).unwrap();
-        assert!(report.source_groups >= 3);
-        assert!(report
-            .rows
-            .iter()
-            .any(|row| row.shape_family == "dot_cluster"));
-        assert!(report
-            .rows
-            .iter()
-            .any(|row| row.shape_family == "triple_junction"));
-        assert_eq!(report.model_universe_sha256.len(), 64);
-        for family in ["dot_cluster", "triple_junction"] {
-            assert!(report
-                .rows
-                .iter()
-                .any(|row| row.shape_family == family && row.accepted));
-        }
-        assert!(report.rows.iter().filter(|row| !row.accepted).all(|row| {
-            row.refusal
-                .as_deref()
-                .is_some_and(|reason| reason.contains("refused"))
-        }));
-    }
-
-    #[test]
-    fn clustered_split_never_places_one_cluster_in_both_courts() {
-        for variant in 0..100 {
-            assert_ne!(
-                M8CourtScope::Calibration.admits_variant(variant),
-                M8CourtScope::SealedAudit.admits_variant(variant)
-            );
-        }
-    }
-}
+#[path = "m8/tests.rs"]
+mod tests;

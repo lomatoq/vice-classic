@@ -34,6 +34,9 @@ use super::{
     AuthoredTruth, EquivalenceClass, FixtureOrigin, GtScene, GtSourceGroup, SalientFeature,
 };
 
+#[path = "adversarial/m8.rs"]
+mod m8;
+
 fn ink(r: f64, g: f64, b: f64) -> Paint {
     Paint::OpaqueSolid(LinearRgb { r, g, b })
 }
@@ -354,9 +357,11 @@ pub(crate) fn ambiguity_pairs() -> Vec<AmbiguityPair> {
 }
 
 /// Adversarial groups: geometry aimed at the measurement apparatus.
-pub(crate) fn adversarial_groups() -> Vec<GtSourceGroup> {
+fn adversarial_groups_with_m8() -> Vec<GtSourceGroup> {
     let c = canvas();
     let mut out = Vec::new();
+
+    out.extend(m8::m8_adversarial_groups());
 
     // A long thin sliver: area small relative to perimeter, which is where
     // loop-orientation certification gets close to refusing (ADR-0008's
@@ -450,6 +455,22 @@ pub(crate) fn adversarial_groups() -> Vec<GtSourceGroup> {
     out
 }
 
+/// Historical adversarial corpus. M8 sources are kept in a separate registry
+/// so adding multiregion coverage cannot move frozen M3/M7 split statistics.
+pub(crate) fn adversarial_groups() -> Vec<GtSourceGroup> {
+    adversarial_groups_with_m8()
+        .into_iter()
+        .filter(|group| !group.id.starts_with("adv/multicolor-"))
+        .collect()
+}
+
+pub(crate) fn m8_adversarial_groups() -> Vec<GtSourceGroup> {
+    adversarial_groups_with_m8()
+        .into_iter()
+        .filter(|group| group.id.starts_with("adv/multicolor-"))
+        .collect()
+}
+
 fn single_group(
     id: &str,
     family: &str,
@@ -497,6 +518,16 @@ mod tests {
     /// pair that does not (F-0021).
     fn max_code_diff(a: &[u8], b: &[u8]) -> f64 {
         crate::gt::colour::max_premultiplied_code_difference(a, b)
+    }
+
+    #[test]
+    fn m8_adversarial_sources_certify_without_widening_the_frozen_corpus() {
+        let groups = m8_adversarial_groups();
+        assert_eq!(groups.len(), 3);
+        assert!(groups.iter().all(|group| {
+            group.origin == FixtureOrigin::Adversarial
+                && group.scenes[0].partition_truth().visible_faces >= 3
+        }));
     }
 
     /// An ambiguity pair is only a pair if the collapse is MEASURED. Both

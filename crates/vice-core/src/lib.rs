@@ -1,5 +1,3 @@
-//! M7 selective Flat2 vectorization; a non-success outcome contains no SVG bytes.
-
 #![forbid(unsafe_code)]
 
 mod candidate;
@@ -14,16 +12,8 @@ pub use config::{
     IntentPriorPolicy, PaintCalibrationClass, PerturbationStability, Preset, ProductionConfigError,
     VectorizeRequest, M7_FAST_PRODUCTION_CONFIG_SHA256, M7_QUALITY_PRODUCTION_CONFIG_SHA256,
 };
-pub use m8::{
-    materialize_multiregion_seed, multiregion_boundary_bindings, propose_multiregion_seeds,
-    seal_multiregion_delivery, solve_multiregion_exact, M8CandidateSummary, M8DeliveryArtifacts,
-    M8DeliveryConfig, M8DeliveryError, M8DeliveryReport, M8ExactConfig, M8ExactError,
-    M8ExactReport, M8SolvedCandidate, MultiregionMaterializeError, MultiregionSeed,
-    MultiregionSeedError, MultiregionSeedReport, M8_DELIVERY_SCHEMA, M8_EXACT_SCHEMA,
-    M8_SEED_SCHEMA,
-};
+pub use m8::*;
 
-/// Stable class; unseen native primitive kinds cannot hide behind a global threshold.
 pub fn selection_calibration_class(hypothesis_id: &str) -> String {
     let Some((_, tail)) = hypothesis_id.split_once("primitive-") else {
         return "flat2/general".into();

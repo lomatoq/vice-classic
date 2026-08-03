@@ -343,9 +343,34 @@ pub const AUTHORED_FILES: &[(&str, &str)] = &[
     ),
 ];
 
+/// M8-only authored sources. They are deliberately separate from the frozen
+/// historical corpus so widening M8 cannot re-key M3/M7 split and topology
+/// evidence.
+pub const M8_AUTHORED_FILES: &[(&str, &str)] = &[
+    (
+        "tritone.svg",
+        include_str!("../../../../tests/fixtures/gt/authored/tritone.svg"),
+    ),
+    (
+        "tritone-slants.svg",
+        include_str!("../../../../tests/fixtures/gt/authored/tritone-slants.svg"),
+    ),
+    (
+        "quadtones.svg",
+        include_str!("../../../../tests/fixtures/gt/authored/quadtones.svg"),
+    ),
+];
+
 /// Load every committed authored file.
 pub(crate) fn authored_groups() -> Result<Vec<GtSourceGroup>, AuthoredError> {
     AUTHORED_FILES
+        .iter()
+        .map(|(name, text)| load_authored(name, text))
+        .collect()
+}
+
+pub(crate) fn m8_authored_groups() -> Result<Vec<GtSourceGroup>, AuthoredError> {
+    M8_AUTHORED_FILES
         .iter()
         .map(|(name, text)| load_authored(name, text))
         .collect()
@@ -373,6 +398,16 @@ mod tests {
             assert!(t.visible_faces >= 1);
             assert!(t.total_ink_px2 > 100.0, "{}: empty scene", g.id);
         }
+    }
+
+    #[test]
+    fn every_m8_authored_file_loads_and_certifies_without_widening_the_frozen_corpus() {
+        let groups = m8_authored_groups().expect("the M8 authored corpus must load");
+        assert_eq!(groups.len(), M8_AUTHORED_FILES.len());
+        assert!(groups.iter().all(|group| {
+            group.origin == FixtureOrigin::Authored
+                && group.scenes[0].partition_truth().visible_faces >= 3
+        }));
     }
 
     /// The authored corpus must genuinely widen the corpus, not repeat the

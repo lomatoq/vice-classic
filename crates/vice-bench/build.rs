@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn collect_rust_sources(root: &Path, out: &mut Vec<PathBuf>) {
     let mut entries: Vec<PathBuf> = std::fs::read_dir(root)
@@ -21,6 +22,39 @@ fn main() {
         .parent()
         .and_then(Path::parent)
         .expect("workspace root");
+    let git_dir = workspace.join(".git");
+    println!("cargo:rerun-if-changed={}", git_dir.join("HEAD").display());
+    let head = Command::new("git")
+        .args(["-C", &workspace.to_string_lossy(), "rev-parse", "HEAD"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(|value| value.trim().to_owned())
+        .filter(|value| value.len() == 40)
+        .unwrap_or_else(|| "UNATTESTED".into());
+    if head != "UNATTESTED" {
+        let ref_path = git_dir.join("refs").join("heads").join(
+            Command::new("git")
+                .args([
+                    "-C",
+                    &workspace.to_string_lossy(),
+                    "symbolic-ref",
+                    "--short",
+                    "HEAD",
+                ])
+                .output()
+                .ok()
+                .filter(|output| output.status.success())
+                .and_then(|output| String::from_utf8(output.stdout).ok())
+                .map(|value| value.trim().to_owned())
+                .unwrap_or_default(),
+        );
+        if ref_path.is_file() {
+            println!("cargo:rerun-if-changed={}", ref_path.display());
+        }
+    }
+    println!("cargo:rustc-env=VICE_BUILD_GIT_SHA={head}");
     let mut sources = Vec::new();
     collect_rust_sources(&workspace.join("crates/vice-fit/src"), &mut sources);
     collect_rust_sources(&manifest.join("src/geometry"), &mut sources);

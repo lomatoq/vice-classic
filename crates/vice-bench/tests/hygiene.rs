@@ -769,6 +769,7 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         "vice-bench/src/gt/grammar.rs",
         "vice-bench/src/gt/authored.rs",
         "vice-bench/src/gt/adversarial.rs",
+        "vice-bench/src/gt/adversarial/m8.rs",
         // Builds one procedural variant; reachable only from `grammar`.
         "vice-bench/src/gt/recipes.rs",
         // Harness runs that walk the corpus and skip the sealed audit at
@@ -804,6 +805,11 @@ fn the_measurements_reach_the_corpus_through_the_legal_population() {
         // created, and sealed-audit measurement additionally requires the
         // digest-pinned production configuration.
         "vice-bench/src/m7/measure.rs",
+        // M8 constructs and validates its exact release-court population here.
+        "vice-bench/src/m8.rs",
+        "vice-bench/src/m8/formal.rs",
+        // M8 unit tests exercise the typed population and reconstruction path.
+        "vice-bench/src/m8/tests.rs",
         // The ONE mint site of the frozen-measurement handle. It names the
         // split-filtered accessor and nothing wider, which
         // `the_only_mint_site_for_the_legal_handle_cannot_widen_it` checks.
@@ -1210,7 +1216,11 @@ fn only_declared_modules_call_the_render_pipeline() {
         // before handing the bytes to the production calibration path. Its
         // scheduler and split gate live in `m7/measure.rs`; the render call
         // itself remains here beside the row it produces.
-        "vice-bench/src/m7.rs",
+        "vice-bench/src/m7/row.rs",
+        // M8's court measures rows here and independently reconstructs expected
+        // identities through the formal population module.
+        "vice-bench/src/m8.rs",
+        "vice-bench/src/m8/formal.rs",
         "vice-bench/src/oracle/ceiling.rs",
         "vice-bench/src/topology/mod.rs",
         "vice-bench/src/topology/ambiguity.rs",

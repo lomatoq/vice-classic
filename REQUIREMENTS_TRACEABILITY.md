@@ -1,7 +1,7 @@
 # REQUIREMENTS_TRACEABILITY — vice-classic
 
 Формат (spec v1.3 §32 правило 23): invariant → implementation → tests →
-milestone gate. Покрыты M0…M7.
+milestone gate. Покрыты M0…M8.
 
 ## Перенесённые обязательства (явное отслеживание, REVIEW_M1 M1-N4)
 
@@ -13,6 +13,20 @@ milestone gate. Покрыты M0…M7.
 | D-6 | **Runtime-guard на неразрешимую геометрию**: отвергать типизированно, когда положение пересечения не разрешимо до пикселя в f64 (позиционная ошибка > ~0.25 px). Сегодня в этом режиме аккумулятор возвращает конечное, ограниченное, но бессмысленное число — как и любая f64-реализация (измерено: три независимые реализации дают 0 / +0.278 / −0.517). НЕ сделано: render-путь туда не попадает (`NumericDomain` ≤ 65536), а достаточно чувствительный guard рискует отвергать легитимную far-off-canvas геометрию, которая сегодня считается верно (1e308 принимается с ошибкой 1.8e-15). Основание: собственная находка при построении differential property-теста (C048) | при появлении прямого потребителя аккумулятора (M3) | **ЗАКРЫТО в дельте-4 (C052)**: оказалось тем же пунктом, что D-5 — конвексная/ближне-концевая форма `x_at` устраняет класс; «неразрешимость» была обусловленностью формулы, а не пределом f64 (F-0014) |
 | D-5 | **Колонко-относительная интерполяция промежуточной позиции** в `accumulate_edge` (`x_at`): red team измерил, что перестановка снимает ровно `ulp(M)/2` на всех магнитудах, то есть остаток F-M2-R2 сводим ещё раз. НЕ сделано сознательно: внутри enforced-домена запас ~50× (4.5e-12 против 2.33e-10), а правка сдвинула бы замороженный render digest без выигрыша в домене. Пересмотреть, если домен будет расширен или появится потребитель с бо́льшими координатами. Основание: REDTEAM_M2 addendum F-M2-R10 | при расширении домена / M3+ | **ЗАКРЫТО в дельте-4 (C052)**: перестановка выполнена; ни один замороженный digest не сдвинулся |
 | D-4 | **Типизированный witness сертификации вложения** (`CertifiedMesh`/`EmbeddedScene`): тип, который нельзя получить, не пройдя `verify_embedding`. Ввести ВМЕСТЕ с первым не-рендерящим потребителем `ValidatedScene` (M3 планово вводит: загрузчик GT-корпуса, identifiability-метаданные, scorecard). Основание: REVIEW_M2_A M2-A-N8, REVIEW_M2_B M2-B-N5; обоснование срока — ADR-0010 (критерий §32 п.7 по ADR-0005) | M3 | **ЗАКРЫТО в C062**: ice_render::certified::CertifiedMesh (приватные поля, два конструктора, несёт RenderOptions); mesh-входы рендера принимают только его; первый не-рендерящий потребитель — `gt::GtScene::new` (C064). Заявление СУЖЕНО и проверено: витнес НЕ утверждает замощение окна — B2-сцена сертифицируется, её ловит range check (ADR-0010 addendum M3) |
+
+## M8 — Multiregion visible flat-color
+
+`docs/M8_OBLIGATIONS.md` is the exhaustive 20-row acceptance index.
+
+| # | Invariant | Implementation | Tests / replay | Gate |
+|---|---|---|---|---|
+| M8-01–06 | distinct multiregion universe; alpha-safe palette cardinality beam; bounded palette/partition/paint alternation; topology evidence without pairwise double counting | `vice-evidence::multicolor`, `vice-opt::{universe,multiregion}`, `vice-core::m8` | transparent-RGB, permutation, stale-universe, exact-improvement, iteration and Flat2-boundary tests | exact M8 identities and typed refusal |
+| M8-07–10 | canonical RAG, atomic merge/split/paint transactions, one shared multicolor DCEL and one junction simplex | `vice-topology::{rag,rag_transaction,multidcel}`, `vice-render::junction` | symmetry/connectivity, rollback, shared-twin/face cycles, triple-junction permutation/gap attacks | graph/DCEL/junction certificates |
+| M8-11–13 | certified whole/ROI rendering, one serialized paint per face, deterministic joint court with explicit unknown mass | `vice-render`, `vice-opt::multiregion`, `vice-core::m8::{production,delivery}` | ROI/full equality, quantized paints, zero-budget refusal and unknown-mass tests | exact rerender and delivery seal |
+| M8-14 | real PP00/PP10/PP01/PP11 partition × paint intervention matrix on one observation | `vice-bench::oracle::paint` | complete-arm, incompatible-key and no-fake-arm tests | effects and interaction artifact |
+| M8-15–16 | separately calibrated multiregion selective admission and independently parsed/rendered PurePartition/SeamSafe bytes | `vice-bench::m8`, `vice-core::m8::delivery`, `vice-svg`, `vice-verify` | procedural/authored/adversarial split, per-origin coverage, independent parser/renderer and policy tamper tests | fresh generation-7 calibration and sealed court pending |
+| M8-17–18 | M7 regression remains green; budgets, population and execution evidence are exact and deterministic | workspace regression; formal-court reconstruction; clean-HEAD/build-SHA/runner attestations | full workspace barrier, missing/duplicate/forged-row attacks, four unique executions | author barrier and generation-7 evidence pending |
+| M8-19–20 | truthful docs/failure history, config-only freeze and one immutable-SHA cold review | M8 docs, `FAILURE_LEDGER.md`, V2 authority and committed production policy | document claims, exact two-file gate-delta check and follow-up cold review | pending |
 
 ## M7 — Exact posterior refinement + selective delivery + export materialization
 

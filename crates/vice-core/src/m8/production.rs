@@ -92,6 +92,7 @@ pub struct M8ExactReport {
     /// Exact selection is production arithmetic, but release admission stays
     /// false until M8 calibration and delivery sealing are attached.
     pub production_admitted: bool,
+    pub admission_authority_sha256: Option<String>,
     pub seed_candidates: u64,
     pub exact_candidates_evaluated: u64,
     pub selected: M8CandidateSummary,
@@ -283,6 +284,7 @@ pub fn solve_multiregion_exact(
         pricing_sha256,
         backend_sha256,
         production_admitted: false,
+        admission_authority_sha256: None,
         seed_candidates: seed_report.seeds.len() as u64,
         exact_candidates_evaluated: candidates.len() as u64,
         selected: selected.summary.clone(),

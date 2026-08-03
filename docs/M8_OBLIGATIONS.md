@@ -1,6 +1,6 @@
 # M8 obligation and acceptance map
 
-Status: release evidence green; independent final review pending.
+Status: generation 6 burned by independent review; generation 7 author audit in progress.
 
 Normative authority remains `docs/spec/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`, in
 particular sections 1.1, 6.1, 6.4, 9.3, 11.5, 12, 16.1, 17, 19, 27.6 and the
@@ -51,11 +51,11 @@ production evidence.
 No step may manufacture success from a diagnostic/oracle override or reuse an
 M7 confidence threshold for the expanded model universe.
 
-## Release snapshot (2026-08-03)
+## Generation-7 pre-release snapshot (2026-08-03)
 
 | Obligation | State | Current evidence / remaining work |
 |---|---|---|
-| M8-01 | MET | distinct M8 universe/config identities; stale M7 reliability is rejected |
+| M8-01 | IMPLEMENTED | distinct M8 universe/config identities; stale M7 reliability is rejected; fresh author barrier pending |
 | M8-02 | MET in code | deterministic multicolour palette beam; hidden transparent RGB and permutation/determinism controls pass |
 | M8-03 | MET | all supported cardinalities enter the exact rerender court; observable mode count is retained for calibrated admission |
 | M8-04 | MET | production alternation performs bounded shared-vertex/refit rounds and records convergence/exhaustion |
@@ -69,9 +69,9 @@ M7 confidence threshold for the expanded model universe.
 | M8-12 | MET | full-resolution likelihood, per-face physical paint pricing and serialized acceptance are connected |
 | M8-13 | MET empirically | joint deterministic candidate court and explicit `Unknown` unexplored mass; no theoretical completeness claim |
 | M8-14 | MET | actual common-observation PP00/PP10/PP01/PP11 measurement, effects and incompatible-key refusals |
-| M8-15 | MET | generation-6 calibration and once-opened held-out release: 83.78% coverage, zero catastrophes, 0.9242% upper risk |
+| M8-15 | PENDING EVIDENCE | generation 6 is burned; generation 7 requires fresh calibration, config-only gate freeze and untouched sealed court across procedural/authored/adversarial origins |
 | M8-16 | MET | selected M8 scenes produce independently parsed/rendered PurePartition and SeamSafe delivery seals |
-| M8-17 | MET | `vice-bench` regression: 239 passed, 0 failed; M7 generation-8 remains Flat2 |
-| M8-18 | MET | typed budgets plus one-worker/two-worker decision-and-artifact replay equality |
-| M8-19 | MET | status, reproduction, release verdict, replay and burned-generation ledger are committed |
-| M8-20 | PARTIAL | gates are frozen in separate commit `2eb6082`; one independent exact-SHA review remains |
+| M8-17 | PENDING REPLAY | the prior 239-test barrier was green; it must be rerun on the generation-7 feature candidate |
+| M8-18 | IMPLEMENTED, PENDING REPLAY | typed budgets; exact population reconstruction; clean candidate/runner binding; four distinct execution IDs; committed-policy tamper refusal |
+| M8-19 | PARTIAL | generation-5/6 failures and generation-7 procedure are documented; final evidence hashes remain pending |
+| M8-20 | PENDING | no generation-7 gate commit, sealed verdict, final immutable SHA or passing cold review exists yet |

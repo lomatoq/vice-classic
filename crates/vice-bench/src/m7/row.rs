@@ -1,5 +1,275 @@
 use super::*;
 
+pub(super) fn measure_one(
+    group_id: &str,
+    shape_family: &str,
+    truth_scene: &GtScene,
+    cell: &DegradationCell,
+    equivalence_members: usize,
+    config: &CoreConfig,
+    execution: MeasurementExecution,
+) -> MeasurementRow {
+    let started = Instant::now();
+    let fixture = match render_cell(truth_scene, cell, equivalence_members) {
+        Ok(fixture) => fixture,
+        Err(error) => {
+            return refusal_row(
+                group_id,
+                shape_family,
+                truth_scene,
+                cell,
+                "render truth fixture",
+                error,
+                started,
+            )
+        }
+    };
+    let png = match encode_png(fixture.width_px, fixture.height_px, &fixture.rgba8) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return refusal_row(
+                group_id,
+                shape_family,
+                truth_scene,
+                cell,
+                "encode input PNG",
+                error,
+                started,
+            )
+        }
+    };
+    let request = VectorizeRequest {
+        preset: execution.preset,
+        production: config.is_sealed_production(),
+        ..VectorizeRequest::default()
+    };
+    let run = if execution.capture_baseline {
+        vice_core::vectorize_for_calibration(&png, &request, config)
+    } else {
+        vice_core::vectorize_for_calibration_without_baseline(&png, &request, config)
+    };
+    let report = run.outcome.report();
+    let mut row = MeasurementRow {
+        group_id: group_id.to_string(),
+        scene_id: truth_scene.id().to_string(),
+        shape_family: shape_family.to_string(),
+        cell_id: fixture.cell_id,
+        size_px: fixture.width_px,
+        rasterizer: cell.profile.as_str().to_string(),
+        identifiability: fixture.identifiability.as_str().to_string(),
+        core_runtime_ms: report.runtime.elapsed_ms,
+        runtime_stages: report.runtime.stages.clone(),
+        court_runtime_ms: 0,
+        row_elapsed_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
+        decision_status: format!("{:?}", report.status).to_lowercase(),
+        decision_reason: report.reason.as_ref().map(stable_failure_reason),
+        production_provenance: report.production,
+        production_accepted: matches!(&run.outcome, vice_core::VectorizeOutcome::Success(_)),
+        candidate_available: false,
+        selected_hypothesis_id: report.selected_hypothesis_id.clone(),
+        selected_scene_digest_sha256: None,
+        selected_delivery_digest_sha256: None,
+        selected_artifact_bundle_sha256: None,
+        selected_complexity: None,
+        internal_baseline: None,
+        internal_baseline_refusals: run
+            .baseline_refusals
+            .iter()
+            .map(|refusal| format!("{:?}: {}", refusal.stage, refusal.detail))
+            .collect(),
+        pf_oracle: None,
+        cost_refusal_histogram: cost_refusal_histogram(report),
+        numerical_conditioning: numerical_conditioning(report),
+        search_truncated: report.search_mass.as_ref().map(|search| search.truncated),
+        explored_mass: report
+            .search_mass
+            .as_ref()
+            .map(|search| search.explored_mass),
+        topology_classes_upper_bound: report
+            .search_mass
+            .as_ref()
+            .map(|search| search.topology_classes_upper_bound),
+        formation_classes_upper_bound: report
+            .search_mass
+            .as_ref()
+            .map(|search| search.formation_classes_upper_bound),
+        top_topology_explored_mass: report
+            .search_mass
+            .as_ref()
+            .and_then(|search| search.topology.first())
+            .map(|class| class.explored_mass),
+        top_formation_explored_mass: report
+            .search_mass
+            .as_ref()
+            .and_then(|search| search.formation.first())
+            .map(|class| class.explored_mass),
+        selected_delivery_mass: None,
+        retained_normalized_mass: None,
+        delivery_classes: report
+            .search_mass
+            .as_ref()
+            .map(|search| search.delivery.len().try_into().unwrap_or(u64::MAX)),
+        top2_class_margin_bits: report.search_mass.as_ref().and_then(|search| {
+            let top1 = search.delivery.first()?.explored_mass;
+            let top2 = search.delivery.get(1)?.explored_mass;
+            (top1 > 0.0 && top2 > 0.0)
+                .then(|| (top1 / top2).log2())
+                .filter(|margin| margin.is_finite())
+        }),
+        posterior_lower_bound: None,
+        posterior_bound_status: "absent".into(),
+        unexplored_proxy_hypotheses: unexplored_proxy_hypotheses(report),
+        candidate_bytes: report.runtime.candidate_bytes,
+        serialized_pixel_bits: None,
+        serialized_pixel_bits_per_block: None,
+        support_isotopy_displacement_px: None,
+        evidence_palette_shift_codes: None,
+        palette_support_px: None,
+        palette_interval_radius_codes: None,
+        paint_calibration_class: None,
+        empirical_correlation_length_px: None,
+        max_abs_lag1: None,
+        topology_entropy_upper_bound: None,
+        topology_entropy_bound_status: "absent".into(),
+        formation_entropy_upper_bound: None,
+        formation_entropy_bound_status: "absent".into(),
+        perturbation_stability: None,
+        phase_envelope_stable: None,
+        sample_step_certificate_stable: None,
+        render_tolerance_certificate_stable: None,
+        render_tolerance_refusal: None,
+        solver_certificate_stable: None,
+        topology: None,
+        boundary: None,
+        max_palette_code_delta: None,
+        profile_max_channel_delta: None,
+        profile_mean_channel_delta: None,
+        internal_to_pure_max_channel_delta: None,
+        internal_to_pure_mean_channel_delta: None,
+        internal_to_seam_max_channel_delta: None,
+        internal_to_seam_mean_channel_delta: None,
+        verifier_clean: false,
+        measurement_refusal: None,
+    };
+    if let Some(metrics) = &report.confidence_metrics {
+        (
+            row.topology_entropy_upper_bound,
+            row.topology_entropy_bound_status,
+        ) = measured_bound(&metrics.topology_entropy_upper_bound);
+        (
+            row.formation_entropy_upper_bound,
+            row.formation_entropy_bound_status,
+        ) = measured_bound(&metrics.formation_entropy_upper_bound);
+        row.perturbation_stability = Some(metrics.perturbation_stability.score);
+        row.support_isotopy_displacement_px = Some(metrics.support_isotopy_displacement_px);
+        row.evidence_palette_shift_codes = Some(metrics.evidence_palette_shift_codes);
+        row.palette_support_px = Some(metrics.palette_support_px);
+        row.palette_interval_radius_codes = Some(metrics.palette_interval_radius_codes);
+        row.paint_calibration_class = Some(metrics.paint_calibration_class.clone());
+        row.phase_envelope_stable = Some(metrics.perturbation_stability.phase_envelope_stable);
+        row.sample_step_certificate_stable = Some(
+            metrics
+                .perturbation_stability
+                .sample_step_certificate_stable,
+        );
+        row.render_tolerance_certificate_stable = Some(
+            metrics
+                .perturbation_stability
+                .render_tolerance_certificate_stable,
+        );
+        row.render_tolerance_refusal = metrics
+            .perturbation_stability
+            .render_tolerance_refusal
+            .clone();
+        row.solver_certificate_stable =
+            Some(metrics.perturbation_stability.solver_certificate_stable);
+    }
+    if let Some(best) = report
+        .search_mass
+        .as_ref()
+        .and_then(vice_opt::SearchMassCertificate::best_delivery)
+    {
+        row.selected_delivery_mass = Some(best.explored_mass);
+        row.retained_normalized_mass = Some(best.retained_normalized_mass);
+        match best.posterior_lower_bound {
+            BoundValue::Certified(value) => {
+                row.posterior_lower_bound = Some(value);
+                row.posterior_bound_status = "certified".into();
+            }
+            BoundValue::EmpiricallyCalibrated(value) => {
+                row.posterior_lower_bound = Some(value);
+                row.posterior_bound_status = "empirically_calibrated".into();
+            }
+            BoundValue::Unknown => row.posterior_bound_status = "unknown".into(),
+        }
+    }
+    let Some(witness) = run.selected else {
+        let reason = report.reason.as_ref().map_or_else(
+            || "no selected calibration witness".into(),
+            |reason| {
+                serde_json::to_string(reason).unwrap_or_else(|_| "unserializable reason".into())
+            },
+        );
+        let candidate_refusals = serde_json::to_string(&report.candidate_refusals)
+            .unwrap_or_else(|_| "unserializable candidate refusals".into());
+        row.measurement_refusal =
+            Some(format!("{reason}; candidate_refusals={candidate_refusals}"));
+        return row;
+    };
+    row.selected_scene_digest_sha256 = Some(witness.candidate.scene_digest_sha256.clone());
+    row.selected_delivery_digest_sha256 = Some(witness.candidate.delivery_digest.clone());
+    row.selected_artifact_bundle_sha256 = Some(artifact_bundle_digest(&witness));
+    row.selected_complexity = scene_complexity(&witness).ok();
+    let court_started = Instant::now();
+    match judge_witness(truth_scene, cell, &witness) {
+        Ok((topology, boundary, paint_delta)) => {
+            row.candidate_available = true;
+            row.topology = Some(topology);
+            row.boundary = Some(boundary);
+            row.max_palette_code_delta = Some(paint_delta);
+            let candidate = &witness.candidate;
+            let seal = &candidate.delivery_seal;
+            row.profile_max_channel_delta = Some(seal.profile_comparison.max_channel_delta);
+            row.profile_mean_channel_delta = Some(seal.profile_comparison.mean_channel_delta);
+            row.internal_to_pure_max_channel_delta =
+                Some(seal.internal_to_pure_comparison.max_channel_delta);
+            row.internal_to_pure_mean_channel_delta =
+                Some(seal.internal_to_pure_comparison.mean_channel_delta);
+            row.internal_to_seam_max_channel_delta =
+                Some(seal.internal_to_seam_comparison.max_channel_delta);
+            row.internal_to_seam_mean_channel_delta =
+                Some(seal.internal_to_seam_comparison.mean_channel_delta);
+            let diagnostics = &candidate.score.diagnostics;
+            row.serialized_pixel_bits = Some(candidate.score.pixel_bits);
+            row.serialized_pixel_bits_per_block = (diagnostics.blocks > 0)
+                .then_some(candidate.score.pixel_bits / diagnostics.blocks as f64);
+            row.empirical_correlation_length_px = Some(diagnostics.empirical_correlation_length_px);
+            row.max_abs_lag1 = Some(diagnostics.lag1_x.abs().max(diagnostics.lag1_y.abs()));
+            row.verifier_clean = candidate.pre_quantization.worst_g1_spread_rad
+                <= config.verification.max_g1_spread_rad;
+        }
+        Err(error) => row.measurement_refusal = Some(error),
+    }
+    if let Some(baseline) = run.baseline {
+        row.internal_baseline =
+            measure_internal_baseline(truth_scene, cell, &baseline, config).ok();
+    }
+    row.pf_oracle = Some(measure_pf_oracle(
+        truth_scene,
+        cell,
+        &fixture.rgba8,
+        &witness,
+        config,
+    ));
+    row.court_runtime_ms = court_started
+        .elapsed()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
+    row.row_elapsed_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
+    row
+}
+
 pub(super) fn artifact_bundle_digest(witness: &vice_core::CalibrationWitness) -> String {
     let mut hash = Sha256::new();
     for (name, bytes) in [

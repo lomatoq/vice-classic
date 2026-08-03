@@ -37,8 +37,10 @@ pub use production::{
 #[path = "m8/delivery.rs"]
 mod delivery;
 pub use delivery::{
-    seal_multiregion_delivery, M8DeliveryArtifacts, M8DeliveryConfig, M8DeliveryError,
-    M8DeliveryReport, M8_DELIVERY_SCHEMA,
+    admit_multiregion_delivery, load_committed_m8_production_policy, seal_multiregion_delivery,
+    M8DeliveryArtifacts, M8DeliveryConfig, M8DeliveryError, M8DeliveryReport,
+    M8ProductionDeliveryGates, M8ProductionPolicy, M8TrustedProductionPolicy, M8_DELIVERY_SCHEMA,
+    M8_PRODUCTION_POLICY_SCHEMA,
 };
 
 pub const M8_SEED_SCHEMA: &str = "vice-classic/m8-seed-report/v1";

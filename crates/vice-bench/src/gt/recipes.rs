@@ -441,7 +441,7 @@ pub(super) fn build_variant(
                 // cardinality observable. Generation numbers are not a
                 // feature-level ordering: the frozen M7 successor is
                 // generation 8 and must remain Flat2.
-                let dot_paint = if matches!(generation, 5 | 6) {
+                let dot_paint = if matches!(generation, 5..=7) {
                     [
                         ink(0.90, 0.08, 0.06),
                         ink(0.06, 0.82, 0.10),

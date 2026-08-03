@@ -5372,3 +5372,43 @@ claim. `STATUS_M7.md` labels the result engineering-complete under waiver;
 M7-29–36 and the final M7-39 artifact remain unverified after the repair. The
 strict commands remain documented in `REPRODUCIBILITY_M7.md` if the waiver is
 later withdrawn.
+
+## F-0152 — A percentile-derived row ceiling made the first M8 seal contradict its own calibration (M8 generation 5, 2026-08-03)
+
+**Found by.** The first complete M8 sealed court.
+
+**What happened.** Generation 5 froze percentile summaries as if they were
+zero-violation per-row ceilings. The sealed population reached only 67.17%
+coverage and five admitted rows exceeded those ceilings. A percentile describes
+a population tail; it cannot simultaneously be a maximum allowed for every
+row.
+
+**Status.** Generation 5 is permanently burned. Successor gates use outwardly
+rounded calibration maxima for per-row delivery/boundary checks and keep the
+clustered risk/coverage statistic separate.
+
+## F-0153 — Green M8 aggregates were not a bound release object (M8 generation 6 cold review, 2026-08-03)
+
+**Found by.** The single independent cold review of generation 6.
+
+**What happened.** The release function accepted self-described report counts
+without reconstructing the exact population and rows; worker executions and
+the runner/candidate were not strongly bound; exact/delivery reports had no
+trusted path to production admission; the court contained only two procedural
+families; and traceability claimed M8 completion without recording these
+failures. Numerically green aggregates therefore did not prove the broad M8
+claim.
+
+**Class rule.** A release report must independently reconstruct its source
+population and row identity, bind clean candidate and exact runner, require
+distinct execution attestations, stratify materially different fixture
+origins, and make production success constructible only from a committed
+trusted policy. Documentation is part of the conjunction, not an optional
+summary.
+
+**Status.** Generation 6 is permanently burned. Generation 7 adds exact
+population/corpus/row validation, clean-HEAD plus build-SHA runner binding,
+four distinct executions, procedural/authored/adversarial splits with a
+per-origin coverage floor, V2 config-only authority, and a committed-policy
+production loader. Fresh calibration, sealed evidence and follow-up review are
+required; no generation-7 green claim exists yet.
