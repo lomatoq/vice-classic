@@ -14,11 +14,14 @@ const report = document.querySelector("#report");
 let resultUrl;
 let startedAt;
 let elapsedTimer;
+let watchdogTimer;
 let currentPhase = "Preparing input";
 let workerReady = false;
 let workerBusy = false;
+let nextReadyMessage = "Ready. Choose an image.";
+let worker;
 
-const worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
+const MAX_RUN_MS = 15_000;
 
 function elapsedSeconds() {
   return startedAt ? ((performance.now() - startedAt) / 1000).toFixed(1) : "0.0";
@@ -37,23 +40,34 @@ function startTimer() {
 
 function finishTimer() {
   clearInterval(elapsedTimer);
+  clearTimeout(watchdogTimer);
   elapsedTimer = undefined;
+  watchdogTimer = undefined;
   status.classList.remove("working");
+}
+
+function clearOutput() {
+  if (resultUrl) {
+    URL.revokeObjectURL(resultUrl);
+    resultUrl = undefined;
+  }
+  preview.removeAttribute("src");
+  preview.alt = "";
+  download.removeAttribute("href");
+  result.hidden = true;
+  route.textContent = "";
+  report.textContent = "";
 }
 
 function showOutput(output) {
   finishTimer();
   workerBusy = false;
   run.disabled = !workerReady;
+  clearOutput();
   report.textContent = JSON.stringify(output.report, null, 2);
   diagnostics.open = output.status !== "success";
   status.textContent = `Completed in ${elapsedSeconds()} s — outcome: ${output.status}`;
   route.textContent = `Lane: ${output.selected_lane}. ${output.route_reason}. ${output.report.message}`;
-
-  if (resultUrl) {
-    URL.revokeObjectURL(resultUrl);
-    resultUrl = undefined;
-  }
   if (output.result_svg) {
     resultUrl = URL.createObjectURL(
       new Blob([output.result_svg], { type: "image/svg+xml" }),
@@ -88,27 +102,46 @@ function showFailure(message) {
   status.textContent = `Failed after ${elapsedSeconds()} s — ${message}`;
 }
 
-worker.addEventListener("message", ({ data }) => {
-  if (data.type === "ready") {
-    workerReady = true;
-    run.disabled = false;
-    status.textContent = "Ready. Choose an image.";
-  } else if (data.type === "phase") {
-    showWorking(data.message);
-  } else if (data.type === "result") {
-    showOutput(data.output);
-  } else if (data.type === "error") {
-    showFailure(data.message);
-  }
-});
-
-worker.addEventListener("error", (error) => {
+function startWorker() {
+  worker?.terminate();
   workerReady = false;
-  showFailure(`background vectorizer crashed: ${error.message}`);
-});
+  run.disabled = true;
+  worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
+  worker.addEventListener("message", ({ data }) => {
+    if (data.type === "ready") {
+      workerReady = true;
+      run.disabled = workerBusy;
+      status.textContent = nextReadyMessage;
+      nextReadyMessage = "Ready. Choose an image.";
+    } else if (data.type === "phase") {
+      showWorking(data.message);
+    } else if (data.type === "result") {
+      showOutput(data.output);
+    } else if (data.type === "error") {
+      showFailure(data.message);
+    }
+  });
+  worker.addEventListener("error", (error) => {
+    workerReady = false;
+    showFailure(`background vectorizer crashed: ${error.message}`);
+  });
+}
+
+function armWatchdog() {
+  clearTimeout(watchdogTimer);
+  watchdogTimer = setTimeout(() => {
+    if (!workerBusy) return;
+    workerReady = false;
+    worker.terminate();
+    showFailure("stopped by the 15 s safety limit; no more multi-minute hangs");
+    nextReadyMessage = "Previous run was stopped at 15 s. Ready for another image.";
+    startWorker();
+  }, MAX_RUN_MS);
+}
 
 run.disabled = true;
 status.textContent = "Loading vectorizer…";
+startWorker();
 
 run.addEventListener("click", async () => {
   const file = input.files?.[0];
@@ -120,12 +153,11 @@ run.addEventListener("click", async () => {
 
   workerBusy = true;
   run.disabled = true;
-  result.hidden = true;
-  route.textContent = "";
-  report.textContent = "";
+  clearOutput();
   startedAt = performance.now();
   showWorking("Reading image");
   startTimer();
+  armWatchdog();
 
   try {
     const bytes = await file.arrayBuffer();

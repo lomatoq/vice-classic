@@ -9,8 +9,11 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 use vice_evidence::analysis::{analyze, Flat2Outcome, ANALYSIS_CONFIG_V1};
 use vice_image::{CanonicalImage, DecodeLimits};
+use web_time::Instant;
 
-use crate::{DecisionStatus, Intent, Preset, VectorizeOutcome, VectorizeRequest};
+use crate::{
+    DecisionStatus, Intent, Preset, ProductPerformanceTrace, VectorizeOutcome, VectorizeRequest,
+};
 
 pub const PRODUCT_REPORT_SCHEMA: &str = "vice-classic/product-vectorize-report/v1";
 pub const EXPERIMENTAL_MANIFEST_SCHEMA: &str = "vice-classic/experimental-artifact-manifest/v1";
@@ -130,12 +133,24 @@ pub struct ExperimentalArtifactManifest {
 pub fn classify_product_lane(bytes: &[u8]) -> Result<RouteDecision, String> {
     let image = CanonicalImage::decode(bytes, &DecodeLimits::default())
         .map_err(|error| format!("decode: {error}"))?;
-    classify_decoded(bytes, &image)
+    classify_decoded(
+        bytes,
+        &image,
+        false,
+        &mut ProductPerformanceTrace::default(),
+    )
 }
 
-fn classify_decoded(bytes: &[u8], image: &CanonicalImage) -> Result<RouteDecision, String> {
+fn classify_decoded(
+    bytes: &[u8],
+    image: &CanonicalImage,
+    cheap_multiregion_preview: bool,
+    performance: &mut ProductPerformanceTrace,
+) -> Result<RouteDecision, String> {
     let mut observations = Vec::new();
+    let flat2_started = Instant::now();
     let flat2 = analyze(image, &ANALYSIS_CONFIG_V1, None);
+    performance.route_flat2_probe_ms = perf_ms(flat2_started);
     if matches!(flat2.outcome, Flat2Outcome::Supported { .. }) {
         let chains = flat2
             .boundary
@@ -145,7 +160,12 @@ fn classify_decoded(bytes: &[u8], image: &CanonicalImage) -> Result<RouteDecisio
         // combinatorial M7 fitter on an arbitrary glyph inventory. Explicit
         // Flat2 mode remains available for operators who choose that cost.
         if chains <= AUTO_FLAT2_MAX_BOUNDARY_CHAINS {
-            if let Ok(inspection) = crate::inspect_m10_line_art(bytes) {
+            let line_art_started = Instant::now();
+            let line_art = crate::inspect_m10_line_art(bytes);
+            performance.route_line_art_probe_ms = performance
+                .route_line_art_probe_ms
+                .saturating_add(perf_ms(line_art_started));
+            if let Ok(inspection) = line_art {
                 let (stroke_first, detail) = line_art_route_signal(&inspection);
                 if stroke_first {
                     observations.push(observation(
@@ -192,14 +212,37 @@ fn classify_decoded(bytes: &[u8], image: &CanonicalImage) -> Result<RouteDecisio
         ));
     }
 
+    let multicolor_started = Instant::now();
     let dominant_share = dominant_opaque_color_share(image, 16);
+    performance.route_multicolor_probe_ms = perf_ms(multicolor_started);
 
     // Three or more stable palette modes plus concentrated authored colours
     // are the positive M8 signal. Check this before line-art so multicolour
     // logos are not mistaken for strokes, while smooth ramps remain eligible
     // for M11.
     if flat2.palette_modes >= 3 && dominant_share >= 0.85 {
-        match crate::propose_multiregion_seeds(bytes) {
+        if cheap_multiregion_preview {
+            observations.push(observation(
+                ProductLane::Multiregion,
+                true,
+                format!(
+                    "{} stable palette modes with {:.1}% concentrated authored colours; seed preparation is deferred to the bounded preview",
+                    flat2.palette_modes,
+                    dominant_share * 100.0
+                ),
+            ));
+            return Ok(RouteDecision {
+                selected_lane: ProductLane::Multiregion,
+                reason: "cheap multicolour flat-art preview evidence".into(),
+                observations,
+            });
+        }
+        let seed_started = Instant::now();
+        let proposed = crate::propose_multiregion_seeds(bytes);
+        performance.route_multicolor_probe_ms = performance
+            .route_multicolor_probe_ms
+            .saturating_add(perf_ms(seed_started));
+        match proposed {
             Ok(seeds) if !seeds.seeds.is_empty() => {
                 observations.push(observation(
                     ProductLane::Multiregion,
@@ -236,7 +279,10 @@ fn classify_decoded(bytes: &[u8], image: &CanonicalImage) -> Result<RouteDecisio
         .chunks_exact(4)
         .all(|pixel| pixel[3] == 255);
     if source_is_opaque && dominant_share < 0.85 {
-        match crate::classify_m11_gradient(bytes) {
+        let gradient_started = Instant::now();
+        let classified_gradient = crate::classify_m11_gradient(bytes);
+        performance.route_gradient_probe_ms = perf_ms(gradient_started);
+        match classified_gradient {
             Ok(classified)
                 if !matches!(classified.report.decision, crate::M11GradientKind::Solid)
                     && classified.report.margin_bits > 0.0 =>
@@ -280,7 +326,12 @@ fn classify_decoded(bytes: &[u8], image: &CanonicalImage) -> Result<RouteDecisio
         ));
     }
 
-    match crate::inspect_m10_line_art(bytes) {
+    let line_art_started = Instant::now();
+    let inspected_line_art = crate::inspect_m10_line_art(bytes);
+    performance.route_line_art_probe_ms = performance
+        .route_line_art_probe_ms
+        .saturating_add(perf_ms(line_art_started));
+    match inspected_line_art {
         Ok(inspection) => {
             let (stroke_first, detail) = line_art_route_signal(&inspection);
             if stroke_first {
@@ -300,7 +351,12 @@ fn classify_decoded(bytes: &[u8], image: &CanonicalImage) -> Result<RouteDecisio
         )),
     }
 
-    match crate::propose_multiregion_seeds(bytes) {
+    let seed_started = Instant::now();
+    let proposed = crate::propose_multiregion_seeds(bytes);
+    performance.route_multicolor_probe_ms = performance
+        .route_multicolor_probe_ms
+        .saturating_add(perf_ms(seed_started));
+    match proposed {
         Ok(seeds) if !seeds.seeds.is_empty() => {
             observations.push(observation(
                 ProductLane::Multiregion,
@@ -393,6 +449,7 @@ fn dominant_opaque_color_share(image: &CanonicalImage, limit: usize) -> f64 {
 }
 
 pub fn vectorize_product(bytes: &[u8], request: &ProductRequest) -> ProductResult {
+    let decode_started = Instant::now();
     let image = match CanonicalImage::decode(bytes, &DecodeLimits::default()) {
         Ok(image) => image,
         Err(error) => {
@@ -418,8 +475,17 @@ pub fn vectorize_product(bytes: &[u8], request: &ProductRequest) -> ProductResul
             );
         }
     };
+    let mut performance = ProductPerformanceTrace {
+        decode_ms: perf_ms(decode_started),
+        ..ProductPerformanceTrace::default()
+    };
     let route = match request.mode {
-        ProductMode::Auto => match classify_decoded(bytes, &image) {
+        ProductMode::Auto => match classify_decoded(
+            bytes,
+            &image,
+            request.experimental_artifacts && !request.strict,
+            &mut performance,
+        ) {
             Ok(route) => route,
             Err(error) => {
                 return failed_result(request, ProductLane::None, "route inspection failed", error)
@@ -432,7 +498,7 @@ pub fn vectorize_product(bytes: &[u8], request: &ProductRequest) -> ProductResul
     };
     match route.selected_lane {
         ProductLane::Flat2 => execute_flat2(bytes, request, route),
-        ProductLane::Multiregion => execute_multiregion(bytes, request, route),
+        ProductLane::Multiregion => execute_multiregion(bytes, &image, request, route, performance),
         ProductLane::LineArt => execute_line_art(bytes, request, route),
         ProductLane::Gradient => execute_gradient(bytes, request, route),
         ProductLane::None => finish(
@@ -557,9 +623,49 @@ fn product_from_flat2_with_route(
 
 fn execute_multiregion(
     bytes: &[u8],
+    image: &CanonicalImage,
     request: &ProductRequest,
     route: RouteDecision,
+    performance: ProductPerformanceTrace,
 ) -> ProductResult {
+    if request.experimental_artifacts && !request.strict {
+        let preview_cfg = match request.preset {
+            Preset::Fast => crate::M8PreviewConfig::fast(),
+            Preset::Quality => crate::M8PreviewConfig::quality(),
+        };
+        let preview = match crate::preview_multiregion(image, preview_cfg, performance) {
+            Ok(preview) => preview,
+            Err(error) => {
+                return unsupported_result(
+                    request,
+                    route,
+                    format!("M8 bounded preview refused: {error}"),
+                )
+            }
+        };
+        let mut artifacts = ProductArtifacts {
+            result_svg: Some(preview.result_svg),
+            pure_partition_svg: Some(preview.pure_svg),
+            scene_json: Some(preview.scene_json),
+            export_plan_json: Some(preview.plan_json),
+            render_png: partition_png(&preview.proxy_render).ok(),
+            ..ProductArtifacts::default()
+        };
+        let lane_report = serde_json::json!({
+            "preview": preview.report,
+            "exact": null,
+            "delivery": "lightweight_experimental_no_release_seal",
+        });
+        let has_artifact = artifacts.result_svg.is_some() || artifacts.render_png.is_some();
+        return experimental_lane_result(
+            request,
+            route,
+            lane_report,
+            std::mem::take(&mut artifacts),
+            has_artifact,
+            "M8 bounded preview: one proxy, one seed, zero exact refinement trials; non-production",
+        );
+    }
     let exact_cfg = crate::M8ExactConfig::default();
     let solved = match crate::solve_multiregion_exact(bytes, &exact_cfg) {
         Ok(solved) => solved,
@@ -609,6 +715,10 @@ fn execute_multiregion(
         has_artifact,
         "M8 candidate is available only as an explicitly non-production artifact on this routed surface",
     )
+}
+
+fn perf_ms(started: Instant) -> u64 {
+    started.elapsed().as_millis().try_into().unwrap_or(u64::MAX)
 }
 
 fn execute_line_art(bytes: &[u8], request: &ProductRequest, route: RouteDecision) -> ProductResult {
@@ -912,6 +1022,38 @@ mod tests {
         });
         let route = classify_product_lane(&bytes).unwrap();
         assert_eq!(route.selected_lane, ProductLane::Multiregion);
+    }
+
+    #[test]
+    fn experimental_multiregion_uses_one_bounded_preview_candidate() {
+        let bytes = png(256, 170, |x, _| match x / 86 {
+            0 => [230, 20, 20, 255],
+            1 => [20, 220, 30, 255],
+            _ => [20, 40, 230, 255],
+        });
+        let result = vectorize_product(
+            &bytes,
+            &ProductRequest {
+                mode: ProductMode::Auto,
+                preset: Preset::Fast,
+                experimental_artifacts: true,
+                ..ProductRequest::default()
+            },
+        );
+        assert_eq!(result.report.selected_lane, ProductLane::Multiregion);
+        assert_eq!(result.report.status, DecisionStatus::Ambiguous);
+        assert!(!result.report.production);
+        assert!(result.report.experimental_artifacts);
+        let preview = &result.report.lane_report["preview"];
+        assert_eq!(preview["performance"]["base_candidate_count"], 1);
+        assert_eq!(preview["performance"]["exact_candidate_count"], 0);
+        assert_eq!(preview["performance"]["vertex_trial_count"], 0);
+        assert!(result
+            .artifacts
+            .result_svg
+            .as_ref()
+            .is_some_and(|bytes| !bytes.is_empty()));
+        assert!(result.artifacts.seal_json.is_none());
     }
 
     #[test]

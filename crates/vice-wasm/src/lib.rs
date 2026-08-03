@@ -200,6 +200,8 @@ mod tests {
         assert!(app.contains("selected_lane"));
         assert!(app.contains("experimental_artifacts"));
         assert!(app.contains("new Worker"));
+        assert!(app.contains("MAX_RUN_MS"));
+        assert!(app.contains("worker.terminate()"));
         let worker = std::fs::read_to_string(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web/worker.js"),
         )

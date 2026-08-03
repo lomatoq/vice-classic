@@ -43,6 +43,12 @@ pub use delivery::{
     M8ProductionDeliveryGates, M8ProductionPolicy, M8TrustedProductionPolicy, M8_DELIVERY_SCHEMA,
     M8_PRODUCTION_POLICY_SCHEMA,
 };
+#[path = "m8/preview.rs"]
+mod preview;
+pub use preview::{
+    preview_multiregion, M8PreviewArtifacts, M8PreviewConfig, M8PreviewError, M8PreviewGeometry,
+    M8PreviewReport, ProductPerformanceTrace, M8_PREVIEW_SCHEMA,
+};
 
 pub const M8_SEED_SCHEMA: &str = "vice-classic/m8-seed-report/v1";
 const TRANSPARENT_LABEL: u16 = u16::MAX;
@@ -102,6 +108,20 @@ fn propose_from_image(
     image: &CanonicalImage,
     paint_cfg: &MultiregionPaintConfig,
 ) -> Result<MultiregionSeedReport, MultiregionSeedError> {
+    propose_from_image_config(
+        image,
+        paint_cfg,
+        &MULTICOLOR_CONFIG_V1,
+        &[BlendSpace::LinearLight, BlendSpace::EncodedSrgb],
+    )
+}
+
+pub(crate) fn propose_from_image_config(
+    image: &CanonicalImage,
+    paint_cfg: &MultiregionPaintConfig,
+    multicolor_cfg: &vice_evidence::MulticolorConfig,
+    blend_spaces: &[BlendSpace],
+) -> Result<MultiregionSeedReport, MultiregionSeedError> {
     let linear = ObservationTensor::of(image, BlendSpace::LinearLight);
     let interior = interior_confidence(&linear, &INTERIOR_CONFIG_V1);
     let border = border_indices(linear.width_px() as usize, linear.height_px() as usize);
@@ -110,7 +130,7 @@ fn propose_from_image(
         &interior,
         &border,
         &PALETTE_CONFIG_V1,
-        &MULTICOLOR_CONFIG_V1,
+        multicolor_cfg,
     );
     if let Some(refusal) = palettes.refusal {
         return Err(MultiregionSeedError::Palette(refusal));
@@ -133,7 +153,7 @@ fn propose_from_image(
             )?;
             let rag = RegionAdjacencyGraph::build(&labelling)?;
             let dcel = MulticolorDcel::assemble(&labelling)?;
-            for blend_space in [BlendSpace::LinearLight, BlendSpace::EncodedSrgb] {
+            for &blend_space in blend_spaces {
                 let observation = ObservationTensor::of(image, blend_space);
                 let proposal_partition = one_hot_partition(&rag);
                 let transparent = Some(FaceId(

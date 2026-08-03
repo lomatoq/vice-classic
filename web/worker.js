@@ -12,7 +12,7 @@ try {
 
 self.addEventListener("message", ({ data }) => {
   if (data.type !== "vectorize") return;
-  self.postMessage({ type: "phase", message: "Routing and vectorizing" });
+  self.postMessage({ type: "phase", message: "Routing and building bounded preview" });
   try {
     const output = vectorize_product(
       new Uint8Array(data.bytes),
