@@ -322,7 +322,7 @@ jobs:
         run: |
           rustup show
           rustup target add wasm32-unknown-unknown
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.85.5
         with:
           tool: wasm-pack@0.13.1
       - name: Native product adapters
