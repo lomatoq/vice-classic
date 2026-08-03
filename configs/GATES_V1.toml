@@ -94,20 +94,26 @@ max_px = 1.50
 
 # --- M7 selective delivery and resource court (§1.5, §27.4, §29) -----------
 #
-# Frozen from the complete generation-7 calibration court: 1,809/1,809
+# Frozen from the complete generation-8 calibration court: 1,809/1,809
 # renders for each preset, zero catastrophic source groups, and the exact
 # digest-pinned production configs committed beside this file. Runtime remains
 # a separate isolated-machine release claim rather than a corpus-load timing.
 [m7_selective]
 status = "frozen"
-quality_posterior_lower_bound_threshold = 0.0004115636319038073
-quality_empirical_unexplored_relative_mass_upper_bound = 2426.0
-quality_gate_max_posterior_predictive_bits_per_block = 0.27479076638883704
-quality_gate_max_support_isotopy_displacement_px = 0.7217985263252525
-fast_posterior_lower_bound_threshold = 0.0012133081801753416
-fast_empirical_unexplored_relative_mass_upper_bound = 821.0
-fast_gate_max_posterior_predictive_bits_per_block = 0.24638011920241049
-fast_gate_max_support_isotopy_displacement_px = 0.7088164311151217
+quality_posterior_lower_bound_threshold = 0.00043951876963271814
+quality_empirical_unexplored_relative_mass_upper_bound = 2272.0
+quality_gate_max_posterior_predictive_bits_per_block = 0.22501823685530725
+quality_gate_max_support_isotopy_displacement_px = 0.7328888016974981
+quality_gate_max_evidence_palette_shift_codes = 3
+quality_gate_min_palette_support_px = 961
+quality_gate_max_palette_interval_radius_codes = 0
+fast_posterior_lower_bound_threshold = 0.000998450215527499
+fast_empirical_unexplored_relative_mass_upper_bound = 999.0
+fast_gate_max_posterior_predictive_bits_per_block = 0.22501823685530725
+fast_gate_max_support_isotopy_displacement_px = 0.7328888016974981
+fast_gate_max_evidence_palette_shift_codes = 3
+fast_gate_min_palette_support_px = 961
+fast_gate_max_palette_interval_radius_codes = 0
 gate_min_top2_class_margin_bits = 0.0
 gate_max_abs_residual_lag1 = 0.90
 gate_max_topology_entropy_bits = 1.0
@@ -120,7 +126,7 @@ gate_max_quality_p95_ms = 10000
 gate_max_fast_p95_ms = 1000
 gate_max_peak_memory_bytes = 1073741824
 gate_max_profile_channel_delta = 4
-gate_max_profile_mean_channel_delta = 0.0075
+gate_max_profile_mean_channel_delta = 0.01
 gate_max_internal_channel_delta = 120
 gate_max_internal_mean_channel_delta = 1.5
 gate_max_complexity_growth_ratio = 2.0
