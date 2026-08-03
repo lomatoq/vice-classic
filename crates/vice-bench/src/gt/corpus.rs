@@ -30,6 +30,11 @@ pub const PROCEDURAL_VARIANTS: usize = 4;
 pub const M7_SUCCESSOR_PROCEDURAL_VARIANTS: usize = 200;
 pub const M7_SUCCESSOR_POPULATION_POLICY: &str =
     "vice-classic/m7-population/generation-bound-procedural-flat2-only/v2";
+/// Compiled trust anchor for the generation-8 successor population recorded
+/// in `docs/gt/CORPUS_MANIFEST.json`.  Sealed M7 reports carry this value and
+/// every court independently compares it before looking at any measurement.
+pub const M7_SUCCESSOR_POPULATION_COMMITMENT_SHA256: &str =
+    "31b6f625a774d34ef9fbc6c2da82af06e0619e3c5cbb61673f1f006f0ba63a7a";
 
 /// Whole shape families in the frozen split that exercise the M7 Flat2
 /// contract. `shared_edge` requires differently painted interior faces and

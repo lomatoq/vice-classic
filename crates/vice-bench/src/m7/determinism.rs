@@ -5,9 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use super::{MeasurementReport, MeasurementRow, M7_MEASUREMENT_SCHEMA};
+use super::{M7RunRole, MeasurementReport, MeasurementRow};
 
-pub const M7_DETERMINISM_SCHEMA: &str = "vice-classic/m7-determinism/v2";
+pub const M7_DETERMINISM_SCHEMA: &str = "vice-classic/m7-determinism/v3";
 
 #[derive(Debug, Clone)]
 pub struct DeterminismInput {
@@ -24,6 +24,8 @@ pub struct DeterminismRun {
     pub workers: u32,
     pub normalized_decision_and_artifact_sha256: String,
     pub rows: u64,
+    pub role: M7RunRole,
+    pub run_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -39,24 +41,62 @@ pub struct PresetDeterminism {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DeterminismVerdict {
     pub schema: &'static str,
+    pub release_commit_sha: String,
+    pub runner_attestation_sha256: String,
+    pub corpus_sha256: String,
+    pub population_commitment_sha256: String,
     pub presets: Vec<PresetDeterminism>,
     pub gate_met: bool,
     pub refusals: Vec<String>,
 }
 
 pub fn analyze(inputs: Vec<DeterminismInput>) -> Result<DeterminismVerdict, String> {
-    if inputs.is_empty() {
-        return Err("M7 determinism requires repeated reports".into());
+    const ROLES: [M7RunRole; 6] = [
+        M7RunRole::FastParallel,
+        M7RunRole::FastPrimary,
+        M7RunRole::FastRepeat,
+        M7RunRole::QualityParallel,
+        M7RunRole::QualityPrimary,
+        M7RunRole::QualityRepeat,
+    ];
+    if inputs.len() != ROLES.len() {
+        return Err("typed_refusal: determinism requires exactly six typed run roles".into());
     }
     let mut grouped = BTreeMap::<String, Vec<DeterminismInput>>::new();
+    let mut roles = BTreeSet::new();
+    let mut run_ids = BTreeSet::new();
+    let mut raw_hashes = BTreeSet::new();
+    let mut evidence_hashes = BTreeSet::new();
+    let mut governance = None;
     for input in inputs {
         let report = &input.report;
-        if report.schema != M7_MEASUREMENT_SCHEMA || !report.complete {
-            return Err(format!(
-                "{} is not a complete current M7 report",
-                input.label
-            ));
+        super::validate_sealed_population(report)?;
+        super::validate_execution_attestation(report)?;
+        let attestation = report.execution_attestation.as_ref().expect("validated");
+        let context = &attestation.context;
+        if !roles.insert(context.role)
+            || !run_ids.insert(context.run_id.clone())
+            || !raw_hashes.insert(input.raw_sha256.clone())
+            || !evidence_hashes.insert(attestation.evidence_commitment_sha256.clone())
+        {
+            return Err(
+                "typed_refusal: determinism roles, executions, and raw evidence must be distinct"
+                    .into(),
+            );
         }
+        let this_governance = (
+            context.candidate_commit_sha.clone(),
+            context.runner_attestation_sha256.clone(),
+            context.corpus_sha256.clone(),
+            context.population_commitment_sha256.clone(),
+        );
+        if governance
+            .as_ref()
+            .is_some_and(|expected| expected != &this_governance)
+        {
+            return Err("typed_refusal: determinism inputs mix governance contexts".into());
+        }
+        governance = Some(this_governance);
         let key = format!(
             "{:?}|{}|{}|{}|{}|{}|{}",
             report.preset,
@@ -69,19 +109,31 @@ pub fn analyze(inputs: Vec<DeterminismInput>) -> Result<DeterminismVerdict, Stri
         );
         grouped.entry(key).or_default().push(input);
     }
+    if roles != ROLES.into_iter().collect() {
+        return Err("typed_refusal: determinism roles are missing or swapped".into());
+    }
     let mut presets = Vec::new();
     let mut refusals = Vec::new();
     for group in grouped.into_values() {
         let preset = group[0].report.preset;
         let runs = group
             .into_iter()
-            .map(|input| DeterminismRun {
-                workers: input.report.max_workers_per_shard,
-                normalized_decision_and_artifact_sha256: normalized_digest(&input.report),
-                canonical_report_sha256: super::report_content_sha256(&input.report),
-                rows: input.report.renders,
-                label: input.label,
-                raw_sha256: input.raw_sha256,
+            .map(|input| {
+                let execution = input
+                    .report
+                    .execution_attestation
+                    .as_ref()
+                    .expect("validated");
+                DeterminismRun {
+                    workers: input.report.max_workers_per_shard,
+                    normalized_decision_and_artifact_sha256: normalized_digest(&input.report),
+                    canonical_report_sha256: super::report_content_sha256(&input.report),
+                    rows: input.report.renders,
+                    role: execution.context.role,
+                    run_id: execution.context.run_id.clone(),
+                    label: input.label,
+                    raw_sha256: input.raw_sha256,
+                }
             })
             .collect::<Vec<_>>();
         let isolated_repeats = runs.iter().filter(|run| run.workers == 1).count() as u64;
@@ -91,7 +143,23 @@ pub fn analyze(inputs: Vec<DeterminismInput>) -> Result<DeterminismVerdict, Stri
             .map(|run| run.normalized_decision_and_artifact_sha256.as_str())
             .collect::<BTreeSet<_>>();
         let all_normalized_bytes_equal = digests.len() == 1;
-        let gate_met = isolated_repeats >= 2 && parallel_runs >= 1 && all_normalized_bytes_equal;
+        let expected_roles = match preset {
+            vice_core::Preset::Fast => [
+                M7RunRole::FastParallel,
+                M7RunRole::FastPrimary,
+                M7RunRole::FastRepeat,
+            ],
+            vice_core::Preset::Quality => [
+                M7RunRole::QualityParallel,
+                M7RunRole::QualityPrimary,
+                M7RunRole::QualityRepeat,
+            ],
+        };
+        let run_roles = runs.iter().map(|run| run.role).collect::<BTreeSet<_>>();
+        let gate_met = isolated_repeats == 2
+            && parallel_runs == 1
+            && run_roles == expected_roles.into_iter().collect()
+            && all_normalized_bytes_equal;
         if !gate_met {
             refusals.push(format!(
                 "{preset:?}: need two isolated repeats, one parallel run, and one normalized digest"
@@ -115,8 +183,18 @@ pub fn analyze(inputs: Vec<DeterminismInput>) -> Result<DeterminismVerdict, Stri
             refusals.push(format!("{preset:?}: no determinism population"));
         }
     }
+    let (
+        release_commit_sha,
+        runner_attestation_sha256,
+        corpus_sha256,
+        population_commitment_sha256,
+    ) = governance.expect("six validated inputs establish governance");
     Ok(DeterminismVerdict {
         schema: M7_DETERMINISM_SCHEMA,
+        release_commit_sha,
+        runner_attestation_sha256,
+        corpus_sha256,
+        population_commitment_sha256,
         gate_met: refusals.is_empty(),
         presets,
         refusals,
@@ -194,7 +272,7 @@ pub fn normalized_digest(report: &MeasurementReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::m7::tests::synthetic_report;
+    use crate::m7::tests::{sealed_report, synthetic_report};
 
     #[test]
     fn raw_hashes_are_not_used_as_the_determinism_verdict() {
@@ -231,5 +309,44 @@ mod tests {
             normalized_digest(&original),
             normalized_digest(&artifact_changed)
         );
+    }
+
+    #[test]
+    fn determinism_requires_six_distinct_typed_executions() {
+        let roles = [
+            M7RunRole::FastParallel,
+            M7RunRole::FastPrimary,
+            M7RunRole::FastRepeat,
+            M7RunRole::QualityParallel,
+            M7RunRole::QualityPrimary,
+            M7RunRole::QualityRepeat,
+        ];
+        let inputs = roles
+            .into_iter()
+            .enumerate()
+            .map(|(index, role)| DeterminismInput {
+                label: format!("{role:?}"),
+                raw_sha256: format!("{:064x}", index + 1),
+                report: sealed_report(role, char::from(b'a' + index as u8)),
+            })
+            .collect::<Vec<_>>();
+        assert!(analyze(inputs.clone()).unwrap().gate_met);
+
+        let mut duplicated = inputs;
+        let duplicate_run_id = duplicated[0]
+            .report
+            .execution_attestation
+            .as_ref()
+            .unwrap()
+            .context
+            .run_id
+            .clone();
+        let attestation = duplicated[1].report.execution_attestation.as_ref().unwrap();
+        let mut context = attestation.context.clone();
+        let evidence = attestation.evidence_commitment_sha256.clone();
+        context.run_id = duplicate_run_id;
+        crate::m7::attach_execution_attestation(&mut duplicated[1].report, context, evidence)
+            .unwrap();
+        assert!(analyze(duplicated).is_err());
     }
 }

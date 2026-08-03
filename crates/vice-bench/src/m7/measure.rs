@@ -24,6 +24,7 @@ struct MeasurementJournalHeader {
     preset: Preset,
     procedural_generation: u32,
     population_policy: String,
+    population_commitment_sha256: String,
     procedural_variants_per_family: usize,
     mandatory_sizes_px: Vec<u32>,
     rasterizers: Vec<String>,
@@ -32,6 +33,7 @@ struct MeasurementJournalHeader {
     confidence_calibration: Option<vice_core::ConfidenceCalibration>,
     shard_index: u32,
     shard_count: u32,
+    execution: Option<MeasurementExecutionContext>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -72,7 +74,7 @@ pub fn measure_to_path_with_config(
     out: &Path,
     resume: bool,
 ) -> Result<MeasurementReport, String> {
-    let request = request.validate()?;
+    request.validate()?;
     let journal = journal_path(out);
     if !resume && (out.exists() || journal.exists()) {
         return Err(format!(
@@ -81,7 +83,7 @@ pub fn measure_to_path_with_config(
         ));
     }
 
-    let expected_header = journal_header(request, config)?;
+    let expected_header = journal_header(&request, config)?;
     let mut rows = Vec::new();
     let mut previous_elapsed_ms = 0;
     let mut previous_runs = 0;
@@ -89,7 +91,7 @@ pub fn measure_to_path_with_config(
     let mut previous_peak_working_set_bytes = 0;
     if resume && out.exists() {
         let previous = read_report(out)?;
-        validate_report_header(&previous, request, &expected_header)?;
+        validate_report_header(&previous, &request, &expected_header)?;
         previous_elapsed_ms = previous.elapsed_ms;
         previous_runs = previous.runs;
         previous_max_workers = previous.max_workers_per_shard;
@@ -126,8 +128,8 @@ pub fn measure_to_path_with_config(
             },
         )?;
     }
-    let report = measure_resuming(
-        request,
+    let mut report = measure_resuming(
+        request.clone(),
         config,
         ResumeState {
             rows,
@@ -148,6 +150,11 @@ pub fn measure_to_path_with_config(
     writer
         .flush()
         .map_err(|error| format!("flush checkpoint {}: {error}", journal.display()))?;
+    if let Some(context) = request.execution.clone() {
+        let bytes = std::fs::read(&journal)
+            .map_err(|error| format!("read checkpoint {}: {error}", journal.display()))?;
+        attach_execution_attestation(&mut report, context, hex::encode(Sha256::digest(bytes)))?;
+    }
     write_report(out, &report)?;
     Ok(report)
 }
@@ -174,7 +181,7 @@ fn measure_resuming(
         previous_max_workers,
         previous_peak_working_set_bytes,
     } = resume;
-    let request = request.validate()?;
+    request.validate()?;
     let started = Instant::now();
     let peak_memory = PeakWorkingSetMonitor::start()?;
     let scope = request.scope;
@@ -336,13 +343,14 @@ fn measure_resuming(
         .filter(|row| row.search_truncated == Some(true))
         .count() as u64;
     let peak_working_set_bytes = previous_peak_working_set_bytes.max(peak_memory.finish());
-    Ok(MeasurementReport {
+    let mut report = MeasurementReport {
         schema: M7_MEASUREMENT_SCHEMA.to_string(),
         scope: scope.as_str().to_string(),
         split: split.as_str().to_string(),
         preset,
         procedural_generation: M7_PROCEDURAL_GENERATION,
         population_policy: scope.population_policy().to_string(),
+        population_commitment_sha256: population_commitment(scope),
         procedural_variants_per_family: scope.variants(),
         mandatory_sizes_px: {
             let mut sizes = cells.iter().map(|cell| cell.size_px).collect::<Vec<_>>();
@@ -378,7 +386,13 @@ fn measure_resuming(
         elapsed_ms: previous_elapsed_ms
             .saturating_add(started.elapsed().as_millis().try_into().unwrap_or(u64::MAX)),
         peak_working_set_bytes,
-    })
+        execution_attestation: None,
+    };
+    if let Some(context) = request.execution {
+        let evidence = rows_commitment_sha256(&report);
+        attach_execution_attestation(&mut report, context, evidence)?;
+    }
+    Ok(report)
 }
 
 struct PeakWorkingSetMonitor {
@@ -462,7 +476,7 @@ pub(super) fn preset_for_scope(scope: MeasurementScope) -> Preset {
 }
 
 fn journal_header(
-    request: MeasurementRequest,
+    request: &MeasurementRequest,
     config: &CoreConfig,
 ) -> Result<MeasurementJournalHeader, String> {
     let cells = request
@@ -490,6 +504,7 @@ fn journal_header(
         preset: request.preset,
         procedural_generation: M7_PROCEDURAL_GENERATION,
         population_policy: request.scope.population_policy().to_string(),
+        population_commitment_sha256: population_commitment(request.scope),
         procedural_variants_per_family: request.scope.variants(),
         mandatory_sizes_px: sizes,
         rasterizers,
@@ -498,12 +513,13 @@ fn journal_header(
         confidence_calibration: config.confidence.clone(),
         shard_index: request.shard_index,
         shard_count: request.shard_count,
+        execution: request.execution.clone(),
     })
 }
 
 fn validate_report_header(
     report: &MeasurementReport,
-    request: MeasurementRequest,
+    request: &MeasurementRequest,
     expected: &MeasurementJournalHeader,
 ) -> Result<(), String> {
     let matches = report.schema == expected.schema
@@ -512,6 +528,7 @@ fn validate_report_header(
         && report.preset == expected.preset
         && report.procedural_generation == expected.procedural_generation
         && report.population_policy == expected.population_policy
+        && report.population_commitment_sha256 == expected.population_commitment_sha256
         && report.procedural_variants_per_family == expected.procedural_variants_per_family
         && report.mandatory_sizes_px == expected.mandatory_sizes_px
         && report.rasterizers == expected.rasterizers
@@ -519,12 +536,36 @@ fn validate_report_header(
         && report.delivery_policy_sha256 == expected.delivery_policy_sha256
         && report.confidence_calibration == expected.confidence_calibration
         && report.included_shards == [request.shard_index]
-        && report.shard_count == request.shard_count;
+        && report.shard_count == request.shard_count
+        && report
+            .execution_attestation
+            .as_ref()
+            .map(|attestation| &attestation.context)
+            == expected.execution.as_ref();
     if matches {
         Ok(())
     } else {
         Err("existing M7 report belongs to a different identity, scope, cell set, or shard".into())
     }
+}
+
+fn population_commitment(scope: MeasurementScope) -> String {
+    if scope == MeasurementScope::SealedAudit {
+        return M7_SUCCESSOR_POPULATION_COMMITMENT_SHA256.into();
+    }
+    let bytes = serde_json::to_vec(&(
+        scope.as_str(),
+        scope.population_policy(),
+        M7_PROCEDURAL_GENERATION,
+        scope.variants(),
+        scope
+            .cells()
+            .iter()
+            .map(DegradationCell::id)
+            .collect::<Vec<_>>(),
+    ))
+    .expect("M7 development population serializes");
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn journal_path(out: &Path) -> PathBuf {
@@ -597,6 +638,7 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
             && report.preset == first.preset
             && report.procedural_generation == first.procedural_generation
             && report.population_policy == first.population_policy
+            && report.population_commitment_sha256 == first.population_commitment_sha256
             && report.procedural_variants_per_family == first.procedural_variants_per_family
             && report.mandatory_sizes_px == first.mandatory_sizes_px
             && report.rasterizers == first.rasterizers
@@ -604,6 +646,14 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
             && report.delivery_policy_sha256 == first.delivery_policy_sha256
             && report.confidence_calibration == first.confidence_calibration
             && report.shard_count == first.shard_count
+            && report
+                .execution_attestation
+                .as_ref()
+                .map(|attestation| &attestation.context)
+                == first
+                    .execution_attestation
+                    .as_ref()
+                    .map(|attestation| &attestation.context)
     };
     if reports.iter().any(|report| !compatible(report)) {
         return Err(
@@ -622,7 +672,19 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
     let mut elapsed_ms = 0u64;
     let mut peak_working_set_bytes = 0u64;
     let mut inputs_complete = true;
+    let mut input_report_hashes = Vec::new();
     for report in reports {
+        if report.execution_attestation.is_some() {
+            validate_execution_attestation(&report)?;
+            input_report_hashes.push(
+                report
+                    .execution_attestation
+                    .as_ref()
+                    .expect("checked")
+                    .report_sha256
+                    .clone(),
+            );
+        }
         for shard in report.included_shards {
             if !included_shards.insert(shard) {
                 return Err(format!("M7 merge includes shard {shard} more than once"));
@@ -655,13 +717,18 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
         .count() as u64;
     let all_shards_present = included_shards.len() == first.shard_count as usize
         && included_shards.iter().copied().eq(0..first.shard_count);
-    Ok(MeasurementReport {
+    let execution_context = first
+        .execution_attestation
+        .as_ref()
+        .map(|attestation| attestation.context.clone());
+    let mut merged = MeasurementReport {
         schema: first.schema.clone(),
         scope: first.scope.clone(),
         split: first.split.clone(),
         preset: first.preset,
         procedural_generation: first.procedural_generation,
         population_policy: first.population_policy.clone(),
+        population_commitment_sha256: first.population_commitment_sha256.clone(),
         procedural_variants_per_family: first.procedural_variants_per_family,
         mandatory_sizes_px: first.mandatory_sizes_px.clone(),
         rasterizers: first.rasterizers.clone(),
@@ -682,5 +749,14 @@ pub fn merge_reports(reports: Vec<MeasurementReport>) -> Result<MeasurementRepor
         truncated_renders,
         elapsed_ms,
         peak_working_set_bytes,
-    })
+        execution_attestation: None,
+    };
+    if let Some(context) = execution_context {
+        input_report_hashes.sort();
+        let evidence = hex::encode(Sha256::digest(
+            serde_json::to_vec(&input_report_hashes).expect("input commitments serialize"),
+        ));
+        attach_execution_attestation(&mut merged, context, evidence)?;
+    }
+    Ok(merged)
 }

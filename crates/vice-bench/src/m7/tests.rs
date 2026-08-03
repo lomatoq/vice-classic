@@ -164,6 +164,7 @@ pub(super) fn synthetic_report(shard: u32, shard_count: u32) -> MeasurementRepor
         preset: Preset::Quality,
         procedural_generation: M7_PROCEDURAL_GENERATION,
         population_policy: M7_CALIBRATION_POPULATION_POLICY.into(),
+        population_commitment_sha256: "a".repeat(64),
         procedural_variants_per_family: M7_RELEASE_PROCEDURAL_VARIANTS,
         mandatory_sizes_px: M7_MANDATORY_SIZES.to_vec(),
         rasterizers: vec!["tiny-skia".into()],
@@ -189,7 +190,78 @@ pub(super) fn synthetic_report(shard: u32, shard_count: u32) -> MeasurementRepor
         truncated_renders: 0,
         elapsed_ms: 2,
         peak_working_set_bytes: 1024,
+        execution_attestation: None,
     }
+}
+
+pub(super) fn sealed_report(role: M7RunRole, evidence_digit: char) -> MeasurementReport {
+    let mut report = synthetic_report(0, 1);
+    report.scope = "sealed_audit".into();
+    report.split = "sealed_audit".into();
+    report.preset = role.preset();
+    report.population_policy = M7_SEALED_POPULATION_POLICY.into();
+    report.population_commitment_sha256 =
+        crate::gt::corpus::M7_SUCCESSOR_POPULATION_COMMITMENT_SHA256.into();
+    report.included_shards = vec![0];
+    report.shard_count = 1;
+    report.max_workers_per_shard = role.workers();
+    report.rows.clear();
+    for family in crate::gt::corpus::M7_SEALED_FLAT2_FAMILIES {
+        for variant in 0..M7_RELEASE_PROCEDURAL_VARIANTS {
+            let group_id = format!("proc/{family}/{variant:03}");
+            for cell in MeasurementScope::SealedAudit.cells() {
+                let mut row = synthetic_row(&group_id);
+                row.scene_id = format!("{group_id}#a");
+                row.cell_id = cell.id();
+                row.size_px = cell.size_px;
+                row.rasterizer = cell.profile.as_str().into();
+                report.rows.push(row);
+            }
+        }
+    }
+    report.source_groups = M7_SEALED_SOURCE_GROUPS;
+    report.renders = M7_SEALED_ROWS;
+    report.expected_renders_included_shards = M7_SEALED_ROWS;
+    report.complete = true;
+    let production_config_sha256 = match role.preset() {
+        Preset::Fast => vice_core::M7_FAST_PRODUCTION_CONFIG_SHA256,
+        Preset::Quality => vice_core::M7_QUALITY_PRODUCTION_CONFIG_SHA256,
+    };
+    attach_execution_attestation(
+        &mut report,
+        MeasurementExecutionContext {
+            schema: M7_EXECUTION_ATTESTATION_SCHEMA.into(),
+            role,
+            run_id: format!("m7-generation8-{role:?}"),
+            candidate_commit_sha: "1".repeat(40),
+            runner_attestation_sha256: "2".repeat(64),
+            production_config_sha256: production_config_sha256.into(),
+            corpus_sha256: "3".repeat(64),
+            population_commitment_sha256:
+                crate::gt::corpus::M7_SUCCESSOR_POPULATION_COMMITMENT_SHA256.into(),
+            workers: role.workers(),
+            shard_count: 1,
+        },
+        evidence_digit.to_string().repeat(64),
+    )
+    .unwrap();
+    report
+}
+
+#[test]
+fn sealed_population_and_execution_are_exact_and_tamper_evident() {
+    let report = sealed_report(M7RunRole::QualityPrimary, 'a');
+    validate_sealed_population(&report).unwrap();
+    validate_execution_attestation(&report).unwrap();
+
+    let mut missing = report.clone();
+    missing.rows.pop();
+    missing.renders -= 1;
+    assert!(validate_sealed_population(&missing).is_err());
+
+    let mut tampered = report;
+    tampered.rows[0].decision_status = "success".into();
+    assert!(validate_execution_attestation(&tampered).is_err());
 }
 
 #[test]

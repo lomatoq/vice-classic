@@ -16,7 +16,7 @@ use super::determinism::M7_DETERMINISM_SCHEMA;
 use super::oracle::M7_ORACLE_SCHEMA;
 use super::release::M7_RELEASE_VERDICT_SCHEMA;
 
-pub const M7_CANONICAL_ARTIFACT_SCHEMA: &str = "vice-classic/m7-canonical-artifact/v1";
+pub const M7_CANONICAL_ARTIFACT_SCHEMA: &str = "vice-classic/m7-canonical-artifact/v2";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ComponentDigest {
@@ -50,6 +50,7 @@ pub struct CanonicalArtifact {
     pub release_commit_sha: String,
     pub audit_generation: u64,
     pub corpus_sha256: String,
+    pub population_commitment_sha256: String,
     pub preregistration_sha256: String,
     pub gates_sha256: String,
     pub runner_attestation_sha256: String,
@@ -90,6 +91,8 @@ pub fn assemble(
     validate_git_oid("release_commit_sha", &release_commit_sha)?;
     let audit_generation = u64_field(&release.value, "audit_generation")?;
     let corpus_sha256 = string_field(&release.value, "corpus_sha256")?;
+    let population_commitment_sha256 =
+        string_field(&release.value, "population_commitment_sha256")?;
     let preregistration_sha256 = string_field(&release.value, "preregistration_sha256")?;
     let gates_sha256 = string_field(&release.value, "gates_sha256")?;
     let runner_attestation_sha256 = string_field(&release.value, "runner_attestation_sha256")?;
@@ -103,6 +106,10 @@ pub fn assemble(
     let geometry_measurement_sha256 = string_field(&release.value, "geometry_measurement_sha256")?;
     for (name, value) in [
         ("corpus_sha256", &corpus_sha256),
+        (
+            "population_commitment_sha256",
+            &population_commitment_sha256,
+        ),
         ("preregistration_sha256", &preregistration_sha256),
         ("gates_sha256", &gates_sha256),
         ("runner_attestation_sha256", &runner_attestation_sha256),
@@ -121,21 +128,28 @@ pub fn assemble(
     ] {
         validate_sha256_like(name, value)?;
     }
-    for component in [&baseline, &oracle] {
+    for component in [&baseline, &oracle, &determinism] {
         require_equal(component, "release_commit_sha", release_commit_sha.as_str())?;
-        require_equal(component, "audit_generation", Value::from(audit_generation))?;
         require_equal(component, "corpus_sha256", corpus_sha256.as_str())?;
+        require_equal(
+            component,
+            "population_commitment_sha256",
+            population_commitment_sha256.as_str(),
+        )?;
+        require_equal(
+            component,
+            "runner_attestation_sha256",
+            runner_attestation_sha256.as_str(),
+        )?;
+    }
+    for component in [&baseline, &oracle] {
+        require_equal(component, "audit_generation", Value::from(audit_generation))?;
         require_equal(
             component,
             "preregistration_sha256",
             preregistration_sha256.as_str(),
         )?;
         require_equal(component, "gates_sha256", gates_sha256.as_str())?;
-        require_equal(
-            component,
-            "runner_attestation_sha256",
-            runner_attestation_sha256.as_str(),
-        )?;
         require_equal(
             component,
             "gate_provenance_sha256",
@@ -200,6 +214,7 @@ pub fn assemble(
         release_commit_sha,
         audit_generation,
         corpus_sha256,
+        population_commitment_sha256,
         preregistration_sha256,
         gates_sha256,
         runner_attestation_sha256,
@@ -403,6 +418,7 @@ mod tests {
             "schema": schema,
             "audit_generation": 7,
             "corpus_sha256": "1".repeat(64),
+            "population_commitment_sha256": "0".repeat(64),
             "preregistration_sha256": "2".repeat(64),
             "gates_sha256": "3".repeat(64),
             "release_commit_sha": "4".repeat(40),
@@ -442,6 +458,10 @@ mod tests {
         let oracle = common(M7_ORACLE_SCHEMA);
         let determinism = json!({
             "schema": M7_DETERMINISM_SCHEMA,
+            "release_commit_sha": "4".repeat(40),
+            "runner_attestation_sha256": "5".repeat(64),
+            "corpus_sha256": "1".repeat(64),
+            "population_commitment_sha256": "0".repeat(64),
             "presets": [
                 {"preset": "quality", "runs": [{"canonical_report_sha256": "e".repeat(64)}]},
                 {"preset": "fast", "runs": [{"canonical_report_sha256": "f".repeat(64)}]}
@@ -487,6 +507,10 @@ mod tests {
         oracle["gates_sha256"] = Value::String("f".repeat(64));
         let determinism = json!({
             "schema": M7_DETERMINISM_SCHEMA,
+            "release_commit_sha": "4".repeat(40),
+            "runner_attestation_sha256": "5".repeat(64),
+            "corpus_sha256": "1".repeat(64),
+            "population_commitment_sha256": "0".repeat(64),
             "presets": [
                 {"preset": "quality", "runs": [{"canonical_report_sha256": "e".repeat(64)}]},
                 {"preset": "fast", "runs": [{"canonical_report_sha256": "f".repeat(64)}]}

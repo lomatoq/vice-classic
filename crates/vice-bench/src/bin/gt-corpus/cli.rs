@@ -96,6 +96,29 @@ impl From<M7PresetArg> for vice_core::Preset {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
+pub(super) enum M7RoleArg {
+    FastParallel,
+    FastPrimary,
+    FastRepeat,
+    QualityParallel,
+    QualityPrimary,
+    QualityRepeat,
+}
+
+impl From<M7RoleArg> for m7::M7RunRole {
+    fn from(value: M7RoleArg) -> Self {
+        match value {
+            M7RoleArg::FastParallel => Self::FastParallel,
+            M7RoleArg::FastPrimary => Self::FastPrimary,
+            M7RoleArg::FastRepeat => Self::FastRepeat,
+            M7RoleArg::QualityParallel => Self::QualityParallel,
+            M7RoleArg::QualityPrimary => Self::QualityPrimary,
+            M7RoleArg::QualityRepeat => Self::QualityRepeat,
+        }
+    }
+}
+
 impl From<M7ScopeArg> for MeasurementScope {
     fn from(value: M7ScopeArg) -> Self {
         match value {
@@ -335,6 +358,12 @@ pub(super) enum Cmd {
         production_config: PathBuf,
         #[arg(long, value_enum)]
         preset: M7PresetArg,
+        /// Typed logical execution role. All shards of one logical run use
+        /// the same role and run ID.
+        #[arg(long, value_enum)]
+        role: M7RoleArg,
+        #[arg(long)]
+        run_id: String,
         #[arg(long)]
         out: PathBuf,
         #[arg(long, default_value_t = 1)]
@@ -367,8 +396,26 @@ pub(super) enum Cmd {
     /// Prove decisions and selected artifact bytes agree across isolated
     /// repeats and supported worker counts for both presets.
     M7Determinism {
-        #[arg(long, required = true, num_args = 1..)]
-        inputs: Vec<PathBuf>,
+        #[command(flatten)]
+        governance: M7GovernanceArgs,
+        #[arg(long)]
+        audit_seal: PathBuf,
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long)]
+        gates: PathBuf,
+        #[arg(long)]
+        fast_parallel: PathBuf,
+        #[arg(long)]
+        fast_primary: PathBuf,
+        #[arg(long)]
+        fast_repeat: PathBuf,
+        #[arg(long)]
+        quality_parallel: PathBuf,
+        #[arg(long)]
+        quality_primary: PathBuf,
+        #[arg(long)]
+        quality_repeat: PathBuf,
         #[arg(long)]
         out: PathBuf,
     },

@@ -8,6 +8,7 @@
 use std::collections::BTreeSet;
 
 use serde::Serialize;
+use sha2::Digest;
 
 use super::{
     MeasurementReport, MeasurementRow, M7_CALIBRATION_POPULATION_POLICY, M7_MEASUREMENT_SCHEMA,
@@ -577,7 +578,45 @@ fn runtime_quantile(values: &[u64], quantile: f64) -> u64 {
 }
 
 fn calibration_measurement_digest(report: &MeasurementReport) -> String {
-    super::determinism::normalized_digest(report)
+    let mut value = serde_json::to_value(report).expect("M7 calibration evidence serializes");
+    let object = value
+        .as_object_mut()
+        .expect("M7 measurement report is an object");
+    // Scheduling and resource telemetry are deliberately outside the
+    // calibration evidence identity. Everything else remains: population,
+    // search/posterior certificates, delivery/paint observations, and GT
+    // judgements consumed by policy selection.
+    for field in [
+        "elapsed_ms",
+        "peak_working_set_bytes",
+        "resumed_rows",
+        "runs",
+        "max_workers_per_shard",
+        "execution_attestation",
+    ] {
+        object.remove(field);
+    }
+    if let Some(rows) = object
+        .get_mut("rows")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for row in rows {
+            let row = row
+                .as_object_mut()
+                .expect("M7 measurement row is an object");
+            for field in [
+                "core_runtime_ms",
+                "runtime_stages",
+                "court_runtime_ms",
+                "row_elapsed_ms",
+                "candidate_bytes",
+            ] {
+                row.remove(field);
+            }
+        }
+    }
+    let bytes = serde_json::to_vec(&value).expect("M7 calibration projection serializes");
+    hex::encode(sha2::Sha256::digest(bytes))
 }
 
 #[cfg(test)]

@@ -6,7 +6,7 @@ use serde::Serialize;
 
 use super::{
     analysis::intrinsic_catastrophic_kinds, MeasurementReport, MeasurementRow,
-    M7_MEASUREMENT_SCHEMA, M7_SEALED_POPULATION_POLICY,
+    M7_SEALED_POPULATION_POLICY,
 };
 use crate::correlation::ResidualModel;
 use crate::gates::GatesFile;
@@ -16,7 +16,7 @@ use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
-pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v9";
+pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v10";
 pub const M7_RUNTIME_RELEASE_BLOCKING: bool = false;
 pub const M7_RUNTIME_POLICY: &str = "provisional M7 research diagnostic on an isolated 512px run; \
                                      non-blocking for release, with bounded elapsed, memory, \
@@ -269,6 +269,7 @@ pub struct ReleaseVerdict {
     pub audit_generation: u32,
     pub audit_status: String,
     pub corpus_sha256: String,
+    pub population_commitment_sha256: String,
     pub preregistration_sha256: String,
     pub gates_sha256: String,
     pub release_commit_sha: String,
@@ -317,8 +318,22 @@ pub fn analyze_release(
         return Err("audit record is not bound to this preregistration and gate file".into());
     }
     let gates = M7ReleaseGates::from_file(gates_file)?;
-    let quality_verdict = analyze_preset(quality, &prereg, gates)?;
-    let fast_verdict = analyze_preset(fast, &prereg, gates)?;
+    let quality_verdict = analyze_preset(
+        quality,
+        &prereg,
+        gates,
+        &threshold_source
+            .provenance
+            .quality_calibration_measurement_sha256,
+    )?;
+    let fast_verdict = analyze_preset(
+        fast,
+        &prereg,
+        gates,
+        &threshold_source
+            .provenance
+            .fast_calibration_measurement_sha256,
+    )?;
     let quality_keys = population_keys(quality);
     let fast_keys = population_keys(fast);
     let same_population = quality_keys == fast_keys;
@@ -338,6 +353,7 @@ pub fn analyze_release(
         audit_generation: audit.generation,
         audit_status: "opened".into(),
         corpus_sha256: audit.corpus_hash.clone(),
+        population_commitment_sha256: quality.population_commitment_sha256.clone(),
         preregistration_sha256: audit.prereg_hash.clone(),
         gates_sha256: audit.gates_hash.clone(),
         release_commit_sha: threshold_source.event_commit_sha.clone(),
@@ -374,14 +390,9 @@ pub fn analyze_release(
 }
 
 fn validate_report(report: &MeasurementReport, preset: vice_core::Preset) -> Result<(), String> {
-    if report.schema != M7_MEASUREMENT_SCHEMA
-        || report.scope != "sealed_audit"
-        || report.split != "sealed_audit"
-        || report.preset != preset
-        || !report.complete
-        || report.included_shards.len() != report.shard_count as usize
-        || report.renders != report.expected_renders_included_shards
-    {
+    super::validate_sealed_population(report)?;
+    super::validate_execution_attestation(report)?;
+    if report.preset != preset {
         return Err(format!(
             "M7 release analysis requires one complete merged {preset:?} sealed-audit report"
         ));
@@ -401,6 +412,7 @@ fn analyze_preset(
     report: &MeasurementReport,
     prereg: &Preregistration,
     gates: M7ReleaseGates,
+    expected_calibration_sha256: &str,
 ) -> Result<PresetReleaseVerdict, String> {
     let rows = target_rows(report);
     if rows.is_empty() {
@@ -473,7 +485,8 @@ fn analyze_preset(
     let runtime_isolated = report.max_workers_per_shard == 1 && report.shard_count == 1;
     let runtime_gate_met = runtime_isolated && runtime_p95_ms <= runtime_limit_ms;
     let memory_gate_met = report.peak_working_set_bytes <= gates.max_peak_memory_bytes;
-    let calibration_gate_met = calibration_matches_gates(report, gates);
+    let calibration_gate_met =
+        calibration_matches_gates(report, gates, expected_calibration_sha256);
     let source_coverage_met = reliability.coverage_per_source >= gates.min_source_coverage;
     let render_coverage_met = reliability.coverage_per_render >= gates.min_render_coverage;
     let mut kinds = BTreeMap::new();
@@ -544,12 +557,17 @@ fn analyze_preset(
     })
 }
 
-fn calibration_matches_gates(report: &MeasurementReport, gates: M7ReleaseGates) -> bool {
+fn calibration_matches_gates(
+    report: &MeasurementReport,
+    gates: M7ReleaseGates,
+    expected_calibration_sha256: &str,
+) -> bool {
     report
         .confidence_calibration
         .as_ref()
         .is_some_and(|calibration| {
             calibration.validate_for_identity(&report.identity).is_ok()
+                && calibration.calibration_split_sha256 == expected_calibration_sha256
                 && confidence_fields_match(calibration, report.preset, gates)
         })
 }

@@ -228,6 +228,8 @@ pub(super) fn run(command: Cmd) -> Result<i32, Box<Cmd>> {
             gates,
             production_config,
             preset,
+            role,
+            run_id,
             out,
             workers,
             shard_index,
@@ -241,6 +243,8 @@ pub(super) fn run(command: Cmd) -> Result<i32, Box<Cmd>> {
             &governance.gate_provenance,
             &production_config,
             preset.into(),
+            role.into(),
+            &run_id,
             &out,
             workers,
             shard_index,
@@ -310,7 +314,36 @@ pub(super) fn run(command: Cmd) -> Result<i32, Box<Cmd>> {
                 2
             }
         },
-        Cmd::M7Determinism { inputs, out } => match m7_cmd::determinism(&inputs, &out) {
+        Cmd::M7Determinism {
+            governance,
+            audit_seal,
+            manifest,
+            gates,
+            fast_parallel,
+            fast_primary,
+            fast_repeat,
+            quality_parallel,
+            quality_primary,
+            quality_repeat,
+            out,
+        } => match m7_cmd::determinism(
+            m7_cmd::GovernancePaths {
+                seal: &audit_seal,
+                manifest: &manifest,
+                gates: &gates,
+                runner_attestation: &governance.runner_attestation,
+                gate_provenance: &governance.gate_provenance,
+            },
+            &[
+                (m7::M7RunRole::FastParallel, fast_parallel),
+                (m7::M7RunRole::FastPrimary, fast_primary),
+                (m7::M7RunRole::FastRepeat, fast_repeat),
+                (m7::M7RunRole::QualityParallel, quality_parallel),
+                (m7::M7RunRole::QualityPrimary, quality_primary),
+                (m7::M7RunRole::QualityRepeat, quality_repeat),
+            ],
+            &out,
+        ) {
             Ok(verdict) => {
                 for preset in &verdict.presets {
                     println!(

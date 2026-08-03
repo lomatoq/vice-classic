@@ -123,6 +123,7 @@ fn report_with_groups(group_count: usize, catastrophic: bool) -> MeasurementRepo
         preset: vice_core::Preset::Quality,
         procedural_generation: M7_PROCEDURAL_GENERATION,
         population_policy: M7_CALIBRATION_POPULATION_POLICY.into(),
+        population_commitment_sha256: "a".repeat(64),
         procedural_variants_per_family: 200,
         mandatory_sizes_px: vec![128, 256, 512],
         rasterizers: vec!["tiny-skia".into()],
@@ -149,11 +150,53 @@ fn report_with_groups(group_count: usize, catastrophic: bool) -> MeasurementRepo
         rows,
         elapsed_ms: 1,
         peak_working_set_bytes: 1024,
+        execution_attestation: None,
     }
 }
 
 fn report(catastrophic: bool) -> MeasurementReport {
     report_with_groups(459, catastrophic)
+}
+
+#[test]
+fn calibration_digest_ignores_only_scheduling_and_resource_telemetry() {
+    let original = report(false);
+    let mut changed = original.clone();
+    changed.elapsed_ms += 999;
+    changed.peak_working_set_bytes += 999;
+    changed.resumed_rows += 1;
+    changed.runs += 1;
+    changed.max_workers_per_shard += 1;
+    changed.rows[0].core_runtime_ms += 999;
+    changed.rows[0].court_runtime_ms += 999;
+    changed.rows[0].row_elapsed_ms += 999;
+    changed.rows[0].candidate_bytes += 999;
+    assert_eq!(
+        calibration_measurement_digest(&original),
+        calibration_measurement_digest(&changed)
+    );
+}
+
+#[test]
+fn calibration_digest_binds_every_decision_driving_observation() {
+    let original = report(false);
+    let mutations: [fn(&mut MeasurementReport); 5] = [
+        |report: &mut MeasurementReport| report.rows[0].posterior_lower_bound = Some(0.5),
+        |report: &mut MeasurementReport| report.rows[0].top2_class_margin_bits = Some(0.25),
+        |report: &mut MeasurementReport| report.rows[0].palette_support_px = Some(9_999),
+        |report: &mut MeasurementReport| report.rows[0].max_palette_code_delta = Some(99),
+        |report: &mut MeasurementReport| {
+            report.rows[0].paint_calibration_class = Some("changed".into())
+        },
+    ];
+    for mutate in mutations {
+        let mut changed = original.clone();
+        mutate(&mut changed);
+        assert_ne!(
+            calibration_measurement_digest(&original),
+            calibration_measurement_digest(&changed)
+        );
+    }
 }
 
 #[test]

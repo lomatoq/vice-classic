@@ -36,7 +36,7 @@ fn threshold_source(
 fn release_hashes(
     manifest: &Path,
     gate_digest: &GateDigestInput,
-) -> Result<(String, String, String), String> {
+) -> Result<(String, String, String, String), String> {
     let recorded = super::read_manifest(&manifest.to_path_buf())?;
     let successor = &recorded["m7_successor_population"];
     if successor["procedural_generation"].as_u64() != Some(u64::from(M7_PROCEDURAL_GENERATION))
@@ -51,7 +51,42 @@ fn release_hashes(
     }
     let corpus_hash = super::rebuild_matching(&recorded)?.hash();
     let gates_hash = gate_digest.sha256.clone();
-    Ok((corpus_hash, Preregistration::v1().hash(), gates_hash))
+    let population_commitment = successor["population_commitment_sha256"]
+        .as_str()
+        .filter(|value| *value == vice_bench::gt::corpus::M7_SUCCESSOR_POPULATION_COMMITMENT_SHA256)
+        .ok_or_else(|| {
+            "manifest M7 population commitment differs from the compiled anchor".to_string()
+        })?
+        .to_string();
+    Ok((
+        corpus_hash,
+        Preregistration::v1().hash(),
+        gates_hash,
+        population_commitment,
+    ))
+}
+
+fn validate_report_governance(
+    report: &m7::MeasurementReport,
+    threshold_source: &M7ThresholdSource,
+    corpus_sha256: &str,
+    population_commitment_sha256: &str,
+) -> Result<(), String> {
+    m7::validate_sealed_population(report)?;
+    m7::validate_execution_attestation(report)?;
+    let context = &report
+        .execution_attestation
+        .as_ref()
+        .expect("validated")
+        .context;
+    if context.candidate_commit_sha != threshold_source.event_commit_sha
+        || context.runner_attestation_sha256 != threshold_source.attestation_sha256
+        || context.corpus_sha256 != corpus_sha256
+        || context.population_commitment_sha256 != population_commitment_sha256
+    {
+        return Err("typed_refusal: stale or substituted M7 report governance".into());
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -103,7 +138,7 @@ pub fn open(
     if note.trim() != threshold_source.event_commit_sha {
         return Err("opening note must be exactly the externally anchored release commit".into());
     }
-    let (corpus_hash, prereg_hash, gates_hash) =
+    let (corpus_hash, prereg_hash, gates_hash, _) =
         release_hashes(manifest, &threshold_source.digest_input)?;
     let opened = seal.open(&corpus_hash, &prereg_hash, &gates_hash, note);
     write_seal(seal_path, &opened)?;
@@ -119,6 +154,8 @@ pub fn measure(
     gate_provenance: &Path,
     production_config: &Path,
     preset: Preset,
+    role: m7::M7RunRole,
+    run_id: &str,
     out: &Path,
     workers: usize,
     shard_index: u32,
@@ -133,7 +170,7 @@ pub fn measure(
             seal.generation, M7_PROCEDURAL_GENERATION
         ));
     }
-    let (corpus_hash, prereg_hash, gates_hash) =
+    let (corpus_hash, prereg_hash, gates_hash, population_commitment_sha256) =
         release_hashes(manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
@@ -144,6 +181,20 @@ pub fn measure(
     request.workers = workers;
     request.shard_index = shard_index;
     request.shard_count = shard_count;
+    let production_config_sha256 =
+        vice_bench::hashing::sha256_file(production_config).map_err(|error| error.to_string())?;
+    request.execution = Some(m7::MeasurementExecutionContext {
+        schema: m7::M7_EXECUTION_ATTESTATION_SCHEMA.into(),
+        role,
+        run_id: run_id.into(),
+        candidate_commit_sha: threshold_source.event_commit_sha.clone(),
+        runner_attestation_sha256: threshold_source.attestation_sha256.clone(),
+        production_config_sha256,
+        corpus_sha256: corpus_hash,
+        population_commitment_sha256,
+        workers: workers.try_into().unwrap_or(u32::MAX),
+        shard_count,
+    });
     m7::measure_to_path_with_config(request, &config, out, resume)
 }
 
@@ -167,12 +218,24 @@ pub fn analyze(
         governance.gate_provenance,
     )?;
     let seal = read_seal(governance.seal)?;
-    let (corpus_hash, prereg_hash, gates_hash) =
+    let (corpus_hash, prereg_hash, gates_hash, population_commitment) =
         release_hashes(governance.manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
     let quality = m7::read_report(quality_report)?;
     let fast = m7::read_report(fast_report)?;
+    validate_report_governance(
+        &quality,
+        &threshold_source,
+        &corpus_hash,
+        &population_commitment,
+    )?;
+    validate_report_governance(
+        &fast,
+        &threshold_source,
+        &corpus_hash,
+        &population_commitment,
+    )?;
     let verdict = m7::release::analyze_release(&quality, &fast, &seal, &threshold_source)?;
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)
@@ -185,17 +248,48 @@ pub fn analyze(
 }
 
 pub fn determinism(
-    inputs: &[std::path::PathBuf],
+    governance: GovernancePaths<'_>,
+    inputs: &[(m7::M7RunRole, std::path::PathBuf)],
     out: &Path,
 ) -> Result<m7::determinism::DeterminismVerdict, String> {
+    let threshold_source = threshold_source(
+        governance.runner_attestation,
+        governance.gates,
+        governance.gate_provenance,
+    )?;
+    let seal = read_seal(governance.seal)?;
+    let (corpus_hash, prereg_hash, gates_hash, population_commitment) =
+        release_hashes(governance.manifest, &threshold_source.digest_input)?;
+    seal.check(&corpus_hash, &prereg_hash, &gates_hash)
+        .map_err(|error| error.to_string())?;
     let reports = inputs
         .iter()
-        .map(|path| {
+        .map(|(role, path)| {
+            let report = m7::read_report(path)?;
+            validate_report_governance(
+                &report,
+                &threshold_source,
+                &corpus_hash,
+                &population_commitment,
+            )?;
+            if report
+                .execution_attestation
+                .as_ref()
+                .expect("validated")
+                .context
+                .role
+                != *role
+            {
+                return Err(format!(
+                    "typed_refusal: {} is assigned to the wrong determinism role",
+                    path.display()
+                ));
+            }
             Ok(m7::determinism::DeterminismInput {
                 label: path.display().to_string(),
                 raw_sha256: vice_bench::hashing::sha256_file(path)
                     .map_err(|error| error.to_string())?,
-                report: m7::read_report(path)?,
+                report,
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -222,12 +316,24 @@ pub fn baseline_court(
         governance.gate_provenance,
     )?;
     let seal = read_seal(governance.seal)?;
-    let (corpus_hash, prereg_hash, gates_hash) =
+    let (corpus_hash, prereg_hash, gates_hash, population_commitment) =
         release_hashes(governance.manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
     let quality = m7::read_report(quality_report)?;
     let fast = m7::read_report(fast_report)?;
+    validate_report_governance(
+        &quality,
+        &threshold_source,
+        &corpus_hash,
+        &population_commitment,
+    )?;
+    validate_report_governance(
+        &fast,
+        &threshold_source,
+        &corpus_hash,
+        &population_commitment,
+    )?;
     let verdict = m7::baseline::analyze(&quality, &fast, &seal, &threshold_source)?;
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)
@@ -251,12 +357,24 @@ pub fn oracle(
         governance.gate_provenance,
     )?;
     let seal = read_seal(governance.seal)?;
-    let (corpus_hash, prereg_hash, gates_hash) =
+    let (corpus_hash, prereg_hash, gates_hash, population_commitment) =
         release_hashes(governance.manifest, &threshold_source.digest_input)?;
     seal.check(&corpus_hash, &prereg_hash, &gates_hash)
         .map_err(|error| error.to_string())?;
     let quality = m7::read_report(quality_report)?;
     let fast = m7::read_report(fast_report)?;
+    validate_report_governance(
+        &quality,
+        &threshold_source,
+        &corpus_hash,
+        &population_commitment,
+    )?;
+    validate_report_governance(
+        &fast,
+        &threshold_source,
+        &corpus_hash,
+        &population_commitment,
+    )?;
     let verdict = m7::oracle::run_release(&quality, &fast, &seal, &threshold_source)?;
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)

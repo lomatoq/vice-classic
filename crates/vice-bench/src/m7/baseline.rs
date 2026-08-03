@@ -8,14 +8,14 @@ use sha2::{Digest, Sha256};
 use super::release::{catastrophic_with_gates, target_rows, M7ReleaseGates};
 use super::{
     InternalBaselineMeasurement, MeasurementReport, MeasurementRow, SceneComplexity,
-    M7_MEASUREMENT_SCHEMA, M7_SEALED_POPULATION_POLICY,
+    M7_SEALED_POPULATION_POLICY,
 };
 use crate::gates::GatesFile;
 use crate::gt::split::{AuditSeal, SealStatus};
 use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 
-pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v4";
+pub const M7_BASELINE_COURT_SCHEMA: &str = "vice-classic/m7-baseline-blind-court/v5";
 
 #[derive(Debug, Clone, Copy)]
 struct CourtGates {
@@ -154,6 +154,7 @@ pub struct BaselineCourtVerdict {
     pub schema: &'static str,
     pub audit_generation: u32,
     pub corpus_sha256: String,
+    pub population_commitment_sha256: String,
     pub preregistration_sha256: String,
     pub gates_sha256: String,
     pub release_commit_sha: String,
@@ -191,6 +192,7 @@ pub fn analyze(
     let gates = CourtGates::from_file(gates_file)?;
     let quality_report_sha256 = super::report_content_sha256(quality);
     let fast_report_sha256 = super::report_content_sha256(fast);
+    let population_commitment_sha256 = quality.population_commitment_sha256.clone();
     let quality = analyze_preset(quality, gates)?;
     let fast = analyze_preset(fast, gates)?;
     let mut refusals = Vec::new();
@@ -204,6 +206,7 @@ pub fn analyze(
         schema: M7_BASELINE_COURT_SCHEMA,
         audit_generation: audit.generation,
         corpus_sha256: audit.corpus_hash.clone(),
+        population_commitment_sha256,
         preregistration_sha256: audit.prereg_hash.clone(),
         gates_sha256: audit.gates_hash.clone(),
         release_commit_sha: threshold_source.event_commit_sha.clone(),
@@ -219,12 +222,9 @@ pub fn analyze(
 }
 
 fn validate(report: &MeasurementReport, preset: vice_core::Preset) -> Result<(), String> {
-    if report.schema != M7_MEASUREMENT_SCHEMA
-        || report.scope != "sealed_audit"
-        || report.split != "sealed_audit"
-        || report.preset != preset
-        || !report.complete
-    {
+    super::validate_sealed_population(report)?;
+    super::validate_execution_attestation(report)?;
+    if report.preset != preset {
         return Err(format!(
             "baseline court requires a complete {preset:?} sealed-audit report"
         ));

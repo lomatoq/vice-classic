@@ -36,6 +36,7 @@ use vice_render::{CertifiedMesh, RenderOptions};
 use crate::gt::corpus::{
     certify_flat2_supported_group, certify_m7_flat2_group,
     groups_with_variants_filtered_for_generation, is_m7_sealed_flat2_family,
+    M7_SEALED_FLAT2_FAMILIES, M7_SUCCESSOR_POPULATION_COMMITMENT_SHA256,
     M7_SUCCESSOR_POPULATION_POLICY, M7_SUCCESSOR_PROCEDURAL_VARIANTS,
 };
 use crate::gt::degradation::{matrix_v1, render_cell, DegradationCell};
@@ -44,7 +45,7 @@ use crate::gt::raster::RasterProfile;
 use crate::gt::split::{Split, SPLIT_POLICY_V1};
 use crate::gt::{FixtureOrigin, GtScene, PartitionTruth};
 
-pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v23";
+pub const M7_MEASUREMENT_SCHEMA: &str = "vice-classic/m7-held-out-measurement/v24";
 pub const M7_ALL_SPLIT_POPULATION_POLICY: &str = "vice-classic/m7-population/all-split-groups/v1";
 pub const M7_CALIBRATION_POPULATION_POLICY: &str =
     "vice-classic/m7-population/calibration-flat2-supported/v2";
@@ -54,7 +55,64 @@ pub const M7_MANDATORY_SIZES: [u32; 3] = [128, 256, 512];
 pub const M7_BOUNDARY_P95_GATE_PX: f64 = 0.35;
 pub const M7_BOUNDARY_P99_GATE_PX: f64 = 0.60;
 pub const M7_BOUNDARY_MAX_GATE_PX: f64 = 1.50;
+pub const M7_SEALED_SOURCE_GROUPS: u64 = 800;
+pub const M7_SEALED_ROWS: u64 = 2_400;
+pub const M7_EXECUTION_ATTESTATION_SCHEMA: &str =
+    "vice-classic/m7-measurement-execution-attestation/v1";
 const BOUNDARY_SAMPLE_STEP_PX: f64 = 0.25;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum M7RunRole {
+    FastParallel,
+    FastPrimary,
+    FastRepeat,
+    QualityParallel,
+    QualityPrimary,
+    QualityRepeat,
+}
+
+impl M7RunRole {
+    pub fn preset(self) -> Preset {
+        match self {
+            Self::FastParallel | Self::FastPrimary | Self::FastRepeat => Preset::Fast,
+            Self::QualityParallel | Self::QualityPrimary | Self::QualityRepeat => Preset::Quality,
+        }
+    }
+
+    pub fn workers(self) -> u32 {
+        match self {
+            Self::FastParallel | Self::QualityParallel => 2,
+            Self::FastPrimary | Self::FastRepeat | Self::QualityPrimary | Self::QualityRepeat => 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeasurementExecutionContext {
+    pub schema: String,
+    pub role: M7RunRole,
+    pub run_id: String,
+    pub candidate_commit_sha: String,
+    pub runner_attestation_sha256: String,
+    pub production_config_sha256: String,
+    pub corpus_sha256: String,
+    pub population_commitment_sha256: String,
+    pub workers: u32,
+    pub shard_count: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeasurementExecutionAttestation {
+    pub context: MeasurementExecutionContext,
+    pub included_shards: Vec<u32>,
+    pub command_sha256: String,
+    pub row_commitment_sha256: String,
+    pub evidence_commitment_sha256: String,
+    pub report_sha256: String,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MeasurementScope {
@@ -407,6 +465,7 @@ pub struct MeasurementReport {
     pub preset: Preset,
     pub procedural_generation: u32,
     pub population_policy: String,
+    pub population_commitment_sha256: String,
     pub procedural_variants_per_family: usize,
     pub mandatory_sizes_px: Vec<u32>,
     pub rasterizers: Vec<String>,
@@ -431,9 +490,11 @@ pub struct MeasurementReport {
     /// Aggregate process peak; multi-worker runs are not misreported as
     /// independent per-row memory observations.
     pub peak_working_set_bytes: u64,
+    #[serde(default)]
+    pub execution_attestation: Option<MeasurementExecutionAttestation>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MeasurementRequest {
     pub scope: MeasurementScope,
     pub preset: Preset,
@@ -441,6 +502,7 @@ pub struct MeasurementRequest {
     pub workers: usize,
     pub shard_index: u32,
     pub shard_count: u32,
+    pub execution: Option<MeasurementExecutionContext>,
 }
 
 impl MeasurementRequest {
@@ -452,10 +514,11 @@ impl MeasurementRequest {
             workers: default_worker_count(),
             shard_index: 0,
             shard_count: 1,
+            execution: None,
         }
     }
 
-    fn validate(self) -> Result<Self, String> {
+    fn validate(&self) -> Result<(), String> {
         if self.workers == 0 {
             return Err("M7 measurement workers must be positive".into());
         }
@@ -465,8 +528,208 @@ impl MeasurementRequest {
                 self.shard_index, self.shard_count
             ));
         }
-        Ok(self)
+        if let Some(execution) = &self.execution {
+            if self.scope != MeasurementScope::SealedAudit
+                || execution.schema != M7_EXECUTION_ATTESTATION_SCHEMA
+                || execution.role.preset() != self.preset
+                || execution.workers != self.workers.try_into().unwrap_or(u32::MAX)
+                || execution.shard_count != self.shard_count
+                || execution.role.workers() != execution.workers
+                || !valid_run_id(&execution.run_id)
+                || !valid_commit_sha(&execution.candidate_commit_sha)
+                || !valid_sha256(&execution.runner_attestation_sha256)
+                || !valid_sha256(&execution.production_config_sha256)
+                || !valid_sha256(&execution.corpus_sha256)
+                || execution.population_commitment_sha256
+                    != M7_SUCCESSOR_POPULATION_COMMITMENT_SHA256
+            {
+                return Err("invalid sealed M7 execution context".into());
+            }
+        }
+        Ok(())
     }
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        && !value.bytes().all(|byte| byte == b'0')
+}
+
+fn valid_commit_sha(value: &str) -> bool {
+    value.len() == 40
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn valid_run_id(value: &str) -> bool {
+    (16..=128).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':'))
+}
+
+fn sealed_cell_specs() -> BTreeMap<String, u32> {
+    MeasurementScope::SealedAudit
+        .cells()
+        .into_iter()
+        .map(|cell| (cell.id(), cell.size_px))
+        .collect()
+}
+
+pub fn expected_sealed_row_keys() -> BTreeSet<String> {
+    let cells = sealed_cell_specs();
+    let mut keys = BTreeSet::new();
+    for family in M7_SEALED_FLAT2_FAMILIES {
+        for variant in 0..M7_RELEASE_PROCEDURAL_VARIANTS {
+            let group_id = format!("proc/{family}/{variant:03}");
+            let scene_id = format!("{group_id}#a");
+            for cell_id in cells.keys() {
+                keys.insert(measurement_row_key_parts(&group_id, &scene_id, cell_id));
+            }
+        }
+    }
+    keys
+}
+
+fn measurement_row_key_parts(group_id: &str, scene_id: &str, cell_id: &str) -> String {
+    format!("{group_id}\0{scene_id}\0{cell_id}")
+}
+
+fn measurement_row_key(row: &MeasurementRow) -> String {
+    measurement_row_key_parts(&row.group_id, &row.scene_id, &row.cell_id)
+}
+
+/// Fail-closed, shared court entry point for the exact committed sealed
+/// population.  Header counters never define completeness: the row-key set
+/// is reconstructed independently and compared byte-for-byte.
+pub fn validate_sealed_population(report: &MeasurementReport) -> Result<(), String> {
+    let expected = expected_sealed_row_keys();
+    let cells = sealed_cell_specs();
+    let expected_shards = (0..report.shard_count).collect::<Vec<_>>();
+    let keys = report
+        .rows
+        .iter()
+        .map(measurement_row_key)
+        .collect::<BTreeSet<_>>();
+    let source_groups = report
+        .rows
+        .iter()
+        .map(|row| row.group_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let row_cells_valid = report.rows.iter().all(|row| {
+        cells.get(&row.cell_id).copied() == Some(row.size_px)
+            && row.rasterizer == RasterProfile::TinySkia.as_str()
+    });
+    if report.schema != M7_MEASUREMENT_SCHEMA
+        || report.scope != "sealed_audit"
+        || report.split != "sealed_audit"
+        || report.procedural_generation != M7_PROCEDURAL_GENERATION
+        || report.population_policy != M7_SEALED_POPULATION_POLICY
+        || report.population_commitment_sha256 != M7_SUCCESSOR_POPULATION_COMMITMENT_SHA256
+        || report.procedural_variants_per_family != M7_RELEASE_PROCEDURAL_VARIANTS
+        || report.mandatory_sizes_px != M7_MANDATORY_SIZES
+        || report.rasterizers != [RasterProfile::TinySkia.as_str()]
+        || report.shard_count == 0
+        || report.included_shards != expected_shards
+        || !report.complete
+        || report.expected_renders_included_shards != M7_SEALED_ROWS
+        || report.renders != M7_SEALED_ROWS
+        || report.rows.len() as u64 != M7_SEALED_ROWS
+        || keys.len() != report.rows.len()
+        || keys != expected
+        || report.source_groups != M7_SEALED_SOURCE_GROUPS
+        || source_groups.len() as u64 != M7_SEALED_SOURCE_GROUPS
+        || !row_cells_valid
+    {
+        return Err(
+            "typed_refusal: sealed_population_mismatch (need exact committed 800 groups / 2400 unique tiny-skia rows)"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+fn rows_commitment_sha256(report: &MeasurementReport) -> String {
+    let bytes = serde_json::to_vec(&report.rows).expect("M7 rows serialize");
+    hex::encode(Sha256::digest(bytes))
+}
+
+fn command_commitment_sha256(
+    context: &MeasurementExecutionContext,
+    included_shards: &[u32],
+) -> String {
+    let bytes = serde_json::to_vec(&(context, included_shards)).expect("M7 command serializes");
+    hex::encode(Sha256::digest(bytes))
+}
+
+fn report_self_commitment_sha256(report: &MeasurementReport) -> String {
+    let mut projected = report.clone();
+    if let Some(attestation) = projected.execution_attestation.as_mut() {
+        attestation.report_sha256.clear();
+    }
+    let bytes = serde_json::to_vec(&projected).expect("M7 report serializes");
+    hex::encode(Sha256::digest(bytes))
+}
+
+pub(crate) fn attach_execution_attestation(
+    report: &mut MeasurementReport,
+    context: MeasurementExecutionContext,
+    evidence_commitment_sha256: String,
+) -> Result<(), String> {
+    if !valid_sha256(&evidence_commitment_sha256) {
+        return Err("M7 execution evidence commitment is malformed".into());
+    }
+    report.execution_attestation = Some(MeasurementExecutionAttestation {
+        command_sha256: command_commitment_sha256(&context, &report.included_shards),
+        row_commitment_sha256: rows_commitment_sha256(report),
+        evidence_commitment_sha256,
+        report_sha256: String::new(),
+        included_shards: report.included_shards.clone(),
+        context,
+    });
+    let digest = report_self_commitment_sha256(report);
+    report
+        .execution_attestation
+        .as_mut()
+        .expect("just attached")
+        .report_sha256 = digest;
+    Ok(())
+}
+
+pub fn validate_execution_attestation(report: &MeasurementReport) -> Result<(), String> {
+    let attestation = report
+        .execution_attestation
+        .as_ref()
+        .ok_or_else(|| "typed_refusal: sealed report has no execution attestation".to_string())?;
+    let context = &attestation.context;
+    let expected_config = match report.preset {
+        Preset::Fast => vice_core::M7_FAST_PRODUCTION_CONFIG_SHA256,
+        Preset::Quality => vice_core::M7_QUALITY_PRODUCTION_CONFIG_SHA256,
+    };
+    if context.schema != M7_EXECUTION_ATTESTATION_SCHEMA
+        || context.role.preset() != report.preset
+        || context.role.workers() != report.max_workers_per_shard
+        || context.workers != report.max_workers_per_shard
+        || context.shard_count != report.shard_count
+        || context.production_config_sha256 != expected_config
+        || context.population_commitment_sha256 != report.population_commitment_sha256
+        || !valid_run_id(&context.run_id)
+        || !valid_commit_sha(&context.candidate_commit_sha)
+        || !valid_sha256(&context.runner_attestation_sha256)
+        || !valid_sha256(&context.corpus_sha256)
+        || attestation.included_shards != report.included_shards
+        || attestation.command_sha256 != command_commitment_sha256(context, &report.included_shards)
+        || attestation.row_commitment_sha256 != rows_commitment_sha256(report)
+        || !valid_sha256(&attestation.evidence_commitment_sha256)
+        || attestation.report_sha256 != report_self_commitment_sha256(report)
+    {
+        return Err("typed_refusal: sealed execution attestation mismatch".into());
+    }
+    Ok(())
 }
 
 mod measure;
