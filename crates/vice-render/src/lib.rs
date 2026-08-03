@@ -33,6 +33,7 @@ pub mod partition;
 pub mod render_error;
 pub mod roi;
 pub mod seal;
+pub mod stroke;
 
 pub use certified::CertifiedMesh;
 pub use coverage::{polygon_coverage, CoverageError};
@@ -52,3 +53,7 @@ pub use partition::{
 pub use render_error::RenderError;
 pub use roi::{render_mesh_partition_roi, render_partition_roi, PixelRect, RoiRender};
 pub use seal::{seal_render_cycle, SealError, SealReport};
+pub use stroke::{
+    render_stroke_scene, StrokeRender, StrokeRenderError, STROKE_RENDER_SCHEMA,
+    STROKE_SUPERSAMPLE_SIDE,
+};

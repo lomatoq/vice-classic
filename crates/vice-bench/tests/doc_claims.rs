@@ -1113,6 +1113,12 @@ fn every_status_document_is_classified_or_excepted_with_a_reason() {
              is a concise implementation contract",
             "M10",
         ),
+        (
+            "docs/STATUS_M10.md",
+            "M10 has no numerical acceptance gate in section 28; this status records a typed API \
+             contract and executable behavioral regressions without inventing a new release court",
+            "M11",
+        ),
     ];
 
     let mut classified: Vec<String> = CLAUSE_ROWS.iter().map(|(d, _)| (*d).to_string()).collect();

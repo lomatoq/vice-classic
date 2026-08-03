@@ -2,18 +2,23 @@
 
 mod candidate;
 mod config;
+mod m10;
 mod m8;
 mod m9;
 mod p1;
 mod pipeline;
 mod scene;
 mod types;
-
 pub use config::{
     selection_calibration_class, CalibrationBucket, ConfidenceCalibration, ConfidenceMetrics,
     CoreConfig, Intent, IntentPriorPolicy, PaintCalibrationClass, PerturbationStability, Preset,
     ProductionConfigError, VectorizeRequest, M7_FAST_PRODUCTION_CONFIG_SHA256,
     M7_QUALITY_PRODUCTION_CONFIG_SHA256,
+};
+pub use m10::{
+    inspect_m10_line_art, select_m10_line_art, select_m10_line_art_against_fill, M10CandidateScore,
+    M10Decision, M10Error, M10Inspection, M10ModelKind, M10Selection, M10SelectionReport,
+    M10_INSPECTION_SCHEMA, M10_SELECTION_SCHEMA,
 };
 pub use m8::*;
 pub use m9::{
@@ -25,10 +30,6 @@ pub use p1::{
     P1CorrectionOutcome, P1CorrectionReport, P1PartitionRegion, P1PartitionSnapshot,
     P1_CORRECTION_SCHEMA, P1_SNAPSHOT_SCHEMA,
 };
-pub use vice_topology::{
-    PartitionEditScript, PartitionScriptEdit, QuantizedPaint, PARTITION_EDIT_SCRIPT_SCHEMA,
-};
-
 pub use pipeline::{
     vectorize, vectorize_for_calibration, vectorize_for_calibration_without_baseline,
     vectorize_with_config, vectorize_with_production_config,
@@ -40,10 +41,12 @@ pub use types::{
     TopologyArmTrace, TopologyEnvelopeTrace, TopologyRuntimeSummary, VectorizeOutcome,
     VectorizeReport, VectorizeSuccess, CORE_REPORT_SCHEMA,
 };
+pub use vice_topology::{
+    PartitionEditScript, PartitionScriptEdit, QuantizedPaint, PARTITION_EDIT_SCRIPT_SCHEMA,
+};
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn selection_calibration_classes_fail_closed_by_native_primitive_kind() {
         assert_eq!(
@@ -65,14 +68,12 @@ mod tests {
             "flat2/native-primitive/unknown"
         );
     }
-
     fn fast_request() -> VectorizeRequest {
         VectorizeRequest {
             preset: Preset::Fast,
             ..VectorizeRequest::default()
         }
     }
-
     fn square_png() -> Vec<u8> {
         let width = 32;
         let height = 32;
@@ -93,7 +94,6 @@ mod tests {
         }
         bytes
     }
-
     fn square_128_png() -> Vec<u8> {
         let size = 128usize;
         let mut rgba = vec![0u8; size * size * 4];
@@ -113,7 +113,6 @@ mod tests {
         }
         bytes
     }
-
     fn two_component_png() -> Vec<u8> {
         let width = 48usize;
         let height = 32usize;

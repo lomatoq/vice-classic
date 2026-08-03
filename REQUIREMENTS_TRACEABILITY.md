@@ -1,7 +1,7 @@
 # REQUIREMENTS_TRACEABILITY — vice-classic
 
 Формат (spec v1.3 §32 правило 23): invariant → implementation → tests →
-milestone gate. Покрыты M0…M9.
+ milestone gate. Покрыты M0…M10.
 
 ## Перенесённые обязательства (явное отслеживание, REVIEW_M1 M1-N4)
 
@@ -13,6 +13,16 @@ milestone gate. Покрыты M0…M9.
 | D-6 | **Runtime-guard на неразрешимую геометрию**: отвергать типизированно, когда положение пересечения не разрешимо до пикселя в f64 (позиционная ошибка > ~0.25 px). Сегодня в этом режиме аккумулятор возвращает конечное, ограниченное, но бессмысленное число — как и любая f64-реализация (измерено: три независимые реализации дают 0 / +0.278 / −0.517). НЕ сделано: render-путь туда не попадает (`NumericDomain` ≤ 65536), а достаточно чувствительный guard рискует отвергать легитимную far-off-canvas геометрию, которая сегодня считается верно (1e308 принимается с ошибкой 1.8e-15). Основание: собственная находка при построении differential property-теста (C048) | при появлении прямого потребителя аккумулятора (M3) | **ЗАКРЫТО в дельте-4 (C052)**: оказалось тем же пунктом, что D-5 — конвексная/ближне-концевая форма `x_at` устраняет класс; «неразрешимость» была обусловленностью формулы, а не пределом f64 (F-0014) |
 | D-5 | **Колонко-относительная интерполяция промежуточной позиции** в `accumulate_edge` (`x_at`): red team измерил, что перестановка снимает ровно `ulp(M)/2` на всех магнитудах, то есть остаток F-M2-R2 сводим ещё раз. НЕ сделано сознательно: внутри enforced-домена запас ~50× (4.5e-12 против 2.33e-10), а правка сдвинула бы замороженный render digest без выигрыша в домене. Пересмотреть, если домен будет расширен или появится потребитель с бо́льшими координатами. Основание: REDTEAM_M2 addendum F-M2-R10 | при расширении домена / M3+ | **ЗАКРЫТО в дельте-4 (C052)**: перестановка выполнена; ни один замороженный digest не сдвинулся |
 | D-4 | **Типизированный witness сертификации вложения** (`CertifiedMesh`/`EmbeddedScene`): тип, который нельзя получить, не пройдя `verify_embedding`. Ввести ВМЕСТЕ с первым не-рендерящим потребителем `ValidatedScene` (M3 планово вводит: загрузчик GT-корпуса, identifiability-метаданные, scorecard). Основание: REVIEW_M2_A M2-A-N8, REVIEW_M2_B M2-B-N5; обоснование срока — ADR-0010 (критерий §32 п.7 по ADR-0005) | M3 | **ЗАКРЫТО в C062**: ice_render::certified::CertifiedMesh (приватные поля, два конструктора, несёт RenderOptions); mesh-входы рендера принимают только его; первый не-рендерящий потребитель — `gt::GtScene::new` (C064). Заявление СУЖЕНО и проверено: витнес НЕ утверждает замощение окна — B2-сцена сертифицируется, её ловит range check (ADR-0010 addendum M3) |
+
+## M10 — Stroke/line-art lane
+
+| # | Invariant | Implementation | Tests / evidence |
+|---|---|---|---|
+| M10-01 | Centerlines, constant width, caps, joins and explicit branch junctions are typed and validated | `vice-ir::stroke` | IR validation and canonical identity tests |
+| M10-02 | Stroke rendering is deterministic and rejects crossings without graph junctions | `vice-render::stroke` | cap/join/junction load-bearing render tests and workspace regression |
+| M10-03 | Line-art evidence derives foreground, distance width, skeleton and a bounded graph from observed pixels | `vice-evidence::line_art` | threshold, distance-transform, thinning, bar and branch fixtures |
+| M10-04 | Fill and stroke candidates use one codec-aware pixel objective and comparable structural MDL | `vice-core::m10` | thin exact bar selects stroke; large solid region remains fill |
+| M10-05 | Unsupported or unmeasurable line art refuses safely and preserves the fill witness | `vice-core::select_m10_line_art_against_fill` | typed evidence refusals and non-empty finite inventory guards |
 
 ## M9 — Extended degradation/formation
 

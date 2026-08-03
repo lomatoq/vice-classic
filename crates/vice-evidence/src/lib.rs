@@ -49,6 +49,7 @@ pub mod corridor;
 pub mod formation;
 pub mod formation_m9;
 pub mod interior;
+pub mod line_art;
 pub mod mixture;
 pub mod multicolor;
 pub mod palette;
@@ -78,6 +79,10 @@ pub use formation_m9::{
     M9_FORMATION_SCHEMA, M9_GAUSSIAN_SIGMAS_PX, M9_KERNEL_PROFILES_V1,
 };
 pub use interior::{interior_confidence, InteriorConfidence, InteriorConfig, INTERIOR_CONFIG_V1};
+pub use line_art::{
+    propose_line_art_strokes, LineArtEvidenceReport, LineArtProposal, LineArtRefusal,
+    LINE_ART_EVIDENCE_SCHEMA,
+};
 pub use mixture::{
     infer_mixture, Flat2Evidence, MixtureConfig, MixtureRefusal, SemiTransparentInterior,
     MIXTURE_CONFIG_V1,

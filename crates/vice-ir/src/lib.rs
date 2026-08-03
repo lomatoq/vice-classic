@@ -35,6 +35,7 @@ pub mod curve;
 pub mod graph;
 pub mod interference;
 pub mod scene;
+pub mod stroke;
 pub mod validate;
 
 pub use canonical::{
@@ -56,6 +57,11 @@ pub use interference::{uncertified_interference_pairs, UncertifiedPair};
 pub use scene::{
     Canvas, CodecResidualModel, ExteriorModel, GlobalFormationHypothesis, PixelFilter,
     QuantizationModel, ResizeChain, VectorScene,
+};
+pub use stroke::{
+    stroke_scene_bytes, stroke_scene_digest_sha256, StrokeCap, StrokeEdge, StrokeEdgeId,
+    StrokeIrError, StrokeJoin, StrokeJunction, StrokeScene, StrokeVertex, StrokeVertexId,
+    StrokeVertexStyle, ValidatedStrokeScene, STROKE_SCENE_SCHEMA,
 };
 pub use validate::{
     validate_graph, validate_scene, ChainPointRef, GraphError, SceneError, ValidatedScene,

@@ -122,7 +122,7 @@ pub struct RenderMesh {
     pub budget: TessellationBudget,
 }
 
-fn flatten_segment(
+pub(crate) fn flatten_segment(
     seg: &Segment,
     p0: Pt,
     p1: Pt,
