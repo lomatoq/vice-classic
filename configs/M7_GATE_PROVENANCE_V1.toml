@@ -1,7 +1,7 @@
 schema = "vice-classic/m7-gate-provenance/v2"
 status = "frozen"
 milestone = "M7"
-source_commit_sha = "a6c299526be60c5b008ca570a0e0362c6a4863a3"
+source_commit_sha = "fbd0a413ed0816cb77f69c9d3d0fec075d1a2645"
 quality_calibration_measurement_sha256 = "ce09ab858313f48714831907c9aa3cb3f6c909175abb3ef685dfe03bff8d6b30"
 fast_calibration_measurement_sha256 = "cbed19ee9494cfe9f285183c3c23752a0f67861dd4889b6ae867d0dcf3810591"
 geometry_measurement_sha256 = "1c6bc17e43b066aba27cdb1db40381638c7a7d05b1cb5295278e77623946c1e8"

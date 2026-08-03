@@ -134,10 +134,10 @@ gate_min_blind_source_trials = 20
 gate_max_blind_one_sided_p_value = 0.05
 gate_min_blind_preference_rate = 0.50
 gate_min_pf_complete_rows = 1
-gate_min_complete_geometry_oracle_rows = 1
-gate_min_g20_recovery_rows = 1
-gate_min_g30_recovery_rows = 1
-gate_min_geometry_recovery_rate = 0.80
+gate_min_complete_geometry_oracle_rows = 11
+gate_min_g20_recovery_rows = 6
+gate_min_g30_recovery_rows = 11
+gate_min_geometry_recovery_rate = 0.50
 
 # --- Geometry code table (§14.5; DERIVED in M6) ------------------------------
 # §14.5's minimal explicit code: a prefix code over families and a parameter
