@@ -14,6 +14,7 @@ use crate::{CoreConfig, VectorizeRequest};
 
 pub const M10_INSPECTION_SCHEMA: &str = "vice-classic/m10-line-art-inspection/v1";
 pub const M10_SELECTION_SCHEMA: &str = "vice-classic/m10-model-selection/v1";
+pub const M10_STROKE_ONLY_SCHEMA: &str = "vice-classic/m10-stroke-only-selection/v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -73,6 +74,29 @@ pub struct M10Selection {
     pub selected_straight_srgb8: Vec<u8>,
 }
 
+/// Explicit non-production stroke-only selection for the routed product
+/// surface. This compares the complete M10 stroke-style inventory with the
+/// existing pixel objective, but deliberately makes no fill-vs-stroke claim.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct M10StrokeOnlyReport {
+    pub schema: &'static str,
+    pub source_sha256: String,
+    pub source_format: EncodedImageFormat,
+    pub evidence: vice_evidence::LineArtEvidenceReport,
+    pub selected_identity_sha256: String,
+    pub selected_total_bits: f64,
+    pub runner_up_total_bits: Option<f64>,
+    pub candidates: Vec<M10CandidateScore>,
+    pub limitation: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct M10StrokeOnlySelection {
+    pub report: M10StrokeOnlyReport,
+    pub selected_stroke: ValidatedStrokeScene,
+    pub selected_straight_srgb8: Vec<u8>,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum M10Error {
     #[error(transparent)]
@@ -111,6 +135,53 @@ pub fn inspect_m10_line_art(bytes: &[u8]) -> Result<M10Inspection, M10Error> {
         schema: M10_INSPECTION_SCHEMA,
         evidence: proposal.report,
         candidate_ids,
+    })
+}
+
+/// Select the best stroke style without requiring an M7 fill witness.
+///
+/// This is intentionally an experimental product path. It makes M10
+/// inspectable when Flat2 is unavailable while preserving the honest
+/// limitation that the fill-vs-stroke model comparison was not performed.
+pub fn select_m10_line_art_stroke_only(bytes: &[u8]) -> Result<M10StrokeOnlySelection, M10Error> {
+    let image = CanonicalImage::decode(bytes, &DecodeLimits::default())?;
+    let proposal = vice_evidence::propose_line_art_strokes(&image)?;
+    let evidence = proposal.report;
+    let mut scenes = Vec::with_capacity(proposal.candidates.len());
+    let mut pixels = Vec::with_capacity(proposal.candidates.len());
+    let mut scores = Vec::with_capacity(proposal.candidates.len());
+    for scene in proposal.candidates {
+        let render = vice_render::render_stroke_scene(&scene)?;
+        let score = score_stroke(&image, &scene, &render.straight_srgb8)?;
+        scenes.push(scene);
+        pixels.push(render.straight_srgb8);
+        scores.push(score);
+    }
+    if scores.is_empty() || scores.iter().any(|score| !score.total_bits.is_finite()) {
+        return Err(M10Error::InvalidInventory);
+    }
+    let mut order = (0..scores.len()).collect::<Vec<_>>();
+    order.sort_by(|a, b| {
+        scores[*a]
+            .total_bits
+            .total_cmp(&scores[*b].total_bits)
+            .then_with(|| scores[*a].identity_sha256.cmp(&scores[*b].identity_sha256))
+    });
+    let selected = order[0];
+    Ok(M10StrokeOnlySelection {
+        report: M10StrokeOnlyReport {
+            schema: M10_STROKE_ONLY_SCHEMA,
+            source_sha256: image.source_sha256().into(),
+            source_format: image.encoded_format(),
+            evidence,
+            selected_identity_sha256: scores[selected].identity_sha256.clone(),
+            selected_total_bits: scores[selected].total_bits,
+            runner_up_total_bits: order.get(1).map(|index| scores[*index].total_bits),
+            candidates: scores,
+            limitation: "stroke styles were compared without the unavailable fill witness; non-production manual inspection only",
+        },
+        selected_stroke: scenes[selected].clone(),
+        selected_straight_srgb8: pixels[selected].clone(),
     })
 }
 

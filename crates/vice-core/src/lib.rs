@@ -7,6 +7,7 @@ mod m8;
 mod m9;
 mod p1;
 mod pipeline;
+mod product;
 mod scene;
 mod types;
 pub use config::{
@@ -16,9 +17,10 @@ pub use config::{
     M7_QUALITY_PRODUCTION_CONFIG_SHA256,
 };
 pub use m10::{
-    inspect_m10_line_art, select_m10_line_art, select_m10_line_art_against_fill, M10CandidateScore,
-    M10Decision, M10Error, M10Inspection, M10ModelKind, M10Selection, M10SelectionReport,
-    M10_INSPECTION_SCHEMA, M10_SELECTION_SCHEMA,
+    inspect_m10_line_art, select_m10_line_art, select_m10_line_art_against_fill,
+    select_m10_line_art_stroke_only, M10CandidateScore, M10Decision, M10Error, M10Inspection,
+    M10ModelKind, M10Selection, M10SelectionReport, M10StrokeOnlyReport, M10StrokeOnlySelection,
+    M10_INSPECTION_SCHEMA, M10_SELECTION_SCHEMA, M10_STROKE_ONLY_SCHEMA,
 };
 pub use m11::*;
 pub use m8::*;
@@ -35,6 +37,11 @@ pub use pipeline::{
     vectorize, vectorize_embedded_production, vectorize_for_calibration,
     vectorize_for_calibration_without_baseline, vectorize_with_config,
     vectorize_with_production_config,
+};
+pub use product::{
+    classify_product_lane, product_from_flat2_outcome, vectorize_product,
+    ExperimentalArtifactManifest, ProductArtifacts, ProductLane, ProductMode, ProductReport,
+    ProductRequest, ProductResult, RouteDecision, RouteObservation, PRODUCT_REPORT_SCHEMA,
 };
 pub use types::{
     CalibrationRun, CalibrationWitness, CandidateFailureStage, CandidateRefusal,

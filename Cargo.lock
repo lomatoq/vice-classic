@@ -1266,6 +1266,7 @@ version = "0.0.1"
 dependencies = [
  "clap",
  "hex",
+ "png",
  "serde",
  "serde_json",
  "sha2",
