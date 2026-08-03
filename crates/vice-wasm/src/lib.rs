@@ -197,9 +197,14 @@ mod tests {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web/app.js"),
         )
         .unwrap();
-        assert!(app.contains("vectorize_product"));
         assert!(app.contains("selected_lane"));
         assert!(app.contains("experimental_artifacts"));
-        assert!(!app.contains("vectorize_flat2("));
+        assert!(app.contains("new Worker"));
+        let worker = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web/worker.js"),
+        )
+        .unwrap();
+        assert!(worker.contains("vectorize_product"));
+        assert!(worker.contains("type: \"result\""));
     }
 }

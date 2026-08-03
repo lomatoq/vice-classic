@@ -1,4 +1,8 @@
 {
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "build": "wasm-pack build ../crates/vice-wasm --release --target web --out-dir ../../web/pkg",
+    "start": "node server.mjs"
+  }
 }

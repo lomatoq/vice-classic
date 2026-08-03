@@ -88,6 +88,16 @@ shows the selected lane and route reason, previews SVG or PNG artifacts, and
 always exposes the diagnostic report. It runs the same Rust product router;
 JavaScript does not reimplement inference or thresholds.
 
+On Windows, double-click `start-vice-web.cmd`, or run:
+
+```powershell
+npm --prefix web start
+```
+
+The launcher builds the browser package if it is missing, starts
+`http://127.0.0.1:8765`, and opens it in the default browser. Keep the launcher
+window open while using the app; `Ctrl+C` stops the local server.
+
 ## Verification
 
 ```bash

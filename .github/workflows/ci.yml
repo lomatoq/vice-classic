@@ -334,8 +334,9 @@ jobs:
       - name: Browser UI JavaScript parses
         run: |
           node --check web/app.js
+          node --check web/worker.js
           node web/smoke.mjs
-          node -e "const fs=require('fs'); const html=fs.readFileSync('web/index.html','utf8'); const app=fs.readFileSync('web/app.js','utf8'); if(!html.includes('wasm-unsafe-eval')||!html.includes('value=')||!html.includes('Auto')||!app.includes('vectorize_product')) process.exit(1)"
+          node -e "const fs=require('fs'); const html=fs.readFileSync('web/index.html','utf8'); const app=fs.readFileSync('web/app.js','utf8'); if(!html.includes('wasm-unsafe-eval')||!html.includes('worker-src')||!html.includes('value=')||!html.includes('Auto')||!app.includes('new Worker')) process.exit(1)"
 
   # REVIEW_M3 A7.2. Until now the DIGESTS of the committed artifacts were
   # verified by nobody: the ubuntu job above physically cannot, because

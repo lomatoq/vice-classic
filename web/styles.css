@@ -8,5 +8,20 @@ button, input, select { font: inherit; padding: .65rem; }
 button { cursor: pointer; }
 #result { display: grid; gap: 1rem; }
 #route { margin: 0; color: GrayText; }
+#status.working::before {
+  content: "";
+  display: inline-block;
+  inline-size: .8rem;
+  block-size: .8rem;
+  margin-inline-end: .55rem;
+  border: .15rem solid GrayText;
+  border-block-start-color: transparent;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #status.working::before { animation: none; }
+}
 #preview { max-width: 100%; max-height: 28rem; background: repeating-conic-gradient(#ddd 0 25%, #fff 0 50%) 0/1rem 1rem; }
 pre { overflow: auto; max-height: 24rem; padding: 1rem; background: Canvas; border: 1px solid GrayText; }
