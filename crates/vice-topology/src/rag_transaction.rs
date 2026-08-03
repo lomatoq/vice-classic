@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::rag::{RagError, RegionAdjacencyGraph, RegionId, RegionLabelling};
@@ -10,7 +10,7 @@ use crate::rag::{RagError, RegionAdjacencyGraph, RegionId, RegionLabelling};
 const SCENE_SCHEMA: &str = "vice-classic/region-scene/v1";
 const TX_SCHEMA: &str = "vice-classic/rag-transaction/v1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "rgb", rename_all = "snake_case")]
 pub enum QuantizedPaint {
     OpaqueSrgb8([u8; 3]),

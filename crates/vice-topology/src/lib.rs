@@ -55,6 +55,7 @@ pub mod events;
 pub mod field;
 pub mod hypothesis;
 pub mod multidcel;
+pub mod partition_script;
 pub mod rag;
 pub mod rag_transaction;
 
@@ -97,6 +98,10 @@ pub use hypothesis::{CostBounds, Provenance, TopologyHypothesis, NOT_A_LIKELIHOO
 pub use multidcel::{
     MultiBoundary, MultiBoundaryId, MultiDcelError, MultiFace, MultiHalfEdgeId, MultiJunction,
     MulticolorDcel, MULTICOLOR_DCEL_SCHEMA,
+};
+pub use partition_script::{
+    apply_partition_edit_script, PartitionEditScript, PartitionScriptEdit, PartitionScriptError,
+    PartitionScriptOutcome, PartitionScriptStepLedger, PARTITION_EDIT_SCRIPT_SCHEMA,
 };
 pub use rag::{
     RagEdge, RagError, RagNode, RegionAdjacencyGraph, RegionId, RegionLabelling, RAG_SCHEMA,

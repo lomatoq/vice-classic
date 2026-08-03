@@ -1094,11 +1094,17 @@ fn every_status_document_is_classified_or_excepted_with_a_reason() {
         ),
         (
             "docs/STATUS_M8.md",
-            "active implementation checkpoint with no frozen gate table or release verdict; its \
-             obligation states are development inventory, not measured release claims. Replace \
-             this exception with the M8 canonical-artifact positional tier before an M8 review \
-             candidate is declared",
+            "accepted release status whose complete calibration and sealed courts are committed \
+             as raw JSON and bound through the V2 authority and production policy. It has no \
+             markdown gate table to place under the older M4.5 positional tier",
             "M8",
+        ),
+        (
+            "docs/STATUS_P1.md",
+            "P1 has no numerical gate in section 28; this status publishes an API contract and \
+             executable commands, not a markdown measurement table. Any later quantitative \
+             editor gate must introduce its own positional evidence tier",
+            "M9",
         ),
     ];
 

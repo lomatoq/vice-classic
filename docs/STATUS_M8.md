@@ -1,10 +1,11 @@
-# STATUS M8 — generation 7 release green, review pending
+# STATUS M8 — accepted
 
 Date: 2026-08-03.
 
 Generation 7 passed its fresh calibration and untouched sealed release court.
-The exact production policy has been generated, but M8 is not marked accepted
-until the agreed single follow-up cold review passes on the final clean SHA.
+The agreed independent cold review accepted exact clean SHA
+`9c58d181120af872bbb179c26bc1a35dde505615`; that SHA was pushed to
+`origin/main` without a tracked edit after the verdict.
 
 ## Generation 7 result
 

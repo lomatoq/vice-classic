@@ -26,7 +26,24 @@ milestone gate. Покрыты M0…M8.
 | M8-14 | real PP00/PP10/PP01/PP11 partition × paint intervention matrix on one observation | `vice-bench::oracle::paint` | complete-arm, incompatible-key and no-fake-arm tests | effects and interaction artifact |
 | M8-15–16 | separately calibrated multiregion selective admission and independently parsed/rendered PurePartition/SeamSafe bytes | `vice-bench::m8`, `vice-core::m8::delivery`, `vice-svg`, `vice-verify` | procedural/authored/adversarial split, per-origin coverage, independent parser/renderer and policy tamper tests | generation-7 calibration 503/604 and sealed 497/600; zero catastrophes; committed full courts |
 | M8-17–18 | M7 regression remains green; budgets, population and execution evidence are exact and deterministic | workspace regression; formal-court reconstruction; clean-HEAD/build-SHA/runner attestations | full workspace barrier, missing/duplicate/forged-row attacks, four unique executions | green release barrier and exact generation-7 candidate/runner/corpus bindings |
-| M8-19–20 | truthful docs/failure history, config-only freeze and one immutable-SHA cold review | M8 docs, `FAILURE_LEDGER.md`, V2 authority and committed production policy | document claims, exact two-file gate-delta check and follow-up cold review | evidence/config/policy green; final single cold review pending |
+| M8-19–20 | truthful docs/failure history, config-only freeze and one immutable-SHA cold review | M8 docs, `FAILURE_LEDGER.md`, V2 authority and committed production policy | document claims, exact two-file gate-delta check and follow-up cold review | evidence/config/policy green; cold review ACCEPT on `9c58d181120af872bbb179c26bc1a35dde505615` |
+
+## P1 — Partition correction API/editor
+
+Normative scope is the P1 line in §28: deterministic
+merge/split/assign/protect/restore edit script, followed by an affected-graph
+core rerun; it is explicitly not a Bézier editor.
+
+| # | Invariant | Implementation | Tests / replay |
+|---|---|---|---|
+| P1-01 | Script bytes have one versioned schema and bind the exact base partition | `vice-topology::partition_script` | JSON round-trip, unknown-field and stale-base refusals |
+| P1-02 | Merge and split address stable region labels, not transient RAG indices | `PartitionScriptEdit::{Merge,Split}` over `RegionScene` | merge/restore byte identity; connected split and graph-digest change |
+| P1-03 | Assign is explicit and is not silently refitted away | fixed-paint exact court in `vice-opt`; `vice-core::p1` | assigned RGB survives exact rerender byte-for-byte |
+| P1-04 | Protect blocks every later mutation of the protected region | script protection set | protected assign/merge refusal and whole-script rollback |
+| P1-05 | Restore returns a named prior checkpoint including its protection state | immutable script snapshots | restored scene and RAG equal the exact base digests |
+| P1-06 | No partial result escapes a refused script | immutable input plus result-only commit | failure returns no outcome; input digest remains unchanged |
+| P1-07 | The corrected graph re-enters materialization, DCEL, physical paint pricing, exact likelihood and rerender | `inspect_multiregion_partition`, `correct_multiregion_partition` | end-to-end split and assign core-rerun tests |
+| P1-08 | Manual correction is not silently called calibrated automatic production success | P1 report keeps `production_admitted=false` until an explicit downstream admission | end-to-end report assertion |
 
 ## M7 — Exact posterior refinement + selective delivery + export materialization
 

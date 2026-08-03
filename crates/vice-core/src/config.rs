@@ -8,6 +8,21 @@ use vice_opt::{
 };
 use vice_verify::{DeliverySealConfig, QuantizationPolicy, VerificationConfig};
 
+pub fn selection_calibration_class(hypothesis_id: &str) -> String {
+    let Some((_, tail)) = hypothesis_id.split_once("primitive-") else {
+        return "flat2/general".into();
+    };
+    let Some((_, kind_and_delivery)) = tail.split_once('-') else {
+        return "flat2/native-primitive/unknown".into();
+    };
+    let kind = kind_and_delivery.split('/').next().unwrap_or("unknown");
+    if kind.is_empty() {
+        "flat2/native-primitive/unknown".into()
+    } else {
+        format!("flat2/native-primitive/{kind}")
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Intent {

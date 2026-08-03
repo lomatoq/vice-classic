@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
 vice-ir = { path = "../vice-ir" }
@@ -22,4 +23,3 @@ vice-ir = { path = "../vice-ir" }
 # from the struct definition, so a field added as `extra: _` in the walk's
 # pattern — REDTEAM_M5 RT5-A11, one line, clippy clean — moves the leaf count
 # and not the site count, and the test fails.
-serde_json = "1"

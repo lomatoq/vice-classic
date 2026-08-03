@@ -30,6 +30,7 @@ pub use materialize::{
 };
 #[path = "m8/production.rs"]
 mod production;
+pub(crate) use production::solve_edited_multiregion_seed;
 pub use production::{
     solve_multiregion_exact, M8CandidateSummary, M8ExactConfig, M8ExactError, M8ExactReport,
     M8SolvedCandidate, M8_EXACT_SCHEMA,

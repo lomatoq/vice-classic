@@ -1,6 +1,6 @@
 # M8 obligation and acceptance map
 
-Status: generation 7 release green; final clean-SHA cold review pending.
+Status: generation 7 accepted on clean SHA `9c58d181120af872bbb179c26bc1a35dde505615`.
 
 Normative authority remains `docs/spec/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`, in
 particular sections 1.1, 6.1, 6.4, 9.3, 11.5, 12, 16.1, 17, 19, 27.6 and the
@@ -74,4 +74,4 @@ M7 confidence threshold for the expanded model universe.
 | M8-17 | MET | the release workspace barrier and focused M8/M7 regression checks are green; the M8 population does not widen historical M7 registries |
 | M8-18 | MET | typed budgets; exact population reconstruction; clean candidate/runner binding; four distinct execution IDs per court; committed-policy tamper refusal |
 | M8-19 | MET | status, reproduction, traceability, failure history and immutable evidence hashes are recorded; P1 remains later |
-| M8-20 | REVIEW PENDING | V2 calibration and authority are an exact config-only commit; sealed verdict and committed production policy are green; the agreed single cold review remains |
+| M8-20 | MET | V2 calibration and authority are an exact config-only commit; sealed verdict and committed production policy are green; the agreed cold review accepted the exact clean final SHA before push |

@@ -70,6 +70,8 @@ pub enum PaintFitError {
     NonFinite,
     #[error("paint-fit evidence weights are malformed")]
     InvalidWeights,
+    #[error("fixed paint table does not exactly cover every opaque face")]
+    FixedPaintMismatch,
 }
 
 /// Jointly fit all opaque face colours against the common visible partition.
@@ -99,6 +101,10 @@ pub fn fit_opaque_face_paints_weighted(
         cfg,
     )
 }
+
+#[path = "multiregion/fixed.rs"]
+mod fixed;
+pub use fixed::score_fixed_opaque_face_paints;
 
 fn fit_opaque_face_paints_impl(
     observation: &ObservationTensor,

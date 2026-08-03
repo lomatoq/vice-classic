@@ -298,6 +298,70 @@ pub fn solve_multiregion_exact(
     })
 }
 
+/// Re-enter the exact M8 court after a P1 script has rebuilt the partition.
+/// The edited seed's explicit paints are scored as written; they are not
+/// silently replaced by a fresh proposal fit.
+pub(crate) fn solve_edited_multiregion_seed(
+    image: &CanonicalImage,
+    seed: &MultiregionSeed,
+    cfg: &M8ExactConfig,
+) -> Result<M8SolvedCandidate, M8ExactError> {
+    validate_config(cfg)?;
+    let scene = materialize_multiregion_seed(seed)?.into_inner();
+    let selected = exact_score_with_paint_fit(scene, seed, image, cfg, seed.paint_fit.clone(), 0)?;
+    let universe_hash = model_universe_hash(&SupportedModelUniverseV1::m8());
+    let config_sha256 = config_digest(cfg);
+    let pricing_sha256 = hex::encode(Sha256::digest(M8_PRIOR_SCHEMA.as_bytes()));
+    let backend_sha256 = hex::encode(Sha256::digest(
+        format!(
+            "{}|{}|{}",
+            M8_BACKEND_SCHEMA,
+            vice_render::RENDER_DIGEST_SCHEMA,
+            env!("CARGO_PKG_VERSION")
+        )
+        .as_bytes(),
+    ));
+    let alternation = run_exact_alternation(
+        selected.alternation(&universe_hash),
+        cfg.alternation,
+        |_, _| Ok(Vec::new()),
+    )?;
+    let identity = vice_opt::ModelIdentity::new(
+        universe_hash.clone(),
+        pricing_sha256.clone(),
+        backend_sha256.clone(),
+        config_sha256.clone(),
+    )?;
+    let search_mass = posterior_with_search_mass(SearchMassInput {
+        identity,
+        explored_kept: vec![selected.scored()],
+        budget_pruned: Vec::new(),
+        topology_classes_upper_bound: 1,
+        formation_classes_upper_bound: 1,
+        unexplored: UnexploredMassInput::Unknown,
+    })?;
+    let report = M8ExactReport {
+        schema: M8_EXACT_SCHEMA,
+        source_sha256: image.source_sha256().to_string(),
+        model_universe_hash: universe_hash,
+        config_sha256,
+        pricing_sha256,
+        backend_sha256,
+        production_admitted: false,
+        admission_authority_sha256: None,
+        seed_candidates: 1,
+        exact_candidates_evaluated: 1,
+        selected: selected.summary.clone(),
+        alternation,
+        search_mass,
+    };
+    Ok(M8SolvedCandidate {
+        scene: selected.scene,
+        render: selected.render,
+        report,
+    })
+}
+
 fn validate_config(cfg: &M8ExactConfig) -> Result<(), M8ExactError> {
     if cfg.alternation.max_rounds == 0
         || !cfg.alternation.min_exact_improvement_bits.is_finite()
@@ -334,7 +398,24 @@ fn exact_refit_and_score(
         &evidence_weights,
         &MULTIREGION_PAINT_CONFIG_V1,
     )?;
-    let mut fitted = validated.into_inner();
+    exact_score_with_paint_fit(
+        validated.into_inner(),
+        seed,
+        image,
+        cfg,
+        paint_fit,
+        geometry_refinement_depth,
+    )
+}
+
+fn exact_score_with_paint_fit(
+    mut fitted: VectorScene,
+    seed: &MultiregionSeed,
+    image: &CanonicalImage,
+    cfg: &M8ExactConfig,
+    paint_fit: vice_opt::PaintFit,
+    geometry_refinement_depth: u32,
+) -> Result<ExactCandidate, M8ExactError> {
     for paint in &paint_fit.paints {
         let rgb = paint.quantized_srgb8;
         fitted.graph.faces[paint.face.index()].paint = Paint::OpaqueSolid(LinearRgb::new(

@@ -3,31 +3,27 @@
 mod candidate;
 mod config;
 mod m8;
+mod p1;
 mod pipeline;
 mod scene;
 mod types;
 
 pub use config::{
-    CalibrationBucket, ConfidenceCalibration, ConfidenceMetrics, CoreConfig, Intent,
-    IntentPriorPolicy, PaintCalibrationClass, PerturbationStability, Preset, ProductionConfigError,
-    VectorizeRequest, M7_FAST_PRODUCTION_CONFIG_SHA256, M7_QUALITY_PRODUCTION_CONFIG_SHA256,
+    selection_calibration_class, CalibrationBucket, ConfidenceCalibration, ConfidenceMetrics,
+    CoreConfig, Intent, IntentPriorPolicy, PaintCalibrationClass, PerturbationStability, Preset,
+    ProductionConfigError, VectorizeRequest, M7_FAST_PRODUCTION_CONFIG_SHA256,
+    M7_QUALITY_PRODUCTION_CONFIG_SHA256,
 };
 pub use m8::*;
+pub use p1::{
+    correct_multiregion_partition, inspect_multiregion_partition, P1CorrectionError,
+    P1CorrectionOutcome, P1CorrectionReport, P1PartitionRegion, P1PartitionSnapshot,
+    P1_CORRECTION_SCHEMA, P1_SNAPSHOT_SCHEMA,
+};
+pub use vice_topology::{
+    PartitionEditScript, PartitionScriptEdit, QuantizedPaint, PARTITION_EDIT_SCRIPT_SCHEMA,
+};
 
-pub fn selection_calibration_class(hypothesis_id: &str) -> String {
-    let Some((_, tail)) = hypothesis_id.split_once("primitive-") else {
-        return "flat2/general".into();
-    };
-    let Some((_, kind_and_delivery)) = tail.split_once('-') else {
-        return "flat2/native-primitive/unknown".into();
-    };
-    let kind = kind_and_delivery.split('/').next().unwrap_or("unknown");
-    if kind.is_empty() {
-        "flat2/native-primitive/unknown".into()
-    } else {
-        format!("flat2/native-primitive/{kind}")
-    }
-}
 pub use pipeline::{
     vectorize, vectorize_for_calibration, vectorize_for_calibration_without_baseline,
     vectorize_with_config, vectorize_with_production_config,

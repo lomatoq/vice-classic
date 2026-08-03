@@ -27,8 +27,8 @@ pub use likelihood::{
 };
 pub use multiregion::{
     certify_exact_roi_transaction, fit_opaque_face_paints, fit_opaque_face_paints_weighted,
-    run_exact_alternation, AlternationCandidate, AlternationConfig, AlternationError,
-    AlternationResult, AlternationTraceRow, ExactRoiCertificateError,
+    run_exact_alternation, score_fixed_opaque_face_paints, AlternationCandidate, AlternationConfig,
+    AlternationError, AlternationResult, AlternationTraceRow, ExactRoiCertificateError,
     ExactRoiTransactionCertificate, FacePaintFit, MultiregionPaintConfig, PaintFit, PaintFitError,
     M8_ROI_CERTIFICATE_SCHEMA, MULTIREGION_PAINT_CONFIG_V1,
 };
