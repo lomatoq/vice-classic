@@ -29,7 +29,7 @@ cargo test --release -p vice-core p1 -- --nocapture
 cargo clippy -p vice-topology -p vice-opt -p vice-core --all-targets -- -D warnings
 ```
 
-Final barrier: 30 vice-core, 23 vice-opt, 98 vice-topology, 7 topology
+Final barrier: 30 vice-core, 23 vice-opt, 100 vice-topology, 7 topology
 integration, 7 documentation and 13 hygiene tests passed in release mode;
 clippy is warning-free for all three affected crates. No numerical gate or new
 calibration is introduced by P1. M9 is the next milestone.

@@ -51,6 +51,8 @@ pub enum RagTransactionError {
     PaintTableMismatch,
     #[error("transparent paint is only valid for the declared exterior label")]
     TransparentInterior,
+    #[error("the declared exterior label must remain transparent")]
+    OpaqueExterior,
     #[error("region {region:?} does not exist")]
     UnknownRegion { region: RegionId },
     #[error("regions {a:?} and {b:?} are not adjacent")]
@@ -104,6 +106,14 @@ impl RegionScene {
             {
                 return Err(RagTransactionError::TransparentInterior);
             }
+        }
+        if labelling.exterior_label().is_some_and(|label| {
+            !matches!(
+                paints.get(&label),
+                Some(QuantizedPaint::TransparentExterior)
+            )
+        }) {
+            return Err(RagTransactionError::OpaqueExterior);
         }
         Ok(Self { labelling, paints })
     }
@@ -245,6 +255,11 @@ pub fn apply_rag_transaction(
         RagEdit::AssignPaint { label, paint } => {
             if !paints.contains_key(label) {
                 return Err(RagTransactionError::UnknownPaintLabel { label: *label });
+            }
+            if Some(*label) == original.labelling.exterior_label()
+                && !matches!(paint, QuantizedPaint::TransparentExterior)
+            {
+                return Err(RagTransactionError::OpaqueExterior);
             }
             if matches!(paint, QuantizedPaint::TransparentExterior)
                 && Some(*label) != original.labelling.exterior_label()
@@ -411,6 +426,21 @@ mod tests {
                 }
             ),
             Err(RagTransactionError::TransparentInterior)
+        ));
+    }
+
+    #[test]
+    fn exterior_cannot_be_repainted_opaque() {
+        let s = scene();
+        assert!(matches!(
+            apply_rag_transaction(
+                &s,
+                RagEdit::AssignPaint {
+                    label: 0,
+                    paint: QuantizedPaint::OpaqueSrgb8([1, 2, 3]),
+                }
+            ),
+            Err(RagTransactionError::OpaqueExterior)
         ));
     }
 }

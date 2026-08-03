@@ -389,6 +389,25 @@ mod tests {
     }
 
     #[test]
+    fn opaque_exterior_assignment_is_refused_before_core_rerun() {
+        let base = scene();
+        let script = script(
+            &base,
+            vec![PartitionScriptEdit::Assign {
+                label: 0,
+                paint: QuantizedPaint::OpaqueSrgb8([1, 2, 3]),
+            }],
+        );
+        assert!(matches!(
+            apply_partition_edit_script(&base, &script),
+            Err(PartitionScriptError::Transaction {
+                source: RagTransactionError::OpaqueExterior,
+                ..
+            })
+        ));
+    }
+
+    #[test]
     fn stale_base_and_future_restore_fail_closed() {
         let base = scene();
         let mut stale = script(&base, vec![]);
