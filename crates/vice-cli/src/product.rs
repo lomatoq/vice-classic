@@ -27,7 +27,7 @@ pub fn release_status() -> ReleaseStatus {
         "tier_b_structural",
         vice_core::M7_FAST_PRODUCTION_CONFIG_SHA256,
         vice_core::M7_QUALITY_PRODUCTION_CONFIG_SHA256,
-        "vice-classic/wasm-result/v1",
+        "vice-classic/wasm-product-result/v1",
         "explicit_only_never_classic_fallback",
     ]
     .join("\n");
@@ -37,7 +37,7 @@ pub fn release_status() -> ReleaseStatus {
         cross_platform_tier: "tier_b_structural",
         fast_config_sha256: vice_core::M7_FAST_PRODUCTION_CONFIG_SHA256,
         quality_config_sha256: vice_core::M7_QUALITY_PRODUCTION_CONFIG_SHA256,
-        wasm_adapter_schema: "vice-classic/wasm-result/v1",
+        wasm_adapter_schema: "vice-classic/wasm-product-result/v1",
         classic_fallback_policy: "explicit_only_never_classic_fallback",
         technical_release_candidate: true,
         public_release_authorized: false,
@@ -66,6 +66,10 @@ mod tests {
         assert!(status.technical_release_candidate);
         assert!(!status.public_release_authorized);
         assert!(!status.commercial_release_authorized);
+        assert_eq!(
+            status.wasm_adapter_schema,
+            "vice-classic/wasm-product-result/v1"
+        );
         assert_eq!(status.structural_contract_sha256.len(), 64);
     }
 }

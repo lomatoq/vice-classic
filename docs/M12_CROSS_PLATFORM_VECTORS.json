@@ -4,7 +4,7 @@
   "cross_platform_tier": "tier_b_structural",
   "fast_config_sha256": "da2e6414d1ad3cd039969e74df3c514281230d2d4127cfcf0e338a792b3d1594",
   "quality_config_sha256": "60580f10119eed7720909daede4492718eba8362909c448bbd0920d1455677e6",
-  "wasm_adapter_schema": "vice-classic/wasm-result/v1",
+  "wasm_adapter_schema": "vice-classic/wasm-product-result/v1",
   "classic_fallback_policy": "explicit_only_never_classic_fallback",
   "technical_release_candidate": true,
   "public_release_authorized": false,
@@ -15,5 +15,5 @@
     "owner-controlled donor pins require explicit non-use/license attestation",
     "patent and freedom-to-operate opinion requires qualified human counsel"
   ],
-  "structural_contract_sha256": "09255fd73aeb7af8d27b66a663e3e34cd07f7c8b783eca1f88f8dcf32aeceb96"
+  "structural_contract_sha256": "95bd20dfa7152b941a1143691cc5b8a6289ba921d2098cc8481de8470f434645"
 }
