@@ -11,7 +11,7 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install pinned toolchain
         run: rustup show
       - name: Format
@@ -35,7 +35,7 @@ jobs:
   clean-checkout-smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The frozen-gate rule below compares a commit against its parent.
           fetch-depth: 2
@@ -73,7 +73,7 @@ jobs:
   gt-corpus:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # 0 = full history: the frozen-gate rule below walks every commit
           # of the pushed range, and a depth of 2 made that impossible.
@@ -317,7 +317,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install pinned toolchain and WASM target
         run: |
           rustup show
@@ -355,7 +355,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install pinned toolchain
         run: rustup show
       - name: The committed corpus manifest reproduces (Tier A, all 1086 digests)
