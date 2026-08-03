@@ -1,0 +1,265 @@
+{
+  "schema": "vice-classic/m8-calibration/v1",
+  "court_sha256": "494226e96abb665fce6c284aaf0b770840387668f28dac6f20e7d2e37bbc9aa9",
+  "model_universe_sha256": "aa2c4b0e81801f6cae861cdd60c52a7dd359e6da00389a3ddedc4514c818b70e",
+  "exact_config_sha256": "458a0225e3685f2c2f8612bfcd4043e6fe658075092aa2e7a596d70bf7d4a749",
+  "classes": [
+    {
+      "name": "m3/k3/f3/c1/j1/linear_light:transparent",
+      "clean_source_groups": 214,
+      "maximum_pixel_bits_per_block": 2.2523070571815103
+    },
+    {
+      "name": "m3/k3/f3/c3/j0/linear_light:transparent",
+      "clean_source_groups": 32,
+      "maximum_pixel_bits_per_block": 0.1597141227650646
+    },
+    {
+      "name": "m3/k3/f4/c4/j0/linear_light:transparent",
+      "clean_source_groups": 3,
+      "maximum_pixel_bits_per_block": 0.13261405136257842
+    },
+    {
+      "name": "m3/k3/f5/c5/j0/linear_light:transparent",
+      "clean_source_groups": 2,
+      "maximum_pixel_bits_per_block": 0.15932855920645353
+    },
+    {
+      "name": "m3/k3/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 2,
+      "maximum_pixel_bits_per_block": 0.1957685788107756
+    },
+    {
+      "name": "m4/k3/f4/c4/j0/linear_light:transparent",
+      "clean_source_groups": 14,
+      "maximum_pixel_bits_per_block": 0.21039503219064729
+    },
+    {
+      "name": "m4/k3/f5/c5/j0/linear_light:transparent",
+      "clean_source_groups": 2,
+      "maximum_pixel_bits_per_block": 0.19998197307114057
+    },
+    {
+      "name": "m4/k3/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 3,
+      "maximum_pixel_bits_per_block": 0.20641718959149935
+    },
+    {
+      "name": "m4/k4/f4/c1/j0/linear_light:opaque",
+      "clean_source_groups": 10,
+      "maximum_pixel_bits_per_block": 0.8526170634188307
+    },
+    {
+      "name": "m4/k4/f4/c1/j4/encoded_srgb:opaque",
+      "clean_source_groups": 106,
+      "maximum_pixel_bits_per_block": 2.9948667955389143
+    },
+    {
+      "name": "m4/k4/f4/c4/j0/linear_light:transparent",
+      "clean_source_groups": 11,
+      "maximum_pixel_bits_per_block": 0.22326360440110365
+    },
+    {
+      "name": "m4/k4/f5/c5/j0/linear_light:transparent",
+      "clean_source_groups": 5,
+      "maximum_pixel_bits_per_block": 0.1988590065305248
+    },
+    {
+      "name": "m4/k4/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 3,
+      "maximum_pixel_bits_per_block": 0.2193215186654027
+    },
+    {
+      "name": "m5/k3/f5/c5/j0/linear_light:transparent",
+      "clean_source_groups": 14,
+      "maximum_pixel_bits_per_block": 0.28212982458283026
+    },
+    {
+      "name": "m5/k4/f5/c1/j0/linear_light:opaque",
+      "clean_source_groups": 3,
+      "maximum_pixel_bits_per_block": 0.8505953628352751
+    },
+    {
+      "name": "m5/k4/f5/c5/j0/linear_light:transparent",
+      "clean_source_groups": 13,
+      "maximum_pixel_bits_per_block": 0.28318494592455923
+    },
+    {
+      "name": "m5/k4/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 5,
+      "maximum_pixel_bits_per_block": 0.23035860903872293
+    },
+    {
+      "name": "m5/k5/f5/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 4,
+      "maximum_pixel_bits_per_block": 0.8695350833371448
+    },
+    {
+      "name": "m5/k5/f5/c1/j0/linear_light:opaque",
+      "clean_source_groups": 2,
+      "maximum_pixel_bits_per_block": 0.8552767553120552
+    },
+    {
+      "name": "m5/k5/f5/c5/j0/linear_light:transparent",
+      "clean_source_groups": 6,
+      "maximum_pixel_bits_per_block": 0.2846115913851053
+    },
+    {
+      "name": "m5/k5/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 3,
+      "maximum_pixel_bits_per_block": 0.22147586239210004
+    },
+    {
+      "name": "m6/k3/f6/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 7,
+      "maximum_pixel_bits_per_block": 0.8997148271980504
+    },
+    {
+      "name": "m6/k3/f6/c1/j0/linear_light:opaque",
+      "clean_source_groups": 2,
+      "maximum_pixel_bits_per_block": 0.8571709613140737
+    },
+    {
+      "name": "m6/k3/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 3,
+      "maximum_pixel_bits_per_block": 0.28996986456885154
+    },
+    {
+      "name": "m6/k4/f6/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 2,
+      "maximum_pixel_bits_per_block": 0.8558210798881181
+    },
+    {
+      "name": "m6/k4/f6/c1/j0/linear_light:opaque",
+      "clean_source_groups": 2,
+      "maximum_pixel_bits_per_block": 0.851817064840374
+    },
+    {
+      "name": "m6/k4/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 7,
+      "maximum_pixel_bits_per_block": 0.35471643626893384
+    },
+    {
+      "name": "m6/k5/f6/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 2,
+      "maximum_pixel_bits_per_block": 0.9029539355812246
+    },
+    {
+      "name": "m6/k5/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 5,
+      "maximum_pixel_bits_per_block": 0.35623847075359627
+    },
+    {
+      "name": "m6/k6/f6/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 6,
+      "maximum_pixel_bits_per_block": 0.8982638678794473
+    },
+    {
+      "name": "m6/k6/f6/c6/j0/linear_light:transparent",
+      "clean_source_groups": 5,
+      "maximum_pixel_bits_per_block": 0.3256740345253353
+    }
+  ],
+  "excluded_unsafe_classes": [
+    {
+      "name": "m3/k3/f3/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 4
+    },
+    {
+      "name": "m3/k3/f3/c1/j0/linear_light:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 6
+    },
+    {
+      "name": "m3/k3/f4/c1/j1/linear_light:transparent",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 1
+    },
+    {
+      "name": "m3/k3/f4/c1/j2/linear_light:transparent",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 2
+    },
+    {
+      "name": "m4/k3/f3/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 1
+    },
+    {
+      "name": "m4/k3/f4/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 2,
+      "catastrophic_source_groups": 2
+    },
+    {
+      "name": "m4/k3/f4/c1/j0/linear_light:opaque",
+      "clean_source_groups": 5,
+      "catastrophic_source_groups": 1
+    },
+    {
+      "name": "m4/k4/f4/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 1
+    },
+    {
+      "name": "m4/k4/f5/c1/j6/encoded_srgb:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 1
+    },
+    {
+      "name": "m4/k4/f6/c1/j8/encoded_srgb:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 1
+    },
+    {
+      "name": "m5/k3/f4/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 1
+    },
+    {
+      "name": "m5/k3/f5/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 1,
+      "catastrophic_source_groups": 2
+    },
+    {
+      "name": "m6/k3/f5/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 2
+    },
+    {
+      "name": "m7/k3/f6/c1/j0/encoded_srgb:opaque",
+      "clean_source_groups": 0,
+      "catastrophic_source_groups": 15
+    }
+  ],
+  "reliability": {
+    "bucket": "m8_multiregion",
+    "groups_total": 599,
+    "groups_accepted": 498,
+    "groups_catastrophic": 0,
+    "coverage_per_source": 0.8313856427378965,
+    "renders_total": 599,
+    "renders_accepted": 498,
+    "coverage_per_render": 0.8313856427378965,
+    "catastrophic_risk_upper": 0.009204704628057725,
+    "confidence": 0.99,
+    "required_groups": 459,
+    "group_deficit": 0,
+    "contract_met": true,
+    "likelihood_refusal": null
+  },
+  "gates": {
+    "boundary_p95_px": 1.25,
+    "boundary_p99_px": 1.5,
+    "boundary_max_px": 1.75,
+    "paint_delta_codes": 0,
+    "profile_max_channel_delta": 1,
+    "profile_mean_channel_delta": 0.00006103515625,
+    "internal_max_channel_delta": 64,
+    "internal_mean_channel_delta": 0.0078125,
+    "runtime_p95_ms": 5174
+  },
+  "gate_met": true,
+  "refusals": []
+}
+
