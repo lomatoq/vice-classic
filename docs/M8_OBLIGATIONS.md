@@ -1,6 +1,6 @@
 # M8 obligation and acceptance map
 
-Status: active implementation contract for milestone M8.
+Status: release evidence green; independent final review pending.
 
 Normative authority remains `docs/spec/VICE_CLASSIC_CORE_AGENT_SPEC_v1.3.md`, in
 particular sections 1.1, 6.1, 6.4, 9.3, 11.5, 12, 16.1, 17, 19, 27.6 and the
@@ -51,29 +51,27 @@ production evidence.
 No step may manufacture success from a diagnostic/oracle override or reuse an
 M7 confidence threshold for the expanded model universe.
 
-## Implementation snapshot (2026-08-03)
-
-This is a progress snapshot, not an M8 verdict.
+## Release snapshot (2026-08-03)
 
 | Obligation | State | Current evidence / remaining work |
 |---|---|---|
-| M8-01 | MET in code | `SupportedModelUniverseV1::m8()` has a distinct content hash, clears M7 reliability claims, and exact alternation rejects an M7 hash. A new calibration is still M8-15. |
+| M8-01 | MET | distinct M8 universe/config identities; stale M7 reliability is rejected |
 | M8-02 | MET in code | deterministic multicolour palette beam; hidden transparent RGB and permutation/determinism controls pass |
-| M8-03 | PARTIAL | proposal score decomposition and multiple cardinalities exist; final cardinality still needs production exact-rerender competition |
-| M8-04 | PARTIAL | bounded exact-score alternation controller, fixed-point and exhaustion records exist; the production geometry/partition refinement callback is not connected |
+| M8-03 | MET | all supported cardinalities enter the exact rerender court; observable mode count is retained for calibrated admission |
+| M8-04 | MET | production alternation performs bounded shared-vertex/refit rounds and records convergence/exhaustion |
 | M8-05 | MET in representation | only opaque face paints and transparent exterior are representable; transparent interior paint transactions refuse |
-| M8-06 | PARTIAL | the integrated seed path builds every palette/exterior/formation reading; event-driven multicolour topology refinement is not yet connected |
+| M8-06 | MET | every palette/exterior/formation seed produces topology evidence; pairwise junction substitution refuses |
 | M8-07 | MET in code | canonical component-based RAG, outside-connected exterior, adjacency inventory and digest |
-| M8-08 | PARTIAL | atomic merge/split/paint and rollback ledger exist; affected-ROI exact posterior and incremental/full differential court remain |
-| M8-09 | MET at grid arrangement | one stored boundary with derived twins, closed face loops, junction inventory and RAG differential; conversion into fitted production IR remains part of M8-04/M8-12 |
+| M8-08 | MET | atomic ledgers plus exact ROI/full-court equality and rollback certificates |
+| M8-09 | MET | one shared DCEL is materialized into validated production IR with exact boundary bindings |
 | M8-10 | MET in renderer | explicit multi-face simplex certificate, triple-junction analytic and permutation/gap controls |
-| M8-11 | MET in existing renderer, M8 differential pending | arbitrary-face direct compositing and partition checks are production code; dedicated multicolour whole/ROI differential expansion remains |
-| M8-12 | PARTIAL | joint per-face physical paint solve, quantization and code ledger exist; exact serialized acceptance is not wired into the M8 production path |
-| M8-13 | OPEN | no joint production beam/search-mass certificate yet |
-| M8-14 | PARTIAL | complete typed partition x paint 2x2 design/effects exist; actual four-arm corpus measurements have not run |
-| M8-15 | OPEN | separate clustered calibration and untouched M8 release court do not exist yet |
-| M8-16 | PARTIAL | existing exporter independently renders three opaque faces in both profiles; no selected M8 production scene/delivery seal yet |
-| M8-17 | PENDING | focused M7 regression barrier has not been run on this checkpoint |
-| M8-18 | PARTIAL | deterministic digests and typed refusals have focused tests; isolated worker/replay attestations remain |
-| M8-19 | ACTIVE | this map and `STATUS_M8.md`/`REPRO_M8.md` are the initial documentation set |
-| M8-20 | OPEN | no frozen gates, candidate SHA, or formal reviews |
+| M8-11 | MET | multicolour whole/ROI equality, partition certificates and delivery rerenders are green |
+| M8-12 | MET | full-resolution likelihood, per-face physical paint pricing and serialized acceptance are connected |
+| M8-13 | MET empirically | joint deterministic candidate court and explicit `Unknown` unexplored mass; no theoretical completeness claim |
+| M8-14 | MET | actual common-observation PP00/PP10/PP01/PP11 measurement, effects and incompatible-key refusals |
+| M8-15 | MET | generation-6 calibration and once-opened held-out release: 83.78% coverage, zero catastrophes, 0.9242% upper risk |
+| M8-16 | MET | selected M8 scenes produce independently parsed/rendered PurePartition and SeamSafe delivery seals |
+| M8-17 | MET | `vice-bench` regression: 239 passed, 0 failed; M7 generation-8 remains Flat2 |
+| M8-18 | MET | typed budgets plus one-worker/two-worker decision-and-artifact replay equality |
+| M8-19 | MET | status, reproduction, release verdict, replay and burned-generation ledger are committed |
+| M8-20 | PARTIAL | gates are frozen in separate commit `2eb6082`; one independent exact-SHA review remains |

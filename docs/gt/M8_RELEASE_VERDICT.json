@@ -1,0 +1,25 @@
+{
+  "schema": "vice-classic/m8-release/v1",
+  "court_sha256": "4db6e0fd6d0967394c7d4efc0a722a35ba812d6e41c5f1180d5ec7cfa7307034",
+  "calibration_sha256": "268e037b33f539a904da7b1526fb8e56a81d4400bd5e80d306b7809da2f81a16",
+  "reliability": {
+    "bucket": "m8_multiregion",
+    "groups_total": 592,
+    "groups_accepted": 496,
+    "groups_catastrophic": 0,
+    "coverage_per_source": 0.8378378378378378,
+    "renders_total": 592,
+    "renders_accepted": 496,
+    "coverage_per_render": 0.8378378378378378,
+    "catastrophic_risk_upper": 0.009241648337477704,
+    "confidence": 0.99,
+    "required_groups": 459,
+    "group_deficit": 0,
+    "contract_met": true,
+    "likelihood_refusal": null
+  },
+  "gate_met": true,
+  "catastrophic_rows": 0,
+  "refusals": []
+}
+

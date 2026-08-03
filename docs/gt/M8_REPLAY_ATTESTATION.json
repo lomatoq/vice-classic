@@ -1,0 +1,18 @@
+{
+  "schema": "vice-classic/m8-replay-attestation/v1",
+  "procedural_generation": 6,
+  "scope": "smoke",
+  "variants_per_family": 4,
+  "logical_rows": 8,
+  "accepted_rows": 7,
+  "worker_counts": [1, 2],
+  "telemetry_fields_excluded": ["runtime_ms"],
+  "decision_artifact_rows_equal": true,
+  "decision_artifact_sha256": "62e9466f52275d3e7ff2dbc9eb2ae4c0d37e1d2de8b1be5f085487b0516e04e9",
+  "one_worker_report_sha256": "5d7c0b31e1e361023af9cc9ad4561bc16036f1b71ab9be64fb5d562d34e09def",
+  "two_worker_shard_sha256": [
+    "e2f28cff19cf01ed92e4052cc9b54ef3f108be4c08a8bb2127c64b2952d2db8a",
+    "fbb8378c08fdf88a51bc4630ab2a55cb5abdc9d52bf68ace2c1d3c3ffd2ecd92"
+  ],
+  "two_worker_merged_report_sha256": "92bda1826be36b60654416a588b0644e93579874ba02eb30505d0b61091bfe06"
+}
