@@ -613,6 +613,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "png"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61"
+dependencies = [
+ "bitflags 2.13.1",
+ "crc32fast",
+ "fdeflate",
+ "flate2",
+ "miniz_oxide",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -750,7 +763,7 @@ dependencies = [
  "pico-args",
  "rgb",
  "svgtypes",
- "tiny-skia",
+ "tiny-skia 0.11.4",
  "usvg",
  "zune-jpeg",
 ]
@@ -1052,8 +1065,23 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "log",
- "png",
- "tiny-skia-path",
+ "png 0.17.16",
+ "tiny-skia-path 0.11.4",
+]
+
+[[package]]
+name = "tiny-skia"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47ffee5eaaf5527f630fb0e356b90ebdec84d5d18d937c5e440350f88c5a91ea"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "bytemuck",
+ "cfg-if",
+ "log",
+ "png 0.18.1",
+ "tiny-skia-path 0.12.0",
 ]
 
 [[package]]
@@ -1061,6 +1089,17 @@ name = "tiny-skia-path"
 version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c9e7fc0c2e86a30b117d0462aa261b72b7a99b7ebd7deb3a14ceda95c5bdc93"
+dependencies = [
+ "arrayref",
+ "bytemuck",
+ "strict-num",
+]
+
+[[package]]
+name = "tiny-skia-path"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edca365c3faccca67d06593c5980fa6c57687de727a03131735bb85f01fdeeb9"
 dependencies = [
  "arrayref",
  "bytemuck",
@@ -1212,7 +1251,7 @@ dependencies = [
  "siphasher",
  "strict-num",
  "svgtypes",
- "tiny-skia-path",
+ "tiny-skia-path 0.11.4",
  "unicode-bidi",
  "unicode-script",
  "unicode-vo",
@@ -1237,7 +1276,7 @@ version = "0.0.1"
 dependencies = [
  "clap",
  "hex",
- "png",
+ "png 0.17.16",
  "raqote",
  "serde",
  "serde_json",
@@ -1245,7 +1284,7 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "thiserror",
- "tiny-skia",
+ "tiny-skia 0.12.0",
  "toml",
  "vice-core",
  "vice-evidence",
@@ -1281,7 +1320,7 @@ name = "vice-core"
 version = "0.0.1"
 dependencies = [
  "hex",
- "png",
+ "png 0.17.16",
  "serde",
  "serde_json",
  "sha2",
@@ -1339,7 +1378,7 @@ version = "0.0.1"
 dependencies = [
  "hex",
  "image-webp",
- "png",
+ "png 0.17.16",
  "serde",
  "sha2",
  "thiserror",
@@ -1385,7 +1424,7 @@ dependencies = [
  "raqote",
  "sha2",
  "thiserror",
- "tiny-skia",
+ "tiny-skia 0.12.0",
  "vice-geom",
  "vice-ir",
 ]
