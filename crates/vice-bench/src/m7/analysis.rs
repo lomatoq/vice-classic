@@ -22,11 +22,11 @@ mod delivery;
 pub use delivery::DeliveryCalibration;
 use delivery::{calibrate_delivery_seal, delivery_diagnostics_permit};
 mod policy;
+#[cfg(test)]
+use policy::fixed_diagnostics_permit;
 use policy::{
     diagnostics_permit, paint_calibration_classes, select_observable_policy, ObservablePolicy,
 };
-#[cfg(test)]
-use policy::fixed_diagnostics_permit;
 
 pub const M7_CALIBRATION_ANALYSIS_SCHEMA: &str =
     "vice-classic/m7-confidence-calibration-analysis/v16";

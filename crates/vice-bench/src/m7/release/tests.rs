@@ -54,6 +54,18 @@ fn file(status: &str) -> GatesFile {
                 toml::Value::Float(0.5),
             ),
             (
+                "quality_gate_max_evidence_palette_shift_codes",
+                toml::Value::Integer(2),
+            ),
+            (
+                "quality_gate_min_palette_support_px",
+                toml::Value::Integer(1),
+            ),
+            (
+                "quality_gate_max_palette_interval_radius_codes",
+                toml::Value::Integer(4),
+            ),
+            (
                 "fast_posterior_lower_bound_threshold",
                 toml::Value::Float(0.80),
             ),
@@ -68,6 +80,15 @@ fn file(status: &str) -> GatesFile {
             (
                 "fast_gate_max_support_isotopy_displacement_px",
                 toml::Value::Float(0.4),
+            ),
+            (
+                "fast_gate_max_evidence_palette_shift_codes",
+                toml::Value::Integer(1),
+            ),
+            ("fast_gate_min_palette_support_px", toml::Value::Integer(2)),
+            (
+                "fast_gate_max_palette_interval_radius_codes",
+                toml::Value::Integer(3),
             ),
             ("gate_min_top2_class_margin_bits", toml::Value::Float(0.0)),
             ("gate_max_abs_residual_lag1", toml::Value::Float(0.90)),
@@ -123,9 +144,9 @@ fn calibration_for(
         minimum_top2_class_margin_bits: gates.min_top2_class_margin_bits,
         maximum_posterior_predictive_bits_per_block: preset.max_posterior_predictive_bits_per_block,
         maximum_support_isotopy_displacement_px: preset.max_support_isotopy_displacement_px,
-        maximum_evidence_palette_shift_codes: 2,
-        minimum_palette_support_px: 1,
-        maximum_palette_interval_radius_codes: 4,
+        maximum_evidence_palette_shift_codes: preset.max_evidence_palette_shift_codes,
+        minimum_palette_support_px: preset.min_palette_support_px,
+        maximum_palette_interval_radius_codes: preset.max_palette_interval_radius_codes,
         maximum_abs_residual_lag1: gates.max_abs_residual_lag1,
         maximum_topology_entropy_bits: gates.max_topology_entropy_bits,
         maximum_formation_entropy_bits: gates.max_formation_entropy_bits,
@@ -165,6 +186,36 @@ fn each_preset_requires_its_own_frozen_calibration_gate() {
     ));
     assert!(!confidence_fields_match(
         &fast,
+        vice_core::Preset::Quality,
+        gates
+    ));
+}
+
+#[test]
+fn each_paint_certificate_threshold_is_part_of_the_frozen_gate_identity() {
+    let gates = M7ReleaseGates::from_file(&file("frozen")).expect("frozen values load");
+    let quality = calibration_for(gates.quality_calibration, gates);
+
+    let mut wrong_shift = quality.clone();
+    wrong_shift.maximum_evidence_palette_shift_codes += 1;
+    assert!(!confidence_fields_match(
+        &wrong_shift,
+        vice_core::Preset::Quality,
+        gates
+    ));
+
+    let mut wrong_support = quality.clone();
+    wrong_support.minimum_palette_support_px += 1;
+    assert!(!confidence_fields_match(
+        &wrong_support,
+        vice_core::Preset::Quality,
+        gates
+    ));
+
+    let mut wrong_interval = quality;
+    wrong_interval.maximum_palette_interval_radius_codes += 1;
+    assert!(!confidence_fields_match(
+        &wrong_interval,
         vice_core::Preset::Quality,
         gates
     ));

@@ -16,7 +16,7 @@ use crate::m7::governance::M7ThresholdSource;
 use crate::prereg::Preregistration;
 use crate::reliability::{risk_coverage, RenderOutcome, RiskCoverage};
 
-pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v8";
+pub const M7_RELEASE_VERDICT_SCHEMA: &str = "vice-classic/m7-release-verdict/v9";
 pub const M7_RUNTIME_RELEASE_BLOCKING: bool = false;
 pub const M7_RUNTIME_POLICY: &str = "provisional M7 research diagnostic on an isolated 512px run; \
                                      non-blocking for release, with bounded elapsed, memory, \
@@ -33,6 +33,9 @@ pub struct PresetCalibrationGates {
     pub empirical_unexplored_relative_mass_upper_bound: f64,
     pub max_posterior_predictive_bits_per_block: f64,
     pub max_support_isotopy_displacement_px: f64,
+    pub max_evidence_palette_shift_codes: u8,
+    pub min_palette_support_px: u64,
+    pub max_palette_interval_radius_codes: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -157,6 +160,25 @@ fn preset_calibration_gates(
             "m7_selective",
             &format!("{preset}_gate_max_support_isotopy_displacement_px"),
         )?,
+        max_evidence_palette_shift_codes: u64_gate(
+            gates,
+            "m7_selective",
+            &format!("{preset}_gate_max_evidence_palette_shift_codes"),
+        )?
+        .try_into()
+        .map_err(|_| format!("{preset} palette-shift gate does not fit u8"))?,
+        min_palette_support_px: u64_gate(
+            gates,
+            "m7_selective",
+            &format!("{preset}_gate_min_palette_support_px"),
+        )?,
+        max_palette_interval_radius_codes: u64_gate(
+            gates,
+            "m7_selective",
+            &format!("{preset}_gate_max_palette_interval_radius_codes"),
+        )?
+        .try_into()
+        .map_err(|_| format!("{preset} palette-interval gate does not fit u8"))?,
     })
 }
 
@@ -549,6 +571,11 @@ fn confidence_fields_match(
             == preset_gates.max_posterior_predictive_bits_per_block
         && calibration.maximum_support_isotopy_displacement_px
             == preset_gates.max_support_isotopy_displacement_px
+        && calibration.maximum_evidence_palette_shift_codes
+            == preset_gates.max_evidence_palette_shift_codes
+        && calibration.minimum_palette_support_px == preset_gates.min_palette_support_px
+        && calibration.maximum_palette_interval_radius_codes
+            == preset_gates.max_palette_interval_radius_codes
         && calibration.maximum_abs_residual_lag1 == gates.max_abs_residual_lag1
         && calibration.maximum_topology_entropy_bits == gates.max_topology_entropy_bits
         && calibration.maximum_formation_entropy_bits == gates.max_formation_entropy_bits
