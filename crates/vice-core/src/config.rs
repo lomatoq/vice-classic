@@ -417,9 +417,9 @@ struct ConfigIdentity<'a> {
 /// pre-freeze file fail closed. Fast and Quality have different search
 /// envelopes and therefore different config identities and calibrations.
 pub const M7_FAST_PRODUCTION_CONFIG_SHA256: &str =
-    "4f54f9097912129666b22241a649e50dfb88c23aa820e77efb06096c9be74153";
+    "af27972d98635708329f0ac8ebdaac588c9e8e047444278bc76a64638080b87f";
 pub const M7_QUALITY_PRODUCTION_CONFIG_SHA256: &str =
-    "c00dcb26db4c053b59f983bc575f7d57192e42eb931d78a8d1e8dca75cd6f59e";
+    "b4f720434b739b02325d341e95ce8427f5298e0e7915968a91d82c134c06b6d9";
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
