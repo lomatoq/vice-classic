@@ -1,0 +1,50 @@
+{
+  "schema": "vice-classic/m8-release/v1",
+  "candidate_sha": "fa83a2f38f9791bf5b11634f9b11365f645cc1f7",
+  "runner_sha256": "76dcc45341579d1e451ae9e95bb44152e3bebd62515f2f7d8d74b3a0ed79054a",
+  "court_sha256": "78d64b7c03854f31972a52068f49a55d4e8c82c1c32ad29ed55df93f01831028",
+  "calibration_sha256": "24e29e07c43fdc13c37fc601a068f7147af95d684a47bc891aa889415e5f3034",
+  "authority_sha256": "9a0f009ff3e2ea74f64a4fce69ef1f719f9fc3afddb88e739b450d7411d76e6a",
+  "reliability": {
+    "bucket": "m8_multiregion",
+    "groups_total": 600,
+    "groups_accepted": 497,
+    "groups_catastrophic": 0,
+    "coverage_per_source": 0.8283333333333334,
+    "renders_total": 600,
+    "renders_accepted": 497,
+    "coverage_per_render": 0.8283333333333334,
+    "catastrophic_risk_upper": 0.009223139488249432,
+    "confidence": 0.99,
+    "required_groups": 459,
+    "group_deficit": 0,
+    "contract_met": true,
+    "likelihood_refusal": null
+  },
+  "origin_summary": [
+    {
+      "origin": "adversarial",
+      "groups_total": 2,
+      "pipeline_accepted": 2,
+      "admitted": 2,
+      "catastrophic": 0
+    },
+    {
+      "origin": "authored",
+      "groups_total": 1,
+      "pipeline_accepted": 1,
+      "admitted": 1,
+      "catastrophic": 0
+    },
+    {
+      "origin": "procedural",
+      "groups_total": 597,
+      "pipeline_accepted": 555,
+      "admitted": 494,
+      "catastrophic": 0
+    }
+  ],
+  "gate_met": true,
+  "catastrophic_rows": 0,
+  "refusals": []
+}

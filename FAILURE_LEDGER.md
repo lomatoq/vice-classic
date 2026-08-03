@@ -5410,5 +5410,7 @@ summary.
 population/corpus/row validation, clean-HEAD plus build-SHA runner binding,
 four distinct executions, procedural/authored/adversarial splits with a
 per-origin coverage floor, V2 config-only authority, and a committed-policy
-production loader. Fresh calibration, sealed evidence and follow-up review are
-required; no generation-7 green claim exists yet.
+production loader. Its fresh calibration admitted 503/604 source groups and
+its untouched sealed court admitted 497/600, both with zero catastrophes; the
+sealed release is green and the full courts are committed. The follow-up cold
+review on the final clean SHA remains required before M8 acceptance.
