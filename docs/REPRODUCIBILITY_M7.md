@@ -1,65 +1,66 @@
 # Reproducing M7
 
-Run from a clean checkout of the exact release-candidate SHA on the pinned
-toolchain. M7 Tier-A floating/render artifacts require an exact same-platform
-comparison; `--structural` is only the declared cross-platform CI court.
+Use a clean checkout of the exact candidate SHA and the pinned Windows
+toolchain. Tier-A floating/render artifacts require the same platform.
 
-## Author barrier
+## Compact author barrier
 
 ```text
 cargo fmt --all --check
-cargo clippy --locked --workspace --all-targets --release -- -D warnings
-cargo test --locked --workspace
-cargo test --locked --workspace --release
-cargo test --locked --release -p vice-bench --test frozen_calibration -- --ignored
-cargo test --locked --release -p vice-bench --test dcel_harness -- --ignored
-cargo test --locked --release -p vice-topology --test dcel_props -- --ignored
-cargo test --locked --release -p vice-bench fit::tests::the_candidate_stage_over_the_corpus -- --ignored
-cargo test --locked --release -p vice-bench --test doc_claims
+cargo check --locked --workspace --all-targets
+cargo test --locked -p vice-bench --lib calibration_digest_
+cargo test --locked -p vice-bench --lib sealed_population_and_execution_are_exact_and_tamper_evident
+cargo test --locked -p vice-bench --lib determinism_requires_six_distinct_typed_executions
+cargo test --locked -p vice-bench --lib canonical_artifact_binds_every_green_component_and_identity
+cargo build --locked --workspace --release
 target/release/gt-corpus.exe verify --manifest docs/gt/CORPUS_MANIFEST.json
-target/release/gt-corpus.exe corridor-check --report docs/gt/CORRIDOR_M4.json
-target/release/gt-corpus.exe topology-check --report docs/gt/TOPOLOGY_M4_5.json
-target/release/gt-corpus.exe dcel-check --report docs/gt/DCEL_M5.json
-target/release/gt-corpus.exe geometry-m6-check --gates configs/GATES_V1.toml --report docs/gt/GEOMETRY_M6.json
 ```
 
-The complete generation-5 calibration and geometry commands, together with
-their output digests, are frozen as structured fields in
-`configs/M7_GATE_PROVENANCE_V1.toml`. They are not copied into prose as an
-independent source of truth.
+Generation-8 calibration commands and evidence digests are structured fields
+in `configs/M7_GATE_PROVENANCE_V1.toml`.
 
-## Anchored sealed release
+## Strict sealed release path
 
-Let `SHA` be the exact clean candidate, `ROOT` the canonical repository root,
-and `GIT` the canonical Git executable outside the repository. Build release
-`gt-corpus` and `vicec`, then create the ignored runner evidence:
+Create a runner attestation and open a byte-for-byte copy of the sealed record.
+Every logical run has one role and run ID shared by all its shards.
 
 ```text
-target/release/gt-corpus.exe m7-runner-attest --anchor-source reviewer_pinned --event-commit SHA --repository-root ROOT --git-executable GIT --vicec-executable ROOT/target/release/vicec.exe --gates configs/GATES_V1.toml --gate-provenance configs/M7_GATE_PROVENANCE_V1.toml --out runs/m7/final/runner-attestation.json
+target/release/gt-corpus.exe m7-runner-attest --anchor-source reviewer_pinned --event-commit SHA --repository-root ROOT --git-executable GIT --vicec-executable ROOT/target/release/vicec.exe --gates configs/GATES_V1.toml --gate-provenance configs/M7_GATE_PROVENANCE_V1.toml --out RUN/runner-attestation.json
+target/release/gt-corpus.exe m7-audit-open --runner-attestation RUN/runner-attestation.json --gate-provenance configs/M7_GATE_PROVENANCE_V1.toml --audit-seal RUN/AUDIT_SEAL_OPENED.json --manifest docs/gt/CORPUS_MANIFEST.json --gates configs/GATES_V1.toml --note SHA
 ```
 
-Copy `docs/gt/AUDIT_SEAL.json` byte-for-byte to
-`runs/m7/final/AUDIT_SEAL_OPENED.json` before opening it. The tracked sealed
-record remains immutable; the opened copy is the release evidence.
+Run `m7-audit-measure` for the six exact roles below. Isolated roles use one
+worker; parallel roles use two. Sharding is allowed, but every merged report
+must reconstruct exactly 800 groups and 2400 unique rows.
 
 ```text
-target/release/gt-corpus.exe m7-audit-open --runner-attestation runs/m7/final/runner-attestation.json --gate-provenance configs/M7_GATE_PROVENANCE_V1.toml --audit-seal runs/m7/final/AUDIT_SEAL_OPENED.json --manifest docs/gt/CORPUS_MANIFEST.json --gates configs/GATES_V1.toml --note SHA
-target/release/gt-corpus.exe m7-audit-measure --runner-attestation runs/m7/final/runner-attestation.json --gate-provenance configs/M7_GATE_PROVENANCE_V1.toml --audit-seal runs/m7/final/AUDIT_SEAL_OPENED.json --manifest docs/gt/CORPUS_MANIFEST.json --gates configs/GATES_V1.toml --production-config configs/M7_PRODUCTION_QUALITY.json --preset quality --workers 1 --out runs/m7/final/quality.json
-target/release/gt-corpus.exe m7-audit-measure --runner-attestation runs/m7/final/runner-attestation.json --gate-provenance configs/M7_GATE_PROVENANCE_V1.toml --audit-seal runs/m7/final/AUDIT_SEAL_OPENED.json --manifest docs/gt/CORPUS_MANIFEST.json --gates configs/GATES_V1.toml --production-config configs/M7_PRODUCTION_FAST.json --preset fast --workers 1 --out runs/m7/final/fast.json
+fast-primary     fast     1 worker
+fast-repeat      fast     1 worker
+fast-parallel    fast     2 workers
+quality-primary  quality  1 worker
+quality-repeat   quality  1 worker
+quality-parallel quality  2 workers
 ```
 
-Analyze the two complete reports with `m7-audit-analyze`, then run
-`m7-baseline-court`, `m7-oracle`, and `m7-determinism`; finally bind those four
-artifacts with `m7-canonical-artifact`. Each command exits nonzero on a failed
-gate. Exact options are printed by `target/release/gt-corpus.exe <command>
---help`; all governance-consuming commands use the same attestation, opened
-seal, manifest, gates and provenance paths above.
+Each invocation supplies the common governance arguments plus:
 
-## Review protocol
+```text
+--production-config CONFIG --preset PRESET --role ROLE --run-id UNIQUE_ID --workers N --shard-index I --shard-count COUNT --out REPORT
+```
 
-Create four independent temporary worktrees at the exact candidate SHA. Each
-reviewer starts cold, runs documented commands without author caches, checks a
-negative/adversarial case, and records the SHA and verdict. Required roles are
-two cold reviewers from different model families, one numerical/topology red
-team, and one release-quality audit. Any implementation or evidence edit
-invalidates all four verdicts.
+Then run release, baseline and oracle on the primary reports. Run determinism
+with its six named report options (`--fast-primary`, `--fast-repeat`,
+`--fast-parallel`, `--quality-primary`, `--quality-repeat`,
+`--quality-parallel`) and the same governance inputs. Finally run
+`m7-canonical-artifact`. Every court refuses a partial/substituted population,
+stale config, mixed candidate/runner/corpus, duplicate execution, changed row,
+or non-green renderer/geometry gate.
+
+## Recorded waiver
+
+The current closure intentionally does not execute the strict path after
+`fbd0a41`. The earlier generation-8 run stopped at 5091/14400 checkpointed rows
+and predates the evidence-binding repair. Per operator direction, those rows
+are neither resumed nor promoted. The reproducible current claim is therefore
+the compact author barrier plus generation-8 calibration, not a sealed release
+artifact.

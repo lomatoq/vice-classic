@@ -5328,3 +5328,47 @@ with their gate-producing commands and remained MET; the committed files are
 byte-identical to the new reports. All dependent M4 values were updated in one
 enumerated pass and `doc_claims` passed 7/7. Topology, DCEL, corridor, geometry
 and full corpus replay are part of the single final author barrier.
+
+## F-0150 — M7 courts trusted incomplete and weakly bound evidence (generation-8 final review, 2026-08-03)
+
+**Found by.** The single independent final review after generation-8
+calibration and during the sealed court.
+
+**What happened.** Five related P1 defects survived the earlier matrix: the
+calibration digest omitted policy-driving row fields; court completeness could
+be self-declared; determinism could reuse executions; geometry refusals could
+shrink the recovery denominator while the independent renderer report was not
+release-blocking; and final components did not all bind candidate, runner,
+config, corpus, population, command, journal, rows and report bytes.
+
+**Class rule.** A release court must reconstruct its population independently,
+name every logical execution by a distinct typed role and ID, and bind every
+claim input through the canonical artifact. Diagnostic telemetry may be
+excluded from a calibration identity; decision-driving evidence may not.
+
+**Status.** Closed in `fbd0a41` as one consolidated repair. Measurement schema
+v24 requires an execution attestation and the compiled 800-group/2400-row
+population commitment. Six exact determinism roles are mandatory. Geometry
+uses the exact 11-fixture identity with refusals in the denominator, and the
+renderer gate table is conjunctive. Calibration, population, tamper,
+determinism and canonical-binding regressions pass. The two already-complete
+1809-row generation-8 calibration reports were re-analysed under v24; only
+their expanded evidence digests and the exact production-config anchors
+changed, while both calibrated policies and all green metrics remained equal.
+
+## F-0151 — Operator waived the post-repair sealed court and full review protocol (M7 closure, 2026-08-03)
+
+**Found by.** Explicit operator direction after the generation-8 court had
+checkpointed 5091 of 14400 rows and F-0150 required production changes.
+
+**What happened.** F-0150 invalidated every pre-repair checkpoint as release
+evidence. The strict runbook therefore required a new clean candidate,
+attestation, seal/open cycle, six complete runs, four component verdicts and
+the specified independent review protocol. The operator instead directed no
+further court reruns and exactly one short final cold review.
+
+**Status.** Accepted as a procedure waiver, not converted into a false green
+claim. `STATUS_M7.md` labels the result engineering-complete under waiver;
+M7-29–36 and the final M7-39 artifact remain unverified after the repair. The
+strict commands remain documented in `REPRODUCIBILITY_M7.md` if the waiver is
+later withdrawn.
