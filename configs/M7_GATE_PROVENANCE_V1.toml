@@ -1,22 +1,25 @@
 schema = "vice-classic/m7-gate-provenance/v2"
 status = "frozen"
 milestone = "M7"
-source_commit_sha = "a64a6d86cf83e4b1aa91d676ee394594102f711c"
-quality_calibration_measurement_sha256 = "421eb78fa5efb6eb5965aa46a10a9f5be8914958cb58a16a31fd37b663ac7254"
-fast_calibration_measurement_sha256 = "9fcb7a23f5e921beba4ae8c5ea259b5009fc9d7952a3a286a07afdbfb762f083"
+source_commit_sha = "a6c299526be60c5b008ca570a0e0362c6a4863a3"
+quality_calibration_measurement_sha256 = "ce09ab858313f48714831907c9aa3cb3f6c909175abb3ef685dfe03bff8d6b30"
+fast_calibration_measurement_sha256 = "cbed19ee9494cfe9f285183c3c23752a0f67861dd4889b6ae867d0dcf3810591"
 geometry_measurement_sha256 = "1c6bc17e43b066aba27cdb1db40381638c7a7d05b1cb5295278e77623946c1e8"
-quality_production_config_sha256 = "c00dcb26db4c053b59f983bc575f7d57192e42eb931d78a8d1e8dca75cd6f59e"
-fast_production_config_sha256 = "4f54f9097912129666b22241a649e50dfb88c23aa820e77efb06096c9be74153"
-quality_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset quality --workers 1 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
-fast_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset fast --workers 1 --shard-count 8 for shards 0..7; m7-merge all eight complete reports"
+quality_production_config_sha256 = "b4f720434b739b02325d341e95ce8427f5298e0e7915968a91d82c134c06b6d9"
+fast_production_config_sha256 = "af27972d98635708329f0ac8ebdaac588c9e8e047444278bc76a64638080b87f"
+quality_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset quality --workers 1 --shard-index I --shard-count 8 --out runs/m7/calibration-generation8/quality-shard-I.json for I=0..7; target/release/gt-corpus.exe m7-merge --inputs eight complete shards --out runs/m7/calibration-generation8/quality-merged.json"
+fast_calibration_command = "target/release/gt-corpus.exe m7-measure --scope calibration --preset fast --workers 1 --shard-index I --shard-count 8 --out runs/m7/calibration-generation8/fast-shard-I.json for I=0..7; target/release/gt-corpus.exe m7-merge --inputs eight complete shards --out runs/m7/calibration-generation8/fast-merged.json"
 geometry_command = "target/release/gt-corpus.exe m7-oracle-geometry-calibrate --out runs/m7/calibration-generation5-geometry.json"
 asserted_gate_keys = [
   "boundary_accuracy.max_px",
   "boundary_accuracy.p95_px",
   "boundary_accuracy.p99_px",
   "m7_selective.fast_empirical_unexplored_relative_mass_upper_bound",
+  "m7_selective.fast_gate_max_evidence_palette_shift_codes",
+  "m7_selective.fast_gate_max_palette_interval_radius_codes",
   "m7_selective.fast_gate_max_posterior_predictive_bits_per_block",
   "m7_selective.fast_gate_max_support_isotopy_displacement_px",
+  "m7_selective.fast_gate_min_palette_support_px",
   "m7_selective.fast_posterior_lower_bound_threshold",
   "m7_selective.gate_max_abs_residual_lag1",
   "m7_selective.gate_max_blind_one_sided_p_value",
@@ -43,7 +46,10 @@ asserted_gate_keys = [
   "m7_selective.gate_min_source_coverage_128_512",
   "m7_selective.gate_min_top2_class_margin_bits",
   "m7_selective.quality_empirical_unexplored_relative_mass_upper_bound",
+  "m7_selective.quality_gate_max_evidence_palette_shift_codes",
+  "m7_selective.quality_gate_max_palette_interval_radius_codes",
   "m7_selective.quality_gate_max_posterior_predictive_bits_per_block",
   "m7_selective.quality_gate_max_support_isotopy_displacement_px",
+  "m7_selective.quality_gate_min_palette_support_px",
   "m7_selective.quality_posterior_lower_bound_threshold",
 ]
