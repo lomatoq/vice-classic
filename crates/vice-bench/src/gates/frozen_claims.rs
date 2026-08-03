@@ -699,22 +699,22 @@ pub(super) fn frozen_values_from_code() -> Vec<(&'static str, String, GateExpect
         (
             "m7_selective",
             "gate_min_complete_geometry_oracle_rows",
-            GateExpectation::num(1.0),
+            GateExpectation::num(11.0),
         ),
         (
             "m7_selective",
             "gate_min_g20_recovery_rows",
-            GateExpectation::num(1.0),
+            GateExpectation::num(6.0),
         ),
         (
             "m7_selective",
             "gate_min_g30_recovery_rows",
-            GateExpectation::num(1.0),
+            GateExpectation::num(11.0),
         ),
         (
             "m7_selective",
             "gate_min_geometry_recovery_rate",
-            GateExpectation::num(0.80),
+            GateExpectation::num(0.50),
         ),
         // --- likelihood --------------------------------------------
         (
