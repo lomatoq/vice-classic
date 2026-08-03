@@ -94,7 +94,7 @@ pub enum MultiregionSeedError {
 pub fn propose_multiregion_seeds(
     png_bytes: &[u8],
 ) -> Result<MultiregionSeedReport, MultiregionSeedError> {
-    let image = CanonicalImage::decode_png(png_bytes, &DecodeLimits::default())?;
+    let image = CanonicalImage::decode(png_bytes, &DecodeLimits::default())?;
     propose_from_image(&image, &MULTIREGION_PAINT_CONFIG_V1)
 }
 

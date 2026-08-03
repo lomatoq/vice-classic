@@ -3,6 +3,7 @@
 mod candidate;
 mod config;
 mod m8;
+mod m9;
 mod p1;
 mod pipeline;
 mod scene;
@@ -15,6 +16,10 @@ pub use config::{
     M7_QUALITY_PRODUCTION_CONFIG_SHA256,
 };
 pub use m8::*;
+pub use m9::{
+    inspect_m9_formation, score_m9_formation, score_m9_formation_calibrated, M9FormationError,
+    M9FormationInspection, M9FormationScore, M9_INSPECTION_SCHEMA, M9_SCORE_SCHEMA,
+};
 pub use p1::{
     correct_multiregion_partition, inspect_multiregion_partition, P1CorrectionError,
     P1CorrectionOutcome, P1CorrectionReport, P1PartitionRegion, P1PartitionSnapshot,

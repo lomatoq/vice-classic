@@ -29,7 +29,7 @@ pub(super) fn prepare_input(
         && request.milestone_debug.is_none()
         && request.oracle_override.is_none();
     let image =
-        match vice_image::CanonicalImage::decode_png(bytes, &vice_image::DecodeLimits::default()) {
+        match vice_image::CanonicalImage::decode(bytes, &vice_image::DecodeLimits::default()) {
             Ok(image) => image,
             Err(error) => {
                 refuse_input!(

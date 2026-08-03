@@ -9,6 +9,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod codec;
 pub mod likelihood;
 pub mod multiregion;
 pub mod posterior;
@@ -17,6 +18,12 @@ pub mod transaction;
 pub mod trust_region;
 pub mod universe;
 
+pub use codec::{
+    calibrated_codec_likelihood_config, measure_codec_residual, score_codec_residual,
+    CodecLikelihoodConfig, CodecLikelihoodError, CodecLikelihoodReport,
+    CodecResidualCalibrationStats, CLEAN_CODEC_LIKELIHOOD_CONFIG_V1, CODEC_LIKELIHOOD_SCHEMA,
+    JPEG_CODEC_LIKELIHOOD_CONFIG_V1, WEBP_CODEC_LIKELIHOOD_CONFIG_V1,
+};
 pub use likelihood::{
     score_full_resolution, score_full_resolution_scope, score_full_resolution_scope_with_tensor,
     score_full_resolution_scope_with_workspace, score_serialized_full_resolution,

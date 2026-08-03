@@ -176,7 +176,7 @@ pub fn seal_multiregion_delivery(
     cfg: &M8DeliveryConfig,
 ) -> Result<M8DeliveryArtifacts, M8DeliveryError> {
     validate_config(cfg)?;
-    let image = CanonicalImage::decode_png(png_bytes, &DecodeLimits::default())?;
+    let image = CanonicalImage::decode(png_bytes, &DecodeLimits::default())?;
     if image.source_sha256() != solved.report.source_sha256 {
         return Err(M8DeliveryError::SourceMismatch);
     }

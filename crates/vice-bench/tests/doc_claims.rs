@@ -1106,6 +1106,13 @@ fn every_status_document_is_classified_or_excepted_with_a_reason() {
              editor gate must introduce its own positional evidence tier",
             "M9",
         ),
+        (
+            "docs/STATUS_M9.md",
+            "M9 has no numerical acceptance gate in section 28; calibrated values are bound in \
+             the structured M9 formation artifact and executable fixture tests, while this status \
+             is a concise implementation contract",
+            "M10",
+        ),
     ];
 
     let mut classified: Vec<String> = CLAUSE_ROWS.iter().map(|(d, _)| (*d).to_string()).collect();

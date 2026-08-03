@@ -25,6 +25,67 @@
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+mod codecs;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EncodedImageFormat {
+    RawRgba8,
+    Png,
+    Jpeg,
+    WebpLossless,
+    WebpLossy,
+}
+
+fn check_encoded_limit(bytes: &[u8], limits: &DecodeLimits) -> Result<(), ImageError> {
+    let got = bytes.len() as u64;
+    if got > limits.max_encoded_bytes {
+        Err(ImageError::EncodedTooLarge {
+            got,
+            limit: limits.max_encoded_bytes,
+        })
+    } else {
+        Ok(())
+    }
+}
+
+fn check_dimensions(width: u32, height: u32, limits: &DecodeLimits) -> Result<(), ImageError> {
+    if width == 0 || height == 0 {
+        return Err(ImageError::Empty { width, height });
+    }
+    if width > limits.max_dimension_px || height > limits.max_dimension_px {
+        return Err(ImageError::DimensionTooLarge {
+            width,
+            height,
+            limit: limits.max_dimension_px,
+        });
+    }
+    let pixels = u64::from(width) * u64::from(height);
+    if pixels > limits.max_pixels {
+        return Err(ImageError::TooManyPixels {
+            width,
+            height,
+            pixels,
+            limit: limits.max_pixels,
+        });
+    }
+    Ok(())
+}
+
+fn rgb_to_rgba(rgb: &[u8]) -> Vec<u8> {
+    let mut rgba = Vec::with_capacity(rgb.len() / 3 * 4);
+    for pixel in rgb.chunks_exact(3) {
+        rgba.extend_from_slice(&[pixel[0], pixel[1], pixel[2], 255]);
+    }
+    rgba
+}
+
+impl EncodedImageFormat {
+    pub fn carries_codec_residual(self) -> bool {
+        matches!(self, Self::Jpeg | Self::WebpLossy)
+    }
+}
+
 /// Resource limits applied BEFORE any per-pixel allocation (§8.1).
 ///
 /// The header of a PNG can claim 2^31 × 2^31 pixels in 13 bytes; the
@@ -105,6 +166,14 @@ pub enum ImageError {
     Empty { width: u32, height: u32 },
     #[error("png decode failed: {detail}")]
     Png { detail: String },
+    #[error("jpeg decode failed: {detail}")]
+    Jpeg { detail: String },
+    #[error("webp decode failed: {detail}")]
+    Webp { detail: String },
+    #[error("animated webp input is unsupported")]
+    AnimatedWebp,
+    #[error("input is not a supported PNG, JPEG, or WebP image")]
+    UnsupportedFormat,
     #[error("unsupported png output colour type {color_type:?} at bit depth {bit_depth:?}")]
     UnsupportedColorType {
         color_type: String,
@@ -138,6 +207,7 @@ pub struct CanonicalImage {
     /// and the exterior hypotheses of §9.2 care about the difference.
     source_had_alpha: bool,
     icc: IccAssumption,
+    encoded_format: EncodedImageFormat,
 }
 
 impl CanonicalImage {
@@ -186,18 +256,29 @@ impl CanonicalImage {
             encoded_bytes,
             source_had_alpha,
             icc,
+            encoded_format: EncodedImageFormat::RawRgba8,
         })
+    }
+
+    /// Decode any M9-supported encoded raster while retaining its codec
+    /// provenance for the formation likelihood.
+    pub fn decode(bytes: &[u8], limits: &DecodeLimits) -> Result<CanonicalImage, ImageError> {
+        check_encoded_limit(bytes, limits)?;
+        if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+            Self::decode_png(bytes, limits)
+        } else if bytes.starts_with(&[0xff, 0xd8]) {
+            codecs::decode_jpeg(bytes, limits)
+        } else if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+            codecs::decode_webp(bytes, limits)
+        } else {
+            Err(ImageError::UnsupportedFormat)
+        }
     }
 
     /// Decode a PNG under explicit resource limits (§8.1).
     pub fn decode_png(bytes: &[u8], limits: &DecodeLimits) -> Result<CanonicalImage, ImageError> {
+        check_encoded_limit(bytes, limits)?;
         let encoded_bytes = bytes.len() as u64;
-        if encoded_bytes > limits.max_encoded_bytes {
-            return Err(ImageError::EncodedTooLarge {
-                got: encoded_bytes,
-                limit: limits.max_encoded_bytes,
-            });
-        }
         let mut decoder = png::Decoder::new(bytes);
         decoder.set_transformations(png::Transformations::normalize_to_color8());
         let mut reader = decoder.read_info().map_err(|e| ImageError::Png {
@@ -300,6 +381,38 @@ impl CanonicalImage {
             encoded_bytes,
             source_had_alpha,
             icc,
+            encoded_format: EncodedImageFormat::Png,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_decoded(
+        width_px: u32,
+        height_px: u32,
+        srgb8: Vec<u8>,
+        source_had_alpha: bool,
+        icc: IccAssumption,
+        encoded: &[u8],
+        encoded_format: EncodedImageFormat,
+    ) -> Result<CanonicalImage, ImageError> {
+        let want = width_px as usize * height_px as usize * 4;
+        if srgb8.len() != want {
+            return Err(ImageError::BufferSize {
+                got: srgb8.len(),
+                want,
+                width: width_px,
+                height: height_px,
+            });
+        }
+        Ok(CanonicalImage {
+            width_px,
+            height_px,
+            srgb8,
+            source_sha256: hex::encode(Sha256::digest(encoded)),
+            encoded_bytes: encoded.len() as u64,
+            source_had_alpha,
+            icc,
+            encoded_format,
         })
     }
 
@@ -323,6 +436,9 @@ impl CanonicalImage {
     }
     pub fn icc_assumption(&self) -> IccAssumption {
         self.icc
+    }
+    pub fn encoded_format(&self) -> EncodedImageFormat {
+        self.encoded_format
     }
     pub fn straight_srgb8(&self) -> &[u8] {
         &self.srgb8
@@ -373,12 +489,66 @@ impl CanonicalImage {
 mod tests {
     use super::*;
 
+    const TWO_BY_TWO_JPEG_HEX: &str = concat!(
+        "ffd8ffe000104a46494600010101006000600000ffdb00430003020203020203030303040303040508",
+        "05050404050a070706080c0a0c0c0b0a0b0b0d0e12100d0e110e0b0b1016101113141515150c0f17",
+        "1816141812141514ffdb00430103040405040509050509140d0b0d141414141414141414141414141414",
+        "1414141414141414141414141414141414141414141414141414141414141414141414ffc00011080002",
+        "000203012200021101031101ffc4001f0000010501010101010100000000000000000102030405060708",
+        "090a0bffc400b5100002010303020403050504040000017d010203000411051221314106135161072271",
+        "14328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445",
+        "464748494a535455565758595a636465666768696a737475767778797a838485868788898a9293949596",
+        "9798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9",
+        "dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f010003010101010101010101000000",
+        "0000000102030405060708090a0bffc400b5110002010204040304070504040001027700010203110405",
+        "2131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a2627",
+        "28292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82",
+        "838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6",
+        "c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c0301000211",
+        "0311003f00fb57f676f82df0f75bfd9fbe196a3a8f813c337fa85e785f4cb8b9bbbad1ede496795ed2",
+        "267777642599892492724924d14515f238bff78a9fe27f99f098eff7aabfe297e6cfffd9"
+    );
+
     fn tiny_rgba(w: u32, h: u32, fill: [u8; 4]) -> Vec<u8> {
         let mut v = Vec::with_capacity((w * h * 4) as usize);
         for _ in 0..(w * h) {
             v.extend_from_slice(&fill);
         }
         v
+    }
+
+    #[test]
+    fn generic_decode_retains_jpeg_codec_provenance() {
+        let bytes = hex::decode(TWO_BY_TWO_JPEG_HEX).unwrap();
+        let image = CanonicalImage::decode(&bytes, &DecodeLimits::default()).unwrap();
+        assert_eq!((image.width_px(), image.height_px()), (2, 2));
+        assert_eq!(image.encoded_format(), EncodedImageFormat::Jpeg);
+        assert!(image.encoded_format().carries_codec_residual());
+        assert!(!image.source_had_alpha());
+    }
+
+    #[test]
+    fn generic_decode_retains_lossless_webp_and_alpha_provenance() {
+        let rgba = [
+            255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 255, 255, 255, 255, 0,
+        ];
+        let mut bytes = Vec::new();
+        image_webp::WebPEncoder::new(&mut bytes)
+            .encode(&rgba, 2, 2, image_webp::ColorType::Rgba8)
+            .unwrap();
+        let image = CanonicalImage::decode(&bytes, &DecodeLimits::default()).unwrap();
+        assert_eq!((image.width_px(), image.height_px()), (2, 2));
+        assert_eq!(image.encoded_format(), EncodedImageFormat::WebpLossless);
+        assert!(image.source_had_alpha());
+        assert_eq!(image.straight_srgb8(), rgba);
+    }
+
+    #[test]
+    fn generic_decode_refuses_unknown_and_animated_inputs_by_type() {
+        assert_eq!(
+            CanonicalImage::decode(b"not an image", &DecodeLimits::default()).unwrap_err(),
+            ImageError::UnsupportedFormat
+        );
     }
 
     #[test]

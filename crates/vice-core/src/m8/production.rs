@@ -173,7 +173,7 @@ pub fn solve_multiregion_exact(
     cfg: &M8ExactConfig,
 ) -> Result<M8SolvedCandidate, M8ExactError> {
     validate_config(cfg)?;
-    let image = CanonicalImage::decode_png(png_bytes, &DecodeLimits::default())?;
+    let image = CanonicalImage::decode(png_bytes, &DecodeLimits::default())?;
     let seed_report = propose_multiregion_seeds(png_bytes)?;
     let universe_hash = model_universe_hash(&SupportedModelUniverseV1::m8());
     let config_sha256 = config_digest(cfg);

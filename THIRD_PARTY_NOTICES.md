@@ -1,6 +1,6 @@
 # Third-party notices — vice-classic
 
-Status date: 2026-07-26 (M2).
+Status date: 2026-08-03 (M9).
 
 ## 1. Pinned donor repositories (NOT vendored, NOT linked in M0)
 
@@ -59,6 +59,17 @@ metadata.
 | proptest | 1.11.0 | MIT OR Apache-2.0 (LICENSE-MIT + LICENSE-APACHE shipped) | vice-geom, vice-ir (dev-dependency only) | Property testing. Not linked into shipped binaries. |
 
 Transitive dependencies are pinned by the committed `Cargo.lock`.
+
+## 2f. Rust image decoders added to the shipped M9 path
+
+Licenses were checked against the actual registry packages and their shipped
+license files. All three are consumed unmodified; no donor source was copied.
+
+| Crate | Version | License | Role |
+|---|---|---|---|
+| image-webp | 0.2.4 | MIT OR Apache-2.0 | safe lossless/lossy WebP decode |
+| zune-jpeg | 0.4.21 | MIT OR Apache-2.0 OR Zlib | safe JPEG decode; unsafe fast paths disabled by vice-image |
+| zune-core | 0.4.12 | MIT OR Apache-2.0 OR Zlib | zune-jpeg configuration and colorspace support |
 
 ## 2b. Rust crate dependencies added in M2
 

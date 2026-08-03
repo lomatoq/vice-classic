@@ -200,7 +200,7 @@ fn selected_region_scene(
     png_bytes: &[u8],
     cfg: &M8ExactConfig,
 ) -> Result<(CanonicalImage, MultiregionSeed, RegionScene), P1CorrectionError> {
-    let image = CanonicalImage::decode_png(png_bytes, &DecodeLimits::default())?;
+    let image = CanonicalImage::decode(png_bytes, &DecodeLimits::default())?;
     let solved = solve_multiregion_exact(png_bytes, cfg)?;
     let seed_id = solved.report.selected.seed_id;
     let seed = propose_multiregion_seeds(png_bytes)?

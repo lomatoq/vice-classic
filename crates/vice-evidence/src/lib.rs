@@ -47,6 +47,7 @@ pub mod analysis;
 pub mod boundary;
 pub mod corridor;
 pub mod formation;
+pub mod formation_m9;
 pub mod interior;
 pub mod mixture;
 pub mod multicolor;
@@ -69,6 +70,12 @@ pub use formation::{
     blend_space_is_identifiable, enumerate as enumerate_formations, filter_is_identifiable,
     filter_penalty, for_palette, formation_id, resolved_fraction, transition_width_px, FAMILY_SIZE,
     KERNEL_PROFILES_V1, MIN_RESOLVED_FRACTION,
+};
+pub use formation_m9::{
+    codec_residual_for_format, enumerate_m9, estimate_global_kernel,
+    estimate_global_kernel_from_alpha, formation_m9_id, ExtendedFormationHypothesis,
+    GlobalKernelEstimate, KernelCandidate, KernelEstimationError, M9KernelProfile,
+    M9_FORMATION_SCHEMA, M9_GAUSSIAN_SIGMAS_PX, M9_KERNEL_PROFILES_V1,
 };
 pub use interior::{interior_confidence, InteriorConfidence, InteriorConfig, INTERIOR_CONFIG_V1};
 pub use mixture::{

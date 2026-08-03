@@ -46,6 +46,30 @@ pub enum QuantizationModel {
     Uint8,
 }
 
+/// Global post-raster resize history introduced by M9. It is image-global;
+/// a per-edge or per-face resize chain is not representable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum ResizeChain {
+    None,
+    DownFrom2x,
+    UpFromHalf,
+}
+
+impl ResizeChain {
+    pub const ALL: [Self; 3] = [Self::None, Self::DownFrom2x, Self::UpFromHalf];
+}
+
+/// Correlation structure used by the M9 residual likelihood. This is
+/// global source-formation metadata, never a per-edge noise model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum CodecResidualModel {
+    CleanCorrelation,
+    JpegDct8x8,
+    WebpTransform4x4,
+}
+
 /// How the world outside the visible partition is composited in the
 /// observation (spec §10.1: transparent or opaque exterior).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -213,7 +213,7 @@ fn run() -> i32 {
                     return 2;
                 }
             };
-            let img = match CanonicalImage::decode_png(&bytes, &DecodeLimits::default()) {
+            let img = match CanonicalImage::decode(&bytes, &DecodeLimits::default()) {
                 Ok(v) => v,
                 Err(e) => {
                     eprintln!("error: decode {}: {e}", input.display());

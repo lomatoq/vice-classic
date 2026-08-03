@@ -54,7 +54,8 @@ pub use graph::{
 };
 pub use interference::{uncertified_interference_pairs, UncertifiedPair};
 pub use scene::{
-    Canvas, ExteriorModel, GlobalFormationHypothesis, PixelFilter, QuantizationModel, VectorScene,
+    Canvas, CodecResidualModel, ExteriorModel, GlobalFormationHypothesis, PixelFilter,
+    QuantizationModel, ResizeChain, VectorScene,
 };
 pub use validate::{
     validate_graph, validate_scene, ChainPointRef, GraphError, SceneError, ValidatedScene,

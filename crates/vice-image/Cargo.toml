@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 hex = "0.4"
+image-webp = "0.2.4"
 # Already a dependency of the workspace (vice-bench, M0) and recorded in
 # THIRD_PARTY_NOTICES; no NEW third-party crate enters the tree here.
 png = "0.17"
@@ -17,3 +18,5 @@ serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
 thiserror = "2"
 vice-ir = { path = "../vice-ir" }
+zune-core = "0.4.12"
+zune-jpeg = "0.4.21"

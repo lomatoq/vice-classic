@@ -26,6 +26,7 @@ pub mod certified;
 pub mod coverage;
 pub mod domain;
 pub mod embedding;
+pub mod formation;
 pub mod junction;
 pub mod mesh;
 pub mod partition;
@@ -37,6 +38,7 @@ pub use certified::CertifiedMesh;
 pub use coverage::{polygon_coverage, CoverageError};
 pub use domain::NumericDomain;
 pub use embedding::verify_embedding;
+pub use formation::{render_partition_formed, FormationRenderError};
 pub use junction::{
     certify_junction_fractions, JunctionCertificateError, JunctionFractionCertificate,
     JunctionFractionSample, JUNCTION_FRACTION_SCHEMA,

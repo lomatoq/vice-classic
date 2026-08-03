@@ -51,6 +51,7 @@ use vice_bench::gt::legal::{LegalCell, LegalProfile};
 use vice_bench::gt::raster::{Psf, ViewTransform};
 use vice_evidence::analysis::{analyze_full, ANALYSIS_CONFIG_V1};
 use vice_evidence::formation::{filters_within_margin, transition_width_px, KERNEL_PROFILES_V1};
+use vice_evidence::M9_KERNEL_PROFILES_V1;
 use vice_image::{CanonicalImage, IccAssumption};
 use vice_ir::BlendSpace;
 
@@ -208,6 +209,95 @@ fn the_kernel_profile_table_matches_the_corpus() {
         "at the triangle's own width exactly box and triangle are admissible"
     );
 }
+
+fn check_m9_kernel_profile(sigma_px: f64, size: u32, stride: usize) {
+    let population = frozen_calibration_population().unwrap();
+    let scenes = population.first_scenes();
+    let supersample = population
+        .legal_profiles()
+        .into_iter()
+        .find(|profile| profile.as_str() == "supersample")
+        .expect("the legal development population carries the PSF instrument");
+    let profile = M9_KERNEL_PROFILES_V1
+        .iter()
+        .find(|profile| profile.sigma_px == sigma_px)
+        .expect("requested M9 sigma is in the frozen table");
+    let mut widths = Vec::new();
+    let mut unresolved = 0usize;
+    for scene in scenes.iter().step_by(stride) {
+        let cell = LegalCell::at(
+            &supersample,
+            size,
+            Psf::Gaussian { sigma_px },
+            BlendSpace::LinearLight,
+            ResizeChain::None,
+            1.0,
+        );
+        let Ok(render) = scene.render(&cell) else {
+            continue;
+        };
+        let image = CanonicalImage::from_straight_srgb8(
+            render.width_px(),
+            render.height_px(),
+            render.rgba8().to_vec(),
+            true,
+            IccAssumption::NoProfileAssumedSrgb,
+        )
+        .unwrap();
+        let Some(evidence) = analyze_full(&image, &ANALYSIS_CONFIG_V1, None).chosen else {
+            continue;
+        };
+        if !vice_evidence::formation::filter_is_identifiable(evidence.alpha_field()) {
+            unresolved += 1;
+            continue;
+        }
+        let contour = vice_evidence::boundary::contour_length_px(
+            evidence.alpha_field(),
+            evidence.width_px() as usize,
+            evidence.height_px() as usize,
+            0.5,
+        );
+        widths.push(transition_width_px(evidence.alpha_field(), contour));
+    }
+    assert!(!widths.is_empty(), "sigma {sigma_px} has no resolved arms");
+    let mean = widths.iter().sum::<f64>() / widths.len() as f64;
+    let sd = (widths
+        .iter()
+        .map(|width| (width - mean).powi(2))
+        .sum::<f64>()
+        / widths.len() as f64)
+        .sqrt();
+    println!(
+        "m9 sigma {sigma_px:.2}: width {mean:.3} sd {sd:.3}, n={}, unresolved={unresolved}",
+        widths.len()
+    );
+    assert!(
+        (mean - profile.width_px).abs() <= 2.0 * profile.sd_px,
+        "sigma {sigma_px} measured width {mean:.3} outside {:.3} +- 2*{:.3}",
+        profile.width_px,
+        profile.sd_px
+    );
+    assert!(
+        sd <= 2.0 * profile.sd_px,
+        "sigma {sigma_px} measured sd {sd:.3} exceeds 2*{:.3}",
+        profile.sd_px
+    );
+}
+
+macro_rules! m9_kernel_court {
+    ($name:ident, $sigma:expr, $size:expr, $stride:expr) => {
+        #[test]
+        #[ignore = "corpus-wide M9 kernel measurement; run in release"]
+        fn $name() {
+            check_m9_kernel_profile($sigma, $size, $stride);
+        }
+    };
+}
+
+m9_kernel_court!(m9_kernel_sigma_035_matches_legal_population, 0.35, 32, 2);
+m9_kernel_court!(m9_kernel_sigma_075_matches_legal_population, 0.75, 32, 2);
+m9_kernel_court!(m9_kernel_sigma_150_matches_legal_population, 1.5, 64, 2);
+m9_kernel_court!(m9_kernel_sigma_200_matches_legal_population, 2.0, 64, 4);
 
 /// The clean-bucket noise scale of `configs/GATES_V1.toml` `[noise_scales]`,
 /// MEASURED (spec §17.1: "noise scales freeze per dev/formation bucket").

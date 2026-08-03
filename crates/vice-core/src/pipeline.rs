@@ -231,7 +231,7 @@ pub fn vectorize_with_production_config(
             // Decode failures are faults in the input, independent of release
             // configuration availability. Preserve that typed outcome while
             // still making every decodable input fail closed on the config.
-            if vice_image::CanonicalImage::decode_png(bytes, &vice_image::DecodeLimits::default())
+            if vice_image::CanonicalImage::decode(bytes, &vice_image::DecodeLimits::default())
                 .is_err()
             {
                 return vectorize_impl(bytes, request, &config, None, false, None);

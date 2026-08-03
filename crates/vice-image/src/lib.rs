@@ -35,7 +35,7 @@
 pub mod decode;
 pub mod observation;
 
-pub use decode::{CanonicalImage, DecodeLimits, IccAssumption, ImageError};
+pub use decode::{CanonicalImage, DecodeLimits, EncodedImageFormat, IccAssumption, ImageError};
 pub use observation::{
     dot, mix, norm, paint_observation_premul, sub, ObservationTensor, TensorSummary, CHANNELS,
     TRANSPARENT_EXTERIOR_PREMUL,
