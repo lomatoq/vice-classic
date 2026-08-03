@@ -1,0 +1,23 @@
+schema = "vice-classic/m8-gate-provenance/v2"
+status = "calibration_frozen_sealed_pending"
+feature_sha = "ad164c239e8c7c4d3c455d1f2d817c4465b5b67c"
+procedural_generation = 7
+variants_per_family = 650
+cluster_size = 5
+runner_sha256 = "75db9a9da3dadf16480ef132b20e9530106d8a49230b7413925e4b32f42bfb82"
+calibration_artifact_sha256 = "4756b2da60ca9c67eda1e89e8ee4fb938eb1d8fe3769317a1ac15bcfe7cff4ee"
+calibration_court_sha256 = "fb60027b0de92f28aae548f0dac81653c85f883c3f306415f688edbef7a6bc8b"
+calibration_corpus_commitment_sha256 = "ec4d08989388186222b917190c60c55d9df96df94bdbe72ac50ce6dabfe6ff26"
+model_universe_sha256 = "aa2c4b0e81801f6cae861cdd60c52a7dd359e6da00389a3ddedc4514c818b70e"
+exact_config_sha256 = "458a0225e3685f2c2f8612bfcd4043e6fe658075092aa2e7a596d70bf7d4a749"
+
+[gates]
+boundary_p95_px = 1.25
+boundary_p99_px = 1.5
+boundary_max_px = 1.75
+paint_delta_codes = 0
+profile_max_channel_delta = 1
+profile_mean_channel_delta = 0.00006103515625
+internal_max_channel_delta = 64
+internal_mean_channel_delta = 0.0078125
+runtime_p95_ms = 3771
